@@ -604,7 +604,10 @@ export interface RequirementData {
   lineNumber: number;
   importantLineStart: number;
   importantLineEnd: number;
-  coverageStatus: "covered" | "partially-covered" | "uncovered";
+  coverageStatus: any;
+  expectedLines: any;
+  actualLines: any;
+  fullData: any;
 }
 
 // State Management

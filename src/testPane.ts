@@ -186,6 +186,7 @@ function addTestNodes(
     testNodeForCache.testName = testName;
     testNodeForCache.testFile = testData.testFile;
     testNodeForCache.testStartLine = testData.testStartLine;
+    testNodeForCache.notes = testData.notes;
     addTestNodeToCache(testNodeID, testNodeForCache);
 
     globalTestStatusArray[testNodeID] = testData;

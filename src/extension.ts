@@ -138,6 +138,7 @@ import {
   RequirementData,
   requirementsFileWatcher,
   updateRequirementsAvailability,
+  spawnWithVcastEnv,
 } from "./requirements/requirementsUtils";
 
 import {
@@ -146,7 +147,11 @@ import {
   generateTestsFromRequirements,
   importRequirementsFromGateway,
   initializeReqs2X,
+  LLM2CHECK_EXECUTABLE_PATH,
+  logCliError,
+  logCliOperation,
   populateRequirementsGateway,
+  TEST2CHECK_EXECUTABLE_PATH,
 } from "./requirements/requirementsOperations";
 
 import {
@@ -1330,19 +1335,140 @@ function configureExtension(context: vscode.ExtensionContext) {
       // Get environment and unit data
       const { enviroPath, unitName } = testNode;
       const envData = await getEnvironmentData(enviroPath);
+      const envRGWPath = findRelevantRequirementGateway(enviroPath);
+      const testName = testNode.testName;
+
       if (!envData?.unitData) return;
 
-      // TODO: Replace with actual requirement data from environment
-      const reqData: RequirementData = {
-        title: "REQ-069: Session Timeout",
-        description:
-          "The system shall automatically terminate user sessions after 30 minutes of inactivity to ensure security.",
-        lineNumber: 74,
-        importantLineStart: 75,
-        importantLineEnd: 78,
-        coverageStatus: "covered",
-      };
+      // Execute llm2check to get requirement coverage data
+      let reqData: RequirementData | null = null;
 
+      if (envRGWPath && testName) {
+        const commandArgs = [
+          "-e",
+          enviroPath,
+          envRGWPath,
+          "-f",
+          testName,
+          "--json",
+        ];
+
+        const commandString = `${TEST2CHECK_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
+        logCliOperation(`Executing command: ${commandString}`);
+
+        try {
+          const process = await spawnWithVcastEnv(
+            TEST2CHECK_EXECUTABLE_PATH,
+            commandArgs
+          );
+
+          const stdoutData: string[] = [];
+          const stderrData: string[] = [];
+
+          process.stdout.on("data", (data: { toString: () => string }) => {
+            stdoutData.push(data.toString());
+          });
+
+          process.stderr.on("data", (data: { toString: () => string }) => {
+            stderrData.push(data.toString());
+            logCliError(`test2check: ${data.toString()}`);
+          });
+
+          await new Promise<void>((resolve, reject) => {
+            process.on("close", (code: number) => {
+              if (code === 0) {
+                logCliOperation(
+                  `test2check completed successfully with code ${code}`
+                );
+                resolve();
+              } else {
+                const errorMessage = `Error: test2check exited with code ${code}`;
+                logCliError(errorMessage);
+                reject(new Error(errorMessage));
+              }
+            });
+          });
+
+          // Parse JSON output
+          const output = stdoutData.join("");
+          if (output.trim()) {
+            try {
+              const jsonData = JSON.parse(output);
+
+              // llm2check returns an array of test results
+              if (Array.isArray(jsonData) && jsonData.length > 0) {
+                const testResult = jsonData[0]; // Get first test result
+
+                // Extract expected coverage for the current unit
+                const expectedCoverage = testResult.expected_coverage || {};
+                const actualCoverage = testResult.actual_coverage || [];
+
+                // Find coverage data for the current unit
+                const unitCoverage = actualCoverage.find(
+                  (cov: any) => cov.unit === unitName
+                );
+
+                // Get expected coverage lines for this unit
+                let expectedLines: number[] = [];
+                for (const funcKey in expectedCoverage) {
+                  const funcCoverage = expectedCoverage[funcKey];
+                  if (Array.isArray(funcCoverage)) {
+                    const unitExpected = funcCoverage.find(
+                      (cov: any) => cov.unit === unitName
+                    );
+                    if (unitExpected?.lines) {
+                      expectedLines = unitExpected.lines;
+                    }
+                  }
+                }
+
+                // Determine line highlighting range
+                const minLine =
+                  expectedLines.length > 0 ? Math.min(...expectedLines) : 0;
+                const maxLine =
+                  expectedLines.length > 0 ? Math.max(...expectedLines) : 0;
+
+                // Determine coverage status
+                let status = "covered";
+                if (testResult.name?.includes("REVIEW-NEEDED")) {
+                  status = "review-needed";
+                }
+
+                reqData = {
+                  title: testResult.name || testName,
+                  description: `${testNode.notes}`,
+                  lineNumber: minLine,
+                  importantLineStart: minLine,
+                  importantLineEnd: maxLine,
+                  coverageStatus: status,
+                  // Store full data for reference
+                  expectedLines: expectedLines,
+                  actualLines: unitCoverage?.lines || [],
+                  fullData: testResult,
+                };
+              }
+            } catch (parseError) {
+              logCliError(
+                `Failed to parse llm2check JSON output: ${parseError}`
+              );
+            }
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          vscode.window.showWarningMessage(
+            `Failed to get requirement data: ${errorMessage}`
+          );
+          logCliError(`llm2check error: ${errorMessage}`);
+        }
+      }
+
+      if (!reqData) {
+        vscode.window.showWarningMessage(
+          `Failed to retrieve requirements test data. Aborting Test Review.`
+        );
+        return;
+      }
       // Find the matching unit's source file
       const matchingUnit = envData.unitData.find((unit: { path: string }) => {
         if (!unit.path) return false;
@@ -1356,7 +1482,6 @@ function configureExtension(context: vscode.ExtensionContext) {
       await vscode.commands.executeCommand("workbench.action.closeSidebar");
 
       // Open source file with requirement highlighting
-      // Pass context so it can register the peek window close listener
       await openSourceFileWithHighlight(matchingUnit.path, reqData, context);
 
       // Open TST script beside source file
