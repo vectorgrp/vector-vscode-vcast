@@ -1,9 +1,18 @@
 import * as vscode from "vscode";
-import { workspace } from "vscode";
+import {
+  DecorationRenderOptions,
+  TextEditorDecorationType,
+  workspace,
+} from "vscode";
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { parse as csvParse } from "csv-parse/sync";
 import { vcastInstallationDirectory } from "../vcastInstallation";
-import { exeFilename, normalizePath, showSettings } from "../utilities";
+import {
+  exeFilename,
+  getRangeOption,
+  normalizePath,
+  showSettings,
+} from "../utilities";
 import {
   LLM2CHECK_EXECUTABLE_PATH,
   logCliError,
@@ -13,6 +22,11 @@ import { makeEnviroNodeID } from "../testPane";
 import { dumpTestScriptFile } from "../vcastAdapter";
 import { convertTestScriptContents } from "../vcastUtilities";
 import { testNodeType } from "../testData";
+import {
+  enterReviewMode,
+  exitReviewMode,
+  updateDisplayedCoverage,
+} from "../coverage";
 
 const path = require("path");
 const fs = require("fs");
@@ -642,22 +656,54 @@ export function wrapText(text: string, width: number): string[] {
  * Creates a formatted text box containing requirement information
  */
 export function createRequirementInfoBox(reqData: RequirementData): string {
-  const BOX_WIDTH = 66;
-  const wrappedDescription = wrapText(reqData.description, BOX_WIDTH - 6);
+  const BOX_WIDTH = 66; // inner width (between borders)
+  const TEXT_WIDTH = BOX_WIDTH - 4; // "║  " + text + "  ║"
+
+  const topBorder = "╔" + "═".repeat(BOX_WIDTH) + "╗";
+  const midBorder = "╠" + "═".repeat(BOX_WIDTH) + "╣";
+  const bottomBorder = "╚" + "═".repeat(BOX_WIDTH) + "╝";
+  const emptyLine = "║" + " ".repeat(BOX_WIDTH) + "║";
+
+  const formatLine = (text = "") => "║  " + text.padEnd(TEXT_WIDTH) + "  ║";
+
+  /**
+   * Wrap text that may contain newlines into boxed lines
+   */
+  const formatMultilineText = (text: string): string[] => {
+    const paragraphs = text.split(/\r?\n/);
+
+    const lines: string[] = [];
+
+    for (const para of paragraphs) {
+      if (!para.trim()) {
+        // preserve blank lines as empty boxed lines
+        lines.push(formatLine());
+        continue;
+      }
+
+      const wrapped = wrapText(para, TEXT_WIDTH);
+      wrapped.forEach((w) => lines.push(formatLine(w)));
+    }
+
+    return lines;
+  };
 
   return [
     "",
-    "╔" + "═".repeat(BOX_WIDTH) + "╗",
-    `║  ${reqData.title.padEnd(BOX_WIDTH - 2)}║`,
-    "╠" + "═".repeat(BOX_WIDTH) + "╣",
-    "║  DESCRIPTION".padEnd(BOX_WIDTH + 1) + "║",
-    "║  " + "─".repeat(BOX_WIDTH - 2) + "║",
-    ...wrappedDescription.map((line) => `║  ${line.padEnd(BOX_WIDTH - 4)}  ║`),
-    "║".padEnd(BOX_WIDTH + 1) + "║",
-    `║  Critical Lines : ${reqData.importantLineStart} - ${reqData.importantLineEnd}`.padEnd(
-      BOX_WIDTH + 1
-    ) + "║",
-    "╚" + "═".repeat(BOX_WIDTH) + "╝",
+    topBorder,
+    formatLine(reqData.title),
+    midBorder,
+    formatLine("DESCRIPTION"),
+    formatLine("─".repeat(TEXT_WIDTH)),
+
+    // Description body (fully boxed, paragraph-safe)
+    ...formatMultilineText(reqData.description),
+
+    emptyLine,
+    formatLine(
+      `Critical Lines : ${reqData.importantLineStart} - ${reqData.importantLineEnd}`
+    ),
+    bottomBorder,
     "",
   ].join("\n");
 }
@@ -763,18 +809,29 @@ export async function showRequirementPeekBox(
     }
   }, 0);
 
-  // Listen for when the peek window is closed and clear highlights
-  const disposable = vscode.window.onDidChangeVisibleTextEditors((editors) => {
-    const peekWindowOpen = editors.some(
-      (editor) => editor.document.uri.scheme === "requirement-info"
-    );
+  // Listen for when the peek window is closed and clear highlights + exit review mode
+  const disposable = vscode.window.onDidChangeVisibleTextEditors(
+    async (editors) => {
+      const peekWindowOpen = editors.some(
+        (editor) => editor.document.uri.scheme === "requirement-info"
+      );
 
-    if (!peekWindowOpen && activeHighlightDecoration) {
-      activeHighlightDecoration.dispose();
-      setActiveHighlightDecoration(null);
-      disposable.dispose(); // Clean up this listener
+      if (!peekWindowOpen) {
+        // Clear the highlight decoration
+        if (activeHighlightDecoration) {
+          activeHighlightDecoration.dispose();
+          setActiveHighlightDecoration(null);
+        }
+
+        // Exit review mode and refresh normal coverage
+        await exitReviewMode();
+        updateDisplayedCoverage();
+
+        // Clean up this listener
+        disposable.dispose();
+      }
     }
-  });
+  );
 
   context.subscriptions.push(disposable);
 
@@ -790,7 +847,8 @@ export async function showRequirementPeekBox(
 export async function openSourceFileWithHighlight(
   sourceFilePath: string,
   reqData: RequirementData,
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
+  testName: string
 ): Promise<void> {
   const sourceFileUri = vscode.Uri.file(sourceFilePath);
   const document = await vscode.workspace.openTextDocument(sourceFileUri);
@@ -808,8 +866,22 @@ export async function openSourceFileWithHighlight(
     selection: new vscode.Range(peekPosition, peekPosition),
   });
 
+  // Enter review mode BEFORE applying decorations
+  enterReviewMode(
+    testName,
+    reqData.expectedLines || [],
+    reqData.actualLines || [],
+    sourceFilePath
+  );
+
+  // Apply the green highlight to critical lines
   highlightCriticalLines(editor, document, reqData);
+
+  // Show the peek box
   await showRequirementPeekBox(sourceFileUri, peekPosition, reqData, context);
+
+  // Update coverage decorations to show review mode coverage
+  await updateDisplayedCoverage();
 }
 
 /**

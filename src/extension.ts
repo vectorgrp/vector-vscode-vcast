@@ -1344,123 +1344,119 @@ function configureExtension(context: vscode.ExtensionContext) {
       let reqData: RequirementData | null = null;
 
       if (envRGWPath && testName) {
-        const commandArgs = [
-          "-e",
-          enviroPath,
-          envRGWPath,
-          "-f",
-          testName,
-          "--json",
-        ];
+        reqData = await vscode.window.withProgress<RequirementData | null>(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "Retrieving requirement coverage data",
+            cancellable: false,
+          },
+          async (progress) => {
+            progress.report({ message: "Running test2check…" });
 
-        const commandString = `${TEST2CHECK_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
-        logCliOperation(`Executing command: ${commandString}`);
+            if (!envRGWPath || !testName) {
+              return null;
+            }
 
-        try {
-          const process = await spawnWithVcastEnv(
-            TEST2CHECK_EXECUTABLE_PATH,
-            commandArgs
-          );
+            const commandArgs = [
+              "-e",
+              enviroPath,
+              envRGWPath,
+              "-f",
+              testName,
+              "--json",
+            ];
 
-          const stdoutData: string[] = [];
-          const stderrData: string[] = [];
-
-          process.stdout.on("data", (data: { toString: () => string }) => {
-            stdoutData.push(data.toString());
-          });
-
-          process.stderr.on("data", (data: { toString: () => string }) => {
-            stderrData.push(data.toString());
-            logCliError(`test2check: ${data.toString()}`);
-          });
-
-          await new Promise<void>((resolve, reject) => {
-            process.on("close", (code: number) => {
-              if (code === 0) {
-                logCliOperation(
-                  `test2check completed successfully with code ${code}`
-                );
-                resolve();
-              } else {
-                const errorMessage = `Error: test2check exited with code ${code}`;
-                logCliError(errorMessage);
-                reject(new Error(errorMessage));
-              }
-            });
-          });
-
-          // Parse JSON output
-          const output = stdoutData.join("");
-          if (output.trim()) {
             try {
+              const process = await spawnWithVcastEnv(
+                TEST2CHECK_EXECUTABLE_PATH,
+                commandArgs
+              );
+
+              const stdoutData: string[] = [];
+              const stderrData: string[] = [];
+
+              process.stdout.on("data", (data) => {
+                stdoutData.push(data.toString());
+              });
+
+              process.stderr.on("data", (data) => {
+                stderrData.push(data.toString());
+                logCliError(`test2check: ${data.toString()}`);
+              });
+
+              await new Promise<void>((resolve, reject) => {
+                process.on("close", (code: number) => {
+                  if (code === 0) {
+                    resolve();
+                  } else {
+                    reject(new Error(`test2check exited with code ${code}`));
+                  }
+                });
+              });
+
+              progress.report({ message: "Processing coverage results…" });
+
+              const output = stdoutData.join("");
+              if (!output.trim()) return null;
+
               const jsonData = JSON.parse(output);
+              if (!Array.isArray(jsonData) || jsonData.length === 0)
+                return null;
 
-              // llm2check returns an array of test results
-              if (Array.isArray(jsonData) && jsonData.length > 0) {
-                const testResult = jsonData[0]; // Get first test result
+              const testResult = jsonData[0];
+              const expectedCoverage = testResult.expected_coverage || {};
+              const actualCoverage = testResult.actual_coverage || [];
 
-                // Extract expected coverage for the current unit
-                const expectedCoverage = testResult.expected_coverage || {};
-                const actualCoverage = testResult.actual_coverage || [];
+              const unitCoverage = actualCoverage.find(
+                (cov: any) => cov.unit === unitName
+              );
 
-                // Find coverage data for the current unit
-                const unitCoverage = actualCoverage.find(
-                  (cov: any) => cov.unit === unitName
-                );
-
-                // Get expected coverage lines for this unit
-                let expectedLines: number[] = [];
-                for (const funcKey in expectedCoverage) {
-                  const funcCoverage = expectedCoverage[funcKey];
-                  if (Array.isArray(funcCoverage)) {
-                    const unitExpected = funcCoverage.find(
-                      (cov: any) => cov.unit === unitName
-                    );
-                    if (unitExpected?.lines) {
-                      expectedLines = unitExpected.lines;
-                    }
+              let expectedLines: number[] = [];
+              for (const funcKey in expectedCoverage) {
+                const funcCoverage = expectedCoverage[funcKey];
+                if (Array.isArray(funcCoverage)) {
+                  const unitExpected = funcCoverage.find(
+                    (cov: any) => cov.unit === unitName
+                  );
+                  if (unitExpected?.lines) {
+                    expectedLines = unitExpected.lines;
                   }
                 }
-
-                // Determine line highlighting range
-                const minLine =
-                  expectedLines.length > 0 ? Math.min(...expectedLines) : 0;
-                const maxLine =
-                  expectedLines.length > 0 ? Math.max(...expectedLines) : 0;
-
-                // Determine coverage status
-                let status = "covered";
-                if (testResult.name?.includes("REVIEW-NEEDED")) {
-                  status = "review-needed";
-                }
-
-                reqData = {
-                  title: testResult.name || testName,
-                  description: `${testNode.notes}`,
-                  lineNumber: minLine,
-                  importantLineStart: minLine,
-                  importantLineEnd: maxLine,
-                  coverageStatus: status,
-                  // Store full data for reference
-                  expectedLines: expectedLines,
-                  actualLines: unitCoverage?.lines || [],
-                  fullData: testResult,
-                };
               }
-            } catch (parseError) {
-              logCliError(
-                `Failed to parse llm2check JSON output: ${parseError}`
+
+              const minLine = expectedLines.length
+                ? Math.min(...expectedLines)
+                : 0;
+              const maxLine = expectedLines.length
+                ? Math.max(...expectedLines)
+                : 0;
+
+              let status = "covered";
+              if (testResult.name?.includes("REVIEW-NEEDED")) {
+                status = "review-needed";
+              }
+
+              return {
+                title: testResult.name || testName,
+                description: `${testNode.notes}`,
+                lineNumber: minLine,
+                importantLineStart: minLine,
+                importantLineEnd: maxLine,
+                coverageStatus: status,
+                expectedLines,
+                actualLines: unitCoverage?.lines || [],
+                fullData: testResult,
+              };
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              vscode.window.showWarningMessage(
+                `Failed to get requirement data: ${msg}`
               );
+              logCliError(msg);
+              return null;
             }
           }
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          vscode.window.showWarningMessage(
-            `Failed to get requirement data: ${errorMessage}`
-          );
-          logCliError(`llm2check error: ${errorMessage}`);
-        }
+        );
       }
 
       if (!reqData) {
@@ -1482,7 +1478,12 @@ function configureExtension(context: vscode.ExtensionContext) {
       await vscode.commands.executeCommand("workbench.action.closeSidebar");
 
       // Open source file with requirement highlighting
-      await openSourceFileWithHighlight(matchingUnit.path, reqData, context);
+      await openSourceFileWithHighlight(
+        matchingUnit.path,
+        reqData,
+        context,
+        testName
+      );
 
       // Open TST script beside source file
       const scriptPath = testNode.enviroPath + ".tst";
