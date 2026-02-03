@@ -79,7 +79,6 @@ import {
   forceLowerCaseDriveLetter,
   decodeVar,
   getFullEnvReport,
-  requirementsTestData,
 } from "./utilities";
 
 import {
@@ -90,7 +89,6 @@ import {
   rebuildEnvironment,
   openProjectInVcast,
   deleteLevel,
-  dumpTestScriptFile,
 } from "./vcastAdapter";
 
 import {
@@ -147,9 +145,7 @@ import {
   generateTestsFromRequirements,
   importRequirementsFromGateway,
   initializeReqs2X,
-  LLM2CHECK_EXECUTABLE_PATH,
   logCliError,
-  logCliOperation,
   populateRequirementsGateway,
   TEST2CHECK_EXECUTABLE_PATH,
 } from "./requirements/requirementsOperations";

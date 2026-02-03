@@ -343,7 +343,6 @@ export async function updateDisplayedCoverage() {
 
 // Review mode state
 let reviewModeActive: boolean = false;
-let reviewModeTestName: string | null = null;
 let reviewModeExpectedLines: number[] = [];
 let reviewModeActualLines: number[] = [];
 let reviewModeFilePath: string | null = null;
@@ -382,7 +381,6 @@ export function enterReviewMode(
   filePath: string
 ): void {
   reviewModeActive = true;
-  reviewModeTestName = testName;
   reviewModeExpectedLines = expectedLines;
   reviewModeActualLines = actualLines;
   reviewModeFilePath = filePath;
@@ -395,7 +393,6 @@ export function enterReviewMode(
 
 export async function exitReviewMode(): Promise<void> {
   reviewModeActive = false;
-  reviewModeTestName = null;
   reviewModeExpectedLines = [];
   reviewModeActualLines = [];
   reviewModeFilePath = null;

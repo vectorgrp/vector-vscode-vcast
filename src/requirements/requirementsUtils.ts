@@ -1,18 +1,9 @@
 import * as vscode from "vscode";
-import {
-  DecorationRenderOptions,
-  TextEditorDecorationType,
-  workspace,
-} from "vscode";
+import { workspace } from "vscode";
 import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { parse as csvParse } from "csv-parse/sync";
 import { vcastInstallationDirectory } from "../vcastInstallation";
-import {
-  exeFilename,
-  getRangeOption,
-  normalizePath,
-  showSettings,
-} from "../utilities";
+import { exeFilename, normalizePath, showSettings } from "../utilities";
 import {
   LLM2CHECK_EXECUTABLE_PATH,
   logCliError,
