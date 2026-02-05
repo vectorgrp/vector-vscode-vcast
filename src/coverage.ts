@@ -9,13 +9,14 @@ import {
   getListOfFilesWithCoverage,
 } from "./vcastTestInterface";
 
-import { getRangeOption } from "./utilities";
+import { getRangeOption, normalizePath } from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 import {
   currentActiveUnitMCDCLines,
   updateCurrentActiveUnitMCDCLines,
 } from "./editorDecorator";
+import { vectorMessage } from "./messagePane";
 
 // these are defined as globals so that the deactivate function has access
 // to dispose of them when the coverage id turned off
@@ -426,7 +427,11 @@ export function updateReviewModeDecorations(): void {
   }
 
   // Only apply review decorations to the specific file
-  if (activeEditor.document.uri.fsPath !== reviewModeFilePath) {
+  if (
+    !reviewModeFilePath ||
+    normalizePath(activeEditor.document.uri.fsPath) !==
+      normalizePath(reviewModeFilePath)
+  ) {
     return;
   }
 
@@ -450,7 +455,7 @@ export function updateReviewModeDecorations(): void {
     ...reviewModeExpectedLines,
     ...reviewModeActualLines,
   ]);
-
+  vectorMessage(`${JSON.stringify(expectedOrActual)}`);
   // Any covered line NOT in expected/actual becomes uncovered
   for (const line of covered) {
     if (!expectedOrActual.has(line - 1)) {

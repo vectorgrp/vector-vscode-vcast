@@ -18,6 +18,7 @@ import {
   exitReviewMode,
   updateDisplayedCoverage,
 } from "../coverage";
+import { vectorMessage } from "../messagePane";
 
 const path = require("path");
 const fs = require("fs");

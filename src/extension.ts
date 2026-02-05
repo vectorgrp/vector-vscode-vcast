@@ -1403,9 +1403,14 @@ function configureExtension(context: vscode.ExtensionContext) {
               const expectedCoverage = testResult.expected_coverage || {};
               const actualCoverage = testResult.actual_coverage || [];
 
-              const unitCoverage = actualCoverage.find(
-                (cov: any) => cov.unit === unitName
-              );
+              const unitCoverage = actualCoverage.find((cov: any) => {
+                // Remove file extension from both for comparison
+                const covUnitBase = path.basename(
+                  cov.unit,
+                  path.extname(cov.unit)
+                );
+                return covUnitBase === unitName || cov.unit === unitName;
+              });
 
               let expectedLines: number[] = [];
               for (const funcKey in expectedCoverage) {
@@ -1435,7 +1440,7 @@ function configureExtension(context: vscode.ExtensionContext) {
               return {
                 title: testResult.name || testName,
                 description: `${testNode.notes}`,
-                lineNumber: minLine,
+                lineNumber: minLine - 1,
                 importantLineStart: minLine,
                 importantLineEnd: maxLine,
                 coverageStatus: status,
@@ -1461,6 +1466,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         );
         return;
       }
+
       // Find the matching unit's source file
       const matchingUnit = envData.unitData.find((unit: { path: string }) => {
         if (!unit.path) return false;
