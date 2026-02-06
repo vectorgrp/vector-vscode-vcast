@@ -18,7 +18,6 @@ import {
   exitReviewMode,
   updateDisplayedCoverage,
 } from "../coverage";
-import { vectorMessage } from "../messagePane";
 
 const path = require("path");
 const fs = require("fs");
@@ -654,7 +653,6 @@ export function createRequirementInfoBox(reqData: RequirementData): string {
   const topBorder = "╔" + "═".repeat(BOX_WIDTH) + "╗";
   const midBorder = "╠" + "═".repeat(BOX_WIDTH) + "╣";
   const bottomBorder = "╚" + "═".repeat(BOX_WIDTH) + "╝";
-  const emptyLine = "║" + " ".repeat(BOX_WIDTH) + "║";
 
   const formatLine = (text = "") => "║  " + text.padEnd(TEXT_WIDTH) + "  ║";
 
@@ -690,11 +688,6 @@ export function createRequirementInfoBox(reqData: RequirementData): string {
 
     // Description body (fully boxed, paragraph-safe)
     ...formatMultilineText(reqData.description),
-
-    emptyLine,
-    formatLine(
-      `Critical Lines : ${reqData.importantLineStart} - ${reqData.importantLineEnd}`
-    ),
     bottomBorder,
     "",
   ].join("\n");
@@ -729,15 +722,9 @@ export function highlightCriticalLines(
     activeHighlightDecoration.dispose();
   }
 
-  // Create highlight decoration
+  // Highlight decoration
   activeHighlightDecoration = vscode.window.createTextEditorDecorationType({
     backgroundColor: "rgba(0,255,0,0.15)",
-    before: {
-      contentText: "",
-      border: "4px solid",
-      borderColor: "#00ff00",
-      margin: "0 10px 0 0",
-    },
   });
 
   // Apply highlight to critical lines
