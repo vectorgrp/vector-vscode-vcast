@@ -590,19 +590,27 @@ export function checkIfAnyProjectsAreOpened() {
  * @param fullPath Full Path to the Project File
  */
 export function getVcmRoot(fullPath: string) {
+  // Remove vcast: scheme if present
+  const cleanPath = fullPath.replace(/^vcast:/, "");
+
   // pre-compile the regex once
   const vcmRe = /(.*\/)([^/]+\.vcm)(?:\/.*)?$/;
+  const vcpRe = /(.*\/)([^/]+\.vcp)(?:\/.*)?$/;
 
   // use exec() instead of match() (sonarcloud)
-  const match = vcmRe.exec(fullPath);
+  let match: RegExpExecArray | null;
+  if (cleanPath.endsWith(".vcm")) {
+    match = vcmRe.exec(cleanPath);
+  } else {
+    match = vcpRe.exec(cleanPath);
+  }
 
   if (match) {
-    // match[1] is the directory (with trailing slash), match[2] is the .vcm name
+    // match[1] is the directory (with trailing slash), match[2] is the .vcm/.vcp name
     const rootPath = match[1].replace(/\/$/, "");
     const vcmName = match[2];
     return { rootPath, vcmName };
   }
-
   return null;
 }
 /**
