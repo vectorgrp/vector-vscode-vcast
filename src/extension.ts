@@ -1399,6 +1399,12 @@ function configureExtension(context: vscode.ExtensionContext) {
               if (!Array.isArray(jsonData) || jsonData.length === 0)
                 return null;
 
+              if (jsonData.length > 1) {
+                vscode.window.showInformationMessage(
+                  "This test is associated with multiple requirements. Coverage Review currently supports only one requirement per test."
+                );
+                return null;
+              }
               const testResult = jsonData[0];
               const expectedCoverage = testResult.expected_coverage || {};
               const actualCoverage = testResult.actual_coverage || [];
