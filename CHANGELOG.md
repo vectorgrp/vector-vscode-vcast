@@ -2,6 +2,11 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.29] - 2026-02-11
+
+### Added
+- Added a Test Review for Requirement Tests
+
 ## [1.0.28] - 2026-01-27
 
 ### Added
