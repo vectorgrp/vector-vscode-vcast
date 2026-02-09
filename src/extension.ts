@@ -1327,9 +1327,10 @@ function configureExtension(context: vscode.ExtensionContext) {
         vscode.window.showWarningMessage(
           `Failed to retrieve node test data for ${args.id}. Aborting Test Review.`
         );
+        return;
       }
 
-      const { enviroPath, unitName } = testNode;
+      const { enviroPath, unitName, functionName } = testNode;
       const envData = await getEnvironmentData(enviroPath);
       const envRGWPath = findRelevantRequirementGateway(enviroPath);
       const testName = testNode.testName;
@@ -1341,12 +1342,38 @@ function configureExtension(context: vscode.ExtensionContext) {
         return;
       }
 
+      // Find the matching unit's source file
+      const matchingUnit = envData.unitData.find((unit: { path: string }) => {
+        if (!unit.path) return false;
+        const unitBaseName = path.basename(unit.path, path.extname(unit.path));
+        return unitBaseName === unitName;
+      });
+
+      if (!matchingUnit?.path) {
+        vscode.window.showWarningMessage(
+          `Could not find source file for unit: ${unitName}`
+        );
+        return;
+      }
+
+      // Determine the line number to open at
+      let lineNumber = 0;
+      if (functionName && matchingUnit.functionList) {
+        for (const func of matchingUnit.functionList) {
+          if (func.name === functionName && func.startLine !== undefined) {
+            lineNumber = func.startLine;
+            break;
+          }
+        }
+      }
+
       const reqData = await fetchRequirementCoverageData(
         enviroPath,
         envRGWPath,
         testName,
         unitName,
-        testNode
+        testNode,
+        lineNumber
       );
 
       if (!reqData) {
@@ -1355,15 +1382,6 @@ function configureExtension(context: vscode.ExtensionContext) {
         );
         return;
       }
-
-      // Find the matching unit's source file
-      const matchingUnit = envData.unitData.find((unit: { path: string }) => {
-        if (!unit.path) return false;
-        const unitBaseName = path.basename(unit.path, path.extname(unit.path));
-        return unitBaseName === unitName;
-      });
-
-      if (!matchingUnit?.path) return;
 
       // Close sidebar for more screen space
       await vscode.commands.executeCommand("workbench.action.closeSidebar");

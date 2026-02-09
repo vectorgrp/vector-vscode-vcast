@@ -834,7 +834,7 @@ export async function openSourceFileWithHighlight(
 
   // Position cursor near the requirement line
   const peekPosition = new vscode.Position(
-    Math.max(0, reqData.lineNumber - 2),
+    Math.max(0, reqData.lineNumber - 1),
     0
   );
 
@@ -914,7 +914,8 @@ export async function fetchRequirementCoverageData(
   envRGWPath: string,
   testName: string,
   unitName: string,
-  testNode: testNodeType
+  testNode: testNodeType,
+  functionStartLine: number = 0
 ): Promise<RequirementData | null> {
   return vscode.window.withProgress<RequirementData | null>(
     {
@@ -1002,18 +1003,14 @@ export async function fetchRequirementCoverageData(
         const minLine = expectedLines.length ? Math.min(...expectedLines) : 0;
         const maxLine = expectedLines.length ? Math.max(...expectedLines) : 0;
 
-        let status = "covered";
-        if (testResult.name?.includes("REVIEW-NEEDED")) {
-          status = "review-needed";
-        }
-
         return {
           title: testResult.name || testName,
           description: `${testNode.notes}`,
-          lineNumber: minLine - 1,
-          importantLineStart: minLine,
-          importantLineEnd: maxLine,
-          coverageStatus: status,
+          lineNumber: functionStartLine,
+          // + 1 Because Critical LInes are 0 Indexed
+          importantLineStart: minLine + 1,
+          importantLineEnd: maxLine + 1,
+          coverageStatus: "covered",
           expectedLines,
           actualLines: unitCoverage?.lines || [],
         };
