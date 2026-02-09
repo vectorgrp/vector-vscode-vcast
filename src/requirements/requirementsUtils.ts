@@ -8,6 +8,7 @@ import {
   LLM2CHECK_EXECUTABLE_PATH,
   logCliError,
   logCliOperation,
+  TEST2CHECK_EXECUTABLE_PATH,
 } from "./requirementsOperations";
 import { makeEnviroNodeID } from "../testPane";
 import { dumpTestScriptFile } from "../vcastAdapter";
@@ -609,10 +610,9 @@ export interface RequirementData {
   lineNumber: number;
   importantLineStart: number;
   importantLineEnd: number;
-  coverageStatus: any;
-  expectedLines: any;
-  actualLines: any;
-  fullData: any;
+  coverageStatus: string;
+  expectedLines: number[];
+  actualLines: number[];
 }
 
 // State Management
@@ -904,4 +904,127 @@ export function setActiveHighlightDecoration(
   decoration: vscode.TextEditorDecorationType | null
 ): void {
   activeHighlightDecoration = decoration;
+}
+
+/**
+ * Fetches the requirements Data for a specific Test
+ */
+export async function fetchRequirementCoverageData(
+  enviroPath: string,
+  envRGWPath: string,
+  testName: string,
+  unitName: string,
+  testNode: testNodeType
+): Promise<RequirementData | null> {
+  return vscode.window.withProgress<RequirementData | null>(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: "Retrieving requirement coverage data",
+      cancellable: false,
+    },
+    async (progress) => {
+      progress.report({ message: "Running test2check…" });
+
+      const commandArgs = [
+        "-e",
+        enviroPath,
+        envRGWPath,
+        "-f",
+        testName,
+        "--json",
+      ];
+
+      try {
+        const process = await spawnWithVcastEnv(
+          TEST2CHECK_EXECUTABLE_PATH,
+          commandArgs
+        );
+
+        const stdoutData: string[] = [];
+        const stderrData: string[] = [];
+
+        process.stdout.on("data", (data) => {
+          stdoutData.push(data.toString());
+        });
+
+        process.stderr.on("data", (data) => {
+          stderrData.push(data.toString());
+          logCliError(`test2check: ${data.toString()}`);
+        });
+
+        await new Promise<void>((resolve, reject) => {
+          process.on("close", (code: number) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              reject(new Error(`test2check exited with code ${code}`));
+            }
+          });
+        });
+
+        progress.report({ message: "Processing coverage results…" });
+
+        const output = stdoutData.join("");
+        if (!output.trim()) return null;
+
+        const jsonData = JSON.parse(output);
+        if (!Array.isArray(jsonData) || jsonData.length === 0) return null;
+
+        if (jsonData.length > 1) {
+          vscode.window.showInformationMessage(
+            "This test is associated with multiple requirements. Coverage Review currently supports only one requirement per test."
+          );
+          return null;
+        }
+
+        const testResult = jsonData[0];
+        const expectedCoverage = testResult.expected_coverage || {};
+        const actualCoverage = testResult.actual_coverage || [];
+
+        const unitCoverage = actualCoverage.find((cov: any) => {
+          const covUnitBase = path.basename(cov.unit, path.extname(cov.unit));
+          return covUnitBase === unitName || cov.unit === unitName;
+        });
+
+        let expectedLines: number[] = [];
+        for (const funcKey in expectedCoverage) {
+          const funcCoverage = expectedCoverage[funcKey];
+          if (Array.isArray(funcCoverage)) {
+            const unitExpected = funcCoverage.find(
+              (cov: any) => cov.unit === unitName
+            );
+            if (unitExpected?.lines) {
+              expectedLines = unitExpected.lines;
+            }
+          }
+        }
+
+        const minLine = expectedLines.length ? Math.min(...expectedLines) : 0;
+        const maxLine = expectedLines.length ? Math.max(...expectedLines) : 0;
+
+        let status = "covered";
+        if (testResult.name?.includes("REVIEW-NEEDED")) {
+          status = "review-needed";
+        }
+
+        return {
+          title: testResult.name || testName,
+          description: `${testNode.notes}`,
+          lineNumber: minLine - 1,
+          importantLineStart: minLine,
+          importantLineEnd: maxLine,
+          coverageStatus: status,
+          expectedLines,
+          actualLines: unitCoverage?.lines || [],
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        vscode.window.showWarningMessage(
+          `Failed to get requirement data: ${msg}`
+        );
+        logCliError(msg);
+        return null;
+      }
+    }
+  );
 }

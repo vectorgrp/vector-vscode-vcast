@@ -137,6 +137,7 @@ import {
   requirementsFileWatcher,
   updateRequirementsAvailability,
   spawnWithVcastEnv,
+  fetchRequirementCoverageData,
 } from "./requirements/requirementsUtils";
 
 import {
@@ -1316,159 +1317,41 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(openSourceFileFromTestpaneCommand);
 
-  /**
-   * Command: Opens the requirements coverage review interface
-   * Shows source file with highlighting and TST script side-by-side
-   */
   let openReqsCoverageReview = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openReqsCoverageReview",
     async (args: any) => {
       if (!args) return;
 
       const testNode: testNodeType = getTestNode(args.id);
-      if (!testNode) return;
+      if (!testNode) {
+        vscode.window.showWarningMessage(
+          `Failed to retrieve node test data for ${args.id}. Aborting Test Review.`
+        );
+      }
 
-      // Get environment and unit data
       const { enviroPath, unitName } = testNode;
       const envData = await getEnvironmentData(enviroPath);
       const envRGWPath = findRelevantRequirementGateway(enviroPath);
       const testName = testNode.testName;
 
-      if (!envData?.unitData) return;
-
-      // Execute llm2check to get requirement coverage data
-      let reqData: RequirementData | null = null;
-
-      if (envRGWPath && testName) {
-        reqData = await vscode.window.withProgress<RequirementData | null>(
-          {
-            location: vscode.ProgressLocation.Notification,
-            title: "Retrieving requirement coverage data",
-            cancellable: false,
-          },
-          async (progress) => {
-            progress.report({ message: "Running test2check…" });
-
-            if (!envRGWPath || !testName) {
-              return null;
-            }
-
-            const commandArgs = [
-              "-e",
-              enviroPath,
-              envRGWPath,
-              "-f",
-              testName,
-              "--json",
-            ];
-
-            try {
-              const process = await spawnWithVcastEnv(
-                TEST2CHECK_EXECUTABLE_PATH,
-                commandArgs
-              );
-
-              const stdoutData: string[] = [];
-              const stderrData: string[] = [];
-
-              process.stdout.on("data", (data) => {
-                stdoutData.push(data.toString());
-              });
-
-              process.stderr.on("data", (data) => {
-                stderrData.push(data.toString());
-                logCliError(`test2check: ${data.toString()}`);
-              });
-
-              await new Promise<void>((resolve, reject) => {
-                process.on("close", (code: number) => {
-                  if (code === 0) {
-                    resolve();
-                  } else {
-                    reject(new Error(`test2check exited with code ${code}`));
-                  }
-                });
-              });
-
-              progress.report({ message: "Processing coverage results…" });
-
-              const output = stdoutData.join("");
-              if (!output.trim()) return null;
-
-              const jsonData = JSON.parse(output);
-              if (!Array.isArray(jsonData) || jsonData.length === 0)
-                return null;
-
-              if (jsonData.length > 1) {
-                vscode.window.showInformationMessage(
-                  "This test is associated with multiple requirements. Coverage Review currently supports only one requirement per test."
-                );
-                return null;
-              }
-              const testResult = jsonData[0];
-              const expectedCoverage = testResult.expected_coverage || {};
-              const actualCoverage = testResult.actual_coverage || [];
-
-              const unitCoverage = actualCoverage.find((cov: any) => {
-                // Remove file extension from both for comparison
-                const covUnitBase = path.basename(
-                  cov.unit,
-                  path.extname(cov.unit)
-                );
-                return covUnitBase === unitName || cov.unit === unitName;
-              });
-
-              let expectedLines: number[] = [];
-              for (const funcKey in expectedCoverage) {
-                const funcCoverage = expectedCoverage[funcKey];
-                if (Array.isArray(funcCoverage)) {
-                  const unitExpected = funcCoverage.find(
-                    (cov: any) => cov.unit === unitName
-                  );
-                  if (unitExpected?.lines) {
-                    expectedLines = unitExpected.lines;
-                  }
-                }
-              }
-
-              const minLine = expectedLines.length
-                ? Math.min(...expectedLines)
-                : 0;
-              const maxLine = expectedLines.length
-                ? Math.max(...expectedLines)
-                : 0;
-
-              let status = "covered";
-              if (testResult.name?.includes("REVIEW-NEEDED")) {
-                status = "review-needed";
-              }
-
-              return {
-                title: testResult.name || testName,
-                description: `${testNode.notes}`,
-                lineNumber: minLine - 1,
-                importantLineStart: minLine,
-                importantLineEnd: maxLine,
-                coverageStatus: status,
-                expectedLines,
-                actualLines: unitCoverage?.lines || [],
-                fullData: testResult,
-              };
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err);
-              vscode.window.showWarningMessage(
-                `Failed to get requirement data: ${msg}`
-              );
-              logCliError(msg);
-              return null;
-            }
-          }
+      if (!envData?.unitData || !envRGWPath || !testName) {
+        vscode.window.showWarningMessage(
+          "Failed to retrieve environment test data. Aborting Test Review."
         );
+        return;
       }
+
+      const reqData = await fetchRequirementCoverageData(
+        enviroPath,
+        envRGWPath,
+        testName,
+        unitName,
+        testNode
+      );
 
       if (!reqData) {
         vscode.window.showWarningMessage(
-          `Failed to retrieve requirements test data. Aborting Test Review.`
+          "Failed to retrieve requirements test data. Aborting Test Review."
         );
         return;
       }
@@ -1496,15 +1379,13 @@ function configureExtension(context: vscode.ExtensionContext) {
       // Open TST script beside source file
       const scriptPath = testNode.enviroPath + ".tst";
       await openTstScriptAtTest(testNode, scriptPath);
+
       vscode.window.showWarningMessage(
-        `You are currently in REVIEW Mode for the Requirement Test ${testName}. Only the Coverage for this Test will be shown in the file. In Order to exit this mode, close the Box with the Requirement Description in the Source file.`
+        `You are currently in Review Mode for the requirement test ${testName}. Only coverage for this test is shown. To exit Review Mode, close the requirement description box in the source file.`
       );
     }
   );
 
-  /**
-   * Command: Closes requirement highlights and peek boxes
-   */
   let closeRequirementBoxes = vscode.commands.registerCommand(
     "vectorcastTestExplorer.closeRequirementBoxes",
     () => {

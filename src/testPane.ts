@@ -193,7 +193,7 @@ function addTestNodes(
 
     globalTestStatusArray[testNodeID] = testData;
 
-    // TODO: Make usable also for multiple reqs --> also see data strucutre..
+    // Empty list --> No requirements --> Button should not appear on that Test Node
     if (testNodeForCache.requirements !== "[]") {
       testNodesWithRequirements.push(testNodeID);
     }
