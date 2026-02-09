@@ -445,7 +445,6 @@ export function updateReviewModeDecorations(): void {
     return;
   }
 
-  // Base coverage data (ONLY coverable lines)
   const covered = new Set<number>(coverageData.covered);
   const uncovered = new Set<number>(coverageData.uncovered);
   const partiallyCovered = new Set<number>(coverageData.partiallyCovered);
@@ -455,7 +454,7 @@ export function updateReviewModeDecorations(): void {
     ...reviewModeExpectedLines,
     ...reviewModeActualLines,
   ]);
-  vectorMessage(`${JSON.stringify(expectedOrActual)}`);
+
   // Any covered line NOT in expected/actual becomes uncovered
   for (const line of covered) {
     if (!expectedOrActual.has(line - 1)) {
