@@ -133,10 +133,8 @@ import {
   openTstScriptAtTest,
   parseRequirementsFromFile,
   performLLMProviderUsableCheck,
-  RequirementData,
   requirementsFileWatcher,
   updateRequirementsAvailability,
-  spawnWithVcastEnv,
   fetchRequirementCoverageData,
 } from "./requirements/requirementsUtils";
 
@@ -146,9 +144,7 @@ import {
   generateTestsFromRequirements,
   importRequirementsFromGateway,
   initializeReqs2X,
-  logCliError,
   populateRequirementsGateway,
-  TEST2CHECK_EXECUTABLE_PATH,
 } from "./requirements/requirementsOperations";
 
 import {

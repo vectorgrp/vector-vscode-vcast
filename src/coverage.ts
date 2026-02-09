@@ -16,7 +16,6 @@ import {
   currentActiveUnitMCDCLines,
   updateCurrentActiveUnitMCDCLines,
 } from "./editorDecorator";
-import { vectorMessage } from "./messagePane";
 
 // these are defined as globals so that the deactivate function has access
 // to dispose of them when the coverage id turned off
