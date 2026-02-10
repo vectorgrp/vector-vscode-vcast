@@ -39,15 +39,16 @@ def get_mcdc_lines(env):
     with ApiClass(env) as api:
         # Access the API property (api.Unit or api.File) dynamically
         source_modules = getattr(api, entity_attr)
-
-        for unit in source_modules.filter():
-            for mcdc_dec in unit.cover_data.mcdc_decisions:
+        sourceObjects = api.SourceFile.all()
+        for sourceObject in sourceObjects:
+            unit = sourceObject.cover_data.name
+            for mcdc_dec in sourceObject.cover_data.mcdc_decisions:
                 if not mcdc_dec.num_conditions:
                     continue
-                if unit.name not in all_lines_with_data:
-                    all_lines_with_data[unit.name] = []
-                if mcdc_dec.start_line not in all_lines_with_data[unit.name]:
-                    all_lines_with_data[unit.name].append(mcdc_dec.start_line)
+                if unit not in all_lines_with_data:
+                    all_lines_with_data[unit] = []
+                if mcdc_dec.start_line not in all_lines_with_data[unit]:
+                    all_lines_with_data[unit].append(mcdc_dec.start_line)
 
     return all_lines_with_data
 

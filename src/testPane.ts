@@ -2184,6 +2184,8 @@ async function createVcpChildNodes(
 ): Promise<void> {
   // Get the cached VCP data to access unitData and testData
   const vcpData = getVcpDataFromCache(enviroData.buildDirectory);
+  saveEnviroNodeData(enviroData.buildDirectory, enviroData);
+  updateGlobalDataForFile(enviroData.buildDirectory, vcpData.unitData);
 
   // Create "Files" node
   const filesNodeId = `${enviroData.buildDirectory}::files`;
