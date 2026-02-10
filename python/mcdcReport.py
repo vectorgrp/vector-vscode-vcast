@@ -76,15 +76,24 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
     ApiClass, entity_attr = get_api_context(env)
 
     with ApiClass(env) as api:
-        source_modules = getattr(api, entity_attr)
+        # Use api.SourceFile.all() to get all source objects including .h files
+        sourceObjects = api.SourceFile.all()
+        
         # Find and check for our unit
         unit_found = False
-        for unit in source_modules.filter(name=unit_filter):
+        for sourceObject in sourceObjects:
+            # Get unit name from source object
+            unit_name = sourceObject.cover_data.name
+            
+            # Check if this is the unit we're looking for
+            if unit_name != unit_filter:
+                continue
+            
             unit_found = True
 
             # Spin through all MCDC decisions looking for the one on our line
             line_found = False
-            for mcdc_dec in unit.cover_data.mcdc_decisions:
+            for mcdc_dec in sourceObject.cover_data.mcdc_decisions:
                 # If it has no conditions, then it generates an empty report
                 #
                 # TODO: do we want to just generate an empty MCDC report?
@@ -114,14 +123,17 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                 )
                 break
 
-            # If we don't find our line, report an error
-            if not line_found:
-                raise RuntimeError(f"Could not find line {line}")
+            # If we found the unit, break out of the outer loop
+            if unit_found:
+                # If we don't find our line, report an error
+                if not line_found:
+                    raise RuntimeError(f"Could not find line {line_filter} in unit {unit_filter}")
+                break
 
         # If we don't find our unit, report an error
         if not unit_found:
             raise RuntimeError(
-                f"Could not find unit {unit} (units should not have extensions)"
+                f"Could not find unit {unit_filter} (units should not have extensions)"
             )
 
 
