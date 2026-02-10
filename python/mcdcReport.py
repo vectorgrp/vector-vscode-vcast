@@ -34,11 +34,10 @@ def parse_args():
 def get_mcdc_lines(env):
     all_lines_with_data = {}
 
+    # Check if normal env or Cover --> Different API
     ApiClass, entity_attr = get_api_context(env)
 
     with ApiClass(env) as api:
-        # Access the API property (api.Unit or api.File) dynamically
-        source_modules = getattr(api, entity_attr)
         sourceObjects = api.SourceFile.all()
         for sourceObject in sourceObjects:
             unit = sourceObject.cover_data.name
@@ -76,16 +75,13 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
     ApiClass, entity_attr = get_api_context(env)
 
     with ApiClass(env) as api:
-        # Use api.SourceFile.all() to get all source objects including .h files
         sourceObjects = api.SourceFile.all()
         
-        # Find and check for our unit
         unit_found = False
         for sourceObject in sourceObjects:
-            # Get unit name from source object
+            # Find and check for our unit
             unit_name = sourceObject.cover_data.name
-            
-            # Check if this is the unit we're looking for
+
             if unit_name != unit_filter:
                 continue
             
@@ -123,7 +119,6 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                 )
                 break
 
-            # If we found the unit, break out of the outer loop
             if unit_found:
                 # If we don't find our line, report an error
                 if not line_found:
