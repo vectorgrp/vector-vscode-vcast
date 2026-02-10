@@ -106,9 +106,16 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                 # Record in the API instance the line number we're interested
                 # in
                 #
-                # NOTE: custom/sections/mini_mcdc.py reads this attribute to
-                # know what to filter!
-                api.mcdc_filter = {"unit": unit_filter, "line": line_filter}
+                # NOTE: custom/sections/per_line_mcdc.py reads this attribute
+                # to know what to filter!
+                #
+                # If the decision lives in a different instrumented file
+                # (e.g. template instantiations across TUs), filter by
+                # line only so all instantiations are included.
+                if mcdc_dec.function.instrumented_file.name == unit_filter:
+                    api.mcdc_filter = {"unit": unit_filter, "line": line_filter}
+                else:
+                    api.mcdc_filter = {"line": line_filter}
 
                 # Generate our report
                 api.report(
@@ -125,10 +132,9 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                     raise RuntimeError(f"Could not find line {line_filter} in unit {unit_filter}")
                 break
 
-        # If we don't find our unit, report an error
         if not unit_found:
             raise RuntimeError(
-                f"Could not find unit {unit_filter} (units should not have extensions)"
+                f"Could not find unit {unit_filter}"
             )
 
 
