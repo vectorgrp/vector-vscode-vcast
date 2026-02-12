@@ -7,7 +7,7 @@ import {
   spawnWithVcastEnv,
   updateRequirementsAvailability,
 } from "./requirementsUtils";
-import { refreshAllExtensionData } from "../testPane";
+import { refreshAllExtensionData, updateTestPane } from "../testPane";
 import { loadTestScriptIntoEnvironment } from "../vcastAdapter";
 
 const path = require("path");
@@ -460,7 +460,7 @@ export async function generateTestsFromRequirements(
               `reqs2tests completed successfully with code ${code}`
             );
             await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
-            await refreshAllExtensionData();
+            await updateTestPane(enviroPath);
 
             vscode.window.showInformationMessage(
               "Successfully generated tests for the requirements!"

@@ -68,6 +68,7 @@ import {
   setGlobalProjectIsOpenedChecker,
   setGlobalCompilerAndTestsuites,
   loadTestScriptButton,
+  runTests,
 } from "./testPane";
 
 import {
@@ -170,6 +171,7 @@ import {
 import fs = require("fs");
 import {
   compilerTagList,
+  findTestItemInController,
   getNonce,
   resolveWebviewBase,
   setCompilerList,
@@ -512,6 +514,19 @@ function configureExtension(context: vscode.ExtensionContext) {
           enviroPath,
           testNode.functionName || testNode.unitName || null
         );
+
+        // We need to execute the test and refresh the extension data so that the tests get the
+        // Reqs review button (see openReqsCoverageReview). On normal envs, after generating the tests,
+        // we fetch the data from the env but the tests still not seem to have the data.
+        // Executing them and refreshing the extension solves this.
+        const testItem = findTestItemInController(testNode.enviroNodeID);
+        if (testItem) {
+          const request = new vscode.TestRunRequest([testItem]);
+          await runTests(request, new vscode.CancellationTokenSource().token);
+        } else {
+          vectorMessage(`TestItem for ${testNode.enviroNodeID} not found`);
+        }
+        await refreshAllExtensionData();
       }
     }
   );

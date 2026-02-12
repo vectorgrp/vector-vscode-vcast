@@ -778,10 +778,8 @@ export function highlightCriticalLines(
   reqData: RequirementData,
   sourceFilePath: string
 ): void {
-  // Dispose all previous decorations
-  activeUncoveredDecoration?.dispose();
-  activePartiallyCoveredDecoration?.dispose();
-  activeCoveredDecoration?.dispose();
+  // Dispose all previous decorations via shared helper
+  disposeCriticalLineDecorations();
 
   const coverageData = getCoverageDataForFile(sourceFilePath);
 
@@ -906,7 +904,10 @@ export async function showRequirementPeekBox(
       );
 
       if (!peekWindowOpen) {
-        // Clear the highlight decoration
+        // Clear ALL coverage highlight decorations
+        disposeCriticalLineDecorations();
+
+        // Also clear the legacy single decoration if somehow still set
         if (activeHighlightDecoration) {
           activeHighlightDecoration.dispose();
           setActiveHighlightDecoration(null);
@@ -921,13 +922,24 @@ export async function showRequirementPeekBox(
       }
     }
   );
-
   context.subscriptions.push(disposable);
 
   // Clean up provider after peek window is shown
   setTimeout(() => {
     providerDisposable.dispose();
   }, 1000);
+}
+
+/**
+ * Disposes all active critical line decorations (all three coverage states)
+ */
+export function disposeCriticalLineDecorations(): void {
+  activeUncoveredDecoration?.dispose();
+  activePartiallyCoveredDecoration?.dispose();
+  activeCoveredDecoration?.dispose();
+  activeUncoveredDecoration = undefined;
+  activePartiallyCoveredDecoration = undefined;
+  activeCoveredDecoration = undefined;
 }
 
 /**
