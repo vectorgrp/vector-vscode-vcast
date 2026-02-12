@@ -19,6 +19,7 @@ import {
   exitReviewMode,
   updateDisplayedCoverage,
 } from "../coverage";
+import { getCoverageDataForFile } from "../vcastTestInterface";
 
 const path = require("path");
 const fs = require("fs");
@@ -620,59 +621,81 @@ export let activeHighlightDecoration: vscode.TextEditorDecorationType | null =
   null;
 
 /**
- * Wraps text to a specified width, breaking at word boundaries
+ * Wraps a single line of text into an array of lines, each <= maxWidth chars
  */
-export function wrapText(text: string, width: number): string[] {
-  const words = text.split(" ");
+function wrapText(text: string, maxWidth: number): string[] {
+  if (text.length <= maxWidth) {
+    return [text];
+  }
+
   const lines: string[] = [];
+  const words = text.split(" ");
   let current = "";
 
   for (const word of words) {
-    if ((current + word).length > width) {
-      lines.push(current.trimEnd());
-      current = word + " ";
+    // Word itself is longer than maxWidth — hard break it
+    if (word.length > maxWidth) {
+      if (current) {
+        lines.push(current);
+        current = "";
+      }
+      let remaining = word;
+      while (remaining.length > maxWidth) {
+        lines.push(remaining.slice(0, maxWidth));
+        remaining = remaining.slice(maxWidth);
+      }
+      current = remaining;
+      continue;
+    }
+
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= maxWidth) {
+      current = candidate;
     } else {
-      current += word + " ";
+      lines.push(current);
+      current = word;
     }
   }
 
-  if (current.trim()) {
-    lines.push(current.trimEnd());
+  if (current) {
+    lines.push(current);
   }
 
   return lines;
 }
 
 /**
- * Creates a formatted text box containing requirement information
+ * Creates a formatted text box containing requirement information.
+ * Guarantees nothing escapes the box — title and description are both wrapped.
  */
 export function createRequirementInfoBox(reqData: RequirementData): string {
-  const BOX_WIDTH = 66; // inner width (between borders)
-  const TEXT_WIDTH = BOX_WIDTH - 4; // "║  " + text + "  ║"
+  const BOX_WIDTH = 66; // total inner width (between the ║ borders)
+  const PADDING = 2; // spaces on each side inside the border
+  const TEXT_WIDTH = BOX_WIDTH - PADDING * 2; // usable text width = 62
 
   const topBorder = "╔" + "═".repeat(BOX_WIDTH) + "╗";
   const midBorder = "╠" + "═".repeat(BOX_WIDTH) + "╣";
   const bottomBorder = "╚" + "═".repeat(BOX_WIDTH) + "╝";
+  const divider = "║  " + "─".repeat(TEXT_WIDTH) + "  ║";
 
-  const formatLine = (text = "") => "║  " + text.padEnd(TEXT_WIDTH) + "  ║";
+  const formatLine = (text = ""): string => {
+    // Should never exceed TEXT_WIDTH after wrapping
+    const safe = text.length > TEXT_WIDTH ? text.slice(0, TEXT_WIDTH) : text;
+    return "║  " + safe.padEnd(TEXT_WIDTH) + "  ║";
+  };
 
-  /**
-   * Wrap text that may contain newlines into boxed lines
-   */
-  const formatMultilineText = (text: string): string[] => {
-    const paragraphs = text.split(/\r?\n/);
-
+  // Wraps a block of text (may contain \n) and returns boxed lines
+  const formatBlock = (text: string): string[] => {
     const lines: string[] = [];
 
-    for (const para of paragraphs) {
-      if (!para.trim()) {
-        // preserve blank lines as empty boxed lines
+    for (const paragraph of text.split(/\r?\n/)) {
+      if (!paragraph.trim()) {
         lines.push(formatLine());
         continue;
       }
-
-      const wrapped = wrapText(para, TEXT_WIDTH);
-      wrapped.forEach((w) => lines.push(formatLine(w)));
+      for (const wrapped of wrapText(paragraph, TEXT_WIDTH)) {
+        lines.push(formatLine(wrapped));
+      }
     }
 
     return lines;
@@ -681,13 +704,11 @@ export function createRequirementInfoBox(reqData: RequirementData): string {
   return [
     "",
     topBorder,
-    formatLine(reqData.title),
+    ...formatBlock(reqData.title),
     midBorder,
     formatLine("DESCRIPTION"),
-    formatLine("─".repeat(TEXT_WIDTH)),
-
-    // Description body (fully boxed, paragraph-safe)
-    ...formatMultilineText(reqData.description),
+    divider,
+    ...formatBlock(reqData.description),
     bottomBorder,
     "",
   ].join("\n");
@@ -709,34 +730,123 @@ export function findTestNameLine(tstContent: string, testName: string): number {
   return 0; // Default to top of file if not found
 }
 
+// Decoration Types for highlighted critical lines
+let activeUncoveredDecoration: vscode.TextEditorDecorationType | undefined;
+let activePartiallyCoveredDecoration:
+  | vscode.TextEditorDecorationType
+  | undefined;
+let activeCoveredDecoration: vscode.TextEditorDecorationType | undefined;
+
 /**
- * Highlights the critical lines in the source file
+ * Creates a decoration type for a given coverage state
+ */
+function createCoverageDecoration(
+  bgColor: string,
+  gutterColor: string
+): vscode.TextEditorDecorationType {
+  return vscode.window.createTextEditorDecorationType({
+    backgroundColor: bgColor,
+    isWholeLine: true,
+    before: {
+      contentText: "",
+      border: `4px solid ${gutterColor}`,
+      margin: "0 6px 0 0",
+    },
+  });
+}
+
+/**
+ * Converts a 1-based line number to a single-line vscode.Range
+ */
+function lineToRange(
+  document: vscode.TextDocument,
+  lineNumber: number
+): vscode.Range {
+  const line = lineNumber - 1; // Convert to 0-based
+  return new vscode.Range(
+    new vscode.Position(line, 0),
+    new vscode.Position(line, document.lineAt(line).text.length)
+  );
+}
+
+/**
+ * Highlights critical lines individually based on coverage status
  */
 export function highlightCriticalLines(
   editor: vscode.TextEditor,
   document: vscode.TextDocument,
-  reqData: RequirementData
+  reqData: RequirementData,
+  sourceFilePath: string
 ): void {
-  // Dispose previous highlight if exists
-  if (activeHighlightDecoration) {
-    activeHighlightDecoration.dispose();
+  // Dispose all previous decorations
+  activeUncoveredDecoration?.dispose();
+  activePartiallyCoveredDecoration?.dispose();
+  activeCoveredDecoration?.dispose();
+
+  const coverageData = getCoverageDataForFile(sourceFilePath);
+
+  if (!coverageData?.hasCoverageData) {
+    return;
   }
 
-  // Highlight decoration
-  activeHighlightDecoration = vscode.window.createTextEditorDecorationType({
-    backgroundColor: "rgba(0,255,0,0.15)",
-  });
-
-  // Apply highlight to critical lines
-  const blockRange = new vscode.Range(
-    new vscode.Position(reqData.importantLineStart - 1, 0),
-    new vscode.Position(
-      reqData.importantLineEnd - 1,
-      document.lineAt(reqData.importantLineEnd - 1).text.length
-    )
+  // --- Decoration types ---
+  activeUncoveredDecoration = createCoverageDecoration(
+    "rgba(243, 74, 51, 0.15)", // red bg
+    "#f34a33" // red gutter
+  );
+  activePartiallyCoveredDecoration = createCoverageDecoration(
+    "rgba(245, 166, 35, 0.15)", // orange/yellow bg
+    "#f5a623" // orange/yellow gutter
+  );
+  activeCoveredDecoration = createCoverageDecoration(
+    "rgba(87, 184, 89, 0.15)", // green bg
+    "#57b859" // green gutter
   );
 
-  editor.setDecorations(activeHighlightDecoration, [blockRange]);
+  // Build a Set of critical line numbers for fast lookup
+  const criticalLines = new Set<number>();
+  for (
+    let line = reqData.importantLineStart;
+    line <= reqData.importantLineEnd;
+    line++
+  ) {
+    criticalLines.add(line);
+  }
+
+  // Bucket each critical line into its coverage category
+  const uncoveredSet = new Set(coverageData.uncovered);
+  const partiallyCoveredSet = new Set(coverageData.partiallyCovered);
+  const coveredSet = new Set(coverageData.covered);
+
+  const uncoveredRanges: vscode.Range[] = [];
+  const partiallyCoveredRanges: vscode.Range[] = [];
+  const coveredRanges: vscode.Range[] = [];
+
+  for (const line of criticalLines) {
+    // Guard: skip lines beyond the document
+    if (line > document.lineCount) {
+      continue;
+    }
+
+    const range = lineToRange(document, line);
+
+    if (uncoveredSet.has(line)) {
+      uncoveredRanges.push(range);
+    } else if (partiallyCoveredSet.has(line)) {
+      partiallyCoveredRanges.push(range);
+    } else if (coveredSet.has(line)) {
+      coveredRanges.push(range);
+    }
+    // Lines not present in any coverage array are left un-decorated
+  }
+
+  // Apply all three decoration sets in one pass
+  editor.setDecorations(activeUncoveredDecoration, uncoveredRanges);
+  editor.setDecorations(
+    activePartiallyCoveredDecoration,
+    partiallyCoveredRanges
+  );
+  editor.setDecorations(activeCoveredDecoration, coveredRanges);
 }
 
 /**
@@ -854,7 +964,7 @@ export async function openSourceFileWithHighlight(
   );
 
   // Apply the green highlight to critical lines
-  highlightCriticalLines(editor, document, reqData);
+  highlightCriticalLines(editor, document, reqData, sourceFilePath);
 
   // Show the peek box
   await showRequirementPeekBox(sourceFileUri, peekPosition, reqData, context);
