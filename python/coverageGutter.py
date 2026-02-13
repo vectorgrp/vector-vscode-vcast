@@ -15,28 +15,35 @@ def getMCDCLineDic(sourceObject):
 
     unitFile = sourceObject.cover_data.name
     unit = unitFile.rsplit(".", 1)[0]
-    for mcdc in sourceObject.cover_data.mcdc_decisions:
+    
+    all_decisions = []
+    covered_mcdc_pair_found = False
+    decision_has_covered_pairs_for_all_conditions = True
+    # If we overwrite a function, we need all "overwritten decisions"
+    for inst_file in sourceObject.instrumented_files:
+        all_decisions.extend(inst_file.mcdc_decisions)
+    for mcdc in all_decisions:
         # If it s not a mcdc pair --> continue
         if not mcdc.num_conditions:
             continue
-
+        
         start_line = mcdc.start_line
         # Per default, we set the line to be uncovered
         temp_line_coverage_dic[start_line] = MCDCLineCoverage.uncovered
         mcdc_unit_line_dic[unit] = temp_line_coverage_dic
+        
+        for condition in mcdc.conditions:
+            covered_pair = condition.get_covered_pair()
 
-        covered_mcdc_found = False
-        uncovered_mcdc_found = False
-
-        for row in mcdc.rows:
-            if row.has_any_coverage != 0:
-                covered_mcdc_found = True
+            # We have at least 1 covered mcdc pair
+            if(covered_pair == None):
+                decision_has_covered_pairs_for_all_conditions = False
             else:
-                uncovered_mcdc_found = True
+                covered_mcdc_pair_found = True
 
-        if covered_mcdc_found == True:
+        if covered_mcdc_pair_found == True:
             # We found covered and uncovered mcdc pairs --> Partially covered
-            if uncovered_mcdc_found == True:
+            if decision_has_covered_pairs_for_all_conditions == False:
                 temp_line_coverage_dic[start_line] = MCDCLineCoverage.partially_covered
             else:
                 # We found only covered mcdc pairs --> Fully covered
@@ -85,7 +92,6 @@ def handleMcdcCoverage(
             if use_mcdc
             else metrics.max_covered_branches + metrics.max_annotations_branches
         )
-
         has_branch_coverage = covered_branches > 0
         # First check for the branch coverage. If it has none, it can not be partially covered / covered
         if has_branch_coverage:
@@ -96,13 +102,13 @@ def handleMcdcCoverage(
             # To be fully mcdc covered: All Branches + All MCDC pairs
             is_fully_mcdc_covered = (
                 covered_branches == branch_total
-                and mcdc_line_coverage == MCDCLineCoverage.covered
+                  and mcdc_line_coverage == MCDCLineCoverage.covered
             )
             # If it's fully covered --> It's an mcdc line and fully covered --> green
             if is_fully_mcdc_covered:
                 coveredString += f"{line.line_number},"
-            # Partially covered mcdc line --> orange
-            elif mcdc_line_coverage == MCDCLineCoverage.partially_covered:
+            # Not everything is covered but we have at least 1 covered mcdc pair --> Partially covered mcdc line --> orange
+            elif metrics.covered_mcdc_pairs > 0:
                 partiallyCoveredString += f"{line.line_number},"
             # If it has branches covered but not mcdc pair
             else:
@@ -148,6 +154,8 @@ def handleStatementMcdcCoverage(
             if use_mcdc
             else metrics.max_covered_branches + metrics.max_annotations_branches
         )
+        #print(f"line_number: {line_number}")
+        #print(f"{metrics.mcdc_branches} = {metrics.covered_mcdc_branches} + {metrics.uncovered_mcdc_branches}")
 
         # Determine statement coverage
         covered_statements = (
@@ -156,17 +164,21 @@ def handleStatementMcdcCoverage(
         total_statements = metrics.statements
 
         if mcdc_line_coverage is not None:
+
             # To be fully mcdc covered: All Statements + All Branches + All MCDC pairs
+            # and the line either has to be flagged covered or partially covered from getMCDCLineDic
+            # here we find out if it's really 100% covered or only partially covered
             is_fully_mcdc_covered = (
                 covered_statements == total_statements
                 and covered_branches == branch_total
-                and mcdc_line_coverage == MCDCLineCoverage.covered
+                and mcdc_line_coverage == MCDCLineCoverage.covered 
             )
 
             # If it's fully covered --> It's an mcdc line and fully covered --> green
             if is_fully_mcdc_covered:
                 coveredString += f"{line_number},"
-            # Partially covered mcdc line --> orange
+
+            # Not everything is covered but we have at least 1 covered mcdc pair --> Partially covered mcdc line --> orange
             elif mcdc_line_coverage == MCDCLineCoverage.partially_covered:
                 partiallyCoveredString += f"{line_number},"
             # a mcdc line that has no coverage --> Red
