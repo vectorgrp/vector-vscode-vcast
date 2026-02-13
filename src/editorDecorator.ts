@@ -44,11 +44,7 @@ export async function updateCurrentActiveUnitMCDCLines() {
     let unitName = path.basename(fullPath, path.extname(fullPath));
 
     // If the file is in a cover project, we need adapt the paths
-    ({ enviroPath, unitName } = resolveVcpPaths(
-      enviroPath,
-      unitName,
-      fullPath
-    ));
+    enviroPath = resolveVcpPaths(enviroPath, unitName, fullPath);
 
     // Get all mcdc lines for every unit and parse it into JSON
     if (enviroPath) {

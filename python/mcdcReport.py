@@ -36,18 +36,19 @@ def get_mcdc_lines(env):
 
     # Check if normal env or Cover --> Different API
     ApiClass, entity_attr = get_api_context(env)
-
     with ApiClass(env) as api:
         sourceObjects = api.SourceFile.all()
         for sourceObject in sourceObjects:
-            unit = sourceObject.cover_data.name
-            for mcdc_dec in sourceObject.cover_data.mcdc_decisions:
-                if not mcdc_dec.num_conditions:
-                    continue
-                if unit not in all_lines_with_data:
-                    all_lines_with_data[unit] = []
-                if mcdc_dec.start_line not in all_lines_with_data[unit]:
-                    all_lines_with_data[unit].append(mcdc_dec.start_line)
+            unit_file = sourceObject.cover_data.name
+            unit = os.path.splitext(unit_file)[0]
+            if sourceObject.is_instrumented:
+                for mcdc_dec in sourceObject.cover_data.mcdc_decisions:
+                    if not mcdc_dec.num_conditions:
+                        continue
+                    if unit not in all_lines_with_data:
+                        all_lines_with_data[unit] = []
+                    if mcdc_dec.start_line not in all_lines_with_data[unit]:
+                        all_lines_with_data[unit].append(mcdc_dec.start_line)
 
     return all_lines_with_data
 
@@ -76,17 +77,17 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
 
     with ApiClass(env) as api:
         sourceObjects = api.SourceFile.all()
-        
         unit_found = False
         for sourceObject in sourceObjects:
             # Find and check for our unit
-            unit_name = sourceObject.cover_data.name
+            unit_file = sourceObject.cover_data.name
+            unit_name = os.path.splitext(unit_file)[0]
 
             if unit_name != unit_filter:
                 continue
             
             unit_found = True
-
+            
             # Spin through all MCDC decisions looking for the one on our line
             line_found = False
             for mcdc_dec in sourceObject.cover_data.mcdc_decisions:
@@ -132,10 +133,10 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                     raise RuntimeError(f"Could not find line {line_filter} in unit {unit_filter}")
                 break
 
-        if not unit_found:
-            raise RuntimeError(
-                f"Could not find unit {unit_filter}"
-            )
+            if not unit_found:
+                raise RuntimeError(
+                    f"Could not find unit {unit_filter}"
+                )
 
 
 def main():

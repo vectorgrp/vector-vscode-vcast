@@ -469,7 +469,7 @@ export function resolveVcpPaths(
   enviroPath: string | null,
   unitName: string,
   fullFilePath: string
-): { enviroPath: string | null; unitName: string } {
+) {
   if (enviroPath?.endsWith(".vcp")) {
     // Cover projects require the full filename (e.g. "manager.c" instead of "manager")
     unitName = unitName + path.extname(fullFilePath);
@@ -479,5 +479,5 @@ export function resolveVcpPaths(
     enviroPath = path.join(parsed.dir, parsed.name);
   }
 
-  return { enviroPath, unitName };
+  return enviroPath;
 }

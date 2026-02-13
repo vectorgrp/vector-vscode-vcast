@@ -1226,11 +1226,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         let unitName = path.parse(filePath).name;
 
         // If the file is in a cover project, we need adapt the paths
-        ({ enviroPath, unitName } = resolveVcpPaths(
-          enviroPath,
-          unitName,
-          filePath
-        ));
+        enviroPath = resolveVcpPaths(enviroPath, unitName, filePath);
 
         if (enviroPath) {
           viewMCDCReport(enviroPath, unitName, args.lineNumber);
