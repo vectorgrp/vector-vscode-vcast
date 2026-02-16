@@ -258,7 +258,11 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
         }
       }
 
-      if (coveredList.length == 0 && uncoveredList.length == 0) {
+      if (
+        coveredList.length == 0 &&
+        uncoveredList.length == 0 &&
+        partiallyCoveredList.length == 0
+      ) {
         // This status is for files that have changed since
         // they were last instrumented
         returnData.statusString = "Coverage Out of Date";
