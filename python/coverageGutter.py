@@ -28,6 +28,7 @@ def getMCDCLineDic(sourceObject):
             continue
         
         start_line = mcdc.start_line
+        
         # Per default, we set the line to be uncovered
         temp_line_coverage_dic[start_line] = MCDCLineCoverage.uncovered
         mcdc_unit_line_dic[unit] = temp_line_coverage_dic
@@ -154,8 +155,6 @@ def handleStatementMcdcCoverage(
             if use_mcdc
             else metrics.max_covered_branches + metrics.max_annotations_branches
         )
-        #print(f"line_number: {line_number}")
-        #print(f"{metrics.mcdc_branches} = {metrics.covered_mcdc_branches} + {metrics.uncovered_mcdc_branches}")
 
         # Determine statement coverage
         covered_statements = (

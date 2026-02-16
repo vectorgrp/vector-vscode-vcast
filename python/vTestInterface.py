@@ -393,7 +393,6 @@ def getCoverageKind(sourceObject):
     else:
         return CoverageKind.ignore
 
-
 def getCoverageData(sourceObject):
     """
     This function will use the data interface to
@@ -486,8 +485,121 @@ def getCoverageData(sourceObject):
             uncoveredString = uncoveredString[:-1]
             partiallyCoveredString = partiallyCoveredString[:-1]
 
+            # Remap coverage from closing brace to function start for empty functions
+            coveredString, partiallyCoveredString, uncoveredString = (
+                remapEmptyFunctionCoverage(
+                    sourceObject,
+                    coveredString,
+                    partiallyCoveredString,
+                    uncoveredString,
+                )
+            )
+
     return coveredString, uncoveredString, partiallyCoveredString, checksum
 
+def lineInString(line_number, coverage_string):
+    """
+    Exact token match in a comma-separated coverage string.
+    Avoids false positives like '8' matching inside '18'.
+    """
+    if not coverage_string:
+        return False
+
+    all_lines = coverage_string.split(",")
+    return str(line_number) in all_lines
+
+
+def removeLine(line_number, coverage_string):
+    """
+    Removes a line number from a comma-separated coverage string.
+    """
+    if not coverage_string:
+        return coverage_string
+
+    line_number_str = str(line_number)
+    all_lines = coverage_string.split(",")
+    
+    filtered_lines = []
+    for entry in all_lines:
+        if entry != line_number_str:
+            filtered_lines.append(entry)
+
+    return ",".join(filtered_lines)
+
+
+def addLine(line_number, coverage_string):
+    """
+    Appends a line number to a comma-separated coverage string (no duplicates).
+    """
+    if not coverage_string:
+        return str(line_number)
+
+    line_number_str = str(line_number)
+    all_lines = coverage_string.split(",")
+    already_present = line_number_str in all_lines
+
+    if not already_present:
+        all_lines.append(line_number_str)
+
+    return ",".join(all_lines)
+
+
+def remapEmptyFunctionCoverage(
+    sourceObject,
+    coveredString,
+    partiallyCoveredString,
+    uncoveredString,
+):
+    """
+    VectorCAST only instruments the closing '}' of an empty/stub function,
+    so the coverage icon would appear on the brace instead of the function signature.
+
+    For each function where:
+      - start_line has NO coverage of any kind, AND
+      - end_line DOES have coverage (in any List)
+
+    move that entry from end_line to start_line, keeping whichever
+    state it was in: covered / partially-covered / uncovered.
+    """
+    for function in sourceObject.cover_data.functions:
+        start_line = function.start_line
+        end_line = getattr(function, "end_line", None)
+
+        # Nothing to remap if identical or unknown
+        if end_line is None or end_line == start_line:
+            continue
+
+        # Skip if start_line already has coverage in any List
+        start_has_coverage = (
+            lineInString(start_line, coveredString)
+            or lineInString(start_line, partiallyCoveredString)
+            or lineInString(start_line, uncoveredString)
+        )
+        if start_has_coverage:
+            continue
+
+        # Determine which List end_line is in
+        end_is_covered = lineInString(end_line, coveredString)
+        end_is_partial = lineInString(end_line, partiallyCoveredString)
+        end_is_uncovered = lineInString(end_line, uncoveredString)
+
+        if not (end_is_covered or end_is_partial or end_is_uncovered):
+            continue
+
+        # Move end_line -> start_line in the correct List
+        if end_is_covered:
+            coveredString = removeLine(end_line,  coveredString)
+            coveredString = addLine(start_line,   coveredString)
+
+        elif end_is_partial:
+            partiallyCoveredString = removeLine(end_line,  partiallyCoveredString)
+            partiallyCoveredString = addLine(start_line,   partiallyCoveredString)
+
+        elif end_is_uncovered:
+            uncoveredString = removeLine(end_line,  uncoveredString)
+            uncoveredString = addLine(start_line,   uncoveredString)
+
+    return coveredString, partiallyCoveredString, uncoveredString
 
 def executeVCtest(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
