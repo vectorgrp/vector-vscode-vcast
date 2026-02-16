@@ -75,6 +75,10 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
     # and therefore use a different API
     ApiClass, entity_attr = get_api_context(env)
 
+    # Normalize unit_filter so it works whether the caller passes
+    # "health_monitor" or "health_monitor.h"
+    unit_filter_base = os.path.splitext(unit_filter)[0]
+
     with ApiClass(env) as api:
         sourceObjects = api.SourceFile.all()
         unit_found = False
@@ -83,11 +87,11 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
             unit_file = sourceObject.cover_data.name
             unit_name = os.path.splitext(unit_file)[0]
 
-            if unit_name != unit_filter:
+            if unit_name != unit_filter_base:
                 continue
-            
+
             unit_found = True
-            
+
             # Spin through all MCDC decisions looking for the one on our line
             line_found = False
             for mcdc_dec in sourceObject.cover_data.mcdc_decisions:
@@ -113,8 +117,8 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                 # If the decision lives in a different instrumented file
                 # (e.g. template instantiations across TUs), filter by
                 # line only so all instantiations are included.
-                if mcdc_dec.function.instrumented_file.name == unit_filter:
-                    api.mcdc_filter = {"unit": unit_filter, "line": line_filter}
+                if mcdc_dec.function.instrumented_file.name == unit_file:
+                    api.mcdc_filter = {"unit": unit_file, "line": line_filter}
                 else:
                     api.mcdc_filter = {"line": line_filter}
 
@@ -133,10 +137,10 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                     raise RuntimeError(f"Could not find line {line_filter} in unit {unit_filter}")
                 break
 
-            if not unit_found:
-                raise RuntimeError(
-                    f"Could not find unit {unit_filter}"
-                )
+        if not unit_found:
+            raise RuntimeError(
+                f"Could not find unit {unit_filter}"
+            )
 
 
 def main():
