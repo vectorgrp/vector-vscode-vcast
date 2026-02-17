@@ -96,6 +96,21 @@
         "title": "Re-Build Environment"
       },
       {
+        "command": "vectorcastTestExplorer.coverRemoveAllResults",
+        "category": "VectorCAST Test Explorer",
+        "title": "Cover: Remove All Results"
+      },
+      {
+        "command": "vectorcastTestExplorer.coverRemoveResult",
+        "category": "VectorCAST Test Explorer",
+        "title": "Cover: Remove Result File"
+      },
+      {
+        "command": "vectorcastTestExplorer.coverAddResult",
+        "category": "VectorCAST Test Explorer",
+        "title": "Cover: Add Result File"
+      },
+      {
         "command": "vectorcastTestExplorer.buildProjectEnviro",
         "category": "VectorCAST Test Explorer",
         "title": "Build Project Environment"
@@ -681,6 +696,18 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.coverRemoveAllResults",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.coverRemoveResult",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.coverAddResult",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.updateProjectEnvironment",
           "when": "never"
         },
@@ -991,6 +1018,21 @@
         "command": "vectorcastTestExplorer.updateProjectEnvironment",
         "group": "vcast.project",
         "when": "(testId =~ /^vcast:.*$/ && (testId in vectorcastTestExplorer.vcastUnbuiltEnviroList || testId in vectorcastTestExplorer.vcastEnviroList) && vectorcastTestExplorer.globalProjectIsOpenedChecker) && !config.vectorcastTestExplorer.automaticallyUpdateManageProject && !(testId =~ /\\.vcp$/)"
+      },
+      {
+        "command": "vectorcastTestExplorer.coverRemoveAllResults",
+        "group": "vcast.project",
+        "when": "testId =~ /::results$/"
+      },
+      {
+        "command": "vectorcastTestExplorer.coverRemoveResult",
+        "group": "vcast.project",
+        "when": "testId in vectorcastTestExplorer.coverResultNodeIDList"
+      },
+      {
+        "command": "vectorcastTestExplorer.coverAddResult",
+        "group": "vcast.project",
+        "when": "testId =~ /::results$/"
       },
       {
         "command": "vectorcastTestExplorer.buildProjectEnviro",

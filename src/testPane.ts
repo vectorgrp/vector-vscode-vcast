@@ -41,6 +41,7 @@ import {
   saveEnviroNodeData,
   testNodeType,
   testNodeCache,
+  createVcpNodeInCache,
 } from "./testData";
 
 import {
@@ -2187,6 +2188,8 @@ async function createVcpChildNodes(
   saveEnviroNodeData(enviroData.buildDirectory, enviroData);
   updateGlobalDataForFile(enviroData.buildDirectory, vcpData.unitData);
 
+  const projectNodeID = vcpProjectNode.id;
+
   // Create "Files" node
   const filesNodeId = `${enviroData.buildDirectory}::files`;
   const filesNode = globalController.createTestItem(
@@ -2195,6 +2198,7 @@ async function createVcpChildNodes(
   ) as vcastTestItem;
   filesNode.nodeKind = nodeKind.vcpFiles;
   vcpProjectNode.children.add(filesNode);
+  const projectName = path.basename(enviroData.projectPath);
 
   // Add source files as children under Files node
   if (vcpData?.unitData && Array.isArray(vcpData.unitData)) {
@@ -2213,6 +2217,15 @@ async function createVcpChildNodes(
         unitNode.canResolveChildren = false;
 
         filesNode.children.add(unitNode);
+
+        createVcpNodeInCache(
+          filesNodeId,
+          enviroData.projectPath,
+          projectName,
+          projectNodeID,
+          true,
+          false
+        );
       }
     }
   }
@@ -2244,6 +2257,14 @@ async function createVcpChildNodes(
         resultNode.canResolveChildren = false;
 
         resultsNode.children.add(resultNode);
+        createVcpNodeInCache(
+          filesNodeId,
+          enviroData.projectPath,
+          projectName,
+          projectNodeID,
+          false,
+          true
+        );
       }
     }
   }

@@ -469,6 +469,36 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(insertATGTestsCommand);
 
+  // Command: vectorcastTestExplorer.coverRemoveAllResults////////////////////////////////////////////////////////
+  let coverRemoveAllResultsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.coverRemoveAllResults",
+    (args: any) => {
+      // TODO: implement remove all results
+      vectorMessage(`${args.id}`);
+    }
+  );
+  context.subscriptions.push(coverRemoveAllResultsCommand);
+
+  // Command: vectorcastTestExplorer.coverRemoveResult////////////////////////////////////////////////////////
+  let coverRemoveResultCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.coverRemoveResult",
+    (args: any) => {
+      // TODO: implement remove result
+      vectorMessage(`${args.id}`);
+    }
+  );
+  context.subscriptions.push(coverRemoveResultCommand);
+
+  // Command: vectorcastTestExplorer.coverAddResult////////////////////////////////////////////////////////
+  let coverAddResultCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.coverAddResult",
+    (args: any) => {
+      // TODO: implement add result
+      vectorMessage(`${args.id}`);
+    }
+  );
+  context.subscriptions.push(coverAddResultCommand);
+
   // Command: vectorcastTestExplorer.insertATGTestsFromEditor////////////////////////////////////////////////////////
   let insertATGTestsFromEditorCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.insertATGTestsFromEditor",
