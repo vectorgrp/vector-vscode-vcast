@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -239,6 +239,11 @@
         "command": "vectorcastTestExplorer.removeCodedTests",
         "category": "VectorCAST Test Explorer",
         "title": "Remove Coded Tests"
+      },
+      {
+        "command": "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
+        "category": "VectorCAST Test Explorer",
+        "title": "Open Source File under Test"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
@@ -792,6 +797,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.insertBasisPathTests",
           "when": "never"
         },
@@ -1108,6 +1117,11 @@
         "command": "vectorcastTestExplorer.removeCodedTests",
         "group": "vcast.testScript",
         "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ && testId in vectorcastTestExplorer.vcastHasCodedTestsList && !(testId =~ /\\.vcp$/)"
+      },
+      {
+        "command": "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
+        "group": "vcast.enviroManagement",
+        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
