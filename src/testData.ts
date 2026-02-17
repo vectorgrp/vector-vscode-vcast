@@ -39,6 +39,7 @@ export const compoundOnlyString = " [compound only]";
 
 export interface vcpNodeType {
   vcpNodeID: string;
+  sourceFilePath: string;
   projectPath: string;
   projectName: string;
   isVcpFile: boolean;
@@ -50,6 +51,7 @@ export const vcpNodeCache = new Map();
 
 export function createVcpNodeInCache(
   vcpNodeID: string,
+  sourceFilePath: string,
   projectPath: string,
   projectName: string,
   projectNodeID: string,
@@ -58,6 +60,7 @@ export function createVcpNodeInCache(
 ) {
   let vcpNode: vcpNodeType = {
     vcpNodeID: vcpNodeID,
+    sourceFilePath: sourceFilePath,
     projectPath: projectPath,
     projectName: projectName,
     projectNodeID: projectNodeID,
@@ -79,7 +82,7 @@ export function removeVcpNodeFromCache(nodeID: string) {
   vcpNodeCache.delete(nodeID);
 }
 
-export function getVcpTestNode(nodeID: string): testNodeType {
+export function getVcpTestNode(nodeID: string): vcpNodeType {
   return vcpNodeCache.get(nodeID);
 }
 

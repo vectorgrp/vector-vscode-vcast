@@ -2210,7 +2210,8 @@ async function createVcpChildNodes(
     for (const unit of vcpData.unitData) {
       if (unit.path) {
         const unitFileName = path.basename(unit.path);
-        const unitNodeId = `${filesNodeId}::${unit.path}`;
+        const sourceFilePath = unit.path;
+        const unitNodeId = `${sourceFilePath}::file`;
 
         const unitNode = globalController.createTestItem(
           unitNodeId,
@@ -2224,7 +2225,8 @@ async function createVcpChildNodes(
         filesNode.children.add(unitNode);
 
         createVcpNodeInCache(
-          filesNodeId,
+          unitNodeId,
+          sourceFilePath,
           enviroData.projectPath,
           projectName,
           projectNodeID,
@@ -2250,7 +2252,7 @@ async function createVcpChildNodes(
       // resultFile should be the full path to all.lua or api.lua
       if (resultFile && typeof resultFile === "string") {
         const resultFileName = path.basename(resultFile);
-        const resultNodeId = `${resultsNodeId}::${resultFile}`;
+        const resultNodeId = `${resultFile}::result`;
 
         const resultNode = globalController.createTestItem(
           resultNodeId,
@@ -2263,7 +2265,8 @@ async function createVcpChildNodes(
 
         resultsNode.children.add(resultNode);
         createVcpNodeInCache(
-          filesNodeId,
+          resultNodeId,
+          resultFile,
           enviroData.projectPath,
           projectName,
           projectNodeID,

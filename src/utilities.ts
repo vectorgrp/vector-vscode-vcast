@@ -430,10 +430,14 @@ export async function mergeWorkspaceEnvResponses(
 ): Promise<CachedWorkspaceData> {
   const allErrors: string[] = [];
   const allEnvs: EnviroData[] = [];
+  const allVcp: EnviroData[] = [];
 
   for (const resp of responses) {
     if (resp.errors) {
       allErrors.push(...resp.errors);
+    }
+    if (resp.vcp) {
+      allVcp.push(...resp.vcp);
     }
     if (resp.enviro) {
       allEnvs.push(...resp.enviro);
@@ -442,6 +446,7 @@ export async function mergeWorkspaceEnvResponses(
 
   return {
     enviro: allEnvs,
+    vcp: allVcp,
     errors: allErrors.length ? allErrors : undefined,
   };
 }
@@ -503,4 +508,20 @@ export function resolveVcpPaths(
   }
 
   return enviroPath;
+}
+
+export async function openFileAtLine(
+  filePath: string,
+  lineNumber: number
+): Promise<void> {
+  const uri = vscode.Uri.file(filePath);
+  const document = await vscode.workspace.openTextDocument(uri);
+  const position = new vscode.Position(Math.max(0, lineNumber - 1), 0);
+  const selection = new vscode.Range(position, position);
+
+  await vscode.window.showTextDocument(document, {
+    preview: false,
+    preserveFocus: false,
+    selection: selection,
+  });
 }
