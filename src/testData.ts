@@ -34,45 +34,59 @@ export function clearEnviroDataCache() {
 
 export let coverFilesNodeIDList: string[] = [];
 export let coverResultNodeIDList: string[] = [];
+export let coverInPlaceList: string[] = [];
 
 export const compoundOnlyString = " [compound only]";
 
 export interface vcpNodeType {
   vcpNodeID: string;
-  sourceFilePath: string;
   projectPath: string;
   projectName: string;
   isVcpFile: boolean;
   isVcpResult: boolean;
   projectNodeID: string;
+  inPlace: boolean;
+  sourceFilePath?: string;
 }
 
 export const vcpNodeCache = new Map();
 
 export function createVcpNodeInCache(
   vcpNodeID: string,
-  sourceFilePath: string,
   projectPath: string,
   projectName: string,
   projectNodeID: string,
   isVcpFile: boolean,
-  isVcpResult: boolean
+  isVcpResult: boolean,
+  inPlace: boolean,
+  sourceFilePath?: string
 ) {
   let vcpNode: vcpNodeType = {
     vcpNodeID: vcpNodeID,
-    sourceFilePath: sourceFilePath,
     projectPath: projectPath,
     projectName: projectName,
     projectNodeID: projectNodeID,
     isVcpFile: isVcpFile,
     isVcpResult: isVcpResult,
+    inPlace: inPlace,
+    sourceFilePath: sourceFilePath,
   };
 
+  // Prepare the lists for the package.json --> 1) All Files, 2) All Results, 3) All VCPs in place for coverage
   vcpNodeCache.set(vcpNodeID, vcpNode);
   if (vcpNode.isVcpFile && !coverFilesNodeIDList.includes(vcpNodeID)) {
     coverFilesNodeIDList.push(vcpNodeID);
   } else if (vcpNode.isVcpResult && !coverFilesNodeIDList.includes(vcpNodeID)) {
     coverResultNodeIDList.push(vcpNodeID);
+  }
+
+  if (inPlace) {
+    if (!coverInPlaceList.includes(projectNodeID)) {
+      coverInPlaceList.push(projectNodeID);
+    }
+  } else {
+    // Remove it from the list if it was there before
+    coverInPlaceList = coverInPlaceList.filter((id) => id !== projectNodeID);
   }
 
   setCoverProjectContext();
@@ -96,6 +110,11 @@ export function setCoverProjectContext() {
     "setContext",
     "vectorcastTestExplorer.coverResultNodeIDList",
     coverResultNodeIDList
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.coverInPlaceList",
+    coverInPlaceList
   );
 }
 

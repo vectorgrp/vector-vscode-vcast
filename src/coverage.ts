@@ -9,7 +9,7 @@ import {
   getListOfFilesWithCoverage,
 } from "./vcastTestInterface";
 
-import { getRangeOption } from "./utilities";
+import { fileIsVCPAndInPlace, getRangeOption } from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 import {
@@ -183,10 +183,14 @@ export async function updateCOVdecorations() {
   ) {
     const filePath = url.fileURLToPath(activeEditor.document.uri.toString());
 
+    // We have to check if the source file is part of a Cover project AND
+    // whether it is instrumented in_place. If so, we do not want to show coverage.
+    const fileIsPartOfVCPAndInPlace = fileIsVCPAndInPlace(filePath);
+
     // this returns the cached coverage data for this file
     const coverageData = getCoverageDataForFile(filePath);
 
-    if (coverageData.hasCoverageData) {
+    if (coverageData.hasCoverageData && !fileIsPartOfVCPAndInPlace) {
       // there is coverage data and it matches the file checksum
       // Reset the global decoration arrays
       resetGlobalDecorations();

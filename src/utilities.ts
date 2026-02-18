@@ -12,6 +12,7 @@ import { rebuildEnvironmentCallback } from "./callbacks";
 import { CachedWorkspaceData, EnviroData } from "./testPane";
 import { executeWithRealTimeEchoWithProgress } from "./vcastCommandRunner";
 import { getVectorCastInstallationLocation } from "./vcastInstallation";
+import { vcpNodeCache, vcpNodeType } from "./testData";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -524,4 +525,31 @@ export async function openFileAtLine(
     preserveFocus: false,
     selection: selection,
   });
+}
+
+/**
+ * Returns true if the given file path is part of a vcp project and is in_place
+ */
+export function fileIsVCPAndInPlace(filePath: string) {
+  let vcpNode = getVcpNodeBySourceFilePath(filePath);
+
+  if (vcpNode?.inPlace) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+/**
+ * Returns vcp node for a given source file path 
+ */
+export function getVcpNodeBySourceFilePath(
+  sourceFilePath: string
+): vcpNodeType | undefined {
+  for (const node of vcpNodeCache.values()) {
+    if (node.sourceFilePath === sourceFilePath) {
+      return node;
+    }
+  }
+  return undefined;
 }

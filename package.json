@@ -111,6 +111,16 @@
         "title": "Cover: Add Result File"
       },
       {
+        "command": "vectorcastTestExplorer.coverEnableInstrumentation",
+        "category": "VectorCAST Test Explorer",
+        "title": "Cover: Enable Instrumentation"
+      },
+      {
+        "command": "vectorcastTestExplorer.coverDisableInstrumentation",
+        "category": "VectorCAST Test Explorer",
+        "title": "Cover: Disable Instrumentation"
+      },
+      {
         "command": "vectorcastTestExplorer.buildProjectEnviro",
         "category": "VectorCAST Test Explorer",
         "title": "Build Project Environment"
@@ -713,6 +723,14 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.coverEnableInstrumentation",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.coverDisableInstrumentation",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.updateProjectEnvironment",
           "when": "never"
         },
@@ -1042,6 +1060,16 @@
         "command": "vectorcastTestExplorer.coverAddResult",
         "group": "vcast.project",
         "when": "testId =~ /::results$/"
+      },
+      {
+        "command": "vectorcastTestExplorer.coverEnableInstrumentation",
+        "group": "vcast.project",
+        "when": "testId =~ /\\.vcp$/ && testId not in vectorcastTestExplorer.coverInPlaceList"
+      },
+      {
+        "command": "vectorcastTestExplorer.coverDisableInstrumentation",
+        "group": "vcast.project",
+        "when": "testId =~ /\\.vcp$/ && testId in vectorcastTestExplorer.coverInPlaceList"
       },
       {
         "command": "vectorcastTestExplorer.buildProjectEnviro",

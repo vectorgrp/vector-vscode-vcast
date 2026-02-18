@@ -939,7 +939,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                 test_data = getVCPResultsList(vcp_path)
                 unit_data = getUnitData(api)
                 mocking_support = False  # Cover projects do not support mocking
-                api.close()
+                in_place = api.environment.instrumenting_in_place
 
                 vcp_list.append(
                     {
@@ -947,6 +947,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                         "testData": test_data,
                         "unitData": unit_data,
                         "mockingSupport": mocking_support,
+                        "inPlace": in_place
                     }
                 )
             except Exception as err:

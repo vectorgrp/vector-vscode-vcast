@@ -616,3 +616,84 @@ export async function executeClicastCommandUsingServer(
   }
   return commandStatus;
 }
+
+export function executeWithRealTimeEchoNoCallback(
+  command: string,
+  argList: string[],
+  CWD: string,
+  vscodeMessage: string
+) {
+  return vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `${vscodeMessage}`,
+      cancellable: true,
+    },
+    async (progress, token) => {
+      progress.report({ increment: 10 });
+
+      let processHandle = spawn(command, argList, {
+        cwd: CWD,
+        windowsHide: true,
+      });
+      vectorMessage("-".repeat(100));
+      vectorMessage("-".repeat(100));
+      let messageFragment: string = "";
+
+      let progressValue = 10;
+      const progressInterval = setInterval(() => {
+        if (progressValue < 90) {
+          progressValue += 15;
+          progress.report({ increment: 10 });
+        }
+      }, 3000);
+
+      token.onCancellationRequested(() => {
+        if (processHandle) {
+          processHandle.kill();
+          vectorMessage(`User cancelled the operation.`);
+        }
+        clearInterval(progressInterval);
+      });
+
+      await new Promise<void>((resolve) => {
+        processHandle.stdout.on("data", function (data: any) {
+          const rawString = data.toString();
+          const lineArray = rawString.split(/[\n\r?]/);
+
+          if (messageFragment.length > 0) {
+            lineArray[0] = messageFragment + lineArray[0];
+            messageFragment = "";
+          }
+
+          if (!rawString.endsWith("\n") && !rawString.endsWith("\r")) {
+            messageFragment = lineArray.pop();
+          }
+
+          for (const line of lineArray) {
+            if (line.length > 0) {
+              vectorMessage(line.replace(/\n/g, ""));
+            }
+          }
+        });
+
+        processHandle.on("exit", async function (code: any) {
+          clearInterval(progressInterval);
+          progress.report({ increment: 100 });
+          vectorMessage("-".repeat(100));
+          vectorMessage(
+            `${path.basename(command)}: '${argList.join(" ")}' returned exit code: ${code.toString()}`
+          );
+          vectorMessage("-".repeat(100));
+          resolve();
+        });
+
+        processHandle.on("error", (error) => {
+          clearInterval(progressInterval);
+          vectorMessage(`Error occurred: ${error.message}`);
+          resolve();
+        });
+      });
+    }
+  );
+}

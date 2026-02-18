@@ -141,6 +141,7 @@ export type EnviroData = {
   testData: FileTestData[];
   unitData: UnitData[];
   mockingSupport: boolean;
+  inPlace: boolean;
 };
 
 export type CachedWorkspaceData = {
@@ -654,6 +655,7 @@ export function addVcpEnvironments(
         displayName: displayName,
         workspaceRoot: workspaceRoot,
         isVcp: true,
+        inPlace: vcpData.inPlace,
       });
     }
   }
@@ -2192,18 +2194,27 @@ async function createVcpChildNodes(
   const vcpData = getVcpDataFromCache(enviroData.buildDirectory);
   saveEnviroNodeData(enviroData.buildDirectory, enviroData);
   updateGlobalDataForFile(enviroData.buildDirectory, vcpData.unitData);
-
+  const inPlace = vcpData.inPlace;
   const projectNodeID = vcpProjectNode.id;
 
   // Create "Files" node
   const filesNodeId = `${enviroData.buildDirectory}::files`;
+  const projectName = path.basename(enviroData.projectPath);
   const filesNode = globalController.createTestItem(
     filesNodeId,
     "Files"
   ) as vcastTestItem;
+  createVcpNodeInCache(
+    filesNodeId,
+    normalizePath(enviroData.projectPath),
+    projectName,
+    projectNodeID,
+    false,
+    false,
+    inPlace
+  );
   filesNode.nodeKind = nodeKind.vcpFiles;
   vcpProjectNode.children.add(filesNode);
-  const projectName = path.basename(enviroData.projectPath);
 
   // Add source files as children under Files node
   if (vcpData?.unitData && Array.isArray(vcpData.unitData)) {
@@ -2226,12 +2237,13 @@ async function createVcpChildNodes(
 
         createVcpNodeInCache(
           unitNodeId,
-          sourceFilePath,
-          enviroData.projectPath,
+          normalizePath(enviroData.projectPath),
           projectName,
           projectNodeID,
           true,
-          false
+          false,
+          inPlace,
+          normalizePath(sourceFilePath)
         );
       }
     }
@@ -2245,6 +2257,16 @@ async function createVcpChildNodes(
   ) as vcastTestItem;
   resultsNode.nodeKind = nodeKind.vcpResults;
   vcpProjectNode.children.add(resultsNode);
+
+  createVcpNodeInCache(
+    resultsNodeId,
+    normalizePath(enviroData.projectPath),
+    projectName,
+    projectNodeID,
+    false,
+    false,
+    inPlace
+  );
 
   // Add .lua result files as children under Results node
   if (vcpData?.testData && Array.isArray(vcpData.testData)) {
@@ -2266,12 +2288,13 @@ async function createVcpChildNodes(
         resultsNode.children.add(resultNode);
         createVcpNodeInCache(
           resultNodeId,
-          resultFile,
-          enviroData.projectPath,
+          normalizePath(enviroData.projectPath),
           projectName,
           projectNodeID,
           false,
-          true
+          true,
+          inPlace,
+          normalizePath(resultFile)
         );
       }
     }
@@ -2281,7 +2304,7 @@ async function createVcpChildNodes(
 /**
  * Helper function to get VCP data from the workspace cache
  */
-function getVcpDataFromCache(vcpPath: string): any {
+export function getVcpDataFromCache(vcpPath: string): any {
   if (cachedWorkspaceEnvData?.vcp) {
     const normalizedPath = normalizePath(vcpPath);
     return cachedWorkspaceEnvData.vcp.find(

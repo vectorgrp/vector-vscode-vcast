@@ -70,6 +70,7 @@ import {
   setGlobalProjectIsOpenedChecker,
   setGlobalCompilerAndTestsuites,
   loadTestScriptButton,
+  getVcpDataFromCache,
 } from "./testPane";
 
 import {
@@ -126,6 +127,7 @@ import {
   launchFile,
   globalPathToSupportFiles,
   initializeInstallerFiles,
+  clicastCommandToUse,
 } from "./vcastInstallation";
 
 import {
@@ -173,6 +175,7 @@ import {
   resolveWebviewBase,
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
+import { executeWithRealTimeEchoNoCallback } from "./vcastCommandRunner";
 
 const path = require("path");
 
@@ -476,9 +479,26 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.coverRemoveAllResults////////////////////////////////////////////////////////
   let coverRemoveAllResultsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.coverRemoveAllResults",
-    (args: any) => {
-      // TODO: implement remove all results
-      vectorMessage(`${args.id}`);
+    async (args: any) => {
+      const resultNode = getVcpTestNode(args.id);
+      const coverProjectName = resultNode.projectName.split(".vcp")[0];
+      const cwd = path.dirname(resultNode.projectPath);
+      const commandArgs = [
+        "-e",
+        coverProjectName,
+        "cover",
+        "RESult",
+        "REMove",
+        "all",
+      ];
+      const vscodeInfoMEssage = `Removing all Results from ${cwd}`;
+      await executeWithRealTimeEchoNoCallback(
+        clicastCommandToUse,
+        commandArgs,
+        cwd,
+        vscodeInfoMEssage
+      );
+      await refreshAllExtensionData();
     }
   );
   context.subscriptions.push(coverRemoveAllResultsCommand);
@@ -486,9 +506,28 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.coverRemoveResult////////////////////////////////////////////////////////
   let coverRemoveResultCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.coverRemoveResult",
-    (args: any) => {
-      // TODO: implement remove result
-      vectorMessage(`${args.id}`);
+    async (args: any) => {
+      const singleResultNode = getVcpTestNode(args.id);
+      const resultFilePath = singleResultNode.sourceFilePath;
+      const resultFileName = path.basename(resultFilePath);
+      const coverProjectName = singleResultNode.projectName.split(".vcp")[0];
+      const cwd = path.dirname(singleResultNode.projectPath);
+      const commandArgs = [
+        "-e",
+        coverProjectName,
+        "cover",
+        "RESult",
+        "REMove",
+        resultFileName,
+      ];
+      const vscodeInfoMEssage = `Removing Result ${resultFileName} from ${cwd}`;
+      await executeWithRealTimeEchoNoCallback(
+        clicastCommandToUse,
+        commandArgs,
+        cwd,
+        vscodeInfoMEssage
+      );
+      await refreshAllExtensionData();
     }
   );
   context.subscriptions.push(coverRemoveResultCommand);
@@ -496,12 +535,97 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.coverAddResult////////////////////////////////////////////////////////
   let coverAddResultCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.coverAddResult",
-    (args: any) => {
-      // TODO: implement add result
-      vectorMessage(`${args.id}`);
+    async (args: any) => {
+      const resultNode = getVcpTestNode(args.id);
+      const coverProjectName = resultNode.projectName.split(".vcp")[0];
+      const cwd = path.dirname(resultNode.projectPath);
+
+      const selectedFiles = await vscode.window.showOpenDialog({
+        canSelectMany: true,
+        canSelectFolders: false,
+        filters: { "Result Files": ["lua"] },
+        title: "Select Result File(s) to Add",
+      });
+
+      if (!selectedFiles || selectedFiles.length === 0) return;
+
+      for (const file of selectedFiles) {
+        const resultFileName = path.basename(file.fsPath);
+        const commandArgs = [
+          "-e",
+          coverProjectName,
+          "cover",
+          "RESult",
+          "ADD",
+          resultFileName,
+        ];
+        const vscodeInfoMessage = `Adding result ${resultFileName} to ${cwd}`;
+        await executeWithRealTimeEchoNoCallback(
+          clicastCommandToUse,
+          commandArgs,
+          cwd,
+          vscodeInfoMessage
+        );
+      }
+
+      await refreshAllExtensionData();
     }
   );
   context.subscriptions.push(coverAddResultCommand);
+
+  // Command: vectorcastTestExplorer.coverEnableInstrumentation////////////////////////////////////////////////////////
+  let coverEnableInstrumentationCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.coverEnableInstrumentation",
+    async (args: any) => {
+      const vcpNode = getVcpDataFromCache(args.id);
+      const projectPath = vcpNode.vcpPath.split(".vcp")[0];
+      const coverProjectName = path.basename(projectPath);
+      const cwd = path.dirname(projectPath);
+      const commandArgs = [
+        "-e",
+        coverProjectName,
+        "cover",
+        "environment",
+        "enable_instrumentation",
+      ];
+      const vscodeInfoMessage = `Enabling instrumentation for ${coverProjectName}`;
+      await executeWithRealTimeEchoNoCallback(
+        clicastCommandToUse,
+        commandArgs,
+        cwd,
+        vscodeInfoMessage
+      );
+      await refreshAllExtensionData();
+    }
+  );
+  context.subscriptions.push(coverEnableInstrumentationCommand);
+
+  // Command: vectorcastTestExplorer.coverDisableInstrumentation////////////////////////////////////////////////////////
+  let coverDisableInstrumentationCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.coverDisableInstrumentation",
+    async (args: any) => {
+      const vcpNode = getVcpDataFromCache(args.id);
+      const projectPath = vcpNode.vcpPath.split(".vcp")[0];
+      const coverProjectName = path.basename(projectPath);
+      const cwd = path.dirname(projectPath);
+      const commandArgs = [
+        "-e",
+        coverProjectName,
+        "cover",
+        "environment",
+        "disable_instrumentation",
+      ];
+      const vscodeInfoMessage = `Disabling instrumentation for ${coverProjectName}`;
+      await executeWithRealTimeEchoNoCallback(
+        clicastCommandToUse,
+        commandArgs,
+        cwd,
+        vscodeInfoMessage
+      );
+      await refreshAllExtensionData();
+    }
+  );
+  context.subscriptions.push(coverDisableInstrumentationCommand);
 
   // Command: vectorcastTestExplorer.insertATGTestsFromEditor////////////////////////////////////////////////////////
   let insertATGTestsFromEditorCommand = vscode.commands.registerCommand(
@@ -1283,18 +1407,21 @@ function configureExtension(context: vscode.ExtensionContext) {
       const fileID: string = args.id;
       const isVcpFile = fileID.endsWith("::file");
       let testNode: testNodeType | vcpNodeType;
+      // If it's a vcp file, we do not have additional info like function or unit, so we just open it up at line 0
       if (isVcpFile) {
         testNode = getVcpTestNode(fileID);
-        if (!testNode) {
+        const sourceFilePath = testNode.sourceFilePath;
+        if (!testNode || !sourceFilePath) {
           vscode.window.showErrorMessage(
             `Unable to open Source File for Node: ${fileID}`
           );
           return;
         }
-        await openFileAtLine(testNode.sourceFilePath, 0);
+        await openFileAtLine(sourceFilePath, 0);
         return;
       }
 
+      // If it's a unit test node, we can open up the source file more specifically
       testNode = getTestNode(fileID);
       if (!testNode) {
         vscode.window.showErrorMessage(
