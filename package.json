@@ -1019,7 +1019,7 @@
       {
         "command": "vectorcastTestExplorer.openProjectInVectorCAST",
         "group": "vcast.project",
-        "when": "testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites"
+        "when": "testId =~ /\\.vcm$/ || testId =~ /\\.vcp$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites"
       },
       {
         "command": "vectorcastTestExplorer.addCompilerToProject",
