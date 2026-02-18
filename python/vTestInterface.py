@@ -936,7 +936,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         for vcp_path in vcp_files:
             try:
                 api = CoverApi(vcp_path)
-                test_data = getVCPResultsList(vcp_path)
+                test_data = getVCPResultsList(api)
                 unit_data = getUnitData(api)
                 mocking_support = False  # Cover projects do not support mocking
                 in_place = api.environment.instrumenting_in_place
@@ -1047,36 +1047,22 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     return returnCode, returnObject
 
 
-def getVCPResultsList(vcp_path):
+def getVCPResultsList(api):
     """
-    Recursively searches for all.lua and api.lua result files in the VCP root directory
+    Returns a list of all result file paths in the VCP project
     """
-    import os
-    import glob
-    
     resultsList = []
     
     try:
-        # Get the directory containing the .vcp file
-        vcp_dir = os.path.dirname(vcp_path)
-        
-        # Recursively search for all.lua files
-        all_lua_pattern = os.path.join(vcp_dir, "**", "all.lua")
-        all_lua_files = glob.glob(all_lua_pattern, recursive=True)
-        
-        # Recursively search for api.lua files
-        api_lua_pattern = os.path.join(vcp_dir, "**", "api.lua")
-        api_lua_files = glob.glob(api_lua_pattern, recursive=True)
-        
-        # Combine and add full paths to the results list
-        for lua_file in all_lua_files + api_lua_files:
-            resultsList.append(os.path.abspath(lua_file))
+        for result in api.Result.all():
+            result_path = result.absolute_path
+            if result_path:
+                resultsList.append(result_path)
             
     except Exception as e:
-        print(f"Error searching for .lua files in {vcp_path}: {e}")
+        print(f"Error retrieving results from VCP: {e}")
     
     return resultsList
-
 
 def processCommand(mode, clicast, pathToUse, testString="", options=""):
     """

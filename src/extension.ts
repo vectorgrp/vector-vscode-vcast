@@ -543,7 +543,6 @@ function configureExtension(context: vscode.ExtensionContext) {
       const selectedFiles = await vscode.window.showOpenDialog({
         canSelectMany: true,
         canSelectFolders: false,
-        filters: { "Result Files": ["lua"] },
         title: "Select Result File(s) to Add",
       });
 
