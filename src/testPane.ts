@@ -778,8 +778,13 @@ async function buildEnvDataCacheForCurrentDir() {
     folderPaths.map((p) => getWorkspaceEnvDataVPython(p))
   );
 
+  // Filter out undefined/null responses (already logged by getWorkspaceEnvDataVPython)
+  const validResponses = responses.filter(
+    (r): r is CachedWorkspaceData => r != null
+  );
+
   // Merge them
-  cachedWorkspaceEnvData = await mergeWorkspaceEnvResponses(responses);
+  cachedWorkspaceEnvData = await mergeWorkspaceEnvResponses(validResponses);
 }
 
 /**

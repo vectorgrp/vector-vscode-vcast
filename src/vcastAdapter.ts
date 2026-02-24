@@ -710,7 +710,15 @@ export async function getWorkspaceEnvDataVPython(
   );
   let jsonData = getJsonDataFromTestInterface(commandToRun, workspaceDir);
 
-  vectorMessage(`Building environments data for workspace: ${workspaceDir}`);
+  if (jsonData == null) {
+    vectorMessage(
+      `Failed to retrieve environment data for workspace folder: "${workspaceDir}". ` +
+        `The vpython command returned no data (possibly missing VectorCAST installation, ` +
+        `invalid environment, or a vpython execution error).`
+    );
+  } else {
+    vectorMessage(`Building environments data for workspace: ${workspaceDir}`);
+  }
 
   return jsonData;
 }
