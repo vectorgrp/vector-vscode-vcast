@@ -2,6 +2,12 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+
+## [1.0.29] - 2026-02-25
+
+### Added
+- Added setting to allow toggling UUT stubbing for generated requirements-driven tests
+
 ## [1.0.28] - 2026-01-27
 
 ### Added
