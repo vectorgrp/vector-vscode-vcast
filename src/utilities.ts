@@ -430,6 +430,7 @@ export async function mergeWorkspaceEnvResponses(
   const allEnvs: EnviroData[] = [];
 
   for (const resp of responses) {
+    if (!resp) continue;
     if (resp.errors) {
       allErrors.push(...resp.errors);
     }
