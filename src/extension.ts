@@ -155,6 +155,7 @@ import {
   addIncludePath,
   envIsEmbeddedInProject,
   getEnviroNameFromFile,
+  getEnvironmentData,
   getLevelFromNodeId,
   getVcmRoot,
   openProjectFromEnviroPath,
@@ -1234,6 +1235,78 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(getMCDCReportCommand);
+
+  // Command: vectorcastTestExplorer.openSourceFileFromTestpaneCommand
+  let openSourceFileFromTestpaneCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        if (testNode) {
+          const enviroPath = testNode.enviroPath;
+          const unitName = testNode.unitName;
+          const functionName = testNode.functionName;
+          const envData = await getEnvironmentData(enviroPath);
+
+          if (envData.unitData) {
+            for (const unitInfo of envData.unitData) {
+              // Extract unit name from path to match against unitName
+              const pathBasename = path.basename(
+                unitInfo.path,
+                path.extname(unitInfo.path)
+              );
+
+              if (pathBasename === unitName) {
+                const sourcePath = unitInfo.path;
+                const uri = vscode.Uri.file(sourcePath);
+
+                // Determine the line number to open at (0 = top default)
+                let lineNumber = 0;
+
+                // If functionName is defined, try to find it in the function list
+                if (functionName && unitInfo.functionList) {
+                  for (const func of unitInfo.functionList) {
+                    if (
+                      func.name === functionName &&
+                      func.startLine !== undefined
+                    ) {
+                      lineNumber = func.startLine;
+                      break;
+                    }
+                  }
+                }
+
+                // Open the document at the specified line
+                const document = await vscode.workspace.openTextDocument(uri);
+                const position = new vscode.Position(
+                  Math.max(0, lineNumber - 1),
+                  0
+                );
+                const selection = new vscode.Range(position, position);
+
+                await vscode.window.showTextDocument(document, {
+                  preview: false, // open as a real tab
+                  preserveFocus: false,
+                  selection: selection,
+                });
+
+                break;
+              }
+            }
+          } else {
+            vscode.window.showErrorMessage(
+              `Could not find environment data for: ${enviroPath}`
+            );
+          }
+        } else {
+          vscode.window.showErrorMessage(
+            `Unable to open Source File for Node: ${args.id}`
+          );
+        }
+      }
+    }
+  );
+  context.subscriptions.push(openSourceFileFromTestpaneCommand);
 
   let showRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.showRequirements",

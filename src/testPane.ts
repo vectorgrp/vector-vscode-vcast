@@ -47,8 +47,9 @@ import {
   addLaunchConfiguration,
   cleanTestResultsPaneMessage,
   forceLowerCaseDriveLetter,
-  getWorkspaceRootPath,
+  getWorkspaceRootPaths,
   loadLaunchFile,
+  mergeWorkspaceEnvResponses,
   normalizePath,
   openFileWithLineSelected,
 } from "./utilities";
@@ -56,7 +57,7 @@ import {
 import {
   deleteSingleTest,
   getCBTNamesFromFile,
-  getDataForEnvironment,
+  getDataForEnvironmentFromAPI,
   getDataForProject,
   getWorkspaceEnvDataVPython,
   loadTestScriptIntoEnvironment,
@@ -133,16 +134,14 @@ type UnitData = {
   functionList: FunctionUnitData[];
 };
 
-type EnviroData = {
+export type EnviroData = {
   vcePath: string;
   testData: FileTestData[];
   unitData: UnitData[];
   mockingSupport: boolean;
 };
 
-type CachedWorkspaceData = {
-  testData: FileTestData[];
-  unitData: UnitData[];
+export type CachedWorkspaceData = {
   enviro: EnviroData[];
   errors?: string[];
 };
@@ -704,7 +703,7 @@ let vcastHasCodedTestsList: string[] = [];
 
 // Global cache for workspace-wide env data
 // Used to avoid redundant API calls during refresh
-let cachedWorkspaceEnvData: CachedWorkspaceData | null = null;
+export let cachedWorkspaceEnvData: CachedWorkspaceData | null = null;
 
 export function clearCachedWorkspaceEnvData(): void {
   cachedWorkspaceEnvData = null;
@@ -754,11 +753,11 @@ async function loadEnviroData(
       }
     } else {
       // Fallback in case the cache is not build, but it should be
-      return await getDataForEnvironment(buildPathDir);
+      return await getDataForEnvironmentFromAPI(buildPathDir);
     }
   } else {
     // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
-    return await getDataForEnvironment(buildPathDir);
+    return await getDataForEnvironmentFromAPI(buildPathDir);
   }
   // We have a valid build directory, but we couldn't find a matching VCE file in the workspace data.
   vectorMessage(
@@ -768,13 +767,19 @@ async function loadEnviroData(
 }
 
 async function buildEnvDataCacheForCurrentDir() {
-  const workspaceDir = getWorkspaceRootPath();
-  if (workspaceDir) {
-    cachedWorkspaceEnvData = await getWorkspaceEnvDataVPython(workspaceDir);
-  } else {
-    // This should not be possible as we have env data, but just in case
+  const folderPaths = getWorkspaceRootPaths();
+  if (!folderPaths.length) {
     vectorMessage("No workspace root found, cannot refresh environment data.");
+    return;
   }
+
+  // Query each root in parallel
+  const responses = await Promise.all(
+    folderPaths.map((p) => getWorkspaceEnvDataVPython(p))
+  );
+
+  // Merge them
+  cachedWorkspaceEnvData = await mergeWorkspaceEnvResponses(responses);
 }
 
 /**
@@ -945,6 +950,7 @@ async function loadAllVCTests(
   vcastUnbuiltEnviroList = [];
   clearEnviroDataCache();
   clearTestNodeCache();
+  clearCachedWorkspaceEnvData();
 
   // Resets the "used" and empty/unused compilers / testsuites
   clearGlobalCompilersAndTestsuites();
@@ -1010,7 +1016,6 @@ async function loadAllVCTests(
   // end if workspace folders
 
   checkWorkspaceEnvDataForErrors();
-  clearCachedWorkspaceEnvData();
 
   // In case we have empty testsuites or compilers in the project,
   // we won't find them in the Env data so we have to add them manually here

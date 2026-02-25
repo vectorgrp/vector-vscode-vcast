@@ -5,6 +5,7 @@ import {
   CustomTreeItem,
   EditorView,
   TreeItem,
+  TextEditor,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -533,5 +534,72 @@ describe("vTypeCheck VS Code Extension", () => {
     await expect(await checkElementExistsInHTML("15")).toBe(true);
 
     await webview.close();
+  });
+
+  it("should open source file and focus on function start line when clicking 'Open Source File under Test' on function", async () => {
+    const workbench = await browser.getWorkbench();
+    const editorView = workbench.getEditorView();
+
+    // Close any open editors to ensure clean state
+    await editorView.closeAllEditors();
+
+    // Navigate to Testing pane and find the manager unit
+    const vcastTestingViewContent = await getViewContent("Testing");
+    let managerUnit: TreeItem | undefined;
+
+    for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
+      if (!(await vcastTestingViewSection.isExpanded())) {
+        await vcastTestingViewSection.expand();
+      }
+      managerUnit = await findSubprogram("manager", vcastTestingViewSection);
+      if (managerUnit) {
+        break;
+      }
+    }
+
+    if (!managerUnit) {
+      throw new Error("Unit 'manager' not found in Testing pane");
+    }
+
+    // Expand the manager unit to see its functions
+    if (!(await managerUnit.isExpanded())) {
+      await managerUnit.expand();
+    }
+
+    // Find the Manager::GetCheckTotal function
+    const getCheckTotalMethod = await findSubprogramMethod(
+      managerUnit,
+      "Manager::GetCheckTotal"
+    );
+
+    if (!getCheckTotalMethod) {
+      throw new Error("Function 'Manager::GetCheckTotal' not found");
+    }
+
+    // Open the source file through the context menu on the function
+    const contextMenu = await getCheckTotalMethod.openContextMenu();
+    await contextMenu.select("VectorCAST");
+    await (await $("aria/Open Source File under Test")).click();
+
+    // Wait for the file to open
+    await browser.waitUntil(
+      async () => {
+        const titles = await editorView.getOpenEditorTitles();
+        return titles.includes("manager.cpp");
+      },
+      {
+        timeout: TIMEOUT,
+        timeoutMsg: "File manager.cpp did not open within timeout",
+      }
+    );
+
+    // Open/get the active editor
+    const tab = (await editorView.openEditor("manager.cpp")) as TextEditor;
+
+    // Get the current cursor position
+    const coordinates = await tab.getCoordinates();
+
+    // Verify the cursor is on line 74 (the start of Manager::GetCheckTotal)
+    expect(coordinates[0]).toBe(74);
   });
 });
