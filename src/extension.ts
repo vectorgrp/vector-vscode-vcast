@@ -20,6 +20,9 @@ import {
   toggleCoverageAction,
   updateDisplayedCoverage,
   updateCOVdecorations,
+  readCoverageFilterFile,
+  writeCoverageFilterFile,
+  getCoverageFilterJsonPath,
 } from "./coverage";
 
 import {
@@ -155,6 +158,7 @@ import {
   newTestScript,
   openCodedTest,
   ProjectEnvParameters,
+  globalCoverageData,
 } from "./vcastTestInterface";
 
 import {
@@ -178,6 +182,7 @@ import {
 import { executeWithRealTimeEchoNoCallback } from "./vcastCommandRunner";
 
 const path = require("path");
+const url = require("url");
 
 /**
  * Decodes a Base64-encoded variable name.
@@ -625,6 +630,150 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(coverDisableInstrumentationCommand);
+
+  let configureCoverageFilterCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.configureCoverageFilter",
+    async (fileUri?: vscode.Uri) => {
+      // Resolve the target file path – prefer a URI passed by a menu
+      // contribution, fall back to the currently active editor.
+      let filePath: string | undefined;
+      if (fileUri) {
+        filePath = fileUri.fsPath;
+      } else {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+          filePath = url.fileURLToPath(editor.document.uri.toString());
+        }
+      }
+
+      if (!filePath) {
+        vscode.window.showErrorMessage("No active C/C++ file found.");
+        return;
+      }
+
+      const ext = path.extname(filePath).toLowerCase();
+      if (![".c", ".cpp", ".h"].includes(ext)) {
+        vscode.window.showErrorMessage(
+          "Coverage filter is only available for .c, .cpp, and .h files."
+        );
+        return;
+      }
+
+      const fileData = globalCoverageData.get(filePath);
+      // The keys of enviroList are the enviro paths – these are the tickable items
+      const enviros: string[] = fileData ? [...fileData.enviroList.keys()] : [];
+
+      if (enviros.length === 0) {
+        vscode.window.showInformationMessage(
+          "No environments are associated with this file."
+        );
+        return;
+      }
+
+      // Read the persisted state from disk for this file's workspace.
+      // If the file is not yet in the JSON, default to all enviros enabled.
+      const workspaceFolder =
+        vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath)) ??
+        vscode.workspace.workspaceFolders?.[0];
+
+      const workspaceRoot = workspaceFolder!.uri.fsPath;
+
+      // Ensure the file exists the first time (all enviros ticked by default)
+      const vscodeDir = path.join(workspaceRoot, ".vscode");
+      const filterFilePath = getCoverageFilterJsonPath(workspaceRoot);
+      if (!fs.existsSync(filterFilePath)) {
+        if (!fs.existsSync(vscodeDir)) {
+          fs.mkdirSync(vscodeDir, { recursive: true });
+        }
+        fs.writeFileSync(filterFilePath, "{}\n", "utf8");
+      }
+
+      const filterData = readCoverageFilterFile(workspaceRoot);
+      // If no entry exists yet, treat all enviros as enabled
+      const enabledList: string[] =
+        filePath in filterData ? filterData[filePath] : [...enviros];
+
+      const baseDir = resolveWebviewBase(context);
+      const panel = vscode.window.createWebviewPanel(
+        "coverageFilter",
+        "Coverage Filter",
+        vscode.ViewColumn.Active,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(baseDir)],
+        }
+      );
+
+      // ── Build webview HTML (same pattern as getNewProjectWebviewContent) ──
+      const cssOnDisk = vscode.Uri.file(
+        path.join(baseDir, "css", "coverageFilter.css")
+      );
+      const scriptOnDisk = vscode.Uri.file(
+        path.join(baseDir, "webviewScripts", "coverageFilter.js")
+      );
+      const htmlPath = path.join(baseDir, "html", "coverageFilter.html");
+      const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+      const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+      const nonce = getNonce();
+
+      let html = fs.readFileSync(htmlPath, "utf8");
+      html = html.replace(
+        /<head>/,
+        `<head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
+          panel.webview.cspSource
+        }; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+        <script nonce="${nonce}">
+          window.enviroData     = ${JSON.stringify(enviros)};
+          window.enabledEnviros = ${JSON.stringify(enabledList)};
+          window.filePath       = ${JSON.stringify(filePath)};
+        </script>`
+      );
+      html = html.replace("{{ cssUri }}", cssUri.toString());
+      html = html.replace(
+        "{{ scriptUri }}",
+        `<script nonce="${nonce}" src="${scriptUri}"></script>`
+      );
+      panel.webview.html = html;
+
+      panel.webview.onDidReceiveMessage(
+        async (msg: {
+          command: string;
+          filePath?: string;
+          enabledEnviros?: string[];
+        }) => {
+          switch (msg.command) {
+            case "apply": {
+              if (msg.filePath && msg.enabledEnviros) {
+                // Write the updated selection back to disk
+                const updated = readCoverageFilterFile(workspaceRoot);
+                updated[msg.filePath] = msg.enabledEnviros;
+                writeCoverageFilterFile(workspaceRoot, updated);
+
+                vscode.window.showInformationMessage(
+                  `Coverage filter updated: ${msg.enabledEnviros.length}/${enviros.length} environment(s) enabled.`
+                );
+
+                // Redraw coverage decorations immediately
+                await updateDisplayedCoverage();
+              }
+              panel.dispose();
+              break;
+            }
+
+            case "cancel":
+              panel.dispose();
+              break;
+          }
+        },
+        undefined,
+        context.subscriptions
+      );
+    }
+  );
+
+  context.subscriptions.push(configureCoverageFilterCommand);
 
   // Command: vectorcastTestExplorer.insertATGTestsFromEditor////////////////////////////////////////////////////////
   let insertATGTestsFromEditorCommand = vscode.commands.registerCommand(

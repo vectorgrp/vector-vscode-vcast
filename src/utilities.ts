@@ -541,7 +541,7 @@ export function fileIsVCPAndInPlace(filePath: string) {
 }
 
 /**
- * Returns vcp node for a given source file path 
+ * Returns vcp node for a given source file path
  */
 export function getVcpNodeBySourceFilePath(
   sourceFilePath: string

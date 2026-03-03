@@ -121,6 +121,11 @@
         "title": "Cover: Disable Instrumentation"
       },
       {
+        "command": "vectorcastTestExplorer.configureCoverageFilter",
+        "title":   "Configure Coverage Filter",
+        "category": "VectorCAST Text Explorer"
+      },
+      {
         "command": "vectorcastTestExplorer.buildProjectEnviro",
         "category": "VectorCAST Test Explorer",
         "title": "Build Project Environment"
@@ -691,6 +696,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.configureCoverageFilter",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.buildProjectEnviro",
           "when": "never"
         },
@@ -929,6 +938,11 @@
           "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
           "when": "(resourceLangId == cpp || resourceLangId == c) && vectorcastTestExplorer.globalProjectIsOpenedChecker",
           "group": "2_workspace"
+        },
+        {
+        "command": "vectorcastTestExplorer.configureCoverageFilter",
+        "group": "2_workspace",
+        "when": "resourceLangId == cpp || resourceLangId == c"
         },
         {
           "command": "vectorcastTestExplorer.addLaunchConfiguration",
