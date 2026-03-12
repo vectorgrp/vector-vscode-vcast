@@ -10,6 +10,7 @@ import {
   logCliOperation,
 } from "./requirementsOperations";
 import { makeEnviroNodeID } from "../testPane";
+import { extractJson } from "../../src-common/commonUtilities";
 
 const path = require("path");
 const fs = require("fs");
@@ -358,11 +359,11 @@ export function isLLMProviderEnvironmentUsable(): Promise<{
     });
 
     proc.on("close", () => {
-      try {
-        const result = JSON.parse(output);
+      const result = extractJson(output);
+      if (result && typeof result.usable === "boolean") {
         resolve({ usable: result.usable, problem: result.problem || null });
-      } catch (e) {
-        console.error(`Failed to parse llm2check output: ${e}`);
+      } else {
+        console.error(`Failed to parse llm2check output: ${output}`);
         resolve({ usable: false, problem: "Failed to parse llm2check output" });
       }
     });

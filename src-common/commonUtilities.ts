@@ -89,6 +89,77 @@ export function getVcastOptionValues(enviroPath: string): cfgOptionType {
 export const vpythonSplitString = "ACTUAL-DATA";
 export const atgAndClicastSplitString =
   "If you want to use VECTORCAST_DIR, use this syntax:";
+/**
+ * Attempt to extract and parse a JSON object or array from a string that may
+ * contain non-JSON text before or after the actual JSON (e.g. log lines,
+ * warnings). Returns the parsed value on success, or undefined if no valid
+ * JSON is found.
+ *
+ * The `escape` flag below only handles backslash-escaped quotes (`\"`) so that
+ * they don't falsely toggle the in-string state. Other escape sequences such
+ * as multi-character unicode escapes (`\uXXXX`) are not fully parsed, which is
+ * fine — we only need to track quote boundaries correctly, and `JSON.parse`
+ * handles the real validation at the end.
+ */
+export function extractJson(raw: string): any | undefined {
+  const trimmed = raw.trim();
+
+  // Fast path: the whole string is valid JSON
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // Fall through to extraction
+  }
+
+  // Find the first '{' or '[' — whichever comes first
+  const objStart = trimmed.indexOf("{");
+  const arrStart = trimmed.indexOf("[");
+  const start =
+    objStart === -1
+      ? arrStart
+      : arrStart === -1
+        ? objStart
+        : Math.min(objStart, arrStart);
+  if (start === -1) return undefined;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    // Deal with escaped quotes so that we don't accidentally toggle inString when we see a \" sequence
+    if (ch === "\\" && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{" || ch === "[") depth++;
+    else if (ch === "}" || ch === "]") {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(trimmed.substring(start, i + 1));
+        } catch {
+          return undefined;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
 export function cleanVectorcastOutput(outputString: string): string {
   if (outputString.includes(vpythonSplitString)) {
     const pieces = outputString.split(vpythonSplitString, 2);
