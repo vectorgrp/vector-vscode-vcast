@@ -19,7 +19,6 @@ import {
   exitReviewMode,
   updateDisplayedCoverage,
 } from "../coverage";
-import { getCoverageDataForFile } from "../vcastTestInterface";
 
 const path = require("path");
 const fs = require("fs");
@@ -732,26 +731,17 @@ export function findTestNameLine(tstContent: string, testName: string): number {
 
 // Decoration Types for highlighted critical lines
 let activeUncoveredDecoration: vscode.TextEditorDecorationType | undefined;
-let activePartiallyCoveredDecoration:
-  | vscode.TextEditorDecorationType
-  | undefined;
 let activeCoveredDecoration: vscode.TextEditorDecorationType | undefined;
 
 /**
  * Creates a decoration type for a given coverage state
  */
 function createCoverageDecoration(
-  bgColor: string,
-  gutterColor: string
+  bgColor: string
 ): vscode.TextEditorDecorationType {
   return vscode.window.createTextEditorDecorationType({
     backgroundColor: bgColor,
     isWholeLine: true,
-    before: {
-      contentText: "",
-      border: `4px solid ${gutterColor}`,
-      margin: "0 6px 0 0",
-    },
   });
 }
 
@@ -771,19 +761,17 @@ function lineToRange(
 
 /**
  * Highlights critical lines individually based on coverage status
+ * Uses test-specific actualLines from tests2check rather than global coverage
  */
 export function highlightCriticalLines(
   editor: vscode.TextEditor,
   document: vscode.TextDocument,
-  reqData: RequirementData,
-  sourceFilePath: string
+  reqData: RequirementData
 ): void {
   // Dispose all previous decorations via shared helper
   disposeCriticalLineDecorations();
 
-  const coverageData = getCoverageDataForFile(sourceFilePath);
-
-  if (!coverageData?.hasCoverageData) {
+  if (!reqData.actualLines || reqData.actualLines.length === 0) {
     return;
   }
 
@@ -792,16 +780,12 @@ export function highlightCriticalLines(
     "rgba(243, 74, 51, 0.15)", // red bg
     "#f34a33" // red gutter
   );
-  activePartiallyCoveredDecoration = createCoverageDecoration(
-    "rgba(245, 166, 35, 0.15)", // orange/yellow bg
-    "#f5a623" // orange/yellow gutter
-  );
   activeCoveredDecoration = createCoverageDecoration(
     "rgba(87, 184, 89, 0.15)", // green bg
     "#57b859" // green gutter
   );
 
-  // Build a Set of critical line numbers for fast lookup
+  // Build a Set of critical line numbers for fast lookup (1-based)
   const criticalLines = new Set<number>();
   for (
     let line = reqData.importantLineStart;
@@ -811,13 +795,17 @@ export function highlightCriticalLines(
     criticalLines.add(line);
   }
 
-  // Bucket each critical line into its coverage category
-  const uncoveredSet = new Set(coverageData.uncovered);
-  const partiallyCoveredSet = new Set(coverageData.partiallyCovered);
-  const coveredSet = new Set(coverageData.covered);
+  // actualLines from tests2check are 0-based, convert to 1-based
+  const actualLinesSet = new Set<number>(
+    reqData.actualLines.map((line) => line + 1)
+  );
+
+  // expectedLines from tests2check are 0-based, convert to 1-based
+  const expectedLinesSet = new Set<number>(
+    (reqData.expectedLines || []).map((line) => line + 1)
+  );
 
   const uncoveredRanges: vscode.Range[] = [];
-  const partiallyCoveredRanges: vscode.Range[] = [];
   const coveredRanges: vscode.Range[] = [];
 
   for (const line of criticalLines) {
@@ -828,22 +816,16 @@ export function highlightCriticalLines(
 
     const range = lineToRange(document, line);
 
-    if (uncoveredSet.has(line)) {
-      uncoveredRanges.push(range);
-    } else if (partiallyCoveredSet.has(line)) {
-      partiallyCoveredRanges.push(range);
-    } else if (coveredSet.has(line)) {
+    if (actualLinesSet.has(line)) {
       coveredRanges.push(range);
+    } else if (expectedLinesSet.has(line)) {
+      uncoveredRanges.push(range);
     }
-    // Lines not present in any coverage array are left un-decorated
+    // Lines not in expectedLines or actualLines are non-executable — skip them
   }
 
-  // Apply all three decoration sets in one pass
+  // Apply both decoration sets in one pass
   editor.setDecorations(activeUncoveredDecoration, uncoveredRanges);
-  editor.setDecorations(
-    activePartiallyCoveredDecoration,
-    partiallyCoveredRanges
-  );
   editor.setDecorations(activeCoveredDecoration, coveredRanges);
 }
 
@@ -931,14 +913,12 @@ export async function showRequirementPeekBox(
 }
 
 /**
- * Disposes all active critical line decorations (all three coverage states)
+ * Disposes all active critical line decorations
  */
 export function disposeCriticalLineDecorations(): void {
   activeUncoveredDecoration?.dispose();
-  activePartiallyCoveredDecoration?.dispose();
   activeCoveredDecoration?.dispose();
   activeUncoveredDecoration = undefined;
-  activePartiallyCoveredDecoration = undefined;
   activeCoveredDecoration = undefined;
 }
 
@@ -976,7 +956,7 @@ export async function openSourceFileWithHighlight(
   );
 
   // Apply the green highlight to critical lines
-  highlightCriticalLines(editor, document, reqData, sourceFilePath);
+  highlightCriticalLines(editor, document, reqData);
 
   // Show the peek box
   await showRequirementPeekBox(sourceFileUri, peekPosition, reqData, context);
