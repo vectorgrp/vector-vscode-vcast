@@ -190,10 +190,6 @@ export async function updateCOVdecorations() {
         ? getCoverageDataForFileAndTest(filePath, reviewModeTestId)
         : getCoverageDataForFile(filePath);
 
-    vscode.window.showInformationMessage(
-      `coverage data for ${filePath}: ${JSON.stringify(coverageData)}`
-    );
-
     if (coverageData.hasCoverageData) {
       // there is coverage data and it matches the file checksum
       // Reset the global decoration arrays
