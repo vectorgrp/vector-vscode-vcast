@@ -1397,12 +1397,15 @@ function configureExtension(context: vscode.ExtensionContext) {
       // Close sidebar for more screen space
       await vscode.commands.executeCommand("workbench.action.closeSidebar");
 
+      // Use the test node ID directly from the test explorer
+      const testId = args.id;
+
       // Open source file with requirement highlighting
       await openSourceFileWithHighlight(
         matchingUnit.path,
         reqData,
         context,
-        testName
+        testId
       );
 
       // Open TST script beside source file

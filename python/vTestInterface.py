@@ -303,6 +303,7 @@ def getUnitData(api):
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
             unitInfo["partiallyCovered"] = partiallyCovered
+            unitInfo["perTestCoverage"] = getPerTestCoverageData(sourceObject)
             unitList.append(unitInfo)
 
         elif len(sourcePath) > 0:
@@ -316,6 +317,7 @@ def getUnitData(api):
             unitInfo["covered"] = ""
             unitInfo["uncovered"] = ""
             unitInfo["partiallyCovered"] = ""
+            unitInfo["perTestCoverage"] = {}
             unitList.append(unitInfo)
 
     return unitList
@@ -389,6 +391,75 @@ def getCoverageKind(sourceObject):
         return CoverageKind.branch
     else:
         return CoverageKind.ignore
+
+
+def _buildResultNameCache(sourceObject):
+    """
+    Pre-builds a mapping from Result.id to test case identifier string.
+    This avoids repeated result.unit_test lookups when the same Result
+    appears on many lines during per-test coverage collection.
+
+    Returns: dict {result_id: "unit.function.testname"}
+    """
+    cache = {}
+    try:
+        for result in sourceObject.cover_data.results:
+            test_case = result.unit_test
+            if test_case:
+                name = (
+                    f"{test_case.unit_display_name}"
+                    f".{test_case.function_display_name}"
+                    f".{test_case.name}"
+                )
+                cache[result.id] = name
+            else:
+                # Fallback for non-unit-test results (e.g. cover-only or imported)
+                cache[result.id] = result.name
+    except Exception:
+        # If the API doesn't support this (older DataAPI versions), return empty
+        pass
+    return cache
+
+
+def getPerTestCoverageData(sourceObject):
+    """
+    Returns a dict mapping line numbers to lists of test case names
+    that cover each line.  Uses SourceLine.results from the DataAPI
+    to determine which Results (test cases) hit each line.
+
+    Format: {"lineNum": ["unit.function.testname", ...], ...}
+    Only lines with at least one covering test are included.
+
+    Returns an empty dict if the source is not instrumented, the file
+    doesn't exist on disk, or the API doesn't support per-result queries.
+    """
+    perTestCoverage = {}
+    if not (sourceObject and sourceObject.is_instrumented):
+        return perTestCoverage
+
+    if not os.path.exists(sourceObject.path):
+        return perTestCoverage
+
+    resultNameCache = _buildResultNameCache(sourceObject)
+    if not resultNameCache:
+        return perTestCoverage
+
+    try:
+        for line in sourceObject.iterate_coverage():
+            lineResults = line.results
+            if lineResults:
+                testNames = []
+                for result in lineResults:
+                    name = resultNameCache.get(result.id)
+                    if name:
+                        testNames.append(name)
+                if testNames:
+                    perTestCoverage[str(line.line_number)] = testNames
+    except Exception:
+        # Gracefully degrade if line.results is not available
+        pass
+
+    return perTestCoverage
 
 
 def getCoverageData(sourceObject):

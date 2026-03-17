@@ -193,6 +193,7 @@ interface coverageDataType {
   covered: number[];
   uncovered: number[];
   partiallyCovered: number[];
+  perTestCoverage: Record<string, string[]>; // "lineNum" -> ["unit.func.test", ...]
 }
 
 interface fileCoverageType {
@@ -279,6 +280,77 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
   return returnData;
 }
 
+//////////////////////////////////////////////////////////////////////
+export function getCoverageDataForFileAndTest(
+  filePath: string,
+  testId: string
+): coverageSummaryType {
+  // Returns coverage data for a specific test case on a specific file.
+  // Uses the perTestCoverage data to determine which lines the test covers.
+  // Lines in perTestCoverage that include testId are "covered".
+  // All other coverable lines (from aggregate data) are "uncovered".
+
+  let returnData: coverageSummaryType = {
+    hasCoverageData: false,
+    statusString: "",
+    covered: [],
+    uncovered: [],
+    partiallyCovered: [],
+  };
+
+  const dataForThisFile = globalCoverageData.get(filePath);
+  if (!dataForThisFile || !dataForThisFile.hasCoverage) {
+    return returnData;
+  }
+
+  const checksum: number = getChecksum(filePath);
+
+  // Collect per-test coverage and aggregate coverable lines across all enviros
+  const coveredByTest = new Set<number>();
+  const allCoverableLines = new Set<number>();
+
+  for (const [enviroPath, enviroData] of dataForThisFile.enviroList.entries()) {
+    if (enviroData.crc32Checksum != checksum) {
+      continue;
+    }
+
+    // All coverable lines from aggregate data
+    for (const line of enviroData.covered) allCoverableLines.add(line);
+    for (const line of enviroData.uncovered) allCoverableLines.add(line);
+    for (const line of enviroData.partiallyCovered) allCoverableLines.add(line);
+
+    // Lines covered by this specific test
+    // Python produces short names like "unit.function.testname";
+    // compose the full test node ID to match the VS Code test explorer format
+    for (const [lineStr, testNames] of Object.entries(
+      enviroData.perTestCoverage
+    )) {
+      for (const testName of testNames) {
+        const fullTestNodeId = `vcast:${enviroPath}|${testName}`;
+        if (fullTestNodeId === testId) {
+          coveredByTest.add(Number(lineStr));
+        }
+      }
+    }
+  }
+
+  if (allCoverableLines.size === 0) {
+    returnData.statusString = "Coverage Out of Date";
+    return returnData;
+  }
+
+  returnData.hasCoverageData = true;
+  returnData.covered = [...coveredByTest];
+  // Uncovered = all coverable lines minus those covered by this test
+  returnData.uncovered = [...allCoverableLines].filter(
+    (line) => !coveredByTest.has(line)
+  );
+  // partiallyCovered is empty — per-test coverage is binary
+  returnData.partiallyCovered = [];
+
+  return returnData;
+}
+
 export function checksumMatchesEnvironment(
   filePath: string,
   enviroPath: string
@@ -339,11 +411,14 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
         .map(Number);
 
     const checksum = fileList[fileIndex].cmcChecksum;
+    const perTestCoverage: Record<string, string[]> =
+      fileList[fileIndex].perTestCoverage || {};
     let coverageData: coverageDataType = {
       crc32Checksum: checksum,
       covered: coveredList,
       uncovered: uncoveredList,
       partiallyCovered: partiallyCoveredList,
+      perTestCoverage: perTestCoverage,
     };
 
     let fileData: fileCoverageType | undefined =

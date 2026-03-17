@@ -371,8 +371,8 @@ export function isLLMProviderEnvironmentUsable(): Promise<{
         const result = JSON.parse(output);
         resolve({ usable: result.usable, problem: result.problem || null });
       } catch (e) {
-        console.error(`Failed to parse llm2check output: ${e}`);
-        resolve({ usable: false, problem: "Failed to parse llm2check output" });
+        console.error(`Failed to parse llm2check output: ${e} ${output}`);
+        resolve({ usable: false, problem: `Failed to parse llm2check output: ${output}` });
       }
     });
   });
@@ -929,7 +929,7 @@ export async function openSourceFileWithHighlight(
   sourceFilePath: string,
   reqData: RequirementData,
   context: vscode.ExtensionContext,
-  testName: string
+  testId: string
 ): Promise<void> {
   const sourceFileUri = vscode.Uri.file(sourceFilePath);
   const document = await vscode.workspace.openTextDocument(sourceFileUri);
@@ -948,12 +948,7 @@ export async function openSourceFileWithHighlight(
   });
 
   // Enter review mode BEFORE applying decorations
-  enterReviewMode(
-    testName,
-    reqData.expectedLines || [],
-    reqData.actualLines || [],
-    sourceFilePath
-  );
+  enterReviewMode(testId, sourceFilePath);
 
   // Apply the green highlight to critical lines
   highlightCriticalLines(editor, document, reqData);

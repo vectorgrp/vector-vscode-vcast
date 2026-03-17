@@ -6,10 +6,11 @@ import {
 } from "vscode";
 import {
   getCoverageDataForFile,
+  getCoverageDataForFileAndTest,
   getListOfFilesWithCoverage,
 } from "./vcastTestInterface";
 
-import { getRangeOption, normalizePath } from "./utilities";
+import { getRangeOption } from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 import {
@@ -83,8 +84,6 @@ export function initializeCodeCoverageFeatures(
     //fontWeight: "bold",
     gutterIconPath: context.asAbsolutePath("./images/light/cover-icon.svg"),
   };
-
-  initializeReviewModeDecorations(context);
 }
 
 // global decoration arrays
@@ -185,15 +184,15 @@ export async function updateCOVdecorations() {
   ) {
     const filePath = url.fileURLToPath(activeEditor.document.uri.toString());
 
-    // Check if we're in review mode for this file
-    if (isReviewModeActive() && filePath === getReviewModeFilePath()) {
-      // In review mode, use review mode decorations instead
-      updateReviewModeDecorations();
-      return;
-    }
+    // In review mode, show only the selected test's coverage for the target file
+    const coverageData =
+      reviewModeActive && reviewModeTestId && reviewModeFilePath === filePath
+        ? getCoverageDataForFileAndTest(filePath, reviewModeTestId)
+        : getCoverageDataForFile(filePath);
 
-    // this returns the cached coverage data for this file
-    const coverageData = getCoverageDataForFile(filePath);
+    vscode.window.showInformationMessage(
+      `coverage data for ${filePath}: ${JSON.stringify(coverageData)}`
+    );
 
     if (coverageData.hasCoverageData) {
       // there is coverage data and it matches the file checksum
@@ -341,158 +340,29 @@ export async function updateDisplayedCoverage() {
   if (coverageOn) await updateCOVdecorations();
 }
 
-// Review mode state
+// Review mode state ////////////////////////////////////////////////
 let reviewModeActive: boolean = false;
-let reviewModeExpectedLines: number[] = [];
-let reviewModeActualLines: number[] = [];
+let reviewModeTestId: string | null = null;
 let reviewModeFilePath: string | null = null;
-
-// Review mode decoration types
-let reviewCoveredDecorationType: TextEditorDecorationType;
-let reviewUncoveredDecorationType: TextEditorDecorationType;
-
-let reviewCoveredRenderOptions: DecorationRenderOptions;
-let reviewUncoveredRenderOptions: DecorationRenderOptions;
-
-export function initializeReviewModeDecorations(
-  context: vscode.ExtensionContext
-) {
-  reviewUncoveredRenderOptions = {
-    gutterIconPath: context.asAbsolutePath("./images/light/no-cover-icon.svg"),
-  };
-
-  reviewCoveredRenderOptions = {
-    gutterIconPath: context.asAbsolutePath("./images/light/cover-icon.svg"),
-  };
-}
+/////////////////////////////////////////////////////////////////////
 
 export function isReviewModeActive(): boolean {
   return reviewModeActive;
 }
 
-export function getReviewModeFilePath(): string | null {
-  return reviewModeFilePath;
-}
-
-export function enterReviewMode(
-  testName: string,
-  expectedLines: number[],
-  actualLines: number[],
-  filePath: string
-): void {
+export function enterReviewMode(testId: string, filePath: string): void {
   reviewModeActive = true;
-  reviewModeExpectedLines = expectedLines;
-  reviewModeActualLines = actualLines;
+  reviewModeTestId = testId;
   reviewModeFilePath = filePath;
-
-  resetGlobalDecorations();
-
-  // Immediately update decorations for the active editor
-  updateReviewModeDecorations();
 }
 
 export async function exitReviewMode(): Promise<void> {
   reviewModeActive = false;
-  reviewModeExpectedLines = [];
-  reviewModeActualLines = [];
+  reviewModeTestId = null;
   reviewModeFilePath = null;
 
-  // Clear review mode decorations
-  clearReviewModeDecorations();
-
-  // restore normal coverage
+  // Refresh normal coverage display
   if (coverageOn) {
     await updateCOVdecorations();
   }
-}
-
-function clearReviewModeDecorations(): void {
-  if (reviewCoveredDecorationType) {
-    reviewCoveredDecorationType.dispose();
-  }
-  if (reviewUncoveredDecorationType) {
-    reviewUncoveredDecorationType.dispose();
-  }
-}
-
-export function updateReviewModeDecorations(): void {
-  if (!reviewModeActive) {
-    return;
-  }
-
-  const activeEditor = vscode.window.activeTextEditor;
-  if (!activeEditor) {
-    return;
-  }
-
-  // Only apply review decorations to the specific file
-  if (
-    !reviewModeFilePath ||
-    normalizePath(activeEditor.document.uri.fsPath) !==
-      normalizePath(reviewModeFilePath)
-  ) {
-    return;
-  }
-
-  // Clear previous decorations
-  clearReviewModeDecorations();
-
-  const filePath = activeEditor.document.uri.fsPath;
-  const coverageData = getCoverageDataForFile(filePath);
-
-  if (!coverageData.hasCoverageData) {
-    return;
-  }
-
-  const covered = new Set<number>(coverageData.covered);
-  const uncovered = new Set<number>(coverageData.uncovered);
-  const partiallyCovered = new Set<number>(coverageData.partiallyCovered);
-
-  // Lines that should count as "covered" in review mode
-  const expectedOrActual = new Set<number>([
-    ...reviewModeExpectedLines,
-    ...reviewModeActualLines,
-  ]);
-
-  // Any covered line NOT in expected/actual becomes uncovered
-  for (const line of covered) {
-    if (!expectedOrActual.has(line - 1)) {
-      covered.delete(line);
-      uncovered.add(line);
-    }
-  }
-
-  const coveredDecorations: vscode.DecorationOptions[] = [];
-  const uncoveredDecorations: vscode.DecorationOptions[] = [];
-
-  // Only iterate over lines that actually have coverage data
-  const allCoverableLines = new Set<number>([
-    ...covered,
-    ...uncovered,
-    ...partiallyCovered,
-  ]);
-
-  for (const lineNumber of allCoverableLines) {
-    const lineIndex = lineNumber - 1;
-    if (covered.has(lineNumber)) {
-      coveredDecorations.push(getRangeOption(lineIndex));
-    } else {
-      // uncovered + partial both render as uncovered in review mode
-      uncoveredDecorations.push(getRangeOption(lineIndex));
-    }
-  }
-
-  // Apply decorations
-  reviewCoveredDecorationType = vscode.window.createTextEditorDecorationType(
-    reviewCoveredRenderOptions
-  );
-  reviewUncoveredDecorationType = vscode.window.createTextEditorDecorationType(
-    reviewUncoveredRenderOptions
-  );
-
-  activeEditor.setDecorations(reviewCoveredDecorationType, coveredDecorations);
-  activeEditor.setDecorations(
-    reviewUncoveredDecorationType,
-    uncoveredDecorations
-  );
 }
