@@ -421,14 +421,238 @@ def _buildResultNameCache(sourceObject):
     return cache
 
 
+def _buildBranchAndMcdcByLine(sourceObject):
+    """
+    Iterates the InstrumentedFile's LIS data to build mappings from
+    source line numbers to Branch and MCDCDecision objects.
+
+    Returns: (branches_by_line, mcdc_by_line)
+      branches_by_line: {int line_number: [Branch, ...]}
+      mcdc_by_line:     {int line_number: MCDCDecision}
+    """
+    branches_by_line = {}
+    mcdc_by_line = {}
+    try:
+        for instrumented_file in sourceObject.cover_data.instrumented_files:
+            for lis_data in instrumented_file.iterate_coverage():
+                line_num_str = lis_data.line_number
+                if not line_num_str:
+                    continue
+                line_num = int(line_num_str)
+                if lis_data.branch is not None:
+                    branches_by_line.setdefault(line_num, []).append(lis_data.branch)
+                if lis_data.mcdc is not None:
+                    mcdc_by_line[line_num] = lis_data.mcdc
+    except Exception:
+        pass
+    return branches_by_line, mcdc_by_line
+
+
+def _resultCoversBranch(branch, result_id):
+    """
+    Checks how many of the branch's directions (T/F) are covered by a
+    specific result.  Returns (covered_count, total_count).
+
+    A Branch has num_conditions == 1 (T-only or F-only) or 2 (both T and F).
+    """
+    total = branch.num_conditions
+    covered = 0
+    try:
+        true_ids = {r.id for r in branch.get_true_results()}
+        if result_id in true_ids:
+            covered += 1
+    except Exception:
+        pass
+    if total >= 2:
+        try:
+            false_ids = {r.id for r in branch.get_false_results()}
+            if result_id in false_ids:
+                covered += 1
+        except Exception:
+            pass
+    return covered, total
+
+
+def _resultCoversMcdcDecision(mcdc, result_id):
+    """
+    Checks how a specific result covers an MCDC decision.
+    Returns (covered_pairs, total_pairs, covered_branches, total_branches).
+
+    For per-result MCDC coverage, we check:
+      1. Branch directions of the decision (T/F via mcdc.branch or mcdc.conditions
+         where is_branch==True)
+      2. Independence pairs for each condition
+    """
+    covered_pairs = 0
+    total_pairs = 0
+    covered_branches = 0
+    total_branches = 0
+
+    try:
+        for condition in mcdc.conditions:
+            if condition.is_branch:
+                # This is the T/F branch for the decision itself
+                nc = condition.num_conditions
+                total_branches += nc
+                try:
+                    if result_id in {r.id for r in condition.get_true_results()}:
+                        covered_branches += 1
+                except Exception:
+                    pass
+                if nc >= 2:
+                    try:
+                        if result_id in {r.id for r in condition.get_false_results()}:
+                            covered_branches += 1
+                    except Exception:
+                        pass
+            else:
+                # This is an actual MCDC condition — check its pairs
+                try:
+                    for pair in condition.covered_pairs:
+                        total_pairs += 1
+                        try:
+                            pair_result_ids = {r.id for r in pair.get_results()}
+                            if result_id in pair_result_ids:
+                                covered_pairs += 1
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    return covered_pairs, total_pairs, covered_branches, total_branches
+
+
+def _classifyResultForLine(
+    result_id,
+    line_number,
+    coverageKind,
+    branches_by_line,
+    mcdc_by_line,
+    functionLineSet,
+):
+    """
+    Classifies a single result's coverage on a single line.
+    Returns "covered", "partiallyCovered", or None (if the result
+    doesn't meaningfully cover the line for this coverage kind).
+
+    Mirrors the classification logic in coverageGutter.py but for
+    a single result instead of aggregate metrics.
+    """
+
+    if coverageKind == CoverageKind.statement:
+        # Statement-only: hitting the line means covered (binary)
+        return "covered"
+
+    elif coverageKind == CoverageKind.statementBranch:
+        # Statement + Branch
+        branches = branches_by_line.get(line_number)
+        if branches:
+            total_dirs = 0
+            covered_dirs = 0
+            for branch in branches:
+                c, t = _resultCoversBranch(branch, result_id)
+                covered_dirs += c
+                total_dirs += t
+            if total_dirs == 0:
+                return "covered"
+            elif covered_dirs == total_dirs:
+                return "covered"
+            elif covered_dirs > 0:
+                return "partiallyCovered"
+            else:
+                # Result hit the line (is in line.results) but covered
+                # no branch directions — still a statement hit on a branch line.
+                # The aggregate handler classifies this as uncovered (red)
+                # because no branches are covered, so we follow suit.
+                return None
+        else:
+            # Pure statement line, no branches — hitting it means covered
+            return "covered"
+
+    elif coverageKind == CoverageKind.branch:
+        # Branch-only (no statement coverage)
+        if line_number in functionLineSet:
+            # Function header lines are filtered out for branch-only
+            return None
+        branches = branches_by_line.get(line_number)
+        if branches:
+            total_dirs = 0
+            covered_dirs = 0
+            for branch in branches:
+                c, t = _resultCoversBranch(branch, result_id)
+                covered_dirs += c
+                total_dirs += t
+            if total_dirs == 0:
+                return None
+            elif covered_dirs == total_dirs:
+                return "covered"
+            elif covered_dirs > 0:
+                return "partiallyCovered"
+            else:
+                return None
+        else:
+            # Non-branch line in branch-only mode — not coverable
+            return None
+
+    elif coverageKind == CoverageKind.statementMcdc:
+        # Statement + MCDC
+        mcdc = mcdc_by_line.get(line_number)
+        if mcdc is not None:
+            # MCDC decision line — check branches + pairs
+            cp, tp, cb, tb = _resultCoversMcdcDecision(mcdc, result_id)
+            total = tp + tb
+            covered = cp + cb
+            if total == 0:
+                # No coverable branches/pairs on this decision
+                return "covered"
+            elif covered == total:
+                return "covered"
+            elif covered > 0:
+                return "partiallyCovered"
+            else:
+                # Result hit the statement but no branch/pair coverage
+                # Aggregate handler treats this as uncovered for MCDC lines
+                return None
+        else:
+            # Non-MCDC statement line — hitting means covered
+            return "covered"
+
+    elif coverageKind == CoverageKind.mcdc:
+        # MCDC-only (no statement coverage)
+        mcdc = mcdc_by_line.get(line_number)
+        if mcdc is not None:
+            cp, tp, cb, tb = _resultCoversMcdcDecision(mcdc, result_id)
+            total = tp + tb
+            covered = cp + cb
+            if total == 0:
+                return None
+            elif covered == total:
+                return "covered"
+            elif covered > 0:
+                return "partiallyCovered"
+            else:
+                return None
+        else:
+            # Non-MCDC line in MCDC-only mode — not coverable
+            return None
+
+    # Unknown coverage kind
+    return None
+
+
 def getPerTestCoverageData(sourceObject):
     """
-    Returns a dict mapping line numbers to lists of test case names
-    that cover each line.  Uses SourceLine.results from the DataAPI
-    to determine which Results (test cases) hit each line.
+    Returns a dict mapping line numbers to dicts of test case coverage
+    statuses.  Uses SourceLine.results and Branch/MCDC per-result APIs
+    from the DataAPI to determine coverage classification per test.
 
-    Format: {"lineNum": ["unit.function.testname", ...], ...}
+    Format: {"lineNum": {"unit.function.testname": "covered"|"partiallyCovered", ...}, ...}
     Only lines with at least one covering test are included.
+    Status is "covered" when the test covers all coverable objectives on
+    the line, "partiallyCovered" when it covers some but not all (branch
+    directions or MCDC pairs).
 
     Returns an empty dict if the source is not instrumented, the file
     doesn't exist on disk, or the API doesn't support per-result queries.
@@ -444,19 +668,52 @@ def getPerTestCoverageData(sourceObject):
     if not resultNameCache:
         return perTestCoverage
 
+    coverageKind = getCoverageKind(sourceObject)
+    if coverageKind == CoverageKind.ignore:
+        return perTestCoverage
+
+    # Pre-build branch/MCDC-by-line mappings for non-statement-only kinds
+    branches_by_line = {}
+    mcdc_by_line = {}
+    if coverageKind in (
+        CoverageKind.branch,
+        CoverageKind.statementBranch,
+        CoverageKind.mcdc,
+        CoverageKind.statementMcdc,
+    ):
+        branches_by_line, mcdc_by_line = _buildBranchAndMcdcByLine(sourceObject)
+
+    # Build function start line set for branch-only filtering
+    functionLineSet = set()
+    if coverageKind == CoverageKind.branch:
+        for function in sourceObject.cover_data.functions:
+            functionLineSet.add(function.start_line)
+
     try:
         for line in sourceObject.iterate_coverage():
             lineResults = line.results
-            if lineResults:
-                testNames = []
-                for result in lineResults:
-                    name = resultNameCache.get(result.id)
-                    if name:
-                        testNames.append(name)
-                if testNames:
-                    perTestCoverage[str(line.line_number)] = testNames
+            if not lineResults:
+                continue
+            line_num = line.line_number
+            testStatuses = {}
+            for result in lineResults:
+                name = resultNameCache.get(result.id)
+                if not name:
+                    continue
+                status = _classifyResultForLine(
+                    result.id,
+                    line_num,
+                    coverageKind,
+                    branches_by_line,
+                    mcdc_by_line,
+                    functionLineSet,
+                )
+                if status:
+                    testStatuses[name] = status
+            if testStatuses:
+                perTestCoverage[str(line_num)] = testStatuses
     except Exception:
-        # Gracefully degrade if line.results is not available
+        # Gracefully degrade if APIs are not available
         pass
 
     return perTestCoverage
