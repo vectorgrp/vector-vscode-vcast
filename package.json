@@ -522,8 +522,8 @@
             "type": "string",
             "order": 11,
             "default": "openai",
-            "enum": ["openai", "azure_openai", "anthropic", "litellm"],
-            "enumDescriptions": ["OpenAI", "Azure OpenAI", "Anthropic", "LiteLLM"],
+            "enum": ["openai", "azure_openai", "anthropic", "litellm", "azure_apim", "openai_at"],
+            "enumDescriptions": ["OpenAI", "Azure OpenAI", "Anthropic", "LiteLLM", "Azure APIM (Advanced)", "OpenAI Access Token (Advanced)"],
             "description": "Language model provider for automatic requirements and test generation using Reqs2X"
           },
           "vectorcastTestExplorer.reqs2x.openai.apiKey": {
@@ -627,6 +627,72 @@
             "order": 28,
             "default": "",
             "description": "Environment variables to set when running LiteLLM, e.g., OPENAI_API_KEY=xxxx. Multiple variables can be separated by commas, e.g., OPENAI_API_KEY=xxxx,ANOTHER_ENV_VAR=yyyy. For a list of variables to set for a specific LiteLLM-compatible provider, see https://docs.litellm.ai/docs/providers."
+          },
+          "vectorcastTestExplorer.reqs2x.azureApim.subscriptionKey": {
+            "type": "string",
+            "order": 29,
+            "default": "",
+            "description": "[Advanced] Azure APIM subscription key (sent as the Ocp-Apim-Subscription-Key header)"
+          },
+          "vectorcastTestExplorer.reqs2x.azureApim.baseUrl": {
+            "type": "string",
+            "order": 30,
+            "default": "",
+            "description": "[Advanced] Azure APIM gateway base URL, e.g., https://ai-apimdev.azure-api.net/apim-vectorcast/v1"
+          },
+          "vectorcastTestExplorer.reqs2x.azureApim.modelName": {
+            "type": "string",
+            "order": 31,
+            "default": "",
+            "description": "[Advanced] Model name for the APIM-proxied LLM, e.g., gpt-4.1"
+          },
+          "vectorcastTestExplorer.reqs2x.azureApim.apiKey": {
+            "type": "string",
+            "order": 32,
+            "default": "",
+            "description": "[Advanced] Optional downstream Azure OpenAI API key (forwarded when the APIM policy requires it)"
+          },
+          "vectorcastTestExplorer.reqs2x.azureApim.reasoningModelName": {
+            "type": "string",
+            "order": 33,
+            "default": "",
+            "description": "[Advanced] Optional reasoning model name used for specialized reasoning subtasks (Azure APIM)."
+          },
+          "vectorcastTestExplorer.reqs2x.openaiAt.modelName": {
+            "type": "string",
+            "order": 34,
+            "default": "",
+            "description": "[Advanced] OpenAI Access Token model name"
+          },
+          "vectorcastTestExplorer.reqs2x.openaiAt.modelUrl": {
+            "type": "string",
+            "order": 35,
+            "default": "",
+            "description": "[Advanced] OpenAI Access Token model URL"
+          },
+          "vectorcastTestExplorer.reqs2x.openaiAt.authUrl": {
+            "type": "string",
+            "order": 36,
+            "default": "",
+            "description": "[Advanced] OpenAI Access Token authentication URL"
+          },
+          "vectorcastTestExplorer.reqs2x.openaiAt.appKey": {
+            "type": "string",
+            "order": 37,
+            "default": "",
+            "description": "[Advanced] OpenAI Access Token application key"
+          },
+          "vectorcastTestExplorer.reqs2x.openaiAt.appSecret": {
+            "type": "string",
+            "order": 38,
+            "default": "",
+            "description": "[Advanced] OpenAI Access Token application secret"
+          },
+          "vectorcastTestExplorer.reqs2x.openaiAt.reasoningModelName": {
+            "type": "string",
+            "order": 39,
+            "default": "",
+            "description": "[Advanced] Optional reasoning model name used for specialized reasoning subtasks (OpenAI Access Token)."
           }
         }
       }
