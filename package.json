@@ -636,67 +636,67 @@
           },
           "vectorcastTestExplorer.reqs2x.azureApim.subscriptionKey": {
             "type": "string",
-            "order": 29,
+            "order": 31,
             "default": "",
             "description": "[Advanced] Azure APIM subscription key (sent as the Ocp-Apim-Subscription-Key header)"
           },
           "vectorcastTestExplorer.reqs2x.azureApim.baseUrl": {
             "type": "string",
-            "order": 30,
+            "order": 32,
             "default": "",
-            "description": "[Advanced] Azure APIM gateway base URL, e.g., https://ai-apimdev.azure-api.net/apim-vectorcast/v1"
+            "description": "[Advanced] Azure APIM gateway base URL, e.g., https://some-domain.azure-api.net/v1"
           },
           "vectorcastTestExplorer.reqs2x.azureApim.modelName": {
             "type": "string",
-            "order": 31,
+            "order": 33,
             "default": "",
             "description": "[Advanced] Model name for the APIM-proxied LLM, e.g., gpt-4.1"
           },
           "vectorcastTestExplorer.reqs2x.azureApim.apiKey": {
             "type": "string",
-            "order": 32,
+            "order": 34,
             "default": "",
             "description": "[Advanced] Optional downstream Azure OpenAI API key (forwarded when the APIM policy requires it)"
           },
           "vectorcastTestExplorer.reqs2x.azureApim.reasoningModelName": {
             "type": "string",
-            "order": 33,
+            "order": 35,
             "default": "",
             "description": "[Advanced] Optional reasoning model name used for specialized reasoning subtasks (Azure APIM)."
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.modelName": {
             "type": "string",
-            "order": 34,
+            "order": 36,
             "default": "",
             "description": "[Advanced] OpenAI Access Token model name"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.modelUrl": {
             "type": "string",
-            "order": 35,
+            "order": 37,
             "default": "",
             "description": "[Advanced] OpenAI Access Token model URL"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.authUrl": {
             "type": "string",
-            "order": 36,
+            "order": 38,
             "default": "",
             "description": "[Advanced] OpenAI Access Token authentication URL"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.appKey": {
             "type": "string",
-            "order": 37,
+            "order": 39,
             "default": "",
             "description": "[Advanced] OpenAI Access Token application key"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.appSecret": {
             "type": "string",
-            "order": 38,
+            "order": 40,
             "default": "",
             "description": "[Advanced] OpenAI Access Token application secret"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.reasoningModelName": {
             "type": "string",
-            "order": 39,
+            "order": 41,
             "default": "",
             "description": "[Advanced] Optional reasoning model name used for specialized reasoning subtasks (OpenAI Access Token)."
           }
