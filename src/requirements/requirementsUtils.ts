@@ -493,6 +493,60 @@ export function gatherLLMProviderSettings(): LLMProviderSettingsResult {
         baseEnv[key.trim()] = value.trim();
       }
     }
+  } else if (provider === "azure_apim") {
+    need(
+      config.get<string>("reqs2x.azureApim.subscriptionKey"),
+      "APIM Subscription Key",
+      "VCAST_REQS2X_AZURE_APIM_SUBSCRIPTION_KEY"
+    );
+    need(
+      config.get<string>("reqs2x.azureApim.baseUrl"),
+      "APIM Base URL",
+      "VCAST_REQS2X_AZURE_APIM_BASE_URL"
+    );
+    need(
+      config.get<string>("reqs2x.azureApim.modelName"),
+      "APIM Model Name",
+      "VCAST_REQS2X_AZURE_APIM_MODEL_NAME"
+    );
+    optional(
+      config.get<string>("reqs2x.azureApim.apiKey"),
+      "VCAST_REQS2X_AZURE_APIM_API_KEY"
+    );
+    optional(
+      config.get<string>("reqs2x.azureApim.reasoningModelName"),
+      "VCAST_REQS2X_REASONING_AZURE_APIM_MODEL_NAME"
+    );
+  } else if (provider === "openai_at") {
+    need(
+      config.get<string>("reqs2x.openaiAt.modelName"),
+      "OpenAI AT Model Name",
+      "VCAST_REQS2X_OPENAI_AT_MODEL_NAME"
+    );
+    need(
+      config.get<string>("reqs2x.openaiAt.modelUrl"),
+      "OpenAI AT Model URL",
+      "VCAST_REQS2X_OPENAI_AT_MODEL_URL"
+    );
+    need(
+      config.get<string>("reqs2x.openaiAt.authUrl"),
+      "OpenAI AT Auth URL",
+      "VCAST_REQS2X_OPENAI_AT_AUTH_URL"
+    );
+    need(
+      config.get<string>("reqs2x.openaiAt.appKey"),
+      "OpenAI AT App Key",
+      "VCAST_REQS2X_OPENAI_AT_APP_KEY"
+    );
+    need(
+      config.get<string>("reqs2x.openaiAt.appSecret"),
+      "OpenAI AT App Secret",
+      "VCAST_REQS2X_OPENAI_AT_APP_SECRET"
+    );
+    optional(
+      config.get<string>("reqs2x.openaiAt.reasoningModelName"),
+      "VCAST_REQS2X_REASONING_OPENAI_AT_MODEL_NAME"
+    );
   } else {
     missing.push("Unsupported provider value");
   }
