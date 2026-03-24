@@ -51,9 +51,15 @@ with tempfile.TemporaryDirectory() as tmpdirname:
     with open(tmp) as f:
         data = json.load(f)
 
+    def parse_date(uri):
+        try:
+            return datetime.fromisoformat(uri.rsplit("-", 1)[0][1:])
+        except ValueError:
+            return None
+
     children_urls = sorted(
-        [c["uri"] for c in data["children"] if c["uri"].rsplit("-", 1)[0][1:]],
-        key=lambda x: datetime.fromisoformat(x.rsplit("-", 1)[0][1:]),
+        [c["uri"] for c in data["children"] if parse_date(c["uri"]) is not None],
+        key=lambda x: parse_date(x),
         reverse=True,
     )
 

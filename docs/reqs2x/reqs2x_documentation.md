@@ -10,7 +10,7 @@ The **VectorCAST Reqs2x tools** provide LLM-powered capabilities for requirement
 - **Generate VectorCAST test cases from requirements** 
 
 
-All tools require a configured LLM provider to function. The tools support multiple LLM providers including Azure OpenAI, OpenAI, Anthropic, and LiteLLM.  
+All tools require a configured LLM provider to function. The tools support multiple LLM providers including Azure OpenAI, OpenAI, Anthropic, LiteLLM, Azure APIM, and OpenAI Access Token.  
 
 This manual demonstrates Reqs2x usage workflows from inside this VS-Code extension using the `TUTORIAL_C` demo environment. Before starting, ensure you have the necessary components ready.
 
