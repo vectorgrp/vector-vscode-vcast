@@ -41,6 +41,7 @@ import {
   saveEnviroNodeData,
   testNodeType,
   testNodeCache,
+  createVcpNodeInCache,
 } from "./testData";
 
 import {
@@ -136,13 +137,16 @@ type UnitData = {
 
 export type EnviroData = {
   vcePath: string;
+  vcpPath: string;
   testData: FileTestData[];
   unitData: UnitData[];
   mockingSupport: boolean;
+  inPlace: boolean;
 };
 
 export type CachedWorkspaceData = {
   enviro: EnviroData[];
+  vcp: EnviroData[];
   errors?: string[];
 };
 
@@ -630,6 +634,34 @@ export function addFreeEnvironments(
 }
 
 /**
+ * Adds VCP (VectorCAST Cover Project) files found in the workspace cache to the environment list.
+ * VCP Nodes are different as they only have a "Files" and "Results" as children.
+ * @param environmentList A list to push environment data.
+ * @param workspaceRoot The workspace root directory path.
+ */
+export function addVcpEnvironments(
+  environmentList: any[],
+  workspaceRoot: string
+): void {
+  // Check if the cached data exists and has the 'vcp' key we added in Python
+  if (cachedWorkspaceEnvData?.vcp) {
+    for (const vcpData of cachedWorkspaceEnvData.vcp) {
+      const normalizedPath = normalizePath(vcpData.vcpPath);
+      const displayName = path.basename(normalizedPath);
+      environmentList.push({
+        projectPath: normalizedPath, // VCP path
+        buildDirectory: normalizedPath,
+        isBuilt: true,
+        displayName: displayName,
+        workspaceRoot: workspaceRoot,
+        isVcp: true,
+        inPlace: vcpData.inPlace,
+      });
+    }
+  }
+}
+
+/**
  * Checks if the given path is an environment of interest.
  * @param candidatePath - The path to check
  * @returns True if the path is an environment of interest, false otherwise
@@ -718,13 +750,16 @@ export async function updateTestsForEnvironment(
   enviroData: environmentNodeDataType,
   comingFromRefresh: boolean = false
 ) {
-  let jsonData: any;
+  // Handle VCP files specially
+  if (enviroData.isVcp && parentNode) {
+    await createVcpChildNodes(parentNode, enviroData);
+    return;
+  }
 
-  // In case we are refreshing the extension, we do not want to call the API n times (n=|envs|)
-  // Instead we get the entire env data at once and save us time.
+  // Regular environment handling
+  let jsonData: any;
   jsonData = await loadEnviroData(enviroData, comingFromRefresh);
   if (!jsonData) return;
-
   await processSingleEnvData(parentNode, enviroData, jsonData);
 }
 
@@ -738,17 +773,29 @@ async function loadEnviroData(
   comingFromRefresh: boolean
 ): Promise<EnviroData | undefined> {
   let buildDirDerivedFromVCEPath: string = "";
+  let buildDirDerivedFromVCPPath: string = "";
   let buildPathDir: string = enviroData.buildDirectory;
 
   if (comingFromRefresh) {
     // If we've already fetched the full workspace data, reuse it
     if (cachedWorkspaceEnvData) {
-      const enviroList = cachedWorkspaceEnvData["enviro"];
-      vectorMessage(`Processing environment data for: ${buildPathDir}`);
-      for (const envAPIData of enviroList) {
-        buildDirDerivedFromVCEPath = envAPIData.vcePath.split(".vce")[0];
-        if (buildDirDerivedFromVCEPath === buildPathDir) {
-          return envAPIData;
+      if (enviroData.isVcp) {
+        const vcpList = cachedWorkspaceEnvData["vcp"];
+        vectorMessage(`Processing coverage project data for: ${buildPathDir}`);
+        for (const vcpAPIData of vcpList) {
+          buildDirDerivedFromVCPPath = vcpAPIData.vcpPath;
+          if (buildDirDerivedFromVCPPath === buildPathDir) {
+            return vcpAPIData;
+          }
+        }
+      } else {
+        const enviroList = cachedWorkspaceEnvData["enviro"];
+        vectorMessage(`Processing environment data for: ${buildPathDir}`);
+        for (const envAPIData of enviroList) {
+          buildDirDerivedFromVCEPath = envAPIData.vcePath.split(".vce")[0];
+          if (buildDirDerivedFromVCEPath === buildPathDir) {
+            return envAPIData;
+          }
         }
       }
     } else {
@@ -991,6 +1038,9 @@ async function loadAllVCTests(
         ignoreEnvsInProject,
         environmentList
       );
+
+      // Add VCP (Cover Project) files
+      addVcpEnvironments(environmentList, workspaceRoot);
     }
 
     if (environmentList.length > 0) {
@@ -1832,7 +1882,23 @@ function getParentNodeForEnvironment(
     return null;
   }
 
-  // Managed project branch.
+  // VCP Cover Project
+  if (enviroData.isVcp) {
+    let projectNode = globalProjectMap.get(enviroData.projectPath);
+    if (!projectNode) {
+      const projectDisplayName = path.basename(enviroData.projectPath);
+      projectNode = globalController.createTestItem(
+        enviroData.projectPath,
+        projectDisplayName
+      ) as vcastTestItem;
+      projectNode.nodeKind = nodeKind.vcpProject;
+      globalController.items.add(projectNode);
+      globalProjectMap.set(enviroData.projectPath, projectNode);
+    }
+    return projectNode;
+  }
+
+  // Managed project
   let projectNode = globalProjectMap.get(enviroData.projectPath);
   if (!projectNode) {
     // If project node doesn't exist, create a new one.
@@ -1845,9 +1911,7 @@ function getParentNodeForEnvironment(
     globalController.items.add(projectNode);
     globalProjectMap.set(enviroData.projectPath, projectNode);
   }
-
   let currentParent = createHierarchy(pathParts, projectNode);
-
   return currentParent;
 }
 
@@ -2077,7 +2141,9 @@ export async function updateCodedTestCases(editor: any) {
 }
 
 // special is for compound and init
+
 export enum nodeKind {
+  vcpProject,
   projectGroup,
   project,
   environmentGroup,
@@ -2088,6 +2154,9 @@ export enum nodeKind {
   test,
   compiler,
   testsuite,
+  vcpFiles,
+  vcpResults,
+  vcpSourceFile,
 }
 export interface vcastTestItem extends vscode.TestItem {
   // this is a simple wrapper that allows us to add additional
@@ -2117,4 +2186,135 @@ function checkWorkspaceEnvDataForErrors() {
       }
     }
   }
+}
+
+/**
+ * Creates "Files" and "Results" child nodes under a VCP project node
+ */
+async function createVcpChildNodes(
+  vcpProjectNode: vcastTestItem,
+  enviroData: environmentNodeDataType
+): Promise<void> {
+  // Get the cached VCP data to access unitData and testData
+  const vcpData = getVcpDataFromCache(enviroData.buildDirectory);
+  saveEnviroNodeData(enviroData.buildDirectory, enviroData);
+  updateGlobalDataForFile(enviroData.buildDirectory, vcpData.unitData);
+  const inPlace = vcpData.inPlace;
+  const projectNodeID = vcpProjectNode.id;
+
+  // Create "Files" node
+  const filesNodeId = `${enviroData.buildDirectory}::files`;
+  const projectName = path.basename(enviroData.projectPath);
+  const filesNode = globalController.createTestItem(
+    filesNodeId,
+    "Files"
+  ) as vcastTestItem;
+  createVcpNodeInCache(
+    filesNodeId,
+    normalizePath(enviroData.projectPath),
+    projectName,
+    projectNodeID,
+    false,
+    false,
+    inPlace
+  );
+  filesNode.nodeKind = nodeKind.vcpFiles;
+  vcpProjectNode.children.add(filesNode);
+
+  // Add source files as children under Files node
+  if (vcpData?.unitData && Array.isArray(vcpData.unitData)) {
+    for (const unit of vcpData.unitData) {
+      if (unit.path) {
+        const unitFileName = path.basename(unit.path);
+        const sourceFilePath = unit.path;
+        const unitNodeId = `${sourceFilePath}::file`;
+
+        const unitNode = globalController.createTestItem(
+          unitNodeId,
+          unitFileName,
+          vscode.Uri.file(unit.path)
+        ) as vcastTestItem;
+
+        unitNode.nodeKind = nodeKind.vcpSourceFile;
+        unitNode.canResolveChildren = false;
+
+        filesNode.children.add(unitNode);
+
+        createVcpNodeInCache(
+          unitNodeId,
+          normalizePath(enviroData.projectPath),
+          projectName,
+          projectNodeID,
+          true,
+          false,
+          inPlace,
+          normalizePath(sourceFilePath)
+        );
+      }
+    }
+  }
+
+  // Create "Results" node
+  const resultsNodeId = `${enviroData.buildDirectory}::results`;
+  const resultsNode = globalController.createTestItem(
+    resultsNodeId,
+    "Results"
+  ) as vcastTestItem;
+  resultsNode.nodeKind = nodeKind.vcpResults;
+  vcpProjectNode.children.add(resultsNode);
+
+  createVcpNodeInCache(
+    resultsNodeId,
+    normalizePath(enviroData.projectPath),
+    projectName,
+    projectNodeID,
+    false,
+    false,
+    inPlace
+  );
+
+  // Add .lua result files as children under Results node
+  if (vcpData?.testData && Array.isArray(vcpData.testData)) {
+    for (const resultFile of vcpData.testData) {
+      // resultFile should be the full path to all.lua or api.lua
+      if (resultFile && typeof resultFile === "string") {
+        const resultFileName = path.basename(resultFile);
+        const resultNodeId = `${resultFile}::result`;
+
+        const resultNode = globalController.createTestItem(
+          resultNodeId,
+          resultFileName,
+          vscode.Uri.file(resultFile)
+        ) as vcastTestItem;
+
+        resultNode.nodeKind = nodeKind.vcpResults;
+        resultNode.canResolveChildren = false;
+
+        resultsNode.children.add(resultNode);
+        createVcpNodeInCache(
+          resultNodeId,
+          normalizePath(enviroData.projectPath),
+          projectName,
+          projectNodeID,
+          false,
+          true,
+          inPlace,
+          normalizePath(resultFile)
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Helper function to get VCP data from the workspace cache
+ */
+export function getVcpDataFromCache(vcpPath: string): any {
+  if (cachedWorkspaceEnvData?.vcp) {
+    const normalizedPath = normalizePath(vcpPath);
+    return cachedWorkspaceEnvData.vcp.find(
+      (vcp: any) => normalizePath(vcp.vcpPath) === normalizedPath
+    );
+  }
+  return null;
 }

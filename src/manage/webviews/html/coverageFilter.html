@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Coverage Filter</title>
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <div class="modal">
+    <h2>Coverage Filter</h2>
+    <p class="subtitle" id="fileLabel"></p>
+
+    <div class="enviro-list" id="enviroList">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="button-container">
+      <button id="btnSelectAll" class="select-button">Select All</button>
+      <button id="btnDeselectAll" class="select-button deselect">Deselect All</button>
+      <div style="flex:1"></div>
+      <button id="btnCancel" class="cancel-button">Cancel</button>
+      <button id="btnApply" class="primary-button">Apply</button>
+    </div>
+  </div>
+
+  {{ scriptUri }}
+</body>
+</html>

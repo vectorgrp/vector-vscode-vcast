@@ -8,8 +8,6 @@
           <div class="return-to-top"><span class="pull-right"><a href="#TableOfContents">Top</a></span></div>
     {%- endif %}
       {%- for function in obj.functions -%}
-        {% if function.mcdcs %}
-        {% endif %}
         {%- for mcdc in function.mcdcs %}
           {% if is_sfp -%}
           <div class="mcdc-condition {{mcdc.data.covered | coverage_status_to_class}}" id="mcdc_index_{{mcdc.data.id|e}}">
@@ -26,6 +24,12 @@
                   <th>{% trans %}File{% endtrans %}</th>
                   <td>{{mcdc.unit_name|e}}</td>
                 </tr>
+                {%- if show_subprogram %}
+                <tr>
+                  <th>{% trans %}Subprogram{% endtrans %}</th>
+                  <td>{{function.name|e}}</td>
+                </tr>
+                {%- endif %}
                 {% if is_sfp -%}
                 <tr style="cursor: pointer;" onclick="mcdcUpArrow('file{{obj.unit_index}}', {{mcdc.data.source_line}}, {{mcdc.data.decision_index}}, {{mcdc.func_start}})">
                   <th><div class="up_arrow">↑</div>{% trans %}Source line{% endtrans %}</th>

@@ -36,6 +36,7 @@ from pythonUtilities import logMessage, expand_vc_env_vars
 from vector.apps.DataAPI.manage_api import VCProjectApi
 from vector.apps.DataAPI.vcproject_models import EnvironmentType
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
+from vector.apps.DataAPI.cover_api import CoverApi
 from vector.lib.core.system import cd
 from vector.enums import COVERAGE_TYPE_TYPE_T
 
@@ -352,16 +353,19 @@ statementCoverList = [
     COVERAGE_TYPE_TYPE_T.STATEMENT,
     COVERAGE_TYPE_TYPE_T.STATEMENT_FUNCTION_CALL,
     COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_FUNCTION_CALL,
 ]
 
 mcdcCoverageList = [
     COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC,
     COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC_FUNCTION_CALL,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_MCDC_FUNCTION_FUNCTION_CALL,
 ]
 
 branchCoverageList = [
     COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH,
     COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_CALL,
+    COVERAGE_TYPE_TYPE_T.STATEMENT_BRANCH_FUNCTION_FUNCTION_CALL,
 ]
 
 
@@ -388,7 +392,6 @@ def getCoverageKind(sourceObject):
         return CoverageKind.branch
     else:
         return CoverageKind.ignore
-
 
 def getCoverageData(sourceObject):
     """
@@ -482,8 +485,121 @@ def getCoverageData(sourceObject):
             uncoveredString = uncoveredString[:-1]
             partiallyCoveredString = partiallyCoveredString[:-1]
 
+            # Remap coverage from closing brace to function start for empty functions
+            coveredString, partiallyCoveredString, uncoveredString = (
+                remapEmptyFunctionCoverage(
+                    sourceObject,
+                    coveredString,
+                    partiallyCoveredString,
+                    uncoveredString,
+                )
+            )
+
     return coveredString, uncoveredString, partiallyCoveredString, checksum
 
+def lineInString(line_number, coverage_string):
+    """
+    Exact token match in a comma-separated coverage string.
+    Avoids false positives like '8' matching inside '18'.
+    """
+    if not coverage_string:
+        return False
+
+    all_lines = coverage_string.split(",")
+    return str(line_number) in all_lines
+
+
+def removeLine(line_number, coverage_string):
+    """
+    Removes a line number from a comma-separated coverage string.
+    """
+    if not coverage_string:
+        return coverage_string
+
+    line_number_str = str(line_number)
+    all_lines = coverage_string.split(",")
+    
+    filtered_lines = []
+    for entry in all_lines:
+        if entry != line_number_str:
+            filtered_lines.append(entry)
+
+    return ",".join(filtered_lines)
+
+
+def addLine(line_number, coverage_string):
+    """
+    Appends a line number to a comma-separated coverage string (no duplicates).
+    """
+    if not coverage_string:
+        return str(line_number)
+
+    line_number_str = str(line_number)
+    all_lines = coverage_string.split(",")
+    already_present = line_number_str in all_lines
+
+    if not already_present:
+        all_lines.append(line_number_str)
+
+    return ",".join(all_lines)
+
+
+def remapEmptyFunctionCoverage(
+    sourceObject,
+    coveredString,
+    partiallyCoveredString,
+    uncoveredString,
+):
+    """
+    VectorCAST only instruments the closing '}' of an empty/stub function,
+    so the coverage icon would appear on the brace instead of the function signature.
+
+    For each function where:
+      - start_line has NO coverage of any kind, AND
+      - end_line DOES have coverage (in any List)
+
+    move that entry from end_line to start_line, keeping whichever
+    state it was in: covered / partially-covered / uncovered.
+    """
+    for function in sourceObject.cover_data.functions:
+        start_line = function.start_line
+        end_line = getattr(function, "end_line", None)
+
+        # Nothing to remap if identical or unknown
+        if end_line is None or end_line == start_line:
+            continue
+
+        # Skip if start_line already has coverage in any List
+        start_has_coverage = (
+            lineInString(start_line, coveredString)
+            or lineInString(start_line, partiallyCoveredString)
+            or lineInString(start_line, uncoveredString)
+        )
+        if start_has_coverage:
+            continue
+
+        # Determine which List end_line is in
+        end_is_covered = lineInString(end_line, coveredString)
+        end_is_partial = lineInString(end_line, partiallyCoveredString)
+        end_is_uncovered = lineInString(end_line, uncoveredString)
+
+        if not (end_is_covered or end_is_partial or end_is_uncovered):
+            continue
+
+        # Move end_line -> start_line in the correct List
+        if end_is_covered:
+            coveredString = removeLine(end_line,  coveredString)
+            coveredString = addLine(start_line,   coveredString)
+
+        elif end_is_partial:
+            partiallyCoveredString = removeLine(end_line,  partiallyCoveredString)
+            partiallyCoveredString = addLine(start_line,   partiallyCoveredString)
+
+        elif end_is_uncovered:
+            uncoveredString = removeLine(end_line,  uncoveredString)
+            uncoveredString = addLine(start_line,   uncoveredString)
+
+    return coveredString, partiallyCoveredString, uncoveredString
 
 def executeVCtest(enviroPath, testIDObject):
     with cd(os.path.dirname(enviroPath)):
@@ -720,19 +836,28 @@ def getProjectCompilerData(api):
     return compilerList
 
 
-def find_vce_files(root_dir):
+def find_environment_files(root_dir):
+    """
+    Scans the directory tree once and returns two lists:
+    1. vce_files: Paths to vce files for Unit Test environments
+    2. vcp_files: Paths to vcp files for Cover Projects
+    """
     vce_files = []
+    vcp_files = []
 
     def scan_dir(path):
         with os.scandir(path) as entries:
             for entry in entries:
-                if entry.is_file() and entry.name.endswith(".vce"):
-                    vce_files.append(entry.path)
+                if entry.is_file():
+                    if entry.name.endswith(".vce"):
+                        vce_files.append(entry.path)
+                    elif entry.name.endswith(".vcp"):
+                        vcp_files.append(entry.path)
                 elif entry.is_dir(follow_symlinks=False):
                     scan_dir(entry.path)
 
     scan_dir(root_dir)
-    return vce_files
+    return vce_files, vcp_files
 
 
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
@@ -780,10 +905,14 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
     elif mode == "getWorkspaceEnviroData":
         enviro_list = []
+        vcp_list = []
         errors = []
         topLevel = {}
-        vce_files = find_vce_files(pathToUse)
 
+        # Scan directory for both file types
+        vce_files, vcp_files = find_environment_files(pathToUse)
+
+        # Process VCE Files
         for vce_path in vce_files:
             try:
                 api = UnitTestApi(vce_path)
@@ -800,11 +929,41 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                         "mockingSupport": mocking_support,
                     }
                 )
-
             except Exception as err:
                 errors.append(f"{vce_path}: {str(err)}")
 
+        # Process VCP Files
+        for vcp_path in vcp_files:
+            try:
+                api = CoverApi(vcp_path)
+                test_data = getVCPResultsList(api)
+                unit_data = getUnitData(api)
+                mocking_support = False  # Cover projects do not support mocking
+                in_place = api.environment.instrumenting_in_place
+
+                vcp_list.append(
+                    {
+                        "vcpPath": normalize_path(vcp_path),
+                        "testData": test_data,
+                        "unitData": unit_data,
+                        "mockingSupport": mocking_support,
+                        "inPlace": in_place
+                    }
+                )
+            except Exception as err:
+                errors.append(f"{vcp_path}: {str(err)}")
+
+        # Construct Top Level Object
+        # Defaulting top-level data to the first VCE environment found (if any)
+        topLevel["testData"] = enviro_list[0]["testData"] if enviro_list else []
+        topLevel["unitData"] = enviro_list[0]["unitData"] if enviro_list else []
+
+        if not topLevel["unitData"] and vcp_list:
+            topLevel["unitData"] = vcp_list[0]["unitData"]
+
         topLevel["enviro"] = enviro_list
+        topLevel["vcp"] = vcp_list
+
         if errors:
             topLevel["errors"] = errors
 
@@ -887,6 +1046,23 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     # only used for executeTest currently
     return returnCode, returnObject
 
+
+def getVCPResultsList(api):
+    """
+    Returns a list of all result file paths in the VCP project
+    """
+    resultsList = []
+    
+    try:
+        for result in api.Result.all():
+            result_path = result.absolute_path
+            if result_path:
+                resultsList.append(result_path)
+            
+    except Exception as e:
+        print(f"Error retrieving results from VCP: {e}")
+    
+    return resultsList
 
 def processCommand(mode, clicast, pathToUse, testString="", options=""):
     """

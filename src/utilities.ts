@@ -12,6 +12,7 @@ import { rebuildEnvironmentCallback } from "./callbacks";
 import { CachedWorkspaceData, EnviroData } from "./testPane";
 import { executeWithRealTimeEchoWithProgress } from "./vcastCommandRunner";
 import { getVectorCastInstallationLocation } from "./vcastInstallation";
+import { vcpNodeCache, vcpNodeType } from "./testData";
 
 const fs = require("fs");
 const glob = require("glob");
@@ -407,7 +408,9 @@ export async function updateCoverageAndRebuildEnv() {
   }
   // Now rebuild every env so that the coverage is updated
   for (let enviroPath of envArray) {
-    await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
+    if (!enviroPath.endsWith(".vcp")) {
+      await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
+    }
   }
 }
 
@@ -428,11 +431,15 @@ export async function mergeWorkspaceEnvResponses(
 ): Promise<CachedWorkspaceData> {
   const allErrors: string[] = [];
   const allEnvs: EnviroData[] = [];
+  const allVcp: EnviroData[] = [];
 
   for (const resp of responses) {
     if (!resp) continue;
     if (resp.errors) {
       allErrors.push(...resp.errors);
+    }
+    if (resp.vcp) {
+      allVcp.push(...resp.vcp);
     }
     if (resp.enviro) {
       allEnvs.push(...resp.enviro);
@@ -441,6 +448,7 @@ export async function mergeWorkspaceEnvResponses(
 
   return {
     enviro: allEnvs,
+    vcp: allVcp,
     errors: allErrors.length ? allErrors : undefined,
   };
 }
@@ -480,4 +488,69 @@ export async function getFullEnvReport(
 
   // Return the generated HTML file path
   return htmlReportPath;
+}
+
+/**
+ * Checks if the environment is a Cover Project (.vcp).
+ * If so, it adjusts the environment path (removing .vcp) and appends the
+ * file extension to the unit name, as required by the Cover API.
+ */
+export function resolveVcpPaths(
+  enviroPath: string | null,
+  unitName: string,
+  fullFilePath: string
+) {
+  if (enviroPath?.endsWith(".vcp")) {
+    // Cover projects require the full filename (e.g. "manager.c" instead of "manager")
+    unitName = unitName + path.extname(fullFilePath);
+
+    // The build directory for VCP is the path without the .vcp extension
+    const parsed = path.parse(enviroPath);
+    enviroPath = path.join(parsed.dir, parsed.name);
+  }
+
+  return enviroPath;
+}
+
+export async function openFileAtLine(
+  filePath: string,
+  lineNumber: number
+): Promise<void> {
+  const uri = vscode.Uri.file(filePath);
+  const document = await vscode.workspace.openTextDocument(uri);
+  const position = new vscode.Position(Math.max(0, lineNumber - 1), 0);
+  const selection = new vscode.Range(position, position);
+
+  await vscode.window.showTextDocument(document, {
+    preview: false,
+    preserveFocus: false,
+    selection: selection,
+  });
+}
+
+/**
+ * Returns true if the given file path is part of a vcp project and is in_place
+ */
+export function fileIsVCPAndInPlace(filePath: string) {
+  let vcpNode = getVcpNodeBySourceFilePath(filePath);
+
+  if (vcpNode?.inPlace) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+/**
+ * Returns vcp node for a given source file path
+ */
+export function getVcpNodeBySourceFilePath(
+  sourceFilePath: string
+): vcpNodeType | undefined {
+  for (const node of vcpNodeCache.values()) {
+    if (node.sourceFilePath === sourceFilePath) {
+      return node;
+    }
+  }
+  return undefined;
 }

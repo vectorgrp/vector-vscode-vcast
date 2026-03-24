@@ -71,6 +71,11 @@ import {
   closeConnection,
   globalEnviroDataServerActive,
 } from "../src-common/vcastServer";
+import {
+  getEnabledEnvirosForFile,
+  hideCoverageFilterStatusBar,
+  updateCoverageFilterStatusBar,
+} from "./coverage";
 
 const fs = require("fs");
 const path = require("path");
@@ -189,6 +194,7 @@ export function clearTestDataFromStatusArray(): void {
 // List of source file from all local environments
 interface coverageDataType {
   crc32Checksum: number;
+  isVCP: boolean;
   covered: number[];
   uncovered: number[];
   partiallyCovered: number[];
@@ -200,7 +206,7 @@ interface fileCoverageType {
 }
 
 // key is filePath
-let globalCoverageData = new Map<string, fileCoverageType>();
+export let globalCoverageData = new Map<string, fileCoverageType>();
 
 /////////////////////////////////////////////////////////////////////
 export function resetCoverageData() {
@@ -244,11 +250,23 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
     // if there is coverage data, create the x/y status bar message
     if (dataForThisFile.hasCoverage && dataForThisFile.enviroList.size > 0) {
       const checksum: number = getChecksum(filePath);
+      // undefined = all enviros enabled (no filter entry exists for this file)
+      const enabledEnviros = getEnabledEnvirosForFile(filePath);
+
       let coveredList: number[] = [];
       let uncoveredList: number[] = [];
       let partiallyCoveredList: number[] = [];
-      for (const enviroData of dataForThisFile.enviroList.values()) {
-        if (enviroData.crc32Checksum == checksum) {
+
+      for (const [
+        enviroPath,
+        enviroData,
+      ] of dataForThisFile.enviroList.entries()) {
+        // Skip enviros the user has deselected in the coverage filter webview
+        if (enabledEnviros !== undefined && !enabledEnviros.has(enviroPath)) {
+          continue;
+        }
+
+        if (enviroData.crc32Checksum == checksum || enviroData.isVCP) {
           coveredList = coveredList.concat(enviroData.covered);
           uncoveredList = uncoveredList.concat(enviroData.uncovered);
           partiallyCoveredList = partiallyCoveredList.concat(
@@ -257,21 +275,33 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
         }
       }
 
-      if (coveredList.length == 0 && uncoveredList.length == 0) {
+      if (
+        coveredList.length == 0 &&
+        uncoveredList.length == 0 &&
+        partiallyCoveredList.length == 0
+      ) {
         // This status is for files that have changed since
         // they were last instrumented
         returnData.statusString = "Coverage Out of Date";
+        hideCoverageFilterStatusBar();
       } else {
         returnData.hasCoverageData = true;
         // remove duplicates
         returnData.covered = [...new Set(coveredList)];
         returnData.uncovered = [...new Set(uncoveredList)];
         returnData.partiallyCovered = [...new Set(partiallyCoveredList)];
+
+        // update status bar filter indicator
+        updateCoverageFilterStatusBar(
+          dataForThisFile.enviroList.size,
+          enabledEnviros
+        );
       }
     } else {
       // This status is for files that are part of
       // and environment but not instrumented
       returnData.statusString = "No Coverage Data";
+      hideCoverageFilterStatusBar();
     }
   }
 
@@ -338,7 +368,9 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
         .map(Number);
 
     const checksum = fileList[fileIndex].cmcChecksum;
+
     let coverageData: coverageDataType = {
+      isVCP: enviroPath.endsWith(".vcp"),
       crc32Checksum: checksum,
       covered: coveredList,
       uncovered: uncoveredList,
@@ -753,7 +785,6 @@ async function configureWorkspaceAndBuildEnviro(
   if (projectEnvParameters) {
     // Create the environment using the provided file list
     await commonEnvironmentSetup(fileList, envLocation, false);
-
     const envName = createEnvNameFromFiles(fileList);
     const envFilePath = path.join(envLocation, `${envName}.env`);
     const testSuites = projectEnvParameters.testsuiteArgs;
@@ -882,7 +913,6 @@ async function commonEnvironmentSetup(
       return;
     }
   }
-
   // Build the environment with the valid name
   await buildEnvironmentVCAST(
     fileList,
@@ -904,7 +934,6 @@ export async function newEnvironment(
   // file in the list will be a C/C++ file but we need to filter
   // for the multi-select case.
   //
-
   let fileList: string[] = [];
   for (let index = 0; index < URIlist.length; index++) {
     const filePath = URIlist[index].fsPath;
