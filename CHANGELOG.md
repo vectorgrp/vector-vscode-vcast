@@ -3,6 +3,13 @@
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
 
+## [1.0.30] - 2026-03-24
+
+### Added
+- Added setting to allow equirements-driven test generation without passing of function definitions (for blackbox-style testing)
+- Added new advanced LLM provider for use with Azure APIM
+- Reorganized LLM providers (into common and advanced/uncommon)
+
 ## [1.0.29] - 2026-02-25
 
 ### Added
