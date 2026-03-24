@@ -19,22 +19,31 @@ This manual demonstrates Reqs2x usage workflows from inside this VS-Code extensi
 
 
 ### Prerequisites
-1.  **Uninstall Previous Versions**: Remove any existing versions of the VectorCAST VS-Code extension.
-2.  **Prepare Reqs2x Core**:
+Remove any existing versions of the VectorCAST VS-Code extension.
+
+#### If you are using a demo release:
+1.  **Prepare Reqs2x Core**:
     *   Extract the Reqs2x core release (`autoreq-win.tar.gz` or `autoreq-linux.tar.gz`).
     *   Locate the `bin` folder (executables) and `TUTORIAL_C` folder (demo environment).
-3.  **License Setup**: Ensure your VectorCAST license is configured. Ideally, point `VECTORCAST_DIR` to your release.
-4.  **Open Project**: Open a terminal and navigate to the extracted `autoreq-win/distribution/TUTORIAL_C` directory.
+2.  **License Setup**: Ensure your VectorCAST license is configured. Point `VECTORCAST_DIR` to your release.
+3.  **Open Project**: Open a terminal and navigate to the extracted `autoreq-win/distribution/TUTORIAL_C` directory, then open it in VS-Code.
+
+#### If you are using VectorCAST 2026:
+1.  **License Setup**: Ensure your VectorCAST license is configured. Point `VECTORCAST_DIR` to your release.
+2.  **Open Project**: Create a new directory named `TUTORIAL_C` and copy the contents of `$VECTORCAST_DIR/tutorial/c` directory into it, then open it in VS-Code.
+
 
 ### VS Code Extensions
-1.  Install the **Excel Viewer** extension (`GrapeCity.gc-excelviewer`) to view/edit Excel sheets directly in VS Code.
+1.  Install the **Excel Viewer** extension (`GrapeCity.gc-excelviewer`) to view/edit Excel sheets directly in VS Code (optional). Alternatively, use MS Excel to view/edit Excel sheets.
 2.  Install the **VectorCAST Text Explorer** VS-Code extension from the Microsoft Marketplace.
 
 ### Configuration
 1.  Activate the extension: Press `Ctrl+Shift+P`, search for **Vectorcast Test Explorer**, and press `Enter`.
 2.  Open the **Settings** tab (opens automatically).
 3.  Configure the following settings:
-    *   **Vectorcast Test Explorer › Reqs2x: Installation Location**: Point this to the `autoreq-win/distribution/bin` folder you extracted earlier.
+    *   **Vectorcast Test Explorer › Reqs2x: Installation Location**: 
+    - If you are using a demo release, point this to the `autoreq-win/distribution/bin` folder you extracted earlier.
+    - If you are using VectorCAST 2026, point this to your VectorCAST release folder ($VECTORCAST_DIR)
     *   **Vectorcast Test Explorer › Reqs2x: Provider**:
     Select the large language model provider you intend to use from the dropdown menu
         * **Note**: Most providers support the `openai` API. This includes `Google`, `AWS Bedrock`, as well as open-source model-serving methods like `ollama`, `vLLM` and `SG-Lang`. Use [LiteLLM](https://github.com/BerriAI/litellm) for any provider not supporting `openai`/`openai_azure` API. 
