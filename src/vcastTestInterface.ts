@@ -67,10 +67,6 @@ import {
   openTestFileAndErrors,
   testStatus,
 } from "./vcastUtilities";
-import {
-  closeConnection,
-  globalEnviroDataServerActive,
-} from "../src-common/vcastServer";
 
 const fs = require("fs");
 const path = require("path");
@@ -1080,7 +1076,6 @@ async function commonCodedTestProcessing(
   } else {
     openTestFileAndErrors(testNode);
   }
-  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 }
 
 export async function addExistingCodedTestFile(testID: string) {

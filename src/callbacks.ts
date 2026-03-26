@@ -25,10 +25,6 @@ import {
   removeCoverageDataForEnviro,
   tempScriptCache,
 } from "./vcastTestInterface";
-import {
-  closeConnection,
-  globalEnviroDataServerActive,
-} from "../src-common/vcastServer";
 import { updateDisplayedCoverage } from "./coverage";
 import { updateExploreDecorations } from "./fileDecorator";
 import { updateTestDecorator } from "./editorDecorator";
@@ -152,7 +148,6 @@ export async function loadScriptCallBack(
 
     const enviroPath = path.join(path.dirname(scriptPath), enviroName);
     await updateTestPane(enviroPath);
-    if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
     // If it's a temporary tst file (from create new test script), we delete it.
     // Otherwise it's a manually editing of an already existing tst file
