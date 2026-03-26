@@ -14,7 +14,6 @@ import { updateProjectData } from "./manage/manageSrc/manageCommands";
 import { openMessagePane, vectorMessage } from "./messagePane";
 
 import {
-  environmentDataCache,
   getClicastArgsFromTestNode,
   getClicastArgsFromTestNodeAsList,
   getEnviroNameFromID,
