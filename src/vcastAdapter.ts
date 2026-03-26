@@ -504,9 +504,6 @@ export async function openVcastFromEnviroNode(
   const enviroPath = getEnviroPathFromID(enviroNodeID);
   const enclosingDirectory = path.dirname(enviroPath);
 
-  // close any existing clicast connection to this environment
-  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
-
   // we use spawn directly to control the detached and shell args
   let vcast = spawn(vcastCommandToUse, vcastArgs, {
     cwd: enclosingDirectory,

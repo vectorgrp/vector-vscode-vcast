@@ -155,9 +155,6 @@ export async function cleanProjectEnvironment(
     "--force",
   ];
 
-  // if we are in server mode, close any existing connection to the environment
-  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
-
   await executeWithRealTimeEchoWithProgress(
     manageCommandToUse,
     manageArgs,
@@ -222,9 +219,6 @@ export async function removeTestsuiteFromProject(
   let manageArgs: string[] = [];
   let progressMessage: string = "";
   let projectLocation: string = "";
-
-  // if we are in server mode, close any existing connection to the environment
-  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   for (const [projectPath, projectData] of globalProjectDataCache) {
     for (const [cachedEnviroPath, enviroData] of projectData) {

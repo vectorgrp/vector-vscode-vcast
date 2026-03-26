@@ -1080,7 +1080,6 @@ async function commonCodedTestProcessing(
   } else {
     openTestFileAndErrors(testNode);
   }
-  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 }
 
 export async function addExistingCodedTestFile(testID: string) {

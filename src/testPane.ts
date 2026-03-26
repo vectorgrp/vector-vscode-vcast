@@ -1570,9 +1570,6 @@ export async function runTests(
 
   for (let enviroPath of enviroPathList) {
     await updateDataForEnvironment(enviroPath);
-    if (globalEnviroDataServerActive) {
-      await closeConnection(enviroPath);
-    }
   }
   await updateDisplayedCoverage();
 }
@@ -1649,7 +1646,6 @@ export async function deleteTests(nodeList: any[]) {
     const enviroPath = getEnviroPathFromID(enviroNodeID);
     await updateDataForEnvironment(enviroPath);
     await updateProjectData(enviroPath);
-    if (globalEnviroDataServerActive) await closeConnection(enviroPath);
   }
 }
 
@@ -1697,7 +1693,6 @@ export async function loadTestScript() {
       // update the test pane for this environment after the script is loaded
       // we are reading the data back from the environment with this call
       updateTestPane(enviroPath);
-      if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
       // If it's a temporary tst file (from create new test script), we delete it.
       // Otherwise it's a manually editing of an already existing tst file
@@ -2067,7 +2062,6 @@ export async function updateCodedTestCases(editor: any) {
         } else {
           vectorMessage("Error refreshing coded tests\n");
         }
-        if (globalEnviroDataServerActive) await closeConnection(enviroPath);
       }
       // update the test names and checksum in all cases, rather than checking for diffs again
       codedTestFileData.testNames = newTestNames;
