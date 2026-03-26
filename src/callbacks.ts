@@ -25,10 +25,6 @@ import {
   removeCoverageDataForEnviro,
   tempScriptCache,
 } from "./vcastTestInterface";
-import {
-  closeConnection,
-  globalEnviroDataServerActive,
-} from "../src-common/vcastServer";
 import { updateDisplayedCoverage } from "./coverage";
 import { updateExploreDecorations } from "./fileDecorator";
 import { updateTestDecorator } from "./editorDecorator";

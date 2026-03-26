@@ -33,11 +33,6 @@ import {
 } from "../../vcastUtilities";
 
 import {
-  closeConnection,
-  globalEnviroDataServerActive,
-} from "../../../src-common/vcastServer";
-
-import {
   globalProjectDataCache,
   refreshAllExtensionData,
   runTests,

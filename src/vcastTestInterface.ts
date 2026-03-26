@@ -67,10 +67,6 @@ import {
   openTestFileAndErrors,
   testStatus,
 } from "./vcastUtilities";
-import {
-  closeConnection,
-  globalEnviroDataServerActive,
-} from "../src-common/vcastServer";
 
 const fs = require("fs");
 const path = require("path");

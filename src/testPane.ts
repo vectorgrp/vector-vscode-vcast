@@ -97,10 +97,6 @@ import {
   getVcastOptionValues,
 } from "../src-common/commonUtilities";
 import {
-  closeConnection,
-  globalEnviroDataServerActive,
-} from "../src-common/vcastServer";
-import {
   addManagedEnvironments,
   ignoreEnvsInProject,
 } from "./manage/manageSrc/manageUtils";
