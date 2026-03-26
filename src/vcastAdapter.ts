@@ -523,16 +523,6 @@ export async function openProjectInVcast(
   // this returns the environment directory name without any nesting
   let vcastArgs: string[] = ["-e " + projectName];
 
-  const projectPath = path.join(projectRoot, projectName);
-  // close any existing clicast connection to this environment
-  if (globalEnviroDataServerActive) {
-    for (let envData of environmentDataCache.values()) {
-      if (envData.projectPath === projectPath) {
-        await closeConnection(envData.buildDirectory);
-      }
-    }
-  }
-
   // we use spawn directly to control the detached and shell args
   let vcast = spawn(vcastCommandToUse, vcastArgs, {
     cwd: projectRoot,
@@ -558,10 +548,6 @@ export async function openVcastFromVCEfile(vcePath: string, callback: any) {
   const enclosingDirectory = path.dirname(vcePath);
 
   vectorMessage("Opening vcast for: " + enviroPath);
-
-  // close any existing clicast connection to this environment
-  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
-
   vectorMessage(
     `Calling vcast with args: ${vcastCommandToUse} ${vcastArgs.join(" ")}`
   );
