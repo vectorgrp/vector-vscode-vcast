@@ -36,6 +36,24 @@
     "workspaceContains:**/*.vcm"
   ],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vectorcastATG",
+          "title": "VectorCAST ATG",
+          "icon": "images/dark/beaker-plus.svg"
+        }
+      ]
+    },
+    "views": {
+      "vectorcastATG": [
+        {
+          "type": "webview",
+          "id": "vectorcastTestExplorer.atgSelectedVars",
+          "name": "Selected Variables"
+        }
+      ]
+    },
     "viewsWelcome": [
       {
         "view": "testing",
@@ -48,6 +66,22 @@
         "command": "vectorcastTestExplorer.getATGTestForLine",
         "category": "VectorCAST Test Explorer",
         "title": "ATG Test for Line"
+      },
+      {
+        "command": "vectorcastTestExplorer.atgToggleVariable",
+        "title": "Toggle ATG Variable"
+      },
+      {
+        "command": "vectorcastTestExplorer.atgExitMode",
+        "title": "Exit ATG Mode"
+      },
+      {
+        "command": "vectorcastTestExplorer.atgFetchTest",
+        "title": "ATG: Fetch Test"
+      },
+      {
+        "command": "vectorcastTestExplorer.atgShowMenu",
+        "title": "ATG Mode Actions"
       },
       {
         "command": "myext.selectEnvStatus",

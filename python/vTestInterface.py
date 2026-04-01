@@ -893,12 +893,48 @@ def buildVariableTree(api, sourceFile, functionName, maxDepth=3):
     return result
 
 
+C_KEYWORDS = {
+    "if", "else", "for", "while", "do", "switch", "case",
+    "return", "break", "continue", "goto", "sizeof",
+    "typedef", "struct", "union", "enum", "void",
+    "int", "float", "double", "char", "short", "long",
+    "unsigned", "signed", "const", "static", "extern",
+    "volatile", "auto", "register", "inline", "bool",
+    "true", "false", "NULL", "nullptr",
+}
+
+
+def classifyType(varType):
+    """Classify a C/C++ type string into a kind bucket."""
+    tl = varType.lower()
+    if "bool" in tl:
+        return "bool"
+    elif "float" in tl or "double" in tl:
+        return "float"
+    elif "char" in tl and ("*" in tl or "[" in tl):
+        return "string"
+    elif "char" in tl:
+        return "char"
+    elif "enum" in tl:
+        return "enum"
+    elif any(t in tl for t in ["int", "long", "short", "unsigned", "size_t"]):
+        return "int"
+    elif "*" in tl:
+        return "array"  # pointer
+    elif "[" in tl:
+        return "array"
+    else:
+        return "unknown"
+
+
 def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
     """
     Use the bundled clangd (via multilspy) to find local variables
-    in scope at the target line, with their types.
-    Returns a list of variable tree nodes.
+    and struct field types in scope at the target line.
+    Returns a list of variable tree nodes with children for struct fields.
     """
+    import re
+
     locals_list = []
     try:
         from monitors4codegen.multilspy.multilspy_config import MultilspyConfig
@@ -917,96 +953,133 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
         with lsp.start_server():
             lsp.open_file(relativeFile)
 
-            # Read source lines to find variable identifiers
+            # Read source lines
             fullPath = os.path.join(sourceDir, relativeFile)
             if not os.path.exists(fullPath):
                 fullPath = sourceFile
             with open(fullPath, "r") as f:
                 lines = f.readlines()
 
-            # Scan lines up to targetLine for identifiers to hover on
-            # We look for assignment targets and declarations
-            seen = set()
+            # Collect hover info for all identifiers up to targetLine
+            # hoverCache: (lineIdx, col) -> {category, name, type}
+            hoverCache = {}
+
+            def getHoverInfo(lineIdx, col):
+                key = (lineIdx, col)
+                if key in hoverCache:
+                    return hoverCache[key]
+                try:
+                    hover = lsp.request_hover(relativeFile, lineIdx, col)
+                    if not hover or "contents" not in hover:
+                        hoverCache[key] = None
+                        return None
+                    value = hover["contents"].get("value", "")
+                    # Parse category: ### variable, ### field, ### param
+                    cat_match = re.search(r'###\s+(\w+)\s+`(\w+)`', value)
+                    type_match = re.search(r'Type:\s*`(.*?)`', value)
+                    if cat_match and type_match:
+                        info = {
+                            "category": cat_match.group(1),
+                            "name": cat_match.group(2),
+                            "type": type_match.group(1),
+                        }
+                        hoverCache[key] = info
+                        return info
+                except Exception:
+                    pass
+                hoverCache[key] = None
+                return None
+
+            # Find all member access chains (e.g., zzz->f->g) and individual variables
+            # Pattern: identifier (-> or .) identifier (-> or .) ...
+            chain_pattern = re.compile(
+                r'\b([a-zA-Z_]\w*)\b'
+                r'((?:\s*(?:->|\.)\s*[a-zA-Z_]\w*)*)'
+            )
+
+            seen_vars = set()
+            # Map: variable name -> node (for building children)
+            var_nodes = {}
+
             for lineIdx in range(min(targetLine, len(lines))):
-                line = lines[lineIdx].strip()
-                if not line or line.startswith("//") or line.startswith("#"):
+                rawLine = lines[lineIdx]
+                line = rawLine.rstrip()
+                if not line.strip() or line.strip().startswith("//") or line.strip().startswith("#"):
                     continue
 
-                # Find word-like tokens and hover on them
-                import re
-                tokens = re.findall(r'\b([a-zA-Z_]\w*)\b', line)
-                for token in tokens:
-                    if token in seen:
-                        continue
-                    # Skip C keywords
-                    if token in {
-                        "if", "else", "for", "while", "do", "switch", "case",
-                        "return", "break", "continue", "goto", "sizeof",
-                        "typedef", "struct", "union", "enum", "void",
-                        "int", "float", "double", "char", "short", "long",
-                        "unsigned", "signed", "const", "static", "extern",
-                        "volatile", "auto", "register", "inline", "bool",
-                        "true", "false", "NULL",
-                    }:
+                for match in chain_pattern.finditer(line):
+                    base = match.group(1)
+                    rest = match.group(2)
+
+                    if base in C_KEYWORDS:
                         continue
 
-                    # Find the column of this token in the line
-                    col = lines[lineIdx].find(token)
-                    if col < 0:
+                    # Get hover info for the base identifier
+                    baseCol = match.start()
+                    baseInfo = getHoverInfo(lineIdx, baseCol)
+                    if not baseInfo:
+                        continue
+                    if baseInfo["category"] not in ("variable", "field"):
                         continue
 
-                    try:
-                        hover = lsp.request_hover(relativeFile, lineIdx, col)
-                        if not hover or "contents" not in hover:
-                            continue
-                        value = hover["contents"].get("value", "")
+                    # Add the base variable if not seen
+                    if base not in seen_vars and baseInfo["category"] == "variable":
+                        varType = baseInfo["type"]
+                        kind = classifyType(varType)
+                        # Pointers to structs: kind is "array" (pointer), not "struct"
+                        node = {
+                            "name": base,
+                            "displayType": varType,
+                            "kind": kind,
+                            "enumValues": [],
+                            "children": [],
+                        }
+                        seen_vars.add(base)
+                        var_nodes[base] = node
+                        locals_list.append(node)
 
-                        # Parse: ### variable `name` or ### param `name`
-                        # Then: Type: `type`
-                        if "### variable" not in value:
-                            continue  # Only locals, not params/functions
+                    # Process member access chain: ->f->g or .f.g
+                    if rest.strip():
+                        # Parse the chain segments
+                        segments = re.findall(r'(?:->|\.)\s*([a-zA-Z_]\w*)', rest)
+                        parentNode = var_nodes.get(base)
+                        currentCol = baseCol + len(base)
 
-                        type_match = re.search(r'Type:\s*`(.*?)`', value)
-                        if not type_match:
-                            continue
+                        for seg in segments:
+                            # Find the column of this segment in the line
+                            segIdx = line.find(seg, currentCol)
+                            if segIdx < 0:
+                                break
+                            currentCol = segIdx + len(seg)
 
-                        varType = type_match.group(1)
-                        seen.add(token)
+                            fieldInfo = getHoverInfo(lineIdx, segIdx)
+                            if not fieldInfo:
+                                break
 
-                        # Classify the type
-                        kind = ""
-                        tl = varType.lower()
-                        if "bool" in tl:
-                            kind = "bool"
-                        elif "float" in tl or "double" in tl:
-                            kind = "float"
-                        elif "char" in tl and ("*" in tl or "[" in tl):
-                            kind = "string"
-                        elif "char" in tl:
-                            kind = "char"
-                        elif "enum" in tl:
-                            kind = "enum"
-                        elif "struct" in tl or "class" in tl:
-                            kind = "struct"
-                        elif any(
-                            t in tl
-                            for t in ["int", "long", "short", "unsigned", "size_t"]
-                        ):
-                            kind = "int"
-                        elif "*" in tl or "[" in tl:
-                            kind = "array"
+                            fieldType = fieldInfo["type"]
+                            fieldKind = classifyType(fieldType)
 
-                        locals_list.append(
-                            {
-                                "name": token,
-                                "displayType": varType,
-                                "kind": kind or "unknown",
-                                "enumValues": [],
-                                "children": [],
-                            }
-                        )
-                    except Exception:
-                        continue
+                            # Check if this child already exists on the parent
+                            existingChild = None
+                            if parentNode:
+                                for c in parentNode["children"]:
+                                    if c["name"] == seg:
+                                        existingChild = c
+                                        break
+
+                            if not existingChild:
+                                childNode = {
+                                    "name": seg,
+                                    "displayType": fieldType,
+                                    "kind": fieldKind,
+                                    "enumValues": [],
+                                    "children": [],
+                                }
+                                if parentNode:
+                                    parentNode["children"].append(childNode)
+                                parentNode = childNode
+                            else:
+                                parentNode = existingChild
 
     except Exception:
         pass

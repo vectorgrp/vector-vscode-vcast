@@ -24,7 +24,6 @@ import {
 
 import {
   buildTestNodeForFunction,
-  getFunctionDataForLine,
   initializeTestDecorator,
   updateTestDecorator,
 } from "./editorDecorator";
@@ -119,13 +118,10 @@ import {
 
 import {
   checkIfInstallationIsOK,
-  clicastCommandToUse,
   configurationFile,
-  globalTestInterfacePath,
   launchFile,
   globalPathToSupportFiles,
   initializeInstallerFiles,
-  vPythonCommandToUse,
 } from "./vcastInstallation";
 
 import {
@@ -153,7 +149,6 @@ import {
   newTestScript,
   openCodedTest,
   ProjectEnvParameters,
-  getGlobalCoverageData,
 } from "./vcastTestInterface";
 
 import {
@@ -162,14 +157,11 @@ import {
   getEnviroNameFromFile,
   getEnvironmentData,
   getLevelFromNodeId,
-  loadATGLineTest,
-  getVcastInterfaceCommandForVariableInfo,
   getVcmRoot,
   openProjectFromEnviroPath,
   openTestScript,
 } from "./vcastUtilities";
 
-import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import fs = require("fs");
 import {
   compilerTagList,
@@ -196,11 +188,14 @@ function decodeAndRemoveDeveloperEnvs() {
   }
 }
 
+import { ATGModeManager, ATGSidebarViewProvider } from "./atgMode";
+
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
 
 let selectedEnvStatusBarObject: vscode.StatusBarItem | undefined;
+const atgModeManager = new ATGModeManager();
 
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
@@ -238,6 +233,56 @@ export async function activate(context: vscode.ExtensionContext) {
   selectedEnvStatusBarObject.command = "myext.selectEnvStatus";
   selectedEnvStatusBarObject.tooltip = "Select environment for current file";
   context.subscriptions.push(selectedEnvStatusBarObject);
+
+  // ATG Mode: sidebar view provider
+  const atgSidebarProvider = new ATGSidebarViewProvider(
+    atgModeManager,
+    context.extensionUri
+  );
+  atgModeManager.setSidebarView(atgSidebarProvider);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      "vectorcastTestExplorer.atgSelectedVars",
+      atgSidebarProvider,
+      { webviewOptions: { retainContextWhenHidden: true } }
+    )
+  );
+
+  // ATG Mode: commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.atgToggleVariable",
+      (fullPath: string) => {
+        atgModeManager.toggleVariable(fullPath);
+      }
+    ),
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.atgExitMode",
+      () => {
+        atgModeManager.exit();
+      }
+    ),
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.atgFetchTest",
+      () => {
+        atgModeManager.fetchTest();
+      }
+    ),
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.atgShowMenu",
+      async () => {
+        const choice = await vscode.window.showQuickPick(
+          [
+            { label: "$(check) Fetch Test", action: "fetch" },
+            { label: "$(close) Exit ATG Mode", action: "exit" },
+          ],
+          { placeHolder: "ATG Mode Actions" }
+        );
+        if (choice?.action === "fetch") atgModeManager.fetchTest();
+        if (choice?.action === "exit") atgModeManager.exit();
+      }
+    )
+  );
 }
 
 export function configureCommandCalled(context: vscode.ExtensionContext) {
@@ -2282,444 +2327,21 @@ async function installPreActivationEventHandlers(
         return;
       }
 
-      const filePath = activeEditor.document.uri.fsPath;
-      // Use the line number from the context menu args if available,
-      // otherwise fall back to the cursor position
-      const lineNumber =
-        args && args.lineNumber
-          ? args.lineNumber
-          : activeEditor.selection.active.line + 1;
-      const fileText = activeEditor.document.getText();
-
-      // Find environments for this file
-      const coverageData = getGlobalCoverageData();
-      const fileData = coverageData.get(filePath);
-      let enviroPaths: string[] = [];
-      if (fileData && fileData.enviroList) {
-        enviroPaths = Array.from(fileData.enviroList.keys());
+      // Context menu passes args as {lineNumber: N} or as [N] depending on source
+      let lineNumber: number;
+      if (args && args.lineNumber) {
+        lineNumber = args.lineNumber;
+      } else if (Array.isArray(args) && args.length > 0) {
+        lineNumber = parseInt(String(args[0]), 10);
+      } else {
+        lineNumber = activeEditor.selection.active.line + 1;
       }
 
-      if (enviroPaths.length === 0) {
-        vscode.window.showWarningMessage(
-          `No environments found for ${path.basename(filePath)}`
-        );
-        return;
-      }
-
-      // Look up function from DataAPI-cached data (no regex needed)
-      const funcData = getFunctionDataForLine(filePath, lineNumber);
-      const funcName = funcData?.functionName || null;
-
-      // Also get source-level function info for the code display
-      const funcInfo = findFunctionAtLine(fileText, lineNumber);
-
-      // Fetch typed variable data from DataAPI (fast, synchronous)
-      const variableData = funcName
-        ? await fetchTypedVariableData(
-            funcData!.enviroPath,
-            filePath,
-            { name: funcName }
-          )
-        : null;
-
-      const finalVariableData = variableData;
-
-      // Create webview panel
-      const webviewBase = resolveWebviewBase(context);
-      const panel = vscode.window.createWebviewPanel(
-        "atgLineTest",
-        `ATG Line Test: ${path.basename(filePath)}:${lineNumber}`,
-        vscode.ViewColumn.One,
-        {
-          enableScripts: true,
-          retainContextWhenHidden: true,
-          localResourceRoots: [vscode.Uri.file(webviewBase)],
-        }
-      );
-
-      panel.webview.html = await getATGWebviewContent(
-        context,
-        panel,
-        filePath,
-        lineNumber,
-        enviroPaths,
-        funcInfo,
-        finalVariableData
-      );
-
-      panel.webview.onDidReceiveMessage(
-        async (message: any) => {
-          if (message.command === "submit") {
-            const sourceFile = message.sourceFile;
-            const line = parseInt(message.line, 10);
-            const enviroPath = message.enviroPath;
-            const variableValues = message.variableValues;
-
-            if (!sourceFile || !line || !enviroPath) {
-              vscode.window.showWarningMessage(
-                "Missing required fields for ATG line test."
-              );
-              return;
-            }
-
-            panel.dispose();
-            await loadATGLineTest(sourceFile, line, enviroPath, variableValues);
-          } else if (message.command === "cancel") {
-            panel.dispose();
-          }
-        },
-        undefined,
-        context.subscriptions
-      );
-
-      // Fetch local variables asynchronously via bundled clangd
-      // and push them to the webview when ready
-      if (finalVariableData) {
-        fetchLocalVariablesAsync(
-          enviroPaths[0],
-          filePath,
-          lineNumber,
-          finalVariableData,
-          panel
-        );
-      }
+      // Enter ATG selection mode on the current editor
+      await atgModeManager.enter(activeEditor, lineNumber, context);
     }
   );
   context.subscriptions.push(getATGTestForLineCommand);
-}
-
-function fetchLocalVariablesAsync(
-  enviroPath: string,
-  sourceFile: string,
-  targetLine: number,
-  variableData: any,
-  panel: vscode.WebviewPanel
-) {
-  // Run in background - don't block the UI
-  const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=getLocalVariables --clicast=${clicastCommandToUse} --path=${enviroPath} --options="${JSON.stringify({ sourceFile, targetLine }).replaceAll('"', '\\"')}"`;
-  const { exec } = require("child_process");
-  exec(
-    commandToRun,
-    { cwd: path.dirname(enviroPath) },
-    (error: any, stdout: string) => {
-      if (error || !panel.visible) return;
-      try {
-        const cleanOutput = stdout.substring(
-          stdout.indexOf("ACTUAL-DATA") + "ACTUAL-DATA".length
-        ).trim();
-        const data = JSON.parse(cleanOutput);
-        if (data.locals && data.locals.length > 0) {
-          // Filter out names already in parameters/globals
-          const existingNames = new Set<string>();
-          for (const p of variableData.parameters || [])
-            existingNames.add(p.name);
-          for (const g of variableData.globals || [])
-            existingNames.add(g.name);
-          const filteredLocals = data.locals.filter(
-            (l: any) => !existingNames.has(l.name)
-          );
-          if (filteredLocals.length > 0) {
-            panel.webview.postMessage({
-              command: "addLocals",
-              locals: filteredLocals,
-            });
-          }
-        }
-      } catch {
-        // Silently ignore - locals are optional
-      }
-    }
-  );
-}
-
-function findFunctionAtLine(fileText: string, lineNumber: number) {
-  const lines = fileText.split(/\r?\n/);
-
-  // Try to find a C/C++ function definition that encloses the given line
-  // Pattern matches: returnType [qualifier::]*functionName(params) {
-  const funcDefRegex =
-    /^[\w\s\*&:<>,]+?\s+((?:\w+::)*\w+)\s*\(([^)]*)\)\s*(?:const\s*)?(?:override\s*)?(?:noexcept\s*)?\{?\s*$/;
-
-  let bestMatch: any = null;
-
-  const controlFlowKeywords = new Set([
-    "if", "else", "for", "while", "do", "switch", "case", "return",
-    "sizeof", "typeof", "alignof", "static_assert",
-  ]);
-
-  for (let i = 0; i < lines.length; i++) {
-    const match = funcDefRegex.exec(lines[i]);
-    if (match && i < lineNumber && !controlFlowKeywords.has(match[1])) {
-      // Find matching closing brace
-      const startLine = i + 1; // 1-based
-      const endLine = findMatchingBrace(lines, i);
-      if (endLine >= lineNumber) {
-        // This function encloses our target line
-        const funcName = match[1];
-        const params = parseParamNames(match[2]);
-        const code = lines.slice(i, endLine).join("\n");
-        bestMatch = {
-          name: funcName,
-          params: params,
-          startLine: startLine,
-          endLine: endLine,
-          code: code,
-          selectedLine: lineNumber - i, // relative to function start
-        };
-      }
-    }
-  }
-
-  if (!bestMatch) {
-    // Return file-level fallback
-    const startLine = Math.max(1, lineNumber - 10);
-    const endLine = Math.min(lines.length, lineNumber + 10);
-    return {
-      name: null,
-      params: [],
-      startLine: startLine,
-      endLine: endLine,
-      code: lines.slice(startLine - 1, endLine).join("\n"),
-      selectedLine: lineNumber - startLine + 1,
-    };
-  }
-
-  return bestMatch;
-}
-
-function findMatchingBrace(lines: string[], startIdx: number): number {
-  let depth = 0;
-  let inString = false;
-  let stringChar = "";
-  let inLineComment = false;
-  let inBlockComment = false;
-
-  for (let i = startIdx; i < lines.length; i++) {
-    const line = lines[i];
-    inLineComment = false;
-
-    for (let j = 0; j < line.length; j++) {
-      const ch = line[j];
-      const next = j + 1 < line.length ? line[j + 1] : "";
-
-      if (inBlockComment) {
-        if (ch === "*" && next === "/") {
-          inBlockComment = false;
-          j++;
-        }
-        continue;
-      }
-      if (inLineComment) continue;
-      if (inString) {
-        if (ch === "\\" && j + 1 < line.length) {
-          j++;
-          continue;
-        }
-        if (ch === stringChar) inString = false;
-        continue;
-      }
-
-      if (ch === "/" && next === "/") {
-        inLineComment = true;
-        continue;
-      }
-      if (ch === "/" && next === "*") {
-        inBlockComment = true;
-        j++;
-        continue;
-      }
-      if (ch === '"' || ch === "'") {
-        inString = true;
-        stringChar = ch;
-        continue;
-      }
-
-      if (ch === "{") depth++;
-      if (ch === "}") {
-        depth--;
-        if (depth === 0) return i + 1; // 1-based line number
-      }
-    }
-  }
-
-  return lines.length;
-}
-
-function parseParamNames(paramsRaw: string): string[] {
-  if (!paramsRaw || paramsRaw.trim() === "" || paramsRaw.trim() === "void")
-    return [];
-
-  const params: string[] = [];
-  let depth = 0;
-  let current = "";
-
-  for (const ch of paramsRaw) {
-    if (ch === "<" || ch === "(") depth++;
-    if (ch === ">" || ch === ")") depth--;
-    if (ch === "," && depth === 0) {
-      params.push(current.trim());
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  if (current.trim()) params.push(current.trim());
-
-  return params
-    .map((p) => {
-      // Extract just the parameter name (last word after type)
-      const tokens = p
-        .replace(/[*&]/g, " ")
-        .trim()
-        .split(/\s+/);
-      return tokens[tokens.length - 1];
-    })
-    .filter((n) => n && !isKeyword(n));
-}
-
-function isKeyword(w: string): boolean {
-  const keywords = new Set([
-    "auto",
-    "break",
-    "case",
-    "char",
-    "const",
-    "continue",
-    "default",
-    "do",
-    "double",
-    "else",
-    "enum",
-    "extern",
-    "float",
-    "for",
-    "goto",
-    "if",
-    "int",
-    "long",
-    "register",
-    "return",
-    "short",
-    "signed",
-    "sizeof",
-    "static",
-    "struct",
-    "switch",
-    "typedef",
-    "union",
-    "unsigned",
-    "void",
-    "volatile",
-    "while",
-    "bool",
-    "class",
-    "namespace",
-    "template",
-    "this",
-    "true",
-    "false",
-    "nullptr",
-    "new",
-    "delete",
-    "try",
-    "catch",
-    "throw",
-    "virtual",
-    "override",
-    "final",
-    "public",
-    "private",
-    "protected",
-    "inline",
-    "constexpr",
-    "noexcept",
-    "using",
-    "typename",
-  ]);
-  return keywords.has(w);
-}
-
-async function fetchTypedVariableData(
-  enviroPath: string,
-  sourceFile: string,
-  funcInfo: any
-): Promise<any> {
-  if (!funcInfo || !funcInfo.name) {
-    vectorMessage("fetchTypedVariableData: no funcInfo or name");
-    return null;
-  }
-  try {
-    const command = getVcastInterfaceCommandForVariableInfo(
-      enviroPath,
-      sourceFile,
-      funcInfo.name
-    );
-    vectorMessage(`fetchTypedVariableData command: ${command}`);
-    const jsonData = getJsonDataFromTestInterface(command, enviroPath);
-    vectorMessage(
-      `fetchTypedVariableData result: ${JSON.stringify(jsonData)?.substring(0, 200)}`
-    );
-    if (
-      jsonData &&
-      (jsonData.parameters?.length > 0 || jsonData.globals?.length > 0)
-    ) {
-      return jsonData;
-    }
-  } catch (e: any) {
-    vectorMessage(`fetchTypedVariableData error: ${e?.message || e}`);
-  }
-  return null;
-}
-
-async function getATGWebviewContent(
-  context: vscode.ExtensionContext,
-  panel: vscode.WebviewPanel,
-  filePath: string,
-  lineNumber: number,
-  enviroPaths: string[],
-  funcInfo: any,
-  variableData: any
-): Promise<string> {
-  const base = resolveWebviewBase(context);
-  const cssOnDisk = vscode.Uri.file(
-    path.join(base, "css", "getATGTestForLine.css")
-  );
-  const scriptOnDisk = vscode.Uri.file(
-    path.join(base, "webviewScripts", "getATGTestForLine.js")
-  );
-  const htmlPath = path.join(base, "html", "getATGTestForLine.html");
-
-  const cssUri = panel.webview.asWebviewUri(cssOnDisk);
-  const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
-
-  let html = fs.readFileSync(htmlPath, "utf8");
-  const nonce = getNonce();
-  const csp = `
-    <meta http-equiv="Content-Security-Policy"
-          content="default-src 'none';
-                   style-src ${panel.webview.cspSource};
-                   script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
-  `;
-  html = html.replace(/<head>/, `<head>${csp}`);
-
-  html = html
-    .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
-    .replace(
-      /{{\s*scriptUri\s*}}/,
-      `<script nonce="${nonce}" src="${scriptUri}"></script>`
-    )
-    .replace(
-      /<\/head>/,
-      `<script nonce="${nonce}">
-         window.defaultSourceFile = ${JSON.stringify(filePath)};
-         window.defaultLineNumber = ${JSON.stringify(String(lineNumber))};
-         window.enviroPaths = ${JSON.stringify(enviroPaths)};
-         window.fileFunction = ${JSON.stringify(funcInfo)};
-         window.variableData = ${JSON.stringify(variableData)};
-       </script>\n</head>`
-    );
-
-  return html;
 }
 
 // this method is called when your extension is deactivated
