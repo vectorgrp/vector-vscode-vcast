@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Generate ATG Test for Line</title>
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+    <!-- Static dialog heading -->
+    <h2>Generate ATG Test for Line</h2>
+
+    <label for="sourceFileInput">Source File Path:</label>
+    <input class="wide" type="text" id="sourceFileInput" aria-label="Source File Path Input" readonly />
+
+    <label for="lineNumberInput">Line Number:</label>
+    <input class="wide" type="text" id="lineNumberInput" aria-label="Line Number Input" readonly />
+
+    <!-- Environment dropdown (populated by JS) -->
+    <label for="enviroPathSelect">Select Environment for File:</label>
+    <select id="enviroPathSelect" class="wide" aria-label="Environment Select"></select>
+
+    <!-- Dynamic Function title goes here -->
+    <div id="functionTitle" class="function-title"></div>
+
+    <!-- CODE WINDOW: readonly, with highlighted line -->
+    <div style="margin-top:8px;">
+      <div id="functionCode" class="code-container" tabindex="0" aria-readonly="true" role="region" aria-label="Function source code">
+        <pre id="codeBlock" class="code-block"></pre>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <label for="varSelect">Add Variable / Value pair</label>
+      <div class="add-var-row">
+        <select id="varSelect" aria-label="Variable Select"></select>
+        <input id="varValueInput" type="text" placeholder="value" aria-label="Variable value" />
+        <button id="btnAddVar" class="add-button" type="button" title="Add variable">Add</button>
+      </div>
+      <div id="varList" aria-live="polite" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="button-container">
+      <button id="btnCancel" class="cancel-button" type="button">Cancel</button>
+      <button id="btnSubmit" class="primary-button" type="button">Fetch Test</button>
+    </div>
+  </div>
+
+  {{ scriptUri }}
+</body>
+</html>

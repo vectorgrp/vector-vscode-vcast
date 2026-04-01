@@ -45,6 +45,15 @@
     ],
     "commands": [
       {
+        "command": "vectorcastTestExplorer.getATGTestForLine",
+        "category": "VectorCAST Test Explorer",
+        "title": "ATG Test for Line"
+      },
+      {
+        "command": "myext.selectEnvStatus",
+        "title": "Select environment (Multiple env selection)"
+      },
+      {
         "command": "vectorcastTestExplorer.createNewProject",
         "title": "VectorCAST: Create New Project"
       },
@@ -1021,6 +1030,14 @@
         {
           "command": "vectorcastTestExplorer.viewMCDCReport",
           "when": "vectorcastTestExplorer.configured && editorLineNumber in vectorcastTestExplorer.currentMCDCLines",
+          "args": [
+            "${lineNumber}"
+          ],
+          "group": "navigation"
+        },
+        {
+          "command": "vectorcastTestExplorer.getATGTestForLine",
+          "when": "vectorcastTestExplorer.configured && ( editorLineNumber in vectorcastTestExplorer.allBranchLinesForActiveFile || editorLineNumber in vectorcastTestExplorer.allStatementLinesForActiveFile )",
           "args": [
             "${lineNumber}"
           ],

@@ -75,6 +75,9 @@ import {
 const fs = require("fs");
 const path = require("path");
 
+export let allStatementLinesForActiveFile: number[] = [];
+export let allBranchLinesForActiveFile: number[] = [];
+
 export const vcastEnviroFile = "UNITDATA.VCD";
 
 // Define the interface for project environment parameters.
@@ -187,16 +190,19 @@ export function clearTestDataFromStatusArray(): void {
 }
 
 // List of source file from all local environments
-interface coverageDataType {
+export type coverageDataType = {
   crc32Checksum: number;
   covered: number[];
   uncovered: number[];
   partiallyCovered: number[];
-}
+  allStatements: number[];
+  allBranches: number[];
+};
 
-interface fileCoverageType {
+export interface fileCoverageType {
   hasCoverage: boolean;
   enviroList: Map<string, coverageDataType>; //key is enviroPath
+  selectedEnv?: string | null;
 }
 
 // key is filePath
@@ -214,6 +220,8 @@ interface coverageSummaryType {
   covered: number[];
   uncovered: number[];
   partiallyCovered: number[];
+  allStatements: number[];
+  allBranches: number[];
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -235,6 +243,8 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
     covered: [],
     uncovered: [],
     partiallyCovered: [],
+    allStatements: [],
+    allBranches: [],
   };
 
   const dataForThisFile = globalCoverageData.get(filePath);
@@ -247,6 +257,8 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
       let coveredList: number[] = [];
       let uncoveredList: number[] = [];
       let partiallyCoveredList: number[] = [];
+      let allStatementsList: number[] = [];
+      let allBranchesList: number[] = [];
       for (const enviroData of dataForThisFile.enviroList.values()) {
         if (enviroData.crc32Checksum == checksum) {
           coveredList = coveredList.concat(enviroData.covered);
@@ -255,6 +267,8 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
             enviroData.partiallyCovered
           );
         }
+        allStatementsList = allStatementsList.concat(enviroData.allStatements);
+        allBranchesList = allBranchesList.concat(enviroData.allBranches);
       }
 
       if (coveredList.length == 0 && uncoveredList.length == 0) {
@@ -268,6 +282,8 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
         returnData.uncovered = [...new Set(uncoveredList)];
         returnData.partiallyCovered = [...new Set(partiallyCoveredList)];
       }
+      returnData.allStatements = [...new Set(allStatementsList)];
+      returnData.allBranches = [...new Set(allBranchesList)];
     } else {
       // This status is for files that are part of
       // and environment but not instrumented
@@ -343,6 +359,8 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
       covered: coveredList,
       uncovered: uncoveredList,
       partiallyCovered: partiallyCoveredList,
+      allStatements: fileList[fileIndex].allStatements || [],
+      allBranches: fileList[fileIndex].allBranches || [],
     };
 
     let fileData: fileCoverageType | undefined =
@@ -393,6 +411,32 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
       }
     }
   }
+}
+
+export function updateGlobalStatementsAndBranchesForFile(filePath: string) {
+  const fileData = globalCoverageData.get(filePath);
+  let allStatements: number[] = [];
+  let allBranches: number[] = [];
+  if (fileData) {
+    for (const [, coverageData] of fileData.enviroList.entries()) {
+      if (coverageData) {
+        allStatements = allStatements.concat(coverageData.allStatements || []);
+        allBranches = allBranches.concat(coverageData.allBranches || []);
+      }
+    }
+  }
+  allStatementLinesForActiveFile = allStatements;
+  allBranchLinesForActiveFile = allBranches;
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.allStatementLinesForActiveFile",
+    allStatementLinesForActiveFile
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.allBranchLinesForActiveFile",
+    allBranchLinesForActiveFile
+  );
 }
 
 export async function getResultFileForTest(testID: string) {

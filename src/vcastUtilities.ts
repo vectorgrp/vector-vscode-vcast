@@ -24,6 +24,7 @@ import {
 
 import {
   dumpTestScriptFile,
+  getATGLineTest,
   getDataForEnvironmentFromAPI,
   openProjectInVcast,
   runATGCommands,
@@ -33,6 +34,7 @@ import {
 import { cleanProjectEnvironment } from "./manage/manageSrc/manageCommands";
 
 import {
+  atgCommandToUse,
   clicastCommandToUse,
   configFileContainsCorrectInclude,
   globalIncludePath,
@@ -865,4 +867,43 @@ export async function getEnvironmentData(enviroPath: string) {
   }
 
   return envData;
+}
+
+export async function loadATGLineTest(
+  sourceFile: string,
+  lineNumber: number,
+  enviroPath: string,
+  variableValues: any
+): Promise<void> {
+  const enclosingDirectory = path.dirname(enviroPath);
+  const timeStamp = Date.now().toString();
+  const tempScriptPath = path.join(
+    enclosingDirectory,
+    `vcast-${timeStamp}.tst`
+  );
+  if (enviroPath) {
+    await getATGLineTest(lineNumber, tempScriptPath, enviroPath, variableValues);
+  } else {
+    vectorMessage(`No Environment found for ${sourceFile}`);
+  }
+}
+
+function buildVarStringSimple(pairs: { name: any; value: any }[]) {
+  return pairs
+    .map(
+      (p: { name: any; value: any }) =>
+        `${String(p.name).trim()}:${String(p.value).trim()}`
+    )
+    .join(",");
+}
+
+export function getATGLineTestCommand(
+  scriptPath: string,
+  lineNumber: number,
+  enviroPath: string,
+  variableValues: any
+) {
+  const varValueCommand = buildVarStringSimple(variableValues);
+  const commandToRun = `cd ${enviroPath} && VCAST_ATG_PATH=/home/denis/vector/pyatg/get_me_here_with_val_llm/atg/main.py VCAST_ATG_TARGETED_LINE=${lineNumber} VCAST_ATG_TARGETED_VALUES="${varValueCommand}" ${atgCommandToUse} -v ${scriptPath}`;
+  return commandToRun;
 }

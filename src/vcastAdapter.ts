@@ -33,6 +33,7 @@ import {
   executeWithRealTimeEcho,
   getJsonDataFromTestInterface,
   executeWithRealTimeEchoWithProgress,
+  executeATGLineForScript,
 } from "./vcastCommandRunner";
 
 import {
@@ -43,6 +44,7 @@ import {
 } from "./vcastInstallation";
 
 import {
+  getATGLineTestCommand,
   getClientRequestObject,
   getMCDCLineCoverageCommand,
   getRebuildOptionsString,
@@ -1040,4 +1042,25 @@ async function getMCDCCoverageLinesFromServer(
 
   const commandStatus = convertServerResponseToCommandStatus(transmitResponse);
   return cleanVectorcastOutput(commandStatus.stdout);
+}
+
+export async function getATGLineTest(
+  lineNumber: number,
+  tstScriptPath: string,
+  enviroPath: string,
+  variableValues: any
+): Promise<void> {
+  const commandToRun = getATGLineTestCommand(
+    tstScriptPath,
+    lineNumber,
+    enviroPath,
+    variableValues
+  );
+  const cwd = enviroPath;
+  try {
+    await executeATGLineForScript(commandToRun, cwd, enviroPath, tstScriptPath);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    vectorMessage(`getATGLineTest failed: ${msg}`);
+  }
 }

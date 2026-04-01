@@ -25,7 +25,13 @@ export enum vcastCommandType {
   choiceListCT = "choiceList-ct",
   mcdcReport = "mcdcReport",
   mcdcLines = "mcdcLines",
+  atgLineTst = "atgLineTst",
   getWorkspaceEnviroData = "getWorkspaceEnviroData",
+}
+
+export interface atgLineClientRequestType extends clientRequestType {
+  tstScriptPath?: string;
+  lineNumber?: number;
 }
 
 export interface mcdcClientRequestType extends clientRequestType {

@@ -149,6 +149,7 @@ import {
   newTestScript,
   openCodedTest,
   ProjectEnvParameters,
+  getGlobalCoverageData,
 } from "./vcastTestInterface";
 
 import {
@@ -157,6 +158,7 @@ import {
   getEnviroNameFromFile,
   getEnvironmentData,
   getLevelFromNodeId,
+  loadATGLineTest,
   getVcmRoot,
   openProjectFromEnviroPath,
   openTestScript,
@@ -192,6 +194,8 @@ let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
 
+let selectedEnvStatusBarObject: vscode.StatusBarItem | undefined;
+
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
 }
@@ -220,6 +224,14 @@ export async function activate(context: vscode.ExtensionContext) {
   // this checks the vcast installation,
   // and if its ok will proceed with full activation
   await checkPrerequisites(context);
+
+  selectedEnvStatusBarObject = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    10
+  );
+  selectedEnvStatusBarObject.command = "myext.selectEnvStatus";
+  selectedEnvStatusBarObject.tooltip = "Select environment for current file";
+  context.subscriptions.push(selectedEnvStatusBarObject);
 }
 
 export function configureCommandCalled(context: vscode.ExtensionContext) {
@@ -2253,6 +2265,389 @@ async function installPreActivationEventHandlers(
 
     return html;
   }
+
+  // Command: vectorcastTestExplorer.getATGTestForLine /////////////////////////////////////////////
+  let getATGTestForLineCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.getATGTestForLine",
+    async () => {
+      const activeEditor = vscode.window.activeTextEditor;
+      if (!activeEditor) {
+        vscode.window.showWarningMessage("No active editor found.");
+        return;
+      }
+
+      const filePath = activeEditor.document.uri.fsPath;
+      const lineNumber = activeEditor.selection.active.line + 1;
+      const fileText = activeEditor.document.getText();
+
+      // Find environments for this file
+      const coverageData = getGlobalCoverageData();
+      const fileData = coverageData.get(filePath);
+      let enviroPaths: string[] = [];
+      if (fileData && fileData.enviroList) {
+        enviroPaths = Array.from(fileData.enviroList.keys());
+      }
+
+      if (enviroPaths.length === 0) {
+        vscode.window.showWarningMessage(
+          `No environments found for ${path.basename(filePath)}`
+        );
+        return;
+      }
+
+      // Parse function at line
+      const funcInfo = findFunctionAtLine(fileText, lineNumber);
+
+      // Extract variables
+      const variables = extractVariablesFromFile(fileText, funcInfo);
+
+      // Create webview panel
+      const panel = vscode.window.createWebviewPanel(
+        "atgLineTest",
+        `ATG Line Test: ${path.basename(filePath)}:${lineNumber}`,
+        vscode.ViewColumn.One,
+        { enableScripts: true }
+      );
+
+      panel.webview.html = await getATGWebviewContent(
+        context,
+        panel,
+        filePath,
+        lineNumber,
+        enviroPaths,
+        funcInfo,
+        variables
+      );
+
+      panel.webview.onDidReceiveMessage(
+        async (message: any) => {
+          if (message.command === "submit") {
+            const sourceFile = message.sourceFile;
+            const line = parseInt(message.line, 10);
+            const enviroPath = message.enviroPath;
+            const variableValues = message.variableValues;
+
+            if (!sourceFile || !line || !enviroPath) {
+              vscode.window.showWarningMessage(
+                "Missing required fields for ATG line test."
+              );
+              return;
+            }
+
+            panel.dispose();
+            await loadATGLineTest(sourceFile, line, enviroPath, variableValues);
+          } else if (message.command === "cancel") {
+            panel.dispose();
+          }
+        },
+        undefined,
+        context.subscriptions
+      );
+    }
+  );
+  context.subscriptions.push(getATGTestForLineCommand);
+}
+
+function findFunctionAtLine(fileText: string, lineNumber: number) {
+  const lines = fileText.split(/\r?\n/);
+
+  // Try to find a C/C++ function definition that encloses the given line
+  // Pattern matches: returnType [qualifier::]*functionName(params) {
+  const funcDefRegex =
+    /^[\w\s\*&:<>,]+?\s+((?:\w+::)*\w+)\s*\(([^)]*)\)\s*(?:const\s*)?(?:override\s*)?(?:noexcept\s*)?\{?\s*$/;
+
+  let bestMatch: any = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const match = funcDefRegex.exec(lines[i]);
+    if (match && i < lineNumber) {
+      // Find matching closing brace
+      const startLine = i + 1; // 1-based
+      const endLine = findMatchingBrace(lines, i);
+      if (endLine >= lineNumber) {
+        // This function encloses our target line
+        const funcName = match[1];
+        const params = parseParamNames(match[2]);
+        const code = lines.slice(i, endLine).join("\n");
+        bestMatch = {
+          name: funcName,
+          params: params,
+          startLine: startLine,
+          endLine: endLine,
+          code: code,
+          selectedLine: lineNumber - i, // relative to function start
+        };
+      }
+    }
+  }
+
+  if (!bestMatch) {
+    // Return file-level fallback
+    const startLine = Math.max(1, lineNumber - 10);
+    const endLine = Math.min(lines.length, lineNumber + 10);
+    return {
+      name: null,
+      params: [],
+      startLine: startLine,
+      endLine: endLine,
+      code: lines.slice(startLine - 1, endLine).join("\n"),
+      selectedLine: lineNumber - startLine + 1,
+    };
+  }
+
+  return bestMatch;
+}
+
+function findMatchingBrace(lines: string[], startIdx: number): number {
+  let depth = 0;
+  let inString = false;
+  let stringChar = "";
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let i = startIdx; i < lines.length; i++) {
+    const line = lines[i];
+    inLineComment = false;
+
+    for (let j = 0; j < line.length; j++) {
+      const ch = line[j];
+      const next = j + 1 < line.length ? line[j + 1] : "";
+
+      if (inBlockComment) {
+        if (ch === "*" && next === "/") {
+          inBlockComment = false;
+          j++;
+        }
+        continue;
+      }
+      if (inLineComment) continue;
+      if (inString) {
+        if (ch === "\\" && j + 1 < line.length) {
+          j++;
+          continue;
+        }
+        if (ch === stringChar) inString = false;
+        continue;
+      }
+
+      if (ch === "/" && next === "/") {
+        inLineComment = true;
+        continue;
+      }
+      if (ch === "/" && next === "*") {
+        inBlockComment = true;
+        j++;
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        inString = true;
+        stringChar = ch;
+        continue;
+      }
+
+      if (ch === "{") depth++;
+      if (ch === "}") {
+        depth--;
+        if (depth === 0) return i + 1; // 1-based line number
+      }
+    }
+  }
+
+  return lines.length;
+}
+
+function parseParamNames(paramsRaw: string): string[] {
+  if (!paramsRaw || paramsRaw.trim() === "" || paramsRaw.trim() === "void")
+    return [];
+
+  const params: string[] = [];
+  let depth = 0;
+  let current = "";
+
+  for (const ch of paramsRaw) {
+    if (ch === "<" || ch === "(") depth++;
+    if (ch === ">" || ch === ")") depth--;
+    if (ch === "," && depth === 0) {
+      params.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim()) params.push(current.trim());
+
+  return params
+    .map((p) => {
+      // Extract just the parameter name (last word after type)
+      const tokens = p
+        .replace(/[*&]/g, " ")
+        .trim()
+        .split(/\s+/);
+      return tokens[tokens.length - 1];
+    })
+    .filter((n) => n && !isKeyword(n));
+}
+
+function extractVariablesFromFile(
+  fileText: string,
+  funcInfo: any
+): string[] {
+  const vars = new Set<string>();
+
+  // Add function parameters
+  if (funcInfo.params) {
+    for (const p of funcInfo.params) {
+      vars.add(p);
+    }
+  }
+
+  // Scan function code for local variables
+  const codeLines = (funcInfo.code || "").split(/\r?\n/);
+  const typePattern =
+    /\b(?:int|float|double|char|short|long|unsigned|signed|bool|size_t|uint\d+_t|int\d+_t|auto|const|static|volatile|struct|class|enum)\b/;
+  const assignPattern = /^\s*(\w+)\s*=[^=]/;
+
+  for (const line of codeLines) {
+    const trimmed = line.trim();
+
+    // Skip comments and preprocessor
+    if (trimmed.startsWith("//") || trimmed.startsWith("#")) continue;
+
+    // Typed declarations
+    if (typePattern.test(trimmed)) {
+      const tokens = trimmed.split(/[;,={}()\[\]]+/);
+      for (const token of tokens) {
+        const words = token.trim().split(/\s+/);
+        const lastWord = words[words.length - 1]
+          ?.replace(/[*&]/g, "")
+          .trim();
+        if (lastWord && /^\w+$/.test(lastWord) && !isKeyword(lastWord)) {
+          vars.add(lastWord);
+        }
+      }
+    }
+
+    // Assignment targets
+    const assignMatch = assignPattern.exec(trimmed);
+    if (assignMatch && !isKeyword(assignMatch[1])) {
+      vars.add(assignMatch[1]);
+    }
+  }
+
+  return [...vars].sort();
+}
+
+function isKeyword(w: string): boolean {
+  const keywords = new Set([
+    "auto",
+    "break",
+    "case",
+    "char",
+    "const",
+    "continue",
+    "default",
+    "do",
+    "double",
+    "else",
+    "enum",
+    "extern",
+    "float",
+    "for",
+    "goto",
+    "if",
+    "int",
+    "long",
+    "register",
+    "return",
+    "short",
+    "signed",
+    "sizeof",
+    "static",
+    "struct",
+    "switch",
+    "typedef",
+    "union",
+    "unsigned",
+    "void",
+    "volatile",
+    "while",
+    "bool",
+    "class",
+    "namespace",
+    "template",
+    "this",
+    "true",
+    "false",
+    "nullptr",
+    "new",
+    "delete",
+    "try",
+    "catch",
+    "throw",
+    "virtual",
+    "override",
+    "final",
+    "public",
+    "private",
+    "protected",
+    "inline",
+    "constexpr",
+    "noexcept",
+    "using",
+    "typename",
+  ]);
+  return keywords.has(w);
+}
+
+async function getATGWebviewContent(
+  context: vscode.ExtensionContext,
+  panel: vscode.WebviewPanel,
+  filePath: string,
+  lineNumber: number,
+  enviroPaths: string[],
+  funcInfo: any,
+  variables: string[]
+): Promise<string> {
+  const base = resolveWebviewBase(context);
+  const cssOnDisk = vscode.Uri.file(
+    path.join(base, "css", "getATGTestForLine.css")
+  );
+  const scriptOnDisk = vscode.Uri.file(
+    path.join(base, "webviewScripts", "getATGTestForLine.js")
+  );
+  const htmlPath = path.join(base, "html", "getATGTestForLine.html");
+
+  const cssUri = panel.webview.asWebviewUri(cssOnDisk);
+  const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
+
+  let html = fs.readFileSync(htmlPath, "utf8");
+  const nonce = getNonce();
+  const csp = `
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none';
+                   style-src ${panel.webview.cspSource};
+                   script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+  `;
+  html = html.replace(/<head>/, `<head>${csp}`);
+
+  html = html
+    .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
+    .replace(
+      /{{\s*scriptUri\s*}}/,
+      `<script nonce="${nonce}" src="${scriptUri}"></script>`
+    )
+    .replace(
+      /<\/head>/,
+      `<script nonce="${nonce}">
+         window.defaultSourceFile = ${JSON.stringify(filePath)};
+         window.defaultLineNumber = ${JSON.stringify(String(lineNumber))};
+         window.enviroPaths = ${JSON.stringify(enviroPaths)};
+         window.fileFunction = ${JSON.stringify(funcInfo)};
+         window.fileVariables = ${JSON.stringify(variables)};
+       </script>\n</head>`
+    );
+
+  return html;
 }
 
 // this method is called when your extension is deactivated

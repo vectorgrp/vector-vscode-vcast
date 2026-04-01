@@ -292,9 +292,14 @@ def getUnitData(api):
     for sourceObject in sourceObjects:
         sourcePath = sourceObject.display_path
         if sourceObject.is_instrumented:
-            covered, uncovered, partiallyCovered, checksum = getCoverageData(
-                sourceObject
-            )
+            (
+                covered,
+                uncovered,
+                partiallyCovered,
+                checksum,
+                allStatements,
+                allBranches,
+            ) = getCoverageData(sourceObject)
             unitInfo = dict()
             unitInfo["path"] = sourcePath
             unitInfo["functionList"] = getFunctionData(sourceObject)
@@ -302,6 +307,8 @@ def getUnitData(api):
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
             unitInfo["partiallyCovered"] = partiallyCovered
+            unitInfo["allStatements"] = allStatements
+            unitInfo["allBranches"] = allBranches
             unitList.append(unitInfo)
 
         elif len(sourcePath) > 0:
@@ -315,6 +322,8 @@ def getUnitData(api):
             unitInfo["covered"] = ""
             unitInfo["uncovered"] = ""
             unitInfo["partiallyCovered"] = ""
+            unitInfo["allStatements"] = []
+            unitInfo["allBranches"] = []
             unitList.append(unitInfo)
 
     return unitList
@@ -398,7 +407,10 @@ def getCoverageData(sourceObject):
     coveredString = ""
     uncoveredString = ""
     partiallyCoveredString = ""
+    allStatements = []
+    allBranches = []
     checksum = 0
+
     if sourceObject and sourceObject.is_instrumented:
 
         # Unit name with deleted extension.
@@ -417,6 +429,27 @@ def getCoverageData(sourceObject):
         # iterate_coverage crashes if the file path doesn't exist
         if os.path.exists(sourceObject.path):
             for line in sourceObject.iterate_coverage():
+                metrics = line.metrics
+                line_number = line.line_number
+
+                # Collect all statement/branch lines (covered or not)
+                # for the ATG Line Test button visibility
+
+                # All Statement Lines
+                if getattr(metrics, "statements", 0) > 0:
+                    if line_number not in allStatements:
+                        allStatements.append(line_number)
+
+                # All Branch Lines
+                use_mcdc = getattr(metrics, "mcdc_branches", 0) > 0
+                branch_total = (
+                    metrics.mcdc_branches
+                    if use_mcdc
+                    else getattr(metrics, "branches", 0)
+                )
+                if branch_total > 0 and line_number not in functionLineList:
+                    if line_number not in allBranches:
+                        allBranches.append(line_number)
 
                 # STATEMENT
                 if coverageKind == CoverageKind.statement:
@@ -482,7 +515,14 @@ def getCoverageData(sourceObject):
             uncoveredString = uncoveredString[:-1]
             partiallyCoveredString = partiallyCoveredString[:-1]
 
-    return coveredString, uncoveredString, partiallyCoveredString, checksum
+    return (
+        coveredString,
+        uncoveredString,
+        partiallyCoveredString,
+        checksum,
+        allStatements,
+        allBranches,
+    )
 
 
 def executeVCtest(enviroPath, testIDObject):
