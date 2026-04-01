@@ -14,8 +14,8 @@
     <label for="sourceFileInput">Source File Path:</label>
     <input class="wide" type="text" id="sourceFileInput" aria-label="Source File Path Input" readonly />
 
-    <label for="lineNumberInput">Line Number:</label>
-    <input class="wide" type="text" id="lineNumberInput" aria-label="Line Number Input" readonly />
+    <!-- Line number stored as hidden input, updated by clicking gutter -->
+    <input type="hidden" id="lineNumberInput" />
 
     <!-- Environment dropdown (populated by JS) -->
     <label for="enviroPathSelect">Select Environment for File:</label>
@@ -31,15 +31,14 @@
       </div>
     </div>
 
-    <div style="margin-top:12px;">
-      <label for="varSelect">Add Variable / Value pair</label>
-      <div class="add-var-row">
-        <select id="varSelect" aria-label="Variable Select"></select>
-        <input id="varValueInput" type="text" placeholder="value" aria-label="Variable value" />
-        <button id="btnAddVar" class="add-button" type="button" title="Add variable">Add</button>
+    <!-- Selected variables (populated by clicking identifiers in code above) -->
+    <div id="selectedVarsSection" style="margin-top:12px;">
+      <label>Selected Variables <span style="color:#666; font-weight:normal;">(click variables in code above)</span></label>
+      <div id="selectedVarsList" class="selected-vars-container">
+        <div class="no-selection-hint">Click on a variable in the source code to add it here.</div>
       </div>
-      <div id="varList" aria-live="polite" style="margin-top:10px;"></div>
     </div>
+
 
     <div class="button-container">
       <button id="btnCancel" class="cancel-button" type="button">Cancel</button>

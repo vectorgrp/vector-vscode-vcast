@@ -24,6 +24,7 @@ import {
 
 import {
   buildTestNodeForFunction,
+  getFunctionDataForLine,
   initializeTestDecorator,
   updateTestDecorator,
 } from "./editorDecorator";
@@ -118,10 +119,13 @@ import {
 
 import {
   checkIfInstallationIsOK,
+  clicastCommandToUse,
   configurationFile,
+  globalTestInterfacePath,
   launchFile,
   globalPathToSupportFiles,
   initializeInstallerFiles,
+  vPythonCommandToUse,
 } from "./vcastInstallation";
 
 import {
@@ -159,11 +163,13 @@ import {
   getEnvironmentData,
   getLevelFromNodeId,
   loadATGLineTest,
+  getVcastInterfaceCommandForVariableInfo,
   getVcmRoot,
   openProjectFromEnviroPath,
   openTestScript,
 } from "./vcastUtilities";
 
+import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import fs = require("fs");
 import {
   compilerTagList,
@@ -2269,7 +2275,7 @@ async function installPreActivationEventHandlers(
   // Command: vectorcastTestExplorer.getATGTestForLine /////////////////////////////////////////////
   let getATGTestForLineCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.getATGTestForLine",
-    async () => {
+    async (args: any) => {
       const activeEditor = vscode.window.activeTextEditor;
       if (!activeEditor) {
         vscode.window.showWarningMessage("No active editor found.");
@@ -2277,7 +2283,12 @@ async function installPreActivationEventHandlers(
       }
 
       const filePath = activeEditor.document.uri.fsPath;
-      const lineNumber = activeEditor.selection.active.line + 1;
+      // Use the line number from the context menu args if available,
+      // otherwise fall back to the cursor position
+      const lineNumber =
+        args && args.lineNumber
+          ? args.lineNumber
+          : activeEditor.selection.active.line + 1;
       const fileText = activeEditor.document.getText();
 
       // Find environments for this file
@@ -2295,18 +2306,35 @@ async function installPreActivationEventHandlers(
         return;
       }
 
-      // Parse function at line
+      // Look up function from DataAPI-cached data (no regex needed)
+      const funcData = getFunctionDataForLine(filePath, lineNumber);
+      const funcName = funcData?.functionName || null;
+
+      // Also get source-level function info for the code display
       const funcInfo = findFunctionAtLine(fileText, lineNumber);
 
-      // Extract variables
-      const variables = extractVariablesFromFile(fileText, funcInfo);
+      // Fetch typed variable data from DataAPI (fast, synchronous)
+      const variableData = funcName
+        ? await fetchTypedVariableData(
+            funcData!.enviroPath,
+            filePath,
+            { name: funcName }
+          )
+        : null;
+
+      const finalVariableData = variableData;
 
       // Create webview panel
+      const webviewBase = resolveWebviewBase(context);
       const panel = vscode.window.createWebviewPanel(
         "atgLineTest",
         `ATG Line Test: ${path.basename(filePath)}:${lineNumber}`,
         vscode.ViewColumn.One,
-        { enableScripts: true }
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [vscode.Uri.file(webviewBase)],
+        }
       );
 
       panel.webview.html = await getATGWebviewContent(
@@ -2316,7 +2344,7 @@ async function installPreActivationEventHandlers(
         lineNumber,
         enviroPaths,
         funcInfo,
-        variables
+        finalVariableData
       );
 
       panel.webview.onDidReceiveMessage(
@@ -2343,9 +2371,65 @@ async function installPreActivationEventHandlers(
         undefined,
         context.subscriptions
       );
+
+      // Fetch local variables asynchronously via bundled clangd
+      // and push them to the webview when ready
+      if (finalVariableData) {
+        fetchLocalVariablesAsync(
+          enviroPaths[0],
+          filePath,
+          lineNumber,
+          finalVariableData,
+          panel
+        );
+      }
     }
   );
   context.subscriptions.push(getATGTestForLineCommand);
+}
+
+function fetchLocalVariablesAsync(
+  enviroPath: string,
+  sourceFile: string,
+  targetLine: number,
+  variableData: any,
+  panel: vscode.WebviewPanel
+) {
+  // Run in background - don't block the UI
+  const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=getLocalVariables --clicast=${clicastCommandToUse} --path=${enviroPath} --options="${JSON.stringify({ sourceFile, targetLine }).replaceAll('"', '\\"')}"`;
+  const { exec } = require("child_process");
+  exec(
+    commandToRun,
+    { cwd: path.dirname(enviroPath) },
+    (error: any, stdout: string) => {
+      if (error || !panel.visible) return;
+      try {
+        const cleanOutput = stdout.substring(
+          stdout.indexOf("ACTUAL-DATA") + "ACTUAL-DATA".length
+        ).trim();
+        const data = JSON.parse(cleanOutput);
+        if (data.locals && data.locals.length > 0) {
+          // Filter out names already in parameters/globals
+          const existingNames = new Set<string>();
+          for (const p of variableData.parameters || [])
+            existingNames.add(p.name);
+          for (const g of variableData.globals || [])
+            existingNames.add(g.name);
+          const filteredLocals = data.locals.filter(
+            (l: any) => !existingNames.has(l.name)
+          );
+          if (filteredLocals.length > 0) {
+            panel.webview.postMessage({
+              command: "addLocals",
+              locals: filteredLocals,
+            });
+          }
+        }
+      } catch {
+        // Silently ignore - locals are optional
+      }
+    }
+  );
 }
 
 function findFunctionAtLine(fileText: string, lineNumber: number) {
@@ -2358,9 +2442,14 @@ function findFunctionAtLine(fileText: string, lineNumber: number) {
 
   let bestMatch: any = null;
 
+  const controlFlowKeywords = new Set([
+    "if", "else", "for", "while", "do", "switch", "case", "return",
+    "sizeof", "typeof", "alignof", "static_assert",
+  ]);
+
   for (let i = 0; i < lines.length; i++) {
     const match = funcDefRegex.exec(lines[i]);
-    if (match && i < lineNumber) {
+    if (match && i < lineNumber && !controlFlowKeywords.has(match[1])) {
       // Find matching closing brace
       const startLine = i + 1; // 1-based
       const endLine = findMatchingBrace(lines, i);
@@ -2488,55 +2577,6 @@ function parseParamNames(paramsRaw: string): string[] {
     .filter((n) => n && !isKeyword(n));
 }
 
-function extractVariablesFromFile(
-  fileText: string,
-  funcInfo: any
-): string[] {
-  const vars = new Set<string>();
-
-  // Add function parameters
-  if (funcInfo.params) {
-    for (const p of funcInfo.params) {
-      vars.add(p);
-    }
-  }
-
-  // Scan function code for local variables
-  const codeLines = (funcInfo.code || "").split(/\r?\n/);
-  const typePattern =
-    /\b(?:int|float|double|char|short|long|unsigned|signed|bool|size_t|uint\d+_t|int\d+_t|auto|const|static|volatile|struct|class|enum)\b/;
-  const assignPattern = /^\s*(\w+)\s*=[^=]/;
-
-  for (const line of codeLines) {
-    const trimmed = line.trim();
-
-    // Skip comments and preprocessor
-    if (trimmed.startsWith("//") || trimmed.startsWith("#")) continue;
-
-    // Typed declarations
-    if (typePattern.test(trimmed)) {
-      const tokens = trimmed.split(/[;,={}()\[\]]+/);
-      for (const token of tokens) {
-        const words = token.trim().split(/\s+/);
-        const lastWord = words[words.length - 1]
-          ?.replace(/[*&]/g, "")
-          .trim();
-        if (lastWord && /^\w+$/.test(lastWord) && !isKeyword(lastWord)) {
-          vars.add(lastWord);
-        }
-      }
-    }
-
-    // Assignment targets
-    const assignMatch = assignPattern.exec(trimmed);
-    if (assignMatch && !isKeyword(assignMatch[1])) {
-      vars.add(assignMatch[1]);
-    }
-  }
-
-  return [...vars].sort();
-}
-
 function isKeyword(w: string): boolean {
   const keywords = new Set([
     "auto",
@@ -2599,6 +2639,38 @@ function isKeyword(w: string): boolean {
   return keywords.has(w);
 }
 
+async function fetchTypedVariableData(
+  enviroPath: string,
+  sourceFile: string,
+  funcInfo: any
+): Promise<any> {
+  if (!funcInfo || !funcInfo.name) {
+    vectorMessage("fetchTypedVariableData: no funcInfo or name");
+    return null;
+  }
+  try {
+    const command = getVcastInterfaceCommandForVariableInfo(
+      enviroPath,
+      sourceFile,
+      funcInfo.name
+    );
+    vectorMessage(`fetchTypedVariableData command: ${command}`);
+    const jsonData = getJsonDataFromTestInterface(command, enviroPath);
+    vectorMessage(
+      `fetchTypedVariableData result: ${JSON.stringify(jsonData)?.substring(0, 200)}`
+    );
+    if (
+      jsonData &&
+      (jsonData.parameters?.length > 0 || jsonData.globals?.length > 0)
+    ) {
+      return jsonData;
+    }
+  } catch (e: any) {
+    vectorMessage(`fetchTypedVariableData error: ${e?.message || e}`);
+  }
+  return null;
+}
+
 async function getATGWebviewContent(
   context: vscode.ExtensionContext,
   panel: vscode.WebviewPanel,
@@ -2606,7 +2678,7 @@ async function getATGWebviewContent(
   lineNumber: number,
   enviroPaths: string[],
   funcInfo: any,
-  variables: string[]
+  variableData: any
 ): Promise<string> {
   const base = resolveWebviewBase(context);
   const cssOnDisk = vscode.Uri.file(
@@ -2643,7 +2715,7 @@ async function getATGWebviewContent(
          window.defaultLineNumber = ${JSON.stringify(String(lineNumber))};
          window.enviroPaths = ${JSON.stringify(enviroPaths)};
          window.fileFunction = ${JSON.stringify(funcInfo)};
-         window.fileVariables = ${JSON.stringify(variables)};
+         window.variableData = ${JSON.stringify(variableData)};
        </script>\n</head>`
     );
 

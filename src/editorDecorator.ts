@@ -155,6 +155,33 @@ export function buildTestNodeForFunction(args: any): testNodeType | undefined {
   return testNode;
 }
 
+export function getFunctionDataForLine(
+  filePath: string,
+  lineNumber: number
+): { enviroPath: string; unitName: string; functionName: string } | undefined {
+  const unitData = unitAndFunctionMap.get(filePath);
+  if (!unitData || unitData.lineMap.size === 0) return undefined;
+
+  // Find the function whose start line is closest to but <= lineNumber
+  let bestLine = -1;
+  let bestName = "";
+  for (const [startLine, funcName] of unitData.lineMap.entries()) {
+    if (startLine <= lineNumber && startLine > bestLine) {
+      bestLine = startLine;
+      bestName = funcName;
+    }
+  }
+
+  if (bestName) {
+    return {
+      enviroPath: unitData.enviroPath,
+      unitName: unitData.unitName,
+      functionName: bestName,
+    };
+  }
+  return undefined;
+}
+
 export function updateTestDecorator() {
   // activeEditor will always exist when this is called
   // this will use the previously initialized file|function map to create

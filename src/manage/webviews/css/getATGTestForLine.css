@@ -93,6 +93,7 @@ select {
 
 /* Code container */
 .code-container {
+  position: relative;
   background: #1e1e1e;
   border: 1px solid #333;
   border-radius: 6px;
@@ -133,11 +134,19 @@ select {
   color: #dcdcdc;
 }
 
-/* highlighted selected line */
+/* highlighted target line (draggable) */
 .code-block .code-line.highlight {
   background: rgba(0, 122, 204, 0.12);
   border-left: 3px solid #007acc;
   padding-left: 4px;
+}
+
+/* gutter is clickable to move the target line */
+.code-block .gutter {
+  cursor: pointer;
+}
+.code-block .gutter:hover {
+  color: #007acc;
 }
 
 /* Generic button styles (shared system) */
@@ -165,15 +174,6 @@ button {
 }
 .cancel-button:hover { background-color: #992222; }
 
-/* Add ("➕") */
-.add-button {
-  background-color: #007acc;
-  color: white;
-  padding: 6px 12px;
-  font-size: 14px;
-}
-.add-button:hover { background-color: #005f99; }
-
 .function-title {
   font-size: 14px;
   font-weight: 600;
@@ -186,24 +186,6 @@ button {
 }
 
 
-/* Remove ("✖") */
-.remove-button {
-  background-color: #cc4444;
-  color: white;
-  padding: 8px 10px;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 36px;
-  border-radius: 6px;
-}
-.remove-button:hover {
-  background-color: #992222;
-  transform: translateY(-1px);
-}
-
 /* Button container (bottom) */
 .button-container {
   display: flex;
@@ -212,62 +194,148 @@ button {
   margin-top: 20px;
 }
 
-/* Add var row: select + input + add button (single line) */
-.add-var-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 80px;
-  gap: 10px;
-  align-items: center;
-  margin-top: 8px;
-  margin-bottom: 10px;
-  width: 100%;
+/* ─── Syntax highlighting tokens ─── */
+.id        { color: #9cdcfe; }
+.id.clickable {
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(156, 220, 254, 0.5);
+  border-radius: 2px;
+  padding: 0 1px;
+  transition: background-color 0.1s, border-color 0.1s;
 }
-
-/* Structured var list container */
-#varList {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.id.clickable:hover {
+  background: rgba(156, 220, 254, 0.12);
+  border-bottom-color: #9cdcfe;
 }
-
-/* Individual var item (card-like row) */
-.var-item {
-  display: grid;
-  grid-template-columns: 1fr 1fr 56px; /* key | value | remove button */
-  gap: 10px;
-  align-items: center;
-  padding: 10px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
-  border: 1px solid rgba(255,255,255,0.03);
-  border-radius: 6px;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.5) inset;
-  min-height: 44px;
+/* Clickable variable that has a value assigned in the table */
+.id.clickable.has-value {
+  color: #4ec9b0;
+  border-bottom-color: rgba(78, 201, 176, 0.5);
 }
-
-/* var key and value visuals */
-.var-item .var-key {
-  font-weight: 600;
-  color: #e6eef8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.id.clickable.has-value:hover {
+  background: rgba(78, 201, 176, 0.12);
+  border-bottom-color: #4ec9b0;
 }
+/* Cross-highlight: code token highlighted when its table row is hovered */
+.id.cross-highlight {
+  background: rgba(78, 201, 176, 0.25);
+  border-radius: 2px;
+}
+.id.struct-id { color: #b88adf; }
+.kw  { color: #569cd6; }
+.num { color: #b5cea8; }
+.str { color: #ce9178; }
+.cmt { color: #6a9955; font-style: italic; }
+.op, .pn { color: #d4d4d4; }
 
-.var-item .var-value {
+/* ─── Inline tooltip ─── */
+.inline-tooltip {
+  position: absolute;
+  background: #2d2d30;
+  border: 1px solid #454545;
   color: #d4d4d4;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 3px;
   white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
-.var-item .remove-button {
-  justify-self: end;
+/* ─── Selected variables list ─── */
+.selected-vars-container {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px;
+  margin-top: 6px;
+}
+
+.selected-var-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  min-height: 30px;
+  font-size: 13px;
+}
+.selected-var-item:hover {
+  background: rgba(78, 201, 176, 0.08);
+  border-radius: 3px;
+}
+/* Cross-highlight: table row highlighted when its code token is hovered */
+.selected-var-item.cross-highlight {
+  background: rgba(156, 220, 254, 0.1);
+  border-radius: 3px;
+}
+
+.selected-var-item .sv-name {
+  color: #9cdcfe;
+  font-family: "Courier New", monospace;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+/* Type badges */
+.type-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.type-badge.int       { background: #1a3a5c; color: #6cb6ff; }
+.type-badge.float     { background: #3a2a1a; color: #e6a855; }
+.type-badge.enum      { background: #1a3a2a; color: #6bc96b; }
+.type-badge.struct    { background: #2a1a3a; color: #b88adf; }
+.type-badge.bool      { background: #1a3a3a; color: #6bcbcb; }
+.type-badge.char      { background: #3a3a1a; color: #cbcb6b; }
+.type-badge.string    { background: #3a3a1a; color: #cbcb6b; }
+.type-badge.array     { background: #1a2a3a; color: #7aafdf; }
+.type-badge.unknown   { background: #2a2a2a; color: #888; }
+
+.selected-var-item .sv-value {
+  flex: 1;
+  min-width: 80px;
+  max-width: 200px;
+  background: #3c3c3c;
+  color: #d4d4d4;
+  border: 1px solid #555;
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.selected-var-item .sv-value:focus {
+  border-color: #007acc;
+  outline: none;
+}
+
+.remove-btn {
+  background: transparent;
+  color: #888;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.remove-btn:hover {
+  color: #cc4444;
+  background: rgba(204, 68, 68, 0.15);
+}
+
+.no-selection-hint {
+  color: #666;
+  font-size: 12px;
+  font-style: italic;
+  padding: 4px;
 }
 
 /* responsive */
 @media (max-width: 640px) {
   .modal { width: 92vw; padding: 18px; }
-  .add-var-row { grid-template-columns: 1fr 1fr 60px; }
-  .var-item { grid-template-columns: 1fr 1fr 48px; }
 }

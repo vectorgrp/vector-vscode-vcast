@@ -456,6 +456,23 @@ export function getVcastInterfaceCommandForMCDC(
   return `${commandToRun} ${testArgument}`;
 }
 
+export function getVcastInterfaceCommandForVariableInfo(
+  enviroPath: string,
+  sourceFile: string,
+  functionName: string
+) {
+  const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=getVariableInfo --clicast=${clicastCommandToUse} --path=${enviroPath}`;
+  let optionsDict: { [key: string]: string } = {};
+  optionsDict["sourceFile"] = sourceFile;
+  optionsDict["functionName"] = functionName;
+  const jsonOptions: string = JSON.stringify(optionsDict).replaceAll(
+    '"',
+    '\\"'
+  );
+  const testArgument = `--options="${jsonOptions}"`;
+  return `${commandToRun} ${testArgument}`;
+}
+
 /**
  * Generates the command to get all mcdc coverage lines in an env.
  * @param enviroName Name of env.
@@ -894,7 +911,7 @@ function buildVarStringSimple(pairs: { name: any; value: any }[]) {
       (p: { name: any; value: any }) =>
         `${String(p.name).trim()}:${String(p.value).trim()}`
     )
-    .join(",");
+    .join(";");
 }
 
 export function getATGLineTestCommand(
@@ -904,6 +921,54 @@ export function getATGLineTestCommand(
   variableValues: any
 ) {
   const varValueCommand = buildVarStringSimple(variableValues);
-  const commandToRun = `cd ${enviroPath} && VCAST_ATG_PATH=/home/denis/vector/pyatg/get_me_here_with_val_llm/atg/main.py VCAST_ATG_TARGETED_LINE=${lineNumber} VCAST_ATG_TARGETED_VALUES="${varValueCommand}" ${atgCommandToUse} -v ${scriptPath}`;
+
+  // Use the VS Code setting if set, otherwise rely on the user's VCAST_ATG_PATH env var
+  const atgPathSetting = vscode.workspace
+    .getConfiguration("vectorcastTestExplorer")
+    .get<string>("atgPath", "");
+  const atgPathEnv = atgPathSetting
+    ? `VCAST_ATG_PATH=${atgPathSetting} `
+    : "";
+
+  // Build LLM provider env vars from reqs2x settings
+  const reqs2xConfig = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer.reqs2x"
+  );
+  const llmEnvPairs: { setting: string; envVar: string }[] = [
+    { setting: "azure.apiKey", envVar: "VCAST_REQS2X_AZURE_OPENAI_API_KEY" },
+    {
+      setting: "azure.apiVersion",
+      envVar: "VCAST_REQS2X_AZURE_OPENAI_API_VERSION",
+    },
+    { setting: "azure.baseUrl", envVar: "VCAST_REQS2X_AZURE_OPENAI_BASE_URL" },
+    {
+      setting: "azure.deployment",
+      envVar: "VCAST_REQS2X_AZURE_OPENAI_DEPLOYMENT",
+    },
+    {
+      setting: "azure.modelName",
+      envVar: "VCAST_REQS2X_AZURE_OPENAI_MODEL_NAME",
+    },
+    { setting: "openai.apiKey", envVar: "VCAST_REQS2X_OPENAI_API_KEY" },
+    { setting: "openai.modelName", envVar: "VCAST_REQS2X_OPENAI_MODEL_NAME" },
+    {
+      setting: "anthropic.apiKey",
+      envVar: "VCAST_REQS2X_ANTHROPIC_API_KEY",
+    },
+    {
+      setting: "anthropic.modelName",
+      envVar: "VCAST_REQS2X_ANTHROPIC_MODEL_NAME",
+    },
+  ];
+
+  let llmEnvStr = "";
+  for (const pair of llmEnvPairs) {
+    const val = reqs2xConfig.get<string>(pair.setting, "");
+    if (val) {
+      llmEnvStr += `${pair.envVar}="${val}" `;
+    }
+  }
+
+  const commandToRun = `cd ${enviroPath} && ${atgPathEnv}${llmEnvStr}VCAST_ATG_LLM_PATHS=1 VCAST_ATG_NODE_MAPPING=1 VCAST_ATG_TARGETED_LINE=${lineNumber} VCAST_ATG_TARGETED_VALUES="${varValueCommand}" ${atgCommandToUse} -v ${scriptPath}`;
   return commandToRun;
 }

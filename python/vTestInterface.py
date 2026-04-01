@@ -55,6 +55,8 @@ modeChoices = [
     "getWorkspaceEnviroData",
     "getProjectData",
     "getEnviroData",
+    "getVariableInfo",
+    "getLocalVariables",
     "executeTest",
     "report",
     "mcdcReport",
@@ -775,6 +777,243 @@ def find_vce_files(root_dir):
     return vce_files
 
 
+def buildTypeNode(name, typeObj, depth, maxDepth, visited=None):
+    """
+    Recursively build a type tree node from a DataAPI type object.
+    Returns a dict with name, displayType, kind, enumValues, children.
+    """
+    if visited is None:
+        visited = set()
+
+    kind = tstUtilities.getTypeClassification(typeObj)
+    displayType = tstUtilities.additionalTypeInfo(typeObj)
+
+    node = {
+        "name": name,
+        "displayType": displayType,
+        "kind": kind,
+        "enumValues": [],
+        "children": [],
+    }
+
+    # Enum values
+    if kind == "enum":
+        try:
+            node["enumValues"] = [e.name for e in typeObj.enums]
+        except Exception:
+            pass
+
+    # Struct/union/class fields
+    if kind == "struct" and depth < maxDepth:
+        type_id = id(typeObj)
+        if type_id not in visited:
+            visited.add(type_id)
+            try:
+                for field in typeObj.child_fields:
+                    child = buildTypeNode(
+                        field.name, field.type, depth + 1, maxDepth, visited
+                    )
+                    node["children"].append(child)
+            except Exception:
+                pass
+            visited.discard(type_id)
+
+    # Pointer/array - expand one index level
+    if kind == "array" and depth < maxDepth:
+        try:
+            elementType = typeObj.element
+            if elementType:
+                child = buildTypeNode(
+                    "[0]", elementType, depth + 1, maxDepth, visited
+                )
+                node["children"].append(child)
+        except Exception:
+            pass
+
+    return node
+
+
+def buildVariableTree(api, sourceFile, functionName, maxDepth=3):
+    """
+    Build a typed variable tree for a function in a VectorCAST environment.
+    Finds the unit by source file path, then the function by name.
+    Returns dict with 'parameters' and 'globals' lists of type tree nodes.
+    """
+    result = {"parameters": [], "globals": []}
+
+    # Find unit by matching source file path
+    targetUnit = None
+    for unit in api.Unit.all():
+        try:
+            unitPath = unit.path
+            if unitPath and os.path.basename(unitPath) == os.path.basename(sourceFile):
+                targetUnit = unit
+                break
+        except Exception:
+            continue
+
+    if targetUnit is None:
+        return result
+
+    # Find function by name (try vcast_name first, then base name)
+    targetFunction = None
+    for func in targetUnit.functions:
+        if func.vcast_name == functionName or func.name == functionName:
+            targetFunction = func
+            break
+
+    # If exact match failed, try partial match (function name without params)
+    if targetFunction is None:
+        for func in targetUnit.functions:
+            if func.name.startswith(functionName) or functionName.startswith(func.name):
+                targetFunction = func
+                break
+
+    if targetFunction is None:
+        return result
+
+    # Build parameter nodes
+    try:
+        for param in targetFunction.parameters:
+            if param.name == "return":
+                continue
+            node = buildTypeNode(param.name, param.type, 0, maxDepth)
+            result["parameters"].append(node)
+    except Exception:
+        pass
+
+    # Build global nodes
+    try:
+        for glob in targetUnit.globals:
+            node = buildTypeNode(glob.name, glob.type, 0, maxDepth)
+            result["globals"].append(node)
+    except Exception:
+        pass
+
+    return result
+
+
+def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
+    """
+    Use the bundled clangd (via multilspy) to find local variables
+    in scope at the target line, with their types.
+    Returns a list of variable tree nodes.
+    """
+    locals_list = []
+    try:
+        from monitors4codegen.multilspy.multilspy_config import MultilspyConfig
+        from monitors4codegen.multilspy.multilspy_logger import MultilspyLogger
+        from monitors4codegen.multilspy import SyncLanguageServer
+    except ImportError:
+        return locals_list
+
+    try:
+        config = MultilspyConfig.from_dict({"code_language": "c"})
+        logger = MultilspyLogger()
+        lsp = SyncLanguageServer.create(config, logger, sourceDir)
+
+        relativeFile = os.path.basename(sourceFile)
+
+        with lsp.start_server():
+            lsp.open_file(relativeFile)
+
+            # Read source lines to find variable identifiers
+            fullPath = os.path.join(sourceDir, relativeFile)
+            if not os.path.exists(fullPath):
+                fullPath = sourceFile
+            with open(fullPath, "r") as f:
+                lines = f.readlines()
+
+            # Scan lines up to targetLine for identifiers to hover on
+            # We look for assignment targets and declarations
+            seen = set()
+            for lineIdx in range(min(targetLine, len(lines))):
+                line = lines[lineIdx].strip()
+                if not line or line.startswith("//") or line.startswith("#"):
+                    continue
+
+                # Find word-like tokens and hover on them
+                import re
+                tokens = re.findall(r'\b([a-zA-Z_]\w*)\b', line)
+                for token in tokens:
+                    if token in seen:
+                        continue
+                    # Skip C keywords
+                    if token in {
+                        "if", "else", "for", "while", "do", "switch", "case",
+                        "return", "break", "continue", "goto", "sizeof",
+                        "typedef", "struct", "union", "enum", "void",
+                        "int", "float", "double", "char", "short", "long",
+                        "unsigned", "signed", "const", "static", "extern",
+                        "volatile", "auto", "register", "inline", "bool",
+                        "true", "false", "NULL",
+                    }:
+                        continue
+
+                    # Find the column of this token in the line
+                    col = lines[lineIdx].find(token)
+                    if col < 0:
+                        continue
+
+                    try:
+                        hover = lsp.request_hover(relativeFile, lineIdx, col)
+                        if not hover or "contents" not in hover:
+                            continue
+                        value = hover["contents"].get("value", "")
+
+                        # Parse: ### variable `name` or ### param `name`
+                        # Then: Type: `type`
+                        if "### variable" not in value:
+                            continue  # Only locals, not params/functions
+
+                        type_match = re.search(r'Type:\s*`(.*?)`', value)
+                        if not type_match:
+                            continue
+
+                        varType = type_match.group(1)
+                        seen.add(token)
+
+                        # Classify the type
+                        kind = ""
+                        tl = varType.lower()
+                        if "bool" in tl:
+                            kind = "bool"
+                        elif "float" in tl or "double" in tl:
+                            kind = "float"
+                        elif "char" in tl and ("*" in tl or "[" in tl):
+                            kind = "string"
+                        elif "char" in tl:
+                            kind = "char"
+                        elif "enum" in tl:
+                            kind = "enum"
+                        elif "struct" in tl or "class" in tl:
+                            kind = "struct"
+                        elif any(
+                            t in tl
+                            for t in ["int", "long", "short", "unsigned", "size_t"]
+                        ):
+                            kind = "int"
+                        elif "*" in tl or "[" in tl:
+                            kind = "array"
+
+                        locals_list.append(
+                            {
+                                "name": token,
+                                "displayType": varType,
+                                "kind": kind or "unknown",
+                                "enumValues": [],
+                                "children": [],
+                            }
+                        )
+                    except Exception:
+                        continue
+
+    except Exception:
+        pass
+
+    return locals_list
+
+
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     """
     This function does the actual work of processing a vTestInterface command,
@@ -867,6 +1106,32 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
         api.close()
         returnObject = topLevel
+
+    elif mode == "getVariableInfo":
+        jsonOptions = processOptions(options)
+        sourceFile = jsonOptions.get("sourceFile", "")
+        functionName = jsonOptions.get("functionName", "")
+
+        try:
+            api = UnitTestApi(pathToUse)
+        except Exception as err:
+            raise UsageError(err)
+
+        returnObject = buildVariableTree(api, sourceFile, functionName)
+        api.close()
+
+    elif mode == "getLocalVariables":
+        jsonOptions = processOptions(options)
+        sourceFile = jsonOptions.get("sourceFile", "")
+        targetLine = jsonOptions.get("targetLine", 0)
+
+        returnObject = {"locals": []}
+        if sourceFile and targetLine > 0:
+            sourceDir = os.path.dirname(sourceFile)
+            locals_list = getLocalVariablesFromClangd(
+                sourceDir, sourceFile, targetLine
+            )
+            returnObject["locals"] = locals_list
 
     elif mode == "executeTest":
         try:
