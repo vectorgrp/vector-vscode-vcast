@@ -79,6 +79,7 @@ export class ATGModeManager {
   filePath = "";
   targetLine = 0;
   truthValue: "True" | "False" | "" = "";
+  targetIsDecision = false;
   funcStartLine = 0;
   funcEndLine = 0;
   selectedVars = new Map<string, SelectedVariable>();
@@ -112,6 +113,7 @@ export class ATGModeManager {
     this.filePath = editor.document.uri.fsPath;
     this.targetLine = lineNumber;
     this.truthValue = "";
+    this.targetIsDecision = this.checkIsDecisionLine(lineNumber);
     this.selectedVars.clear();
     this.variableLookup.clear();
     this.clickableRanges = [];
@@ -373,6 +375,7 @@ export class ATGModeManager {
 
   setTargetLine(line: number) {
     this.targetLine = line;
+    this.targetIsDecision = this.checkIsDecisionLine(line);
     this.truthValue = "";
     this.updateStatusBar();
     const editor = vscode.window.activeTextEditor;
@@ -415,7 +418,7 @@ export class ATGModeManager {
 
     const filePath = this.filePath;
     const targetLine = this.targetLine;
-    const truthValue = this.truthValue;
+    const truthValue = this.targetIsDecision ? this.truthValue : "";
 
     this.exit();
 
@@ -468,6 +471,15 @@ export class ATGModeManager {
   }
 
   // ─── Private ─────────────────────────────────────────────────────
+
+  private checkIsDecisionLine(line: number): boolean {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return false;
+    const text = editor.document.lineAt(line - 1).text.trimStart();
+    return /^(if|else\s+if|while|for|switch)\s*\(/.test(text) ||
+      /}\s*while\s*\(/.test(text) ||
+      /\?\s*.*\s*:/.test(text);
+  }
 
   private getDefaultIndexFromLine(
     fullPath: string,
@@ -792,6 +804,7 @@ export class ATGSidebarViewProvider implements vscode.WebviewViewProvider {
       vars,
       targetLine: this.manager.targetLine,
       truthValue: this.manager.truthValue,
+      isDecision: this.manager.targetIsDecision,
       fileName: this.manager.filePath
         ? path.basename(this.manager.filePath)
         : "",
@@ -857,7 +870,7 @@ export class ATGSidebarViewProvider implements vscode.WebviewViewProvider {
 <body>
   <div id="activeView" style="display:${isActive ? "block" : "none"}">
     <div class="header" id="headerText">ATG Target</div>
-    <div class="truth-row">
+    <div class="truth-row" id="truthRow" style="display:none">
       <span class="truth-label">Decision:</span>
       <button class="truth-btn active" id="tvAuto" onclick="setTruth('')">Auto</button>
       <button class="truth-btn" id="tvTrue" onclick="setTruth('True')">True</button>
@@ -1012,6 +1025,7 @@ export class ATGSidebarViewProvider implements vscode.WebviewViewProvider {
       document.getElementById('activeView').style.display = msg.isActive ? 'block' : 'none';
       document.getElementById('inactiveView').style.display = msg.isActive ? 'none' : 'block';
       document.getElementById('headerText').textContent = 'ATG Target: ' + (msg.fileName || '') + ':' + (msg.targetLine || '');
+      document.getElementById('truthRow').style.display = msg.isDecision ? 'flex' : 'none';
       updateTruthButtons(msg.truthValue || '');
       renderVarList(msg.vars);
     }
