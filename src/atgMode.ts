@@ -22,11 +22,17 @@ interface VariableInfo {
   children: Map<string, VariableInfo>;
 }
 
+interface ArrayEntry {
+  index: string;
+  value: string;
+}
+
 interface SelectedVariable {
   displayType: string;
   kind: string;
   enumValues: string[];
   value: string;
+  entries: ArrayEntry[];
 }
 
 // ─── Variable Lookup ─────────────────────────────────────────────────
@@ -72,6 +78,7 @@ export class ATGModeManager {
   isActive = false;
   filePath = "";
   targetLine = 0;
+  truthValue: "True" | "False" | "" = "";
   funcStartLine = 0;
   funcEndLine = 0;
   selectedVars = new Map<string, SelectedVariable>();
@@ -104,6 +111,7 @@ export class ATGModeManager {
     this.isActive = true;
     this.filePath = editor.document.uri.fsPath;
     this.targetLine = lineNumber;
+    this.truthValue = "";
     this.selectedVars.clear();
     this.variableLookup.clear();
     this.clickableRanges = [];
@@ -196,9 +204,10 @@ export class ATGModeManager {
           if (item.range.contains(pos)) {
             // Don't toggle if it's in the selected set and user might be
             // trying to place cursor. Use a small delay to avoid double-triggers.
+            const clickedLine = item.range.start.line;
             setTimeout(() => {
               if (!this.isActive) return;
-              this.toggleVariable(item.path);
+              this.toggleVariable(item.path, clickedLine);
             }, 50);
             return;
           }
@@ -288,18 +297,30 @@ export class ATGModeManager {
     vectorMessage("ATG Mode: Exited");
   }
 
-  toggleVariable(fullPath: string) {
+  toggleVariable(fullPath: string, clickedLine?: number) {
     if (this.selectedVars.has(fullPath)) {
       this.selectedVars.delete(fullPath);
     } else {
       const info = lookupPath(this.variableLookup, fullPath);
       if (info && info.kind === "struct") return; // by-value struct, not assignable
 
+      // Detect array: trust kind from lookup, but also check if the
+      // variable is subscripted on the clicked line (handles cases where
+      // type info is missing or not yet loaded)
+      const defaultIndex = this.getDefaultIndexFromLine(fullPath, clickedLine);
+      const isArray = info?.kind === "array" || defaultIndex !== "";
+      const defaultEntries: ArrayEntry[] = [];
+
+      if (isArray) {
+        defaultEntries.push({ index: defaultIndex, value: "" });
+      }
+
       this.selectedVars.set(fullPath, {
         displayType: info?.displayType || "",
-        kind: info?.kind || "unknown",
+        kind: isArray ? "array" : info?.kind || "unknown",
         enumValues: info?.enumValues || [],
         value: "",
+        entries: defaultEntries,
       });
     }
 
@@ -319,13 +340,52 @@ export class ATGModeManager {
     this.refreshAfterChange();
   }
 
+  addArrayEntry(fullPath: string) {
+    const v = this.selectedVars.get(fullPath);
+    if (v) {
+      v.entries.push({ index: "", value: "" });
+      this.updateStatusBar();
+      if (this.sidebarView) this.sidebarView.notifyListChanged();
+    }
+  }
+
+  removeArrayEntry(fullPath: string, entryIndex: number) {
+    const v = this.selectedVars.get(fullPath);
+    if (v && entryIndex >= 0 && entryIndex < v.entries.length) {
+      v.entries.splice(entryIndex, 1);
+      this.updateStatusBar();
+      if (this.sidebarView) this.sidebarView.notifyListChanged();
+    }
+  }
+
+  updateArrayEntry(
+    fullPath: string,
+    entryIndex: number,
+    field: "index" | "value",
+    fieldValue: string
+  ) {
+    const v = this.selectedVars.get(fullPath);
+    if (v && entryIndex >= 0 && entryIndex < v.entries.length) {
+      v.entries[entryIndex][field] = fieldValue;
+      this.updateStatusBar();
+    }
+  }
+
   setTargetLine(line: number) {
     this.targetLine = line;
+    this.truthValue = "";
     this.updateStatusBar();
     const editor = vscode.window.activeTextEditor;
     if (editor) this.rebuildDecorations(editor);
     if (this.sidebarView) this.sidebarView.notifyListChanged();
     vectorMessage(`ATG Mode: Target line → ${line}`);
+  }
+
+  setTruthValue(value: "True" | "False" | "") {
+    this.truthValue = value;
+    this.updateStatusBar();
+    if (this.sidebarView) this.sidebarView.notifyListChanged();
+    vectorMessage(`ATG Mode: Truth value → ${value || "auto"}`);
   }
 
   async fetchTest() {
@@ -339,17 +399,33 @@ export class ATGModeManager {
 
     const variableValues: { name: string; value: string }[] = [];
     for (const [name, info] of this.selectedVars) {
-      if (info.value.trim()) {
+      if (info.kind === "array" && info.entries.length > 0) {
+        for (const entry of info.entries) {
+          if (entry.index.trim() && entry.value.trim()) {
+            variableValues.push({
+              name: `${name}[${entry.index.trim()}]`,
+              value: entry.value.trim(),
+            });
+          }
+        }
+      } else if (info.value.trim()) {
         variableValues.push({ name, value: info.value.trim() });
       }
     }
 
     const filePath = this.filePath;
     const targetLine = this.targetLine;
+    const truthValue = this.truthValue;
 
     this.exit();
 
-    await loadATGLineTest(filePath, targetLine, enviroPath, variableValues);
+    await loadATGLineTest(
+      filePath,
+      targetLine,
+      enviroPath,
+      variableValues,
+      truthValue
+    );
   }
 
   // Called by sidebar for cross-highlighting
@@ -375,6 +451,7 @@ export class ATGModeManager {
     kind: string;
     enumValues: string[];
     value: string;
+    entries: ArrayEntry[];
   }[] {
     const result: any[] = [];
     for (const [p, info] of this.selectedVars) {
@@ -384,12 +461,27 @@ export class ATGModeManager {
         kind: info.kind,
         enumValues: info.enumValues,
         value: info.value,
+        entries: info.entries,
       });
     }
     return result;
   }
 
   // ─── Private ─────────────────────────────────────────────────────
+
+  private getDefaultIndexFromLine(
+    fullPath: string,
+    lineIdx?: number
+  ): string {
+    if (lineIdx === undefined) return "";
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return "";
+    const lineText = editor.document.lineAt(lineIdx).text;
+    const escaped = fullPath.replace(/\./g, "\\.");
+    const regex = new RegExp(`${escaped}\\s*\\[\\s*([^\\]]+)\\s*\\]`);
+    const m = regex.exec(lineText);
+    return m ? m[1].trim() : "";
+  }
 
   private refreshAfterChange() {
     const editor = vscode.window.activeTextEditor;
@@ -569,7 +661,8 @@ export class ATGModeManager {
   private updateStatusBar() {
     if (!this.statusBarItem) return;
     const n = this.selectedVars.size;
-    this.statusBarItem.text = `$(beaker) ATG Line ${this.targetLine} | ${n} var${n !== 1 ? "s" : ""} | $(check) Fetch | $(close) Exit`;
+    const tv = this.truthValue ? ` [${this.truthValue}]` : "";
+    this.statusBarItem.text = `$(beaker) ATG Line ${this.targetLine}${tv} | ${n} var${n !== 1 ? "s" : ""} | $(check) Fetch | $(close) Exit`;
     this.statusBarItem.command = "vectorcastTestExplorer.atgShowMenu";
     this.statusBarItem.tooltip = "ATG Selection Mode — click for options";
   }
@@ -645,6 +738,23 @@ export class ATGSidebarViewProvider implements vscode.WebviewViewProvider {
         case "cancel":
           this.manager.exit();
           break;
+        case "setTruthValue":
+          this.manager.setTruthValue(message.value);
+          break;
+        case "addArrayEntry":
+          this.manager.addArrayEntry(message.path);
+          break;
+        case "removeArrayEntry":
+          this.manager.removeArrayEntry(message.path, message.entryIndex);
+          break;
+        case "updateArrayEntry":
+          this.manager.updateArrayEntry(
+            message.path,
+            message.entryIndex,
+            message.field,
+            message.fieldValue
+          );
+          break;
         case "highlightInEditor":
           this.manager.highlightVariableInEditor(message.path);
           break;
@@ -681,6 +791,7 @@ export class ATGSidebarViewProvider implements vscode.WebviewViewProvider {
       command: "updateVars",
       vars,
       targetLine: this.manager.targetLine,
+      truthValue: this.manager.truthValue,
       fileName: this.manager.filePath
         ? path.basename(this.manager.filePath)
         : "",
@@ -728,11 +839,30 @@ export class ATGSidebarViewProvider implements vscode.WebviewViewProvider {
   .btn-cancel { background: #3c3c3c; color: #d4d4d4; }
   .btn-cancel:hover { background: #4c4c4c; }
   .empty { color: #666; font-size: 12px; font-style: italic; padding: 8px 0; }
+  .truth-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .truth-label { color: #888; font-size: 11px; white-space: nowrap; }
+  .truth-btn { background: #2d2d2d; color: #999; border: 1px solid #444; border-radius: 3px; cursor: pointer; font-size: 11px; padding: 2px 8px; }
+  .truth-btn:hover { background: #3c3c3c; }
+  .truth-btn.active { background: #264f78; color: #fff; border-color: #007acc; }
+  .arr-entries { margin: 2px 0 4px 16px; }
+  .arr-entry { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
+  .arr-entry input { min-width: 30px; }
+  .arr-entry .idx-input { max-width: 45px; flex: 0 0 45px; text-align: center; }
+  .arr-entry .val-input { flex: 1; }
+  .arr-entry .idx-label { color: #888; font-size: 11px; flex-shrink: 0; }
+  .add-entry { background: transparent; color: #007acc; border: 1px dashed #007acc; border-radius: 3px; cursor: pointer; font-size: 11px; padding: 2px 8px; margin-top: 2px; }
+  .add-entry:hover { background: rgba(0, 122, 204, 0.1); }
 </style>
 </head>
 <body>
   <div id="activeView" style="display:${isActive ? "block" : "none"}">
     <div class="header" id="headerText">ATG Target</div>
+    <div class="truth-row">
+      <span class="truth-label">Decision:</span>
+      <button class="truth-btn active" id="tvAuto" onclick="setTruth('')">Auto</button>
+      <button class="truth-btn" id="tvTrue" onclick="setTruth('True')">True</button>
+      <button class="truth-btn" id="tvFalse" onclick="setTruth('False')">False</button>
+    </div>
     <div class="info">Click underlined variables in the editor to select them</div>
     <div id="varList"></div>
     <div class="actions">
@@ -773,35 +903,107 @@ export class ATGSidebarViewProvider implements vscode.WebviewViewProvider {
       badge.textContent = v.displayType || v.kind || '?';
       row.appendChild(badge);
 
-      if (v.kind === 'enum' && v.enumValues && v.enumValues.length > 0) {
-        const sel = document.createElement('select');
-        sel.innerHTML = '<option value="">--</option>' +
-          v.enumValues.map(e => '<option value="'+e+'"'+(v.value===e?' selected':'')+'>'+e+'</option>').join('');
-        sel.onchange = () => vsc.postMessage({command:'updateValue', path: v.path, value: sel.value});
-        row.appendChild(sel);
-      } else if (v.kind === 'bool') {
-        const sel = document.createElement('select');
-        sel.innerHTML = '<option value="">--</option><option value="true"'+(v.value==='true'?' selected':'')+'>true</option><option value="false"'+(v.value==='false'?' selected':'')+'>false</option>';
-        sel.onchange = () => vsc.postMessage({command:'updateValue', path: v.path, value: sel.value});
-        row.appendChild(sel);
+      if (v.kind === 'array' && v.entries) {
+        // Array: no inline input, just the remove button on the header row
+        const rm = document.createElement('button');
+        rm.className = 'rm';
+        rm.textContent = '\\u00d7';
+        rm.title = 'Remove ' + v.path;
+        rm.onclick = () => vsc.postMessage({command:'removeVariable', path: v.path});
+        row.appendChild(rm);
+        el.appendChild(row);
+
+        // Render index/value entry rows below
+        const entriesDiv = document.createElement('div');
+        entriesDiv.className = 'arr-entries';
+        v.entries.forEach((entry, ei) => {
+          const entryRow = document.createElement('div');
+          entryRow.className = 'arr-entry';
+
+          const lbl = document.createElement('span');
+          lbl.className = 'idx-label';
+          lbl.textContent = v.path + '[';
+          entryRow.appendChild(lbl);
+
+          const idxInp = document.createElement('input');
+          idxInp.className = 'idx-input';
+          idxInp.type = 'text';
+          idxInp.value = entry.index || '';
+          idxInp.placeholder = 'idx';
+          idxInp.oninput = () => vsc.postMessage({command:'updateArrayEntry', path: v.path, entryIndex: ei, field: 'index', fieldValue: idxInp.value});
+          entryRow.appendChild(idxInp);
+
+          const lbl2 = document.createElement('span');
+          lbl2.className = 'idx-label';
+          lbl2.textContent = '] =';
+          entryRow.appendChild(lbl2);
+
+          const valInp = document.createElement('input');
+          valInp.className = 'val-input';
+          valInp.type = 'text';
+          valInp.value = entry.value || '';
+          valInp.placeholder = 'value';
+          valInp.oninput = () => vsc.postMessage({command:'updateArrayEntry', path: v.path, entryIndex: ei, field: 'value', fieldValue: valInp.value});
+          entryRow.appendChild(valInp);
+
+          const erm = document.createElement('button');
+          erm.className = 'rm';
+          erm.textContent = '\\u00d7';
+          erm.title = 'Remove entry';
+          erm.onclick = () => vsc.postMessage({command:'removeArrayEntry', path: v.path, entryIndex: ei});
+          entryRow.appendChild(erm);
+
+          entriesDiv.appendChild(entryRow);
+        });
+
+        const addBtn = document.createElement('button');
+        addBtn.className = 'add-entry';
+        addBtn.textContent = '+ index';
+        addBtn.onclick = () => vsc.postMessage({command:'addArrayEntry', path: v.path});
+        entriesDiv.appendChild(addBtn);
+
+        el.appendChild(entriesDiv);
       } else {
-        const inp = document.createElement('input');
-        inp.type = 'text';
-        inp.value = v.value || '';
-        inp.placeholder = v.displayType || 'value';
-        inp.oninput = () => vsc.postMessage({command:'updateValue', path: v.path, value: inp.value});
-        row.appendChild(inp);
+        if (v.kind === 'enum' && v.enumValues && v.enumValues.length > 0) {
+          const sel = document.createElement('select');
+          sel.innerHTML = '<option value="">--</option>' +
+            v.enumValues.map(e => '<option value="'+e+'"'+(v.value===e?' selected':'')+'>'+e+'</option>').join('');
+          sel.onchange = () => vsc.postMessage({command:'updateValue', path: v.path, value: sel.value});
+          row.appendChild(sel);
+        } else if (v.kind === 'bool') {
+          const sel = document.createElement('select');
+          sel.innerHTML = '<option value="">--</option><option value="true"'+(v.value==='true'?' selected':'')+'>true</option><option value="false"'+(v.value==='false'?' selected':'')+'>false</option>';
+          sel.onchange = () => vsc.postMessage({command:'updateValue', path: v.path, value: sel.value});
+          row.appendChild(sel);
+        } else {
+          const inp = document.createElement('input');
+          inp.type = 'text';
+          inp.value = v.value || '';
+          inp.placeholder = v.displayType || 'value';
+          inp.oninput = () => vsc.postMessage({command:'updateValue', path: v.path, value: inp.value});
+          row.appendChild(inp);
+        }
+
+        const rm = document.createElement('button');
+        rm.className = 'rm';
+        rm.textContent = '\\u00d7';
+        rm.title = 'Remove ' + v.path;
+        rm.onclick = () => vsc.postMessage({command:'removeVariable', path: v.path});
+        row.appendChild(rm);
+
+        el.appendChild(row);
       }
-
-      const rm = document.createElement('button');
-      rm.className = 'rm';
-      rm.textContent = '\\u00d7';
-      rm.title = 'Remove ' + v.path;
-      rm.onclick = () => vsc.postMessage({command:'removeVariable', path: v.path});
-      row.appendChild(rm);
-
-      el.appendChild(row);
     });
+  }
+
+  function setTruth(val) {
+    vsc.postMessage({command:'setTruthValue', value: val});
+  }
+
+  function updateTruthButtons(val) {
+    document.getElementById('tvAuto').className = 'truth-btn' + (val === '' ? ' active' : '');
+    document.getElementById('tvTrue').className = 'truth-btn' + (val === 'True' ? ' active' : '');
+    document.getElementById('tvFalse').className = 'truth-btn' + (val === 'False' ? ' active' : '');
   }
 
   window.addEventListener('message', e => {
@@ -810,6 +1012,7 @@ export class ATGSidebarViewProvider implements vscode.WebviewViewProvider {
       document.getElementById('activeView').style.display = msg.isActive ? 'block' : 'none';
       document.getElementById('inactiveView').style.display = msg.isActive ? 'none' : 'block';
       document.getElementById('headerText').textContent = 'ATG Target: ' + (msg.fileName || '') + ':' + (msg.targetLine || '');
+      updateTruthButtons(msg.truthValue || '');
       renderVarList(msg.vars);
     }
   });

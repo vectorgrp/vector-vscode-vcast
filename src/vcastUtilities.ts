@@ -890,7 +890,8 @@ export async function loadATGLineTest(
   sourceFile: string,
   lineNumber: number,
   enviroPath: string,
-  variableValues: any
+  variableValues: any,
+  truthValue: "True" | "False" | "" = ""
 ): Promise<void> {
   const enclosingDirectory = path.dirname(enviroPath);
   const timeStamp = Date.now().toString();
@@ -899,7 +900,14 @@ export async function loadATGLineTest(
     `vcast-${timeStamp}.tst`
   );
   if (enviroPath) {
-    await getATGLineTest(lineNumber, tempScriptPath, enviroPath, variableValues);
+    await getATGLineTest(
+      lineNumber,
+      tempScriptPath,
+      enviroPath,
+      variableValues,
+      truthValue,
+      sourceFile
+    );
   } else {
     vectorMessage(`No Environment found for ${sourceFile}`);
   }
@@ -918,7 +926,9 @@ export function getATGLineTestCommand(
   scriptPath: string,
   lineNumber: number,
   enviroPath: string,
-  variableValues: any
+  variableValues: any,
+  truthValue: "True" | "False" | "" = "",
+  sourceFile: string = ""
 ) {
   const varValueCommand = buildVarStringSimple(variableValues);
 
@@ -969,6 +979,12 @@ export function getATGLineTestCommand(
     }
   }
 
-  const commandToRun = `cd ${enviroPath} && ${atgPathEnv}${llmEnvStr}VCAST_ATG_LLM_PATHS=1 VCAST_ATG_NODE_MAPPING=1 VCAST_ATG_TARGETED_LINE=${lineNumber} VCAST_ATG_TARGETED_VALUES="${varValueCommand}" ${atgCommandToUse} -v ${scriptPath}`;
+  const targetedLine = truthValue
+    ? `${lineNumber}:${truthValue}`
+    : `${lineNumber}`;
+  const targetedFileEnv = sourceFile
+    ? `VCAST_ATG_TARGETED_FILE="${path.basename(sourceFile)}" `
+    : "";
+  const commandToRun = `cd ${enviroPath} && ${atgPathEnv}${llmEnvStr}VCAST_ATG_LLM_PATHS=1 VCAST_ATG_NODE_MAPPING=1 VCAST_ATG_TARGETED_LINE=${targetedLine} ${targetedFileEnv}VCAST_ATG_TARGETED_VALUES="${varValueCommand}" ${atgCommandToUse} -v ${scriptPath}`;
   return commandToRun;
 }

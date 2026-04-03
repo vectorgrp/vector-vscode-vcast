@@ -1048,13 +1048,17 @@ export async function getATGLineTest(
   lineNumber: number,
   tstScriptPath: string,
   enviroPath: string,
-  variableValues: any
+  variableValues: any,
+  truthValue: "True" | "False" | "" = "",
+  sourceFile: string = ""
 ): Promise<void> {
   const commandToRun = getATGLineTestCommand(
     tstScriptPath,
     lineNumber,
     enviroPath,
-    variableValues
+    variableValues,
+    truthValue,
+    sourceFile
   );
   const cwd = enviroPath;
   try {
