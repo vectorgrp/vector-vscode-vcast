@@ -2,6 +2,25 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+
+## [1.0.30] - 2026-03-24
+
+### Added
+- Added setting to allow equirements-driven test generation without passing of function definitions (for blackbox-style testing)
+- Added new advanced LLM provider for use with Azure APIM
+- Reorganized LLM providers (into common and advanced/uncommon)
+
+## [1.0.29] - 2026-02-25
+
+### Added
+- Added setting to allow toggling UUT stubbing for generated requirements-driven tests
+
+## [1.0.28] - 2026-01-27
+
+### Added
+- Added possibility to open up multiple workdpace folders
+- Added Button to open up a Source File under Test from the Testing Pane
+
 ## [1.0.27] - 2025-12-15
 
 ### Bug fixes

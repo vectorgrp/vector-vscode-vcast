@@ -378,6 +378,8 @@ export async function generateTestsFromRequirements(
 
   const noTestExamples = config.get<boolean>("noTestExamples", false);
   const reorder = config.get<boolean>("reorder", true);
+  const funcDefs = config.get<boolean>("functionDefinitions", true);
+  const allowUUTStubs = config.get<boolean>("enableUutStubbing", true);
 
   const retries = config.get<number>("retries", 2);
   if (retries < 1) {
@@ -403,7 +405,9 @@ export async function generateTestsFromRequirements(
     "--batched",
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
     ...(noTestExamples ? ["--no-test-examples"] : []),
-    ...(!reorder ? ["--no-reorder"] : []),
+    ...(reorder ? [] : ["--no-reorder"]),
+    ...(funcDefs ? [] : ["--no-func-defs"]),
+    ...(allowUUTStubs ? [] : ["--no-allow-uut-stubs"]),
     "--allow-partial",
     "--json-events",
     ...(enableRequirementKeys ? ["--requirement-keys"] : []),

@@ -636,7 +636,9 @@ function getProjectDataFromPython(projectDirectoryPath: string): any {
 
 // Get Environment Data ---------------------------------------------------------------
 // Server logic is in a separate function below
-export async function getDataForEnvironment(enviroPath: string): Promise<any> {
+export async function getDataForEnvironmentFromAPI(
+  enviroPath: string
+): Promise<any> {
   // what we get back is a JSON formatted string (if the command works)
   // that has two sub-fields: testData, and unitData
   vectorMessage("Processing environment data for: " + enviroPath);
@@ -708,7 +710,15 @@ export async function getWorkspaceEnvDataVPython(
   );
   let jsonData = getJsonDataFromTestInterface(commandToRun, workspaceDir);
 
-  vectorMessage(`Building environments data for workspace: ${workspaceDir}`);
+  if (jsonData == null) {
+    vectorMessage(
+      `Failed to retrieve environment data for workspace folder: "${workspaceDir}". ` +
+        `The vpython command returned no data (possibly missing VectorCAST installation, ` +
+        `invalid environment, or a vpython execution error).`
+    );
+  } else {
+    vectorMessage(`Building environments data for workspace: ${workspaceDir}`);
+  }
 
   return jsonData;
 }
