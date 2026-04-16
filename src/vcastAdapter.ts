@@ -1052,7 +1052,7 @@ export async function getATGLineTest(
   truthValue: "True" | "False" | "" = "",
   sourceFile: string = ""
 ): Promise<void> {
-  const commandToRun = getATGLineTestCommand(
+  const { command: commandToRun, envVars } = getATGLineTestCommand(
     tstScriptPath,
     lineNumber,
     enviroPath,
@@ -1062,7 +1062,7 @@ export async function getATGLineTest(
   );
   const cwd = enviroPath;
   try {
-    await executeATGLineForScript(commandToRun, cwd, enviroPath, tstScriptPath);
+    await executeATGLineForScript(commandToRun, cwd, enviroPath, tstScriptPath, envVars);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     vectorMessage(`getATGLineTest failed: ${msg}`);

@@ -922,6 +922,11 @@ function buildVarStringSimple(pairs: { name: any; value: any }[]) {
     .join(";");
 }
 
+export interface ATGLineTestCommand {
+  command: string;
+  envVars: Record<string, string>;
+}
+
 export function getATGLineTestCommand(
   scriptPath: string,
   lineNumber: number,
@@ -929,16 +934,20 @@ export function getATGLineTestCommand(
   variableValues: any,
   truthValue: "True" | "False" | "" = "",
   sourceFile: string = ""
-) {
+): ATGLineTestCommand {
   const varValueCommand = buildVarStringSimple(variableValues);
 
   // Use the VS Code setting if set, otherwise rely on the user's VCAST_ATG_PATH env var
   const atgPathSetting = vscode.workspace
     .getConfiguration("vectorcastTestExplorer")
     .get<string>("atgPath", "");
-  const atgPathEnv = atgPathSetting
-    ? `VCAST_ATG_PATH=${atgPathSetting} `
-    : "";
+
+  // Build env vars object for cross-platform compatibility
+  const envVars: Record<string, string> = {};
+
+  if (atgPathSetting) {
+    envVars["VCAST_ATG_PATH"] = atgPathSetting;
+  }
 
   // Build LLM provider env vars from reqs2x settings
   const reqs2xConfig = vscode.workspace.getConfiguration(
@@ -960,6 +969,7 @@ export function getATGLineTestCommand(
       envVar: "VCAST_REQS2X_AZURE_OPENAI_MODEL_NAME",
     },
     { setting: "openai.apiKey", envVar: "VCAST_REQS2X_OPENAI_API_KEY" },
+    { setting: "openai.baseUrl", envVar: "VCAST_REQS2X_OPENAI_BASE_URL" },
     { setting: "openai.modelName", envVar: "VCAST_REQS2X_OPENAI_MODEL_NAME" },
     {
       setting: "anthropic.apiKey",
@@ -971,20 +981,43 @@ export function getATGLineTestCommand(
     },
   ];
 
-  let llmEnvStr = "";
   for (const pair of llmEnvPairs) {
-    const val = reqs2xConfig.get<string>(pair.setting, "");
+    const inspected = reqs2xConfig.inspect<string>(pair.setting);
+    // Only include values explicitly set by the user, not package.json defaults
+    const val =
+      inspected?.workspaceFolderValue ??
+      inspected?.workspaceValue ??
+      inspected?.globalValue ??
+      "";
     if (val) {
-      llmEnvStr += `${pair.envVar}="${val}" `;
+      envVars[pair.envVar] = val;
+    }
+  }
+
+  // If any Azure env vars were explicitly set, include the API version
+  // (which has a package.json default) so the provider has a complete config
+  const hasAzureVars = Object.keys(envVars).some(
+    (k) => k.startsWith("VCAST_REQS2X_AZURE_") && k !== "VCAST_REQS2X_AZURE_OPENAI_API_VERSION"
+  );
+  if (hasAzureVars && !envVars["VCAST_REQS2X_AZURE_OPENAI_API_VERSION"]) {
+    const apiVersion = reqs2xConfig.get<string>("azure.apiVersion", "");
+    if (apiVersion) {
+      envVars["VCAST_REQS2X_AZURE_OPENAI_API_VERSION"] = apiVersion;
     }
   }
 
   const targetedLine = truthValue
     ? `${lineNumber}:${truthValue}`
     : `${lineNumber}`;
-  const targetedFileEnv = sourceFile
-    ? `VCAST_ATG_TARGETED_FILE="${path.basename(sourceFile)}" `
-    : "";
-  const commandToRun = `cd ${enviroPath} && ${atgPathEnv}${llmEnvStr}VCAST_ATG_LLM_PATHS=1 VCAST_ATG_NODE_MAPPING=1 VCAST_ATG_TARGETED_LINE=${targetedLine} ${targetedFileEnv}VCAST_ATG_TARGETED_VALUES="${varValueCommand}" ${atgCommandToUse} -v ${scriptPath}`;
-  return commandToRun;
+
+  envVars["VCAST_ATG_LLM_PATHS"] = "1";
+  envVars["VCAST_ATG_NODE_MAPPING"] = "1";
+  envVars["VCAST_ATG_TARGETED_LINE"] = targetedLine;
+  if (sourceFile) {
+    envVars["VCAST_ATG_TARGETED_FILE"] = path.basename(sourceFile);
+  }
+  envVars["VCAST_ATG_TARGETED_VALUES"] = varValueCommand;
+
+  const commandToRun = `${atgCommandToUse} -v ${scriptPath}`;
+  return { command: commandToRun, envVars };
 }

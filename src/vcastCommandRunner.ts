@@ -622,7 +622,8 @@ export async function executeATGLineForScript(
   command: string,
   cwd: string,
   enviroPath: string,
-  scriptPath: string
+  scriptPath: string,
+  envVars: Record<string, string> = {}
 ): Promise<void> {
   await vscode.window.withProgress(
     {
@@ -633,7 +634,8 @@ export async function executeATGLineForScript(
     async (progress, token) => {
       progress.report({ increment: 0 });
       vectorMessage("-".repeat(60));
-      vectorMessage(`Executing: ${command}`);
+      const envVarStr = Object.entries(envVars).map(([k, v]) => `${k}=${v}`).join(" ");
+      vectorMessage(`Executing: ${envVarStr ? envVarStr + " " : ""}${command}`);
       vectorMessage(`cwd: ${cwd}`);
       vectorMessage("-".repeat(60));
 
@@ -641,7 +643,7 @@ export async function executeATGLineForScript(
         cwd,
         shell: true,
         windowsHide: true,
-        env: process.env,
+        env: { ...process.env, ...envVars },
       });
 
       let stdoutBuffer = "";
