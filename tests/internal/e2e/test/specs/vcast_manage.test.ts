@@ -218,6 +218,11 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("testing creating second project 'Banana'", async () => {
     await updateTestID();
+    // Force the bottom panel into existence via keyboard shortcut
+    // bottomBar.toggle() fails if the panel DOM element was never rendered
+    await browser.keys(["Control", "j"]);
+    await browser.pause(300);
+
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
