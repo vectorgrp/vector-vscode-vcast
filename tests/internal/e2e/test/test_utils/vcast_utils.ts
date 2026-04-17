@@ -1875,6 +1875,8 @@ export async function insertStringIntoAutocompletionInput(
   if (shouldTabToCreate) {
     await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
+    await browser.keys(["Tab"]);
     await browser.keys(["Enter"]);
     return true;
   } else {
