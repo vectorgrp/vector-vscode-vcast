@@ -611,7 +611,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // CLose Report again
     await webview.close();
-    await editorView.closeEditor("VectorCAST Report", 1);
     await workbench.getEditorView().closeAllEditors();
   });
 
