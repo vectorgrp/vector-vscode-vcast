@@ -46,11 +46,11 @@
     "commands": [
       {
         "command": "vectorcastTestExplorer.createNewProject",
-        "title": "VectorCAST: Create New Project"
+        "title": "Create New Project"
       },
       {
         "command": "vectorcastTestExplorer.createNewCFG",
-        "title": "Create new Compiler in Project"
+        "title": "Create new CFG"
       },
       {
         "command": "vectorcastTestExplorer.configure",

@@ -1348,5 +1348,6 @@ export async function createNewCFGFile(
       );
     }
   }
+  vectorMessage(`CCAST_.CFG created in ${path.dirname(compilerPath)}`);
   return compilerPath;
 }

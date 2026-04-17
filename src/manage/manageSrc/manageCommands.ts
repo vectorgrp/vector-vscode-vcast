@@ -431,6 +431,7 @@ export async function addCompilerToProject(
   );
 
   await refreshAllExtensionData();
+  vectorMessage(`${pathToCFG} has been added into project ${projectName}`);
 }
 
 /**

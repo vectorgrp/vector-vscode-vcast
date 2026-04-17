@@ -96,18 +96,29 @@ describe("vTypeCheck VS Code Extension", () => {
     await notificationsCenter.clearAllNotifications();
 
     console.log("Create new Compiler in Project");
-    await executeContextMenuAction(
-      0,
-      "Test.vcm",
-      true,
-      "Create new Compiler in Project"
-    );
+    await executeContextMenuAction(0, "Test.vcm", true, "Create new CFG");
 
     console.log("Inserting Data to Webview");
     await insertStringIntoAutocompletionInput(
       "GNU Native_Automatic_C",
       "Compiler Name Input",
       true
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("CCAST_.CFG created in"),
+      { timeout: TIMEOUT }
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("has been added into project"),
+      { timeout: TIMEOUT }
     );
 
     console.log("Checking for existence of new Compiler");
