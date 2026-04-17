@@ -1878,6 +1878,17 @@ export async function insertStringIntoAutocompletionInput(
     await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
     await browser.keys(["Enter"]);
+    // Handle "CFG already exists" notification if it appears
+    console.log("Handling CFG overwrite notification");
+    const overwriteNotificationSelector =
+      "aria/VectorCAST Test Explorer (Extension)";
+    const pendingNotification = await $(overwriteNotificationSelector);
+    if (await pendingNotification.isExisting()) {
+      const notification = await $(overwriteNotificationSelector).$("..");
+      const yesAction = await notification.$("aria/Yes");
+      await yesAction.waitForClickable({ timeout: TIMEOUT });
+      await yesAction.click();
+    }
     return true;
   } else {
     // Dismiss suggestions / blur

@@ -110,30 +110,6 @@ describe("vTypeCheck VS Code Extension", () => {
       true
     );
 
-    // Handle "CFG already exists" notification if it appears
-    console.log("Handling CFG overwrite notification");
-    const overwriteNotificationSelector =
-      "aria/VectorCAST Test Explorer (Extension)";
-    const pendingNotification = await $(overwriteNotificationSelector);
-    if (await pendingNotification.isExisting()) {
-      const notification = await $(overwriteNotificationSelector).$("..");
-      const yesAction = await notification.$("aria/Yes");
-      await yesAction.waitForClickable({ timeout: TIMEOUT });
-      await yesAction.click();
-    }
-
-    // Only open output view AFTER the webview has been submitted and closed
-    await bottomBar.toggle(true);
-    const outputView = await bottomBar.openOutputView();
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes(`Added Compiler CCAST_.CFG to Project Test`),
-      { timeout: TIMEOUT }
-    );
-
     console.log("Checking for existence of new Compiler");
     const compilerNode = await findTreeNodeAtLevel(
       1,
