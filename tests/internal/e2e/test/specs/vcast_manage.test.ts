@@ -245,6 +245,15 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(["Tab"]);
     await browser.keys(["Enter"]);
 
+    // Wait for the webview to close before accessing the output panel
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length === 0,
+      {
+        timeout: TIMEOUT,
+        timeoutMsg: "Webview did not close after form submission",
+      }
+    );
+
     console.log("Verifying Coded Tests Support is set to True");
     await browser.waitUntil(
       async () =>
