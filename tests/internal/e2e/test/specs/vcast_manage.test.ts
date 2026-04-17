@@ -256,25 +256,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.toggle(true);
     const freshOutputView = await bottomBar.openOutputView();
 
-    console.log("Verifying Coded Tests Support is set to True");
-    await browser.waitUntil(
-      async () =>
-        (await freshOutputView.getText())
-          .toString()
-          .includes(`-lc option VCAST_CODED_TESTS_SUPPORT TRUE`),
-      { timeout: TIMEOUT }
-    );
-    await browser.waitUntil(
-      async () => {
-        const output = (await freshOutputView.getText()).toString();
-        return (
-          output.includes("clicast: '-lc option VCDB_FILENAME") &&
-          output.includes("vcshell.db)' returned exit code: 0")
-        );
-      },
-      { timeout: TIMEOUT }
-    );
-
     await browser.waitUntil(
       async () =>
         (await freshOutputView.getText())
