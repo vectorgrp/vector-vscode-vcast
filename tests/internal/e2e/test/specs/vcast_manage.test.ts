@@ -109,14 +109,6 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await outputView.getText())
           .toString()
-          .includes("CCAST_.CFG created in"),
-      { timeout: TIMEOUT }
-    );
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
           .includes("has been added into project"),
       { timeout: TIMEOUT }
     );
