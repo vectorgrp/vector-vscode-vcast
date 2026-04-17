@@ -256,6 +256,9 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     );
 
+    // Close settings editor so the output panel is accessible in the next test
+    await workbench.getEditorView().closeAllEditors();
+
     // Re-open the bottom bar and get a fresh output view reference
     // The old reference is stale after the webview took focus
     await bottomBar.toggle(true);
