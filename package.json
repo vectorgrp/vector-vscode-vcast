@@ -50,7 +50,7 @@
       },
       {
         "command": "vectorcastTestExplorer.createNewCFG",
-        "title": "VectorCAST: Create New CFG"
+        "title": "Create new Compiler in Project"
       },
       {
         "command": "vectorcastTestExplorer.configure",
