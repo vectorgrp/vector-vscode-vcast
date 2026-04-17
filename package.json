@@ -109,11 +109,6 @@
         "title": "Add Testsuite to Compiler"
       },
       {
-        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
-        "category": "VectorCAST Test Explorer",
-        "title": "Create new Compiler in Project"
-      },
-      {
         "command": "vectorcastTestExplorer.addEnviroToProject",
         "category": "VectorCAST Test Explorer",
         "title": "Add existing Environment to Project"
@@ -770,10 +765,6 @@
           "when": "never"
         },
         {
-          "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
-          "when": "never"
-        },
-        {
           "command": "vectorcastTestExplorer.addEnviroToProject",
           "when": "never"
         },
@@ -982,7 +973,7 @@
         },
         {
           "command": "vectorcastTestExplorer.defaultVCShell",
-          "when": "vectorcastTestExplorer.configured && resourceExtname==.db",
+          "when": "vectorcastTestExplorer.configured && (resourceExtname==.db || resourceFilename==compile_commands.json)",
           "group": "2_workspace"
         },
         {
@@ -1087,12 +1078,12 @@
         "when": "testId =~ /\\.vcm$/"
       },
       {
-        "command": "vectorcastTestExplorer.addEnviroToProject",
+        "command": "vectorcastTestExplorer.createNewCFG", 
         "group": "vcast.project",
         "when": "testId =~ /\\.vcm$/"
       },
       {
-        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
+        "command": "vectorcastTestExplorer.addEnviroToProject",
         "group": "vcast.project",
         "when": "testId =~ /\\.vcm$/"
       },

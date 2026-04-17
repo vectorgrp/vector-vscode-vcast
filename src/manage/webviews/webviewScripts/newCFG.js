@@ -4,6 +4,23 @@ globalThis.addEventListener("DOMContentLoaded", () => {
   const compilers = globalThis.compilerData || [];
   const defaultDB = globalThis.defaultDB || "";
 
+  // Folder picker
+  const targetInput = document.getElementById("targetDirInput");
+  let targetDir = globalThis.defaultDir || "";
+  targetInput.value = targetDir;
+
+  document.getElementById("btnBrowse").addEventListener("click", () => {
+    vscode.postMessage({ command: "browseForDir" });
+  });
+
+  globalThis.addEventListener("message", (e) => {
+    if (e.data.command === "setTargetDir") {
+      targetDir = e.data.targetDir;
+      targetInput.value = targetDir;
+    }
+  });
+
+  // Compiler autocomplete
   const compInput = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");
 
@@ -11,12 +28,11 @@ globalThis.addEventListener("DOMContentLoaded", () => {
   const codedCheckbox = document.getElementById("enableCodedTests");
   const defaultCheckbox = document.getElementById("defaultCFG");
 
-  // DB Elements
+  // DB elements
   const dbOptionRow = document.getElementById("dbOptionRow");
   const dbPathLabel = document.getElementById("dbPathLabel");
   const dbCheckbox = document.getElementById("useDefaultDB");
 
-  // If extension injected defaults, apply them
   if (globalThis.enableCodedTests !== undefined && codedCheckbox) {
     codedCheckbox.checked = !!globalThis.enableCodedTests;
   }
@@ -24,17 +40,14 @@ globalThis.addEventListener("DOMContentLoaded", () => {
     defaultCheckbox.checked = !!globalThis.defaultCFG;
   }
 
-  // --- DB Toggle Visibility Logic ---
   if (defaultDB) {
-    // Setting exists and file exists -> Show the toggle
     dbOptionRow.style.display = "flex";
-    dbPathLabel.textContent = defaultDB; 
+    dbPathLabel.textContent = defaultDB;
   } else {
-    // Setting empty OR file not found -> Keep hidden
     dbOptionRow.style.display = "none";
   }
 
-  // Autocomplete setup
+  // Autocomplete
   let filtered = [], activeIndex = -1;
 
   function renderSuggestions() {
@@ -51,7 +64,6 @@ globalThis.addEventListener("DOMContentLoaded", () => {
       });
       suggestions.appendChild(li);
     });
-
     suggestions.classList.add("visible");
   }
 
@@ -69,7 +81,6 @@ globalThis.addEventListener("DOMContentLoaded", () => {
 
   compInput.addEventListener("keydown", e => {
     if (!filtered.length) return;
-
     if (e.key === "ArrowDown") {
       e.preventDefault();
       activeIndex = (activeIndex + 1) % filtered.length;
@@ -93,19 +104,17 @@ globalThis.addEventListener("DOMContentLoaded", () => {
     if (!e.target.closest(".autocomplete")) suggestions.classList.remove("visible");
   });
 
-  // Submit button
   document.getElementById("btnSubmit").addEventListener("click", () => {
     vscode.postMessage({
       command: "submit",
+      targetDir,
       compilerName: (compInput.value || "").trim(),
-      // Toggle Values
       enableCodedTests: !!(codedCheckbox && codedCheckbox.checked),
       defaultCFG: !!(defaultCheckbox && defaultCheckbox.checked),
-      useDefaultDB: !!(dbCheckbox && dbCheckbox.checked)
+      useDefaultDB: !!(dbCheckbox && dbCheckbox.checked),
     });
   });
 
-  // Cancel button
   document.getElementById("btnCancel").addEventListener("click", () => {
     vscode.postMessage({ command: "cancel" });
   });

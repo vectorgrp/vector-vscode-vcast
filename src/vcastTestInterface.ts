@@ -1241,19 +1241,13 @@ export async function updateCFGWithVCShellDatabase(
   const commandToRun = `${vcShellCommand}`;
   const fileName = path.basename(vcShellPath);
   const normalizedVCShellPath = normalizePath(vcShellPath);
-  const normalizedCFGDir = normalizePath(path.dirname(normalizedCFGPath));
 
   // Execute
   const infoMessage = `Loading VectorCAST database from ${fileName} and setting it as the active VCDB.`;
   await executeWithRealTimeEchoWithProgress(
     commandToRun,
-    [
-      "-lc",
-      "option",
-      "VCDB_FILENAME",
-      `$(readlink -f ${normalizedVCShellPath})`,
-    ],
-    normalizedCFGDir,
+    ["-lc", "option", "VCDB_FILENAME", `${normalizedVCShellPath}`],
+    normalizedCFGPath,
     infoMessage
   );
 }
@@ -1271,11 +1265,10 @@ export interface ConfigurationOptions {
  * @param configurationOptions Additional CFG options
  */
 export async function createNewCFGFile(
-  workspaceRoot: string,
+  targetDir: string,
   compilerTag: string,
   configurationOptions: ConfigurationOptions
 ) {
-  const unitTestLocation = getUnitTestLocationForPath(workspaceRoot);
   const vcDir = getVectorCastInstallationLocation();
   const commandToRun = path.join(vcDir, "clicast");
 
@@ -1288,7 +1281,7 @@ export async function createNewCFGFile(
   }
 
   // Check if a CFG already exists
-  const cfgFile = path.join(unitTestLocation, "CCAST_.CFG");
+  const cfgFile = path.join(targetDir, "CCAST_.CFG");
   if (fs.existsSync(cfgFile)) {
     const choice = await vscode.window.showInformationMessage(
       "A CFG file already exists at this location. Do you want to overwrite it?",
@@ -1305,10 +1298,7 @@ export async function createNewCFGFile(
   }
 
   // First create new CFG and return path
-  const compilerPath = await createNewCFGFromCompiler(
-    compilerTag,
-    unitTestLocation
-  );
+  const compilerPath = await createNewCFGFromCompiler(compilerTag, targetDir);
 
   // Set Coded Tests option
   let codedFlag = "FALSE";
@@ -1327,7 +1317,7 @@ export async function createNewCFGFile(
   await executeWithRealTimeEchoWithProgress(
     commandToRun,
     codedOptionArgs,
-    unitTestLocation,
+    targetDir,
     codedOptionInfoMessage
   );
 
@@ -1351,11 +1341,12 @@ export async function createNewCFGFile(
     const dbPath = settings.get<string>("databaseLocation");
 
     if (dbPath && fs.existsSync(dbPath)) {
-      await updateCFGWithVCShellDatabase(dbPath, compilerPath);
+      await updateCFGWithVCShellDatabase(dbPath, path.dirname(compilerPath));
     } else {
       vscode.window.showWarningMessage(
         "Could not set Default Database: The database file defined in settings could not be found."
       );
     }
   }
+  return compilerPath;
 }
