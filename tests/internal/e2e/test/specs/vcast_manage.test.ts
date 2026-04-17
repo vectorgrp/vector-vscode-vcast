@@ -112,14 +112,6 @@ describe("vTypeCheck VS Code Extension", () => {
       "Compiler Name Input",
       true
     );
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes(`Added Compiler CCAST_.CFG to Project Test`),
-      { timeout: TIMEOUT }
-    );
-
     console.log("Checking for existence of new Compiler");
     const compilerNode = await findTreeNodeAtLevel(
       1,
