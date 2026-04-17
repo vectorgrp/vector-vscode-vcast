@@ -218,11 +218,6 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("testing creating second project 'Banana'", async () => {
     await updateTestID();
-    // Force the bottom panel into existence via keyboard shortcut
-    // bottomBar.toggle() fails if the panel DOM element was never rendered
-    await browser.keys(["Control", "j"]);
-    await browser.pause(300);
-
     await bottomBar.toggle(true);
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
@@ -239,33 +234,25 @@ describe("vTypeCheck VS Code Extension", () => {
     await insertStringToInput("Banana", "Project Name Input");
     await browser.keys(["Tab"]);
     await browser.keys("GNU Native_Automatic_C++");
-    // Toggle "Enable Coded Tests" ON
     await browser.keys(["Tab"]);
     await browser.keys([" "]);
-    // Toggle "Set as Default CFG" ON
     await browser.keys(["Tab"]);
     await browser.keys([" "]);
-    // Toggle vcshell.db option ON
     await browser.keys(["Tab"]);
     await browser.keys([" "]);
     await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
     await browser.keys(["Enter"]);
 
-    // Wait for the webview to close
-    await browser.waitUntil(
-      async () => (await workbench.getAllWebviews()).length === 0,
-      {
-        timeout: TIMEOUT,
-        timeoutMsg: "Webview did not close after form submission",
-      }
-    );
+    // Switch back to the main VS Code frame — we're still inside the webview iframe
+    await browser.switchToFrame(null);
+    await browser.pause(500);
 
-    // Close settings editor so the output panel is accessible in the next test
-    await workbench.getEditorView().closeAllEditors();
+    // Force the bottom panel into existence via keyboard shortcut
+    // bottomBar.toggle() fails if the panel DOM element was never rendered
+    await browser.keys(["Control", "j"]);
+    await browser.pause(300);
 
-    // Re-open the bottom bar and get a fresh output view reference
-    // The old reference is stale after the webview took focus
     await bottomBar.toggle(true);
     const freshOutputView = await bottomBar.openOutputView();
 
@@ -277,7 +264,6 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes(`-lc option VCAST_CODED_TESTS_SUPPORT TRUE`),
       { timeout: TIMEOUT }
     );
-
     await browser.waitUntil(
       async () => {
         const output = (await freshOutputView.getText()).toString();
