@@ -1878,17 +1878,25 @@ export async function insertStringIntoAutocompletionInput(
     await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
     await browser.keys(["Enter"]);
+
+    // Exit the webview iframe context before interacting with VS Code UI
+    await webview.close();
+
     // Handle "CFG already exists" notification if it appears
     console.log("Handling CFG overwrite notification");
-    const overwriteNotificationSelector =
-      "aria/VectorCAST Test Explorer (Extension)";
-    const pendingNotification = await $(overwriteNotificationSelector);
-    if (await pendingNotification.isExisting()) {
+    try {
+      const overwriteNotificationSelector =
+        "aria/VectorCAST Test Explorer (Extension)";
+      const pendingNotification = await $(overwriteNotificationSelector);
+      await pendingNotification.waitForExist({ timeout: 3000 });
       const notification = await $(overwriteNotificationSelector).$("..");
       const yesAction = await notification.$("aria/Yes");
-      await yesAction.waitForClickable({ timeout: TIMEOUT });
+      await yesAction.waitForClickable({ timeout: 3000 });
       await yesAction.click();
+    } catch {
+      // Notification didn't appear, CFG didn't exist yet — that's fine
     }
+
     return true;
   } else {
     // Dismiss suggestions / blur
