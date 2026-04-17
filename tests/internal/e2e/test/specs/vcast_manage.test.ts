@@ -421,6 +421,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
     const initialWorkdir = process.env.INIT_CWD;
+    const workbench = await browser.getWorkbench();
+    await workbench.getEditorView().closeAllEditors();
 
     const testInputManage = path.join(
       initialWorkdir,
