@@ -104,7 +104,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Compiler Name Input",
       true
     );
-
+    const outputView = await bottomBar.openOutputView();
     await browser.waitUntil(
       async () =>
         (await outputView.getText())
