@@ -247,7 +247,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys(["Tab"]);
     await browser.keys(["Enter"]);
 
-    // Wait for the webview to close before accessing the output panel
+    // Wait for the webview to close
     await browser.waitUntil(
       async () => (await workbench.getAllWebviews()).length === 0,
       {
@@ -256,10 +256,15 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     );
 
+    // Re-open the bottom bar and get a fresh output view reference
+    // The old reference is stale after the webview took focus
+    await bottomBar.toggle(true);
+    const freshOutputView = await bottomBar.openOutputView();
+
     console.log("Verifying Coded Tests Support is set to True");
     await browser.waitUntil(
       async () =>
-        (await outputView.getText())
+        (await freshOutputView.getText())
           .toString()
           .includes(`-lc option VCAST_CODED_TESTS_SUPPORT TRUE`),
       { timeout: TIMEOUT }
@@ -267,7 +272,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await browser.waitUntil(
       async () => {
-        const output = (await outputView.getText()).toString();
+        const output = (await freshOutputView.getText()).toString();
         return (
           output.includes("clicast: '-lc option VCDB_FILENAME") &&
           output.includes("vcshell.db)' returned exit code: 0")
@@ -278,12 +283,11 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await browser.waitUntil(
       async () =>
-        (await outputView.getText())
+        (await freshOutputView.getText())
           .toString()
           .includes(`Processing project: Banana`),
       { timeout: TIMEOUT }
     );
-
     console.log("Checking existence of Banana Project");
     const projectNode = await findTreeNodeAtLevel(0, "Banana.vcm");
     const compilerNode = await findTreeNodeAtLevel(
