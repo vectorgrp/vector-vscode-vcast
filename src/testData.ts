@@ -1,6 +1,8 @@
 import { normalizePath, quote } from "./utilities";
+import * as vscode from "vscode";
 
 export interface environmentNodeDataType {
+  isVcp: boolean;
   projectPath: string;
   buildDirectory: string;
   isBuilt: boolean;
@@ -30,7 +32,91 @@ export function clearEnviroDataCache() {
   environmentDataCache.clear();
 }
 
+export let coverFilesNodeIDList: string[] = [];
+export let coverResultNodeIDList: string[] = [];
+export let coverInPlaceList: string[] = [];
+
 export const compoundOnlyString = " [compound only]";
+
+export interface vcpNodeType {
+  vcpNodeID: string;
+  projectPath: string;
+  projectName: string;
+  isVcpFile: boolean;
+  isVcpResult: boolean;
+  projectNodeID: string;
+  inPlace: boolean;
+  sourceFilePath?: string;
+}
+
+export const vcpNodeCache = new Map();
+
+export function createVcpNodeInCache(
+  vcpNodeID: string,
+  projectPath: string,
+  projectName: string,
+  projectNodeID: string,
+  isVcpFile: boolean,
+  isVcpResult: boolean,
+  inPlace: boolean,
+  sourceFilePath?: string
+) {
+  let vcpNode: vcpNodeType = {
+    vcpNodeID: vcpNodeID,
+    projectPath: projectPath,
+    projectName: projectName,
+    projectNodeID: projectNodeID,
+    isVcpFile: isVcpFile,
+    isVcpResult: isVcpResult,
+    inPlace: inPlace,
+    sourceFilePath: sourceFilePath,
+  };
+
+  // Prepare the lists for the package.json --> 1) All Files, 2) All Results, 3) All VCPs in place for coverage
+  vcpNodeCache.set(vcpNodeID, vcpNode);
+  if (vcpNode.isVcpFile && !coverFilesNodeIDList.includes(vcpNodeID)) {
+    coverFilesNodeIDList.push(vcpNodeID);
+  } else if (vcpNode.isVcpResult && !coverFilesNodeIDList.includes(vcpNodeID)) {
+    coverResultNodeIDList.push(vcpNodeID);
+  }
+
+  if (inPlace) {
+    if (!coverInPlaceList.includes(projectNodeID)) {
+      coverInPlaceList.push(projectNodeID);
+    }
+  } else {
+    // Remove it from the list if it was there before
+    coverInPlaceList = coverInPlaceList.filter((id) => id !== projectNodeID);
+  }
+
+  setCoverProjectContext();
+}
+
+export function removeVcpNodeFromCache(nodeID: string) {
+  vcpNodeCache.delete(nodeID);
+}
+
+export function getVcpTestNode(nodeID: string): vcpNodeType {
+  return vcpNodeCache.get(nodeID);
+}
+
+export function setCoverProjectContext() {
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.coverFilesNodeIDList",
+    coverFilesNodeIDList
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.coverResultNodeIDList",
+    coverResultNodeIDList
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.coverInPlaceList",
+    coverInPlaceList
+  );
+}
 
 export interface testNodeType {
   enviroNodeID: string;

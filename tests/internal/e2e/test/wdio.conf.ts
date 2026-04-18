@@ -335,6 +335,7 @@ export const config: Options.Testrunner = {
         async () => await buildEnvsWithSpecificReleases(initialWorkdir),
       ],
       ["MANAGE_TEST", async () => await testManage(initialWorkdir)],
+      ["C_COVERAGE", async () => await testCCoverage(initialWorkdir)],
     ]);
 
     // Determine the environment key
@@ -391,6 +392,40 @@ export const config: Options.Testrunner = {
      *                           INDIVIDUAL ENVIRONMENT SETUPS
      * ================================================================================================
      */
+
+    async function testCCoverage(initialWorkdir: string) {
+      const workFolder = path.join(initialWorkdir, "test", "vcastTutorial");
+      const testInputCCoverage = path.join(initialWorkdir, "test", "cCoverage");
+
+      await checkVPython();
+      clicastExecutablePath = await checkClicast();
+      process.env.CLICAST_PATH = clicastExecutablePath;
+
+      await prepareConfig(initialWorkdir, clicastExecutablePath);
+
+      // Create vcastTutorial directory
+      await mkdir(workFolder, { recursive: true });
+
+      // Copy the build script to vcastTutorial
+      const scriptSource = path.join(testInputCCoverage, "c_cov_example.sh");
+      const scriptDest = path.join(workFolder, "c_cov_example.sh");
+      const envSource = path.join(testInputCCoverage, "env.enc");
+      const envDest = path.join(workFolder, "env.enc");
+
+      if (process.platform === "win32") {
+        await executeCommand(`copy /y ${scriptSource} ${scriptDest}`);
+        await executeCommand(`copy /y ${envSource} ${envDest}`);
+      } else {
+        await executeCommand(`cp ${scriptSource} ${scriptDest}`);
+        await executeCommand(`cp ${envSource} ${envDest}`);
+      }
+
+      // Execute the coverage build script in vcastTutorial
+      const build_coverage = `cd ${workFolder} && bash ./c_cov_example.sh`;
+      await executeCommand(build_coverage);
+
+      // No copy needed - everything is put in place by the sh script
+    }
 
     async function testManage(initialWorkdir: string) {
       const testInputManage = path.join(initialWorkdir, "test", "manage");

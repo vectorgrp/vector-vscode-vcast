@@ -8,8 +8,9 @@
           <div class="return-to-top"><span class="pull-right"><a href="#TableOfContents">Top</a></span></div>
     {%- endif %}
       {%- for function in obj.functions -%}
-        {% if function.mcdcs %}
-        {% endif %}
+        {%- if show_subprogram and function.mcdcs -%}
+            <h3>{{function.name|e}}</h3>
+        {%- endif -%}
         {%- for mcdc in function.mcdcs %}
           {% if is_sfp -%}
           <div class="mcdc-condition {{mcdc.data.covered | coverage_status_to_class}}" id="mcdc_index_{{mcdc.data.id|e}}">

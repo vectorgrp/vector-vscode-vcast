@@ -1,10 +1,12 @@
 import argparse
 import pathlib
 import sys
+import os
 
 from vector.apps.DataAPI.unit_test_api import UnitTestApi
+from vector.apps.DataAPI.cover_api import CoverApi
 
-from pythonUtilities import monkeypatch_custom_css
+from pythonUtilities import monkeypatch_custom_css, get_api_context
 
 
 def parse_args():
@@ -32,15 +34,21 @@ def parse_args():
 def get_mcdc_lines(env):
     all_lines_with_data = {}
 
-    with UnitTestApi(env) as api:
-        for unit in api.Unit.filter():
-            for mcdc_dec in unit.cover_data.mcdc_decisions:
-                if not mcdc_dec.num_conditions:
-                    continue
-                if unit.name not in all_lines_with_data:
-                    all_lines_with_data[unit.name] = []
-                if mcdc_dec.start_line not in all_lines_with_data[unit.name]:
-                    all_lines_with_data[unit.name].append(mcdc_dec.start_line)
+    # Check if normal env or Cover --> Different API
+    ApiClass, entity_attr = get_api_context(env)
+    with ApiClass(env) as api:
+        sourceObjects = api.SourceFile.all()
+        for sourceObject in sourceObjects:
+            unit_file = sourceObject.cover_data.name
+            unit = os.path.splitext(unit_file)[0]
+            if sourceObject.is_instrumented:
+                for mcdc_dec in sourceObject.cover_data.mcdc_decisions:
+                    if not mcdc_dec.num_conditions:
+                        continue
+                    if unit not in all_lines_with_data:
+                        all_lines_with_data[unit] = []
+                    if mcdc_dec.start_line not in all_lines_with_data[unit]:
+                        all_lines_with_data[unit].append(mcdc_dec.start_line)
 
     return all_lines_with_data
 
@@ -63,16 +71,30 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
     # Patch get_option to use our CSS without setting the CFG option
     monkeypatch_custom_css(custom_css)
 
-    # Open-up the unit test API
-    with UnitTestApi(env) as api:
-        # Find and check for our unit
+    # We have to check whether env is the path to a "Normal" env or to a "Cover Project"
+    # and therefore use a different API
+    ApiClass, entity_attr = get_api_context(env)
+
+    # Normalize unit_filter so it works whether the caller passes
+    # "health_monitor" or "health_monitor.h"
+    unit_filter_base = os.path.splitext(unit_filter)[0]
+
+    with ApiClass(env) as api:
+        sourceObjects = api.SourceFile.all()
         unit_found = False
-        for unit in api.Unit.filter(name=unit_filter):
+        for sourceObject in sourceObjects:
+            # Find and check for our unit
+            unit_file = sourceObject.cover_data.name
+            unit_name = os.path.splitext(unit_file)[0]
+
+            if unit_name != unit_filter_base:
+                continue
+
             unit_found = True
 
             # Spin through all MCDC decisions looking for the one on our line
             line_found = False
-            for mcdc_dec in unit.cover_data.mcdc_decisions:
+            for mcdc_dec in sourceObject.cover_data.mcdc_decisions:
                 # If it has no conditions, then it generates an empty report
                 #
                 # TODO: do we want to just generate an empty MCDC report?
@@ -89,9 +111,16 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                 # Record in the API instance the line number we're interested
                 # in
                 #
-                # NOTE: custom/sections/mini_mcdc.py reads this attribute to
-                # know what to filter!
-                api.mcdc_filter = {"unit": unit_filter, "line": line_filter}
+                # NOTE: custom/sections/per_line_mcdc.py reads this attribute
+                # to know what to filter!
+                #
+                # If the decision lives in a different instrumented file
+                # (e.g. template instantiations across TUs), filter by
+                # line only so all instantiations are included.
+                if mcdc_dec.function.instrumented_file.name == unit_file:
+                    api.mcdc_filter = {"unit": unit_file, "line": line_filter}
+                else:
+                    api.mcdc_filter = {"line": line_filter}
 
                 # Generate our report
                 api.report(
@@ -102,14 +131,15 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                 )
                 break
 
-            # If we don't find our line, report an error
-            if not line_found:
-                raise RuntimeError(f"Could not find line {line}")
+            if unit_found:
+                # If we don't find our line, report an error
+                if not line_found:
+                    raise RuntimeError(f"Could not find line {line_filter} in unit {unit_filter}")
+                break
 
-        # If we don't find our unit, report an error
         if not unit_found:
             raise RuntimeError(
-                f"Could not find unit {unit} (units should not have extensions)"
+                f"Could not find unit {unit_filter}"
             )
 
 

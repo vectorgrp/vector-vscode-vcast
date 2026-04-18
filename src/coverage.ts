@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import path = require("node:path");
 import {
   DecorationRenderOptions,
   TextEditorDecorationType,
@@ -9,7 +11,7 @@ import {
   getListOfFilesWithCoverage,
 } from "./vcastTestInterface";
 
-import { getRangeOption, normalizePath } from "./utilities";
+import { fileIsVCPAndInPlace, getRangeOption, normalizePath } from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 import {
@@ -85,6 +87,8 @@ export function initializeCodeCoverageFeatures(
   };
 
   initializeReviewModeDecorations(context);
+
+  initCoverageFilterStatusBarItem(context);
 }
 
 // global decoration arrays
@@ -192,10 +196,14 @@ export async function updateCOVdecorations() {
       return;
     }
 
+    // We have to check if the source file is part of a Cover project AND
+    // whether it is instrumented in_place. If so, we do not want to show coverage.
+    const fileIsPartOfVCPAndInPlace = fileIsVCPAndInPlace(filePath);
+
     // this returns the cached coverage data for this file
     const coverageData = getCoverageDataForFile(filePath);
 
-    if (coverageData.hasCoverageData) {
+    if (coverageData.hasCoverageData && !fileIsPartOfVCPAndInPlace) {
       // there is coverage data and it matches the file checksum
       // Reset the global decoration arrays
       resetGlobalDecorations();
@@ -282,6 +290,7 @@ export async function updateCOVdecorations() {
   } else {
     // we get here for non-C/C++ files
     coverageStatusBarObject.hide();
+    hideCoverageFilterStatusBar();
   }
 }
 
@@ -495,4 +504,139 @@ export function updateReviewModeDecorations(): void {
     reviewUncoveredDecorationType,
     uncoveredDecorations
   );
+}
+
+// ── Types ────────────────────────────────────────────────────
+
+/**
+ * Shape of coverageFilter.json on disk:
+ *   { "<absSourceFilePath>": ["<enviroPath>", ...], ... }
+ *
+ * A source file that is present in the JSON has an explicit list of
+ * enabled enviros.  A source file that is absent is treated as
+ * "all enviros enabled" (the default).
+ */
+type CoverageFilterJson = Record<string, string[]>;
+
+// ── File-path helper ─────────────────────────────────────────
+
+/**
+ * Returns the path to the coverageFilter.json file for a given workspace root.
+ */
+export function getCoverageFilterJsonPath(workspaceRoot: string): string {
+  return path.join(workspaceRoot, ".vscode", "coverageFilter.json");
+}
+
+// ── Read / Write helpers ─────────────────────────────────────
+
+/**
+ * Reads and parses coverageFilter.json for the given workspace root.
+ * Returns an empty object if the file does not exist or is corrupt.
+ */
+export function readCoverageFilterFile(
+  workspaceRoot: string
+): CoverageFilterJson {
+  const filePath = getCoverageFilterJsonPath(workspaceRoot);
+  if (!fs.existsSync(filePath)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8")) as CoverageFilterJson;
+  } catch {
+    // Corrupt JSON – start fresh
+    return {};
+  }
+}
+
+/**
+ * Writes data back to coverageFilter.json for the given workspace root.
+ * Creates .vscode/ if it does not exist yet.
+ */
+export function writeCoverageFilterFile(
+  workspaceRoot: string,
+  data: CoverageFilterJson
+): void {
+  const vscodeDir = path.join(workspaceRoot, ".vscode");
+  if (!fs.existsSync(vscodeDir)) {
+    fs.mkdirSync(vscodeDir, { recursive: true });
+  }
+  fs.writeFileSync(
+    getCoverageFilterJsonPath(workspaceRoot),
+    JSON.stringify(data, null, 2),
+    "utf8"
+  );
+}
+
+// ── Public state accessor used by getCoverageDataForFile ─────
+
+/**
+ * Returns the set of enabled enviro paths for a given source file by reading
+ * the coverageFilter.json that belongs to that file's workspace folder.
+ *
+ * Returns undefined when no filter entry exists for this file, which means
+ * all enviros are enabled (the default behaviour).
+ */
+export function getEnabledEnvirosForFile(
+  filePath: string
+): Set<string> | undefined {
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(
+    vscode.Uri.file(filePath)
+  );
+  if (!workspaceFolder) return undefined;
+
+  const data = readCoverageFilterFile(workspaceFolder.uri.fsPath);
+  if (!(filePath in data)) {
+    // No entry yet – all enviros are enabled
+    return undefined;
+  }
+  return new Set(data[filePath]);
+}
+
+let coverageFilterStatusBarItem: vscode.StatusBarItem;
+
+export function initCoverageFilterStatusBarItem(
+  context: vscode.ExtensionContext
+): void {
+  coverageFilterStatusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    // Adjust the priority number so the item sits where you want it relative
+    // to other status bar entries (higher = further right).
+    99
+  );
+  coverageFilterStatusBarItem.color = new vscode.ThemeColor("charts.yellow");
+  coverageFilterStatusBarItem.tooltip =
+    "Not all environments are included in the displayed coverage.\n" +
+    "Click to configure the coverage filter.";
+  coverageFilterStatusBarItem.command =
+    "vectorcastTestExplorer.configureCoverageFilter";
+  context.subscriptions.push(coverageFilterStatusBarItem);
+}
+
+export function updateCoverageFilterStatusBar(
+  totalEnviros: number,
+  enabledEnviros: Set<string> | undefined
+): void {
+  if (enabledEnviros === undefined) {
+    // No filter set for this file – all enviros are shown, nothing to warn about
+    coverageFilterStatusBarItem.hide();
+    return;
+  }
+
+  // Count only enabled enviros that still exist (guards against stale JSON entries
+  // left over after an enviro has been deleted from the project)
+  const enabledCount = enabledEnviros.size;
+
+  if (enabledCount >= totalEnviros) {
+    // Every enviro is enabled – hide the warning
+    hideCoverageFilterStatusBar();
+    return;
+  }
+
+  // At least one enviro is filtered out – show the yellow warning
+  coverageFilterStatusBarItem.text = `$(warning) File Coverage: (${enabledCount}/${totalEnviros}) Environments / Projects`;
+  coverageFilterStatusBarItem.show();
+}
+
+export function hideCoverageFilterStatusBar() {
+  if (coverageFilterStatusBarItem) {
+    coverageFilterStatusBarItem.hide();
+  }
 }
