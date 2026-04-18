@@ -7,7 +7,7 @@ import {
   spawnWithVcastEnv,
   updateRequirementsAvailability,
 } from "./requirementsUtils";
-import { refreshAllExtensionData } from "../testPane";
+import { refreshAllExtensionData, updateTestPane } from "../testPane";
 import { loadTestScriptIntoEnvironment } from "../vcastAdapter";
 
 const path = require("path");
@@ -22,6 +22,7 @@ let CODE2REQS_EXECUTABLE_PATH: string;
 let REQS2TESTS_EXECUTABLE_PATH: string;
 let PANREQ_EXECUTABLE_PATH: string;
 
+export let TEST2CHECK_EXECUTABLE_PATH: string;
 export let LLM2CHECK_EXECUTABLE_PATH: string;
 
 // Add a new output channel for CLI operations
@@ -172,6 +173,10 @@ function setupReqs2XExecutablePaths(context: vscode.ExtensionContext): boolean {
   LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
     exeFilename("llm2check")
+  ).fsPath;
+  TEST2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("tests2check")
   ).fsPath;
 
   return true;
@@ -459,7 +464,7 @@ export async function generateTestsFromRequirements(
               `reqs2tests completed successfully with code ${code}`
             );
             await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
-            await refreshAllExtensionData();
+            await updateTestPane(enviroPath);
 
             vscode.window.showInformationMessage(
               "Successfully generated tests for the requirements!"

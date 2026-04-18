@@ -146,6 +146,8 @@ export function buildTestNodeForFunction(args: any): testNodeType | undefined {
         enviroName: unitData.enviroName,
         unitName: unitData.unitName,
         functionName: functionName,
+        requirements: "",
+        notes: "",
         testName: "",
         testFile: "",
         testStartLine: 0,

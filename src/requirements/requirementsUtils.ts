@@ -8,8 +8,18 @@ import {
   LLM2CHECK_EXECUTABLE_PATH,
   logCliError,
   logCliOperation,
+  TEST2CHECK_EXECUTABLE_PATH,
 } from "./requirementsOperations";
 import { makeEnviroNodeID } from "../testPane";
+import { dumpTestScriptFile } from "../vcastAdapter";
+import { convertTestScriptContents } from "../vcastUtilities";
+import { testNodeType } from "../testData";
+import {
+  enterReviewMode,
+  exitReviewMode,
+  updateDisplayedCoverage,
+} from "../coverage";
+import { getCoverageDataForFile } from "../vcastTestInterface";
 import { extractJson } from "../../src-common/commonUtilities";
 
 const path = require("path");
@@ -648,4 +658,547 @@ export function expandEnvVars(inputPath: string): string {
 
     return value;
   });
+}
+
+export interface RequirementData {
+  title: string;
+  description: string;
+  lineNumber: number;
+  importantLineStart: number;
+  importantLineEnd: number;
+  coverageStatus: string;
+  expectedLines: number[];
+  actualLines: number[];
+}
+
+// State Management
+export let activeHighlightDecoration: vscode.TextEditorDecorationType | null =
+  null;
+
+/**
+ * Wraps a single line of text into an array of lines, each <= maxWidth chars
+ */
+function wrapText(text: string, maxWidth: number): string[] {
+  if (text.length <= maxWidth) {
+    return [text];
+  }
+
+  const lines: string[] = [];
+  const words = text.split(" ");
+  let current = "";
+
+  for (const word of words) {
+    // Word itself is longer than maxWidth — hard break it
+    if (word.length > maxWidth) {
+      if (current) {
+        lines.push(current);
+        current = "";
+      }
+      let remaining = word;
+      while (remaining.length > maxWidth) {
+        lines.push(remaining.slice(0, maxWidth));
+        remaining = remaining.slice(maxWidth);
+      }
+      current = remaining;
+      continue;
+    }
+
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= maxWidth) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines;
+}
+
+/**
+ * Creates a formatted text box containing requirement information.
+ * Guarantees nothing escapes the box — title and description are both wrapped.
+ */
+export function createRequirementInfoBox(reqData: RequirementData): string {
+  const BOX_WIDTH = 66; // total inner width (between the ║ borders)
+  const PADDING = 2; // spaces on each side inside the border
+  const TEXT_WIDTH = BOX_WIDTH - PADDING * 2; // usable text width = 62
+
+  const topBorder = "╔" + "═".repeat(BOX_WIDTH) + "╗";
+  const midBorder = "╠" + "═".repeat(BOX_WIDTH) + "╣";
+  const bottomBorder = "╚" + "═".repeat(BOX_WIDTH) + "╝";
+  const divider = "║  " + "─".repeat(TEXT_WIDTH) + "  ║";
+
+  const formatLine = (text = ""): string => {
+    // Should never exceed TEXT_WIDTH after wrapping
+    const safe = text.length > TEXT_WIDTH ? text.slice(0, TEXT_WIDTH) : text;
+    return "║  " + safe.padEnd(TEXT_WIDTH) + "  ║";
+  };
+
+  // Wraps a block of text (may contain \n) and returns boxed lines
+  const formatBlock = (text: string): string[] => {
+    const lines: string[] = [];
+
+    for (const paragraph of text.split(/\r?\n/)) {
+      if (!paragraph.trim()) {
+        lines.push(formatLine());
+        continue;
+      }
+      for (const wrapped of wrapText(paragraph, TEXT_WIDTH)) {
+        lines.push(formatLine(wrapped));
+      }
+    }
+
+    return lines;
+  };
+
+  return [
+    "",
+    topBorder,
+    ...formatBlock(reqData.title),
+    midBorder,
+    formatLine("DESCRIPTION"),
+    divider,
+    ...formatBlock(reqData.description),
+    bottomBorder,
+    "",
+  ].join("\n");
+}
+
+/**
+ * Finds the line number containing the test name in the TST script
+ */
+export function findTestNameLine(tstContent: string, testName: string): number {
+  const lines = tstContent.split("\n");
+  const searchPattern = `TEST.NAME:${testName}`;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes(searchPattern)) {
+      return i;
+    }
+  }
+
+  return 0; // Default to top of file if not found
+}
+
+// Decoration Types for highlighted critical lines
+let activeUncoveredDecoration: vscode.TextEditorDecorationType | undefined;
+let activePartiallyCoveredDecoration:
+  | vscode.TextEditorDecorationType
+  | undefined;
+let activeCoveredDecoration: vscode.TextEditorDecorationType | undefined;
+
+/**
+ * Creates a decoration type for a given coverage state
+ */
+function createCoverageDecoration(
+  bgColor: string,
+  gutterColor: string
+): vscode.TextEditorDecorationType {
+  return vscode.window.createTextEditorDecorationType({
+    backgroundColor: bgColor,
+    isWholeLine: true,
+    before: {
+      contentText: "",
+      border: `4px solid ${gutterColor}`,
+      margin: "0 6px 0 0",
+    },
+  });
+}
+
+/**
+ * Converts a 1-based line number to a single-line vscode.Range
+ */
+function lineToRange(
+  document: vscode.TextDocument,
+  lineNumber: number
+): vscode.Range {
+  const line = lineNumber - 1; // Convert to 0-based
+  return new vscode.Range(
+    new vscode.Position(line, 0),
+    new vscode.Position(line, document.lineAt(line).text.length)
+  );
+}
+
+/**
+ * Highlights critical lines individually based on coverage status
+ */
+export function highlightCriticalLines(
+  editor: vscode.TextEditor,
+  document: vscode.TextDocument,
+  reqData: RequirementData,
+  sourceFilePath: string
+): void {
+  // Dispose all previous decorations via shared helper
+  disposeCriticalLineDecorations();
+
+  const coverageData = getCoverageDataForFile(sourceFilePath);
+
+  if (!coverageData?.hasCoverageData) {
+    return;
+  }
+
+  // --- Decoration types ---
+  activeUncoveredDecoration = createCoverageDecoration(
+    "rgba(243, 74, 51, 0.15)", // red bg
+    "#f34a33" // red gutter
+  );
+  activePartiallyCoveredDecoration = createCoverageDecoration(
+    "rgba(245, 166, 35, 0.15)", // orange/yellow bg
+    "#f5a623" // orange/yellow gutter
+  );
+  activeCoveredDecoration = createCoverageDecoration(
+    "rgba(87, 184, 89, 0.15)", // green bg
+    "#57b859" // green gutter
+  );
+
+  // Build a Set of critical line numbers for fast lookup
+  const criticalLines = new Set<number>();
+  for (
+    let line = reqData.importantLineStart;
+    line <= reqData.importantLineEnd;
+    line++
+  ) {
+    criticalLines.add(line);
+  }
+
+  // Bucket each critical line into its coverage category
+  const uncoveredSet = new Set(coverageData.uncovered);
+  const partiallyCoveredSet = new Set(coverageData.partiallyCovered);
+  const coveredSet = new Set(coverageData.covered);
+
+  const uncoveredRanges: vscode.Range[] = [];
+  const partiallyCoveredRanges: vscode.Range[] = [];
+  const coveredRanges: vscode.Range[] = [];
+
+  for (const line of criticalLines) {
+    // Guard: skip lines beyond the document
+    if (line > document.lineCount) {
+      continue;
+    }
+
+    const range = lineToRange(document, line);
+
+    if (uncoveredSet.has(line)) {
+      uncoveredRanges.push(range);
+    } else if (partiallyCoveredSet.has(line)) {
+      partiallyCoveredRanges.push(range);
+    } else if (coveredSet.has(line)) {
+      coveredRanges.push(range);
+    }
+    // Lines not present in any coverage array are left un-decorated
+  }
+
+  // Apply all three decoration sets in one pass
+  editor.setDecorations(activeUncoveredDecoration, uncoveredRanges);
+  editor.setDecorations(
+    activePartiallyCoveredDecoration,
+    partiallyCoveredRanges
+  );
+  editor.setDecorations(activeCoveredDecoration, coveredRanges);
+}
+
+/**
+ * Shows the requirement info box as a peek window
+ * Automatically clears highlights when the peek window is closed
+ */
+export async function showRequirementPeekBox(
+  sourceFileUri: vscode.Uri,
+  peekPosition: vscode.Position,
+  reqData: RequirementData,
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const virtualDocUri = vscode.Uri.parse("requirement-info:Requirement Info");
+  const infoBoxContent = createRequirementInfoBox(reqData);
+
+  // Create content provider for the virtual document
+  const provider = new (class implements vscode.TextDocumentContentProvider {
+    provideTextDocumentContent(): string {
+      return infoBoxContent;
+    }
+  })();
+
+  const providerDisposable =
+    vscode.workspace.registerTextDocumentContentProvider(
+      "requirement-info",
+      provider
+    );
+
+  await vscode.workspace.openTextDocument(virtualDocUri);
+
+  // Show peek window
+  await vscode.commands.executeCommand(
+    "editor.action.peekLocations",
+    sourceFileUri,
+    peekPosition,
+    [new vscode.Location(virtualDocUri, new vscode.Position(0, 0))],
+    "peek"
+  );
+
+  // Disable line numbers in peek window
+  setTimeout(() => {
+    for (const editor of vscode.window.visibleTextEditors) {
+      if (editor.document.uri.scheme === "requirement-info") {
+        editor.options = {
+          ...editor.options,
+          lineNumbers: vscode.TextEditorLineNumbersStyle.Off,
+        };
+      }
+    }
+  }, 0);
+
+  // Listen for when the peek window is closed and clear highlights + exit review mode
+  const disposable = vscode.window.onDidChangeVisibleTextEditors(
+    async (editors) => {
+      const peekWindowOpen = editors.some(
+        (editor) => editor.document.uri.scheme === "requirement-info"
+      );
+
+      if (!peekWindowOpen) {
+        // Clear ALL coverage highlight decorations
+        disposeCriticalLineDecorations();
+
+        // Also clear the legacy single decoration if somehow still set
+        if (activeHighlightDecoration) {
+          activeHighlightDecoration.dispose();
+          setActiveHighlightDecoration(null);
+        }
+
+        // Exit review mode and refresh normal coverage
+        await exitReviewMode();
+        updateDisplayedCoverage();
+
+        // Clean up this listener
+        disposable.dispose();
+      }
+    }
+  );
+  context.subscriptions.push(disposable);
+
+  // Clean up provider after peek window is shown
+  setTimeout(() => {
+    providerDisposable.dispose();
+  }, 1000);
+}
+
+/**
+ * Disposes all active critical line decorations (all three coverage states)
+ */
+export function disposeCriticalLineDecorations(): void {
+  activeUncoveredDecoration?.dispose();
+  activePartiallyCoveredDecoration?.dispose();
+  activeCoveredDecoration?.dispose();
+  activeUncoveredDecoration = undefined;
+  activePartiallyCoveredDecoration = undefined;
+  activeCoveredDecoration = undefined;
+}
+
+/**
+ * Opens the source file with requirement highlighting
+ */
+export async function openSourceFileWithHighlight(
+  sourceFilePath: string,
+  reqData: RequirementData,
+  context: vscode.ExtensionContext,
+  testName: string
+): Promise<void> {
+  const sourceFileUri = vscode.Uri.file(sourceFilePath);
+  const document = await vscode.workspace.openTextDocument(sourceFileUri);
+
+  // Position cursor near the requirement line
+  const peekPosition = new vscode.Position(
+    Math.max(0, reqData.lineNumber - 1),
+    0
+  );
+
+  // Open document
+  const editor = await vscode.window.showTextDocument(document, {
+    preview: false,
+    preserveFocus: false,
+    selection: new vscode.Range(peekPosition, peekPosition),
+  });
+
+  // Enter review mode BEFORE applying decorations
+  enterReviewMode(
+    testName,
+    reqData.expectedLines || [],
+    reqData.actualLines || [],
+    sourceFilePath
+  );
+
+  // Apply the green highlight to critical lines
+  highlightCriticalLines(editor, document, reqData, sourceFilePath);
+
+  // Show the peek box
+  await showRequirementPeekBox(sourceFileUri, peekPosition, reqData, context);
+
+  // Update coverage decorations to show review mode coverage
+  await updateDisplayedCoverage();
+}
+
+/**
+ * Opens the TST script and jumps to the test definition
+ */
+export async function openTstScriptAtTest(
+  testNode: testNodeType,
+  scriptPath: string
+): Promise<void> {
+  const commandStatus = await dumpTestScriptFile(testNode, scriptPath);
+
+  if (commandStatus.errorCode !== 0) {
+    return;
+  }
+
+  convertTestScriptContents(scriptPath);
+
+  const tstScriptUri = vscode.Uri.file(scriptPath);
+  const tstDocument = await vscode.workspace.openTextDocument(tstScriptUri);
+
+  // Find the test name line in the script
+  let targetLine = 0;
+  if (testNode.testName) {
+    const tstContent = tstDocument.getText();
+    targetLine = findTestNameLine(tstContent, testNode.testName);
+  }
+
+  // Open document and jump to test definition
+  const position = new vscode.Position(targetLine, 0);
+  const selection = new vscode.Range(position, position);
+
+  await vscode.window.showTextDocument(tstDocument, {
+    viewColumn: vscode.ViewColumn.Beside,
+    selection: selection,
+    preview: false,
+    preserveFocus: false,
+  });
+}
+
+export function setActiveHighlightDecoration(
+  decoration: vscode.TextEditorDecorationType | null
+): void {
+  activeHighlightDecoration = decoration;
+}
+
+/**
+ * Fetches the requirements Data for a specific Test
+ */
+export async function fetchRequirementCoverageData(
+  enviroPath: string,
+  envRGWPath: string,
+  testName: string,
+  unitName: string,
+  testNode: testNodeType,
+  functionStartLine: number = 0
+): Promise<RequirementData | null> {
+  return vscode.window.withProgress<RequirementData | null>(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: "Retrieving requirement coverage data",
+      cancellable: false,
+    },
+    async (progress) => {
+      progress.report({ message: "Running test2check…" });
+
+      const commandArgs = [
+        "-e",
+        enviroPath,
+        envRGWPath,
+        "-f",
+        testName,
+        "--json",
+      ];
+
+      try {
+        const process = await spawnWithVcastEnv(
+          TEST2CHECK_EXECUTABLE_PATH,
+          commandArgs
+        );
+
+        const stdoutData: string[] = [];
+        const stderrData: string[] = [];
+
+        process.stdout.on("data", (data) => {
+          stdoutData.push(data.toString());
+        });
+
+        process.stderr.on("data", (data) => {
+          stderrData.push(data.toString());
+          logCliError(`test2check: ${data.toString()}`);
+        });
+
+        await new Promise<void>((resolve, reject) => {
+          process.on("close", (code: number) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              reject(new Error(`test2check exited with code ${code}`));
+            }
+          });
+        });
+
+        progress.report({ message: "Processing coverage results…" });
+
+        const output = stdoutData.join("");
+        if (!output.trim()) return null;
+
+        const jsonData = JSON.parse(output);
+        if (!Array.isArray(jsonData) || jsonData.length === 0) return null;
+
+        if (jsonData.length > 1) {
+          vscode.window.showInformationMessage(
+            "This test is associated with multiple requirements. Coverage Review currently supports only one requirement per test."
+          );
+          return null;
+        }
+
+        const testResult = jsonData[0];
+        const expectedCoverage = testResult.expected_coverage || {};
+        const actualCoverage = testResult.actual_coverage || [];
+
+        const unitCoverage = actualCoverage.find((cov: any) => {
+          const covUnitBase = path.basename(cov.unit, path.extname(cov.unit));
+          return covUnitBase === unitName || cov.unit === unitName;
+        });
+
+        let expectedLines: number[] = [];
+        for (const funcKey in expectedCoverage) {
+          const funcCoverage = expectedCoverage[funcKey];
+          if (Array.isArray(funcCoverage)) {
+            const unitExpected = funcCoverage.find(
+              (cov: any) => cov.unit === unitName
+            );
+            if (unitExpected?.lines) {
+              expectedLines = unitExpected.lines;
+            }
+          }
+        }
+
+        const minLine = expectedLines.length ? Math.min(...expectedLines) : 0;
+        const maxLine = expectedLines.length ? Math.max(...expectedLines) : 0;
+
+        return {
+          title: testResult.name || testName,
+          description: `${testNode.notes}`,
+          lineNumber: functionStartLine,
+          // + 1 Because Critical LInes are 0 Indexed
+          importantLineStart: minLine + 1,
+          importantLineEnd: maxLine + 1,
+          coverageStatus: "covered",
+          expectedLines,
+          actualLines: unitCoverage?.lines || [],
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        vscode.window.showWarningMessage(
+          `Failed to get requirement data: ${msg}`
+        );
+        logCliError(msg);
+        return null;
+      }
+    }
+  );
 }

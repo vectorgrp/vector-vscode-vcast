@@ -68,6 +68,7 @@ import {
   setGlobalProjectIsOpenedChecker,
   setGlobalCompilerAndTestsuites,
   loadTestScriptButton,
+  runTests,
 } from "./testPane";
 
 import {
@@ -125,12 +126,17 @@ import {
 } from "./vcastInstallation";
 
 import {
+  activeHighlightDecoration,
+  setActiveHighlightDecoration,
   findRelevantRequirementGateway,
   generateRequirementsHtml,
+  openSourceFileWithHighlight,
+  openTstScriptAtTest,
   parseRequirementsFromFile,
   performLLMProviderUsableCheck,
   requirementsFileWatcher,
   updateRequirementsAvailability,
+  fetchRequirementCoverageData,
 } from "./requirements/requirementsUtils";
 
 import {
@@ -169,6 +175,7 @@ import {
 import fs = require("fs");
 import {
   compilerTagList,
+  findTestItemInController,
   getNonce,
   resolveWebviewBase,
   setCompilerList,
@@ -511,6 +518,19 @@ function configureExtension(context: vscode.ExtensionContext) {
           enviroPath,
           testNode.functionName || testNode.unitName || null
         );
+
+        // We need to execute the test and refresh the extension data so that the tests get the
+        // Reqs review button (see openReqsCoverageReview). On normal envs, after generating the tests,
+        // we fetch the data from the env but the tests still not seem to have the data.
+        // Executing them and refreshing the extension solves this.
+        const testItem = findTestItemInController(testNode.enviroNodeID);
+        if (testItem) {
+          const request = new vscode.TestRunRequest([testItem]);
+          await runTests(request, new vscode.CancellationTokenSource().token);
+        } else {
+          vectorMessage(`TestItem for ${testNode.enviroNodeID} not found`);
+        }
+        await refreshAllExtensionData();
       }
     }
   );
@@ -1311,6 +1331,107 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(openSourceFileFromTestpaneCommand);
+
+  let openReqsCoverageReview = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.openReqsCoverageReview",
+    async (args: any) => {
+      if (!args) return;
+
+      const testNode: testNodeType = getTestNode(args.id);
+      if (!testNode) {
+        vscode.window.showWarningMessage(
+          `Failed to retrieve node test data for ${args.id}. Aborting Test Review.`
+        );
+        return;
+      }
+
+      const { enviroPath, unitName, functionName } = testNode;
+      const envData = await getEnvironmentData(enviroPath);
+      const envRGWPath = findRelevantRequirementGateway(enviroPath);
+      const testName = testNode.testName;
+
+      if (!envData?.unitData || !envRGWPath || !testName) {
+        vscode.window.showWarningMessage(
+          "Failed to retrieve environment test data. Aborting Test Review."
+        );
+        return;
+      }
+
+      // Find the matching unit's source file
+      const matchingUnit = envData.unitData.find((unit: { path: string }) => {
+        if (!unit.path) return false;
+        const unitBaseName = path.basename(unit.path, path.extname(unit.path));
+        return unitBaseName === unitName;
+      });
+
+      if (!matchingUnit?.path) {
+        vscode.window.showWarningMessage(
+          `Could not find source file for unit: ${unitName}`
+        );
+        return;
+      }
+
+      // Determine the line number to open at
+      let lineNumber = 0;
+      if (functionName && matchingUnit.functionList) {
+        for (const func of matchingUnit.functionList) {
+          if (func.name === functionName && func.startLine !== undefined) {
+            lineNumber = func.startLine;
+            break;
+          }
+        }
+      }
+
+      const reqData = await fetchRequirementCoverageData(
+        enviroPath,
+        envRGWPath,
+        testName,
+        unitName,
+        testNode,
+        lineNumber
+      );
+
+      if (!reqData) {
+        vscode.window.showWarningMessage(
+          "Failed to retrieve requirements test data. Aborting Test Review."
+        );
+        return;
+      }
+
+      // Close sidebar for more screen space
+      await vscode.commands.executeCommand("workbench.action.closeSidebar");
+
+      // Open source file with requirement highlighting
+      await openSourceFileWithHighlight(
+        matchingUnit.path,
+        reqData,
+        context,
+        testName
+      );
+
+      // Open TST script beside source file
+      const scriptPath = testNode.enviroPath + ".tst";
+      await openTstScriptAtTest(testNode, scriptPath);
+
+      vscode.window.showWarningMessage(
+        `You are currently in Review Mode for the requirement test ${testName}. Only coverage for this test is shown. To exit Review Mode, close the requirement description box in the source file.`
+      );
+    }
+  );
+
+  let closeRequirementBoxes = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.closeRequirementBoxes",
+    () => {
+      if (activeHighlightDecoration) {
+        activeHighlightDecoration.dispose();
+        setActiveHighlightDecoration(null);
+      }
+    }
+  );
+
+  // Register commands
+  context.subscriptions.push(openReqsCoverageReview);
+  context.subscriptions.push(closeRequirementBoxes);
 
   let showRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.showRequirements",
