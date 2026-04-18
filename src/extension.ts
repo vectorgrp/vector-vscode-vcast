@@ -1570,7 +1570,6 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(getMCDCReportCommand);
 
-  // Command: vectorcastTestExplorer.openSourceFileFromTestpaneCommand
   let openSourceFileFromTestpaneCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
     async (args: any) => {
@@ -1579,10 +1578,11 @@ function configureExtension(context: vscode.ExtensionContext) {
       const fileID: string = args.id;
       const isVcpFile = fileID.endsWith("::file");
       let testNode: testNodeType | vcpNodeType;
-      // If it's a vcp file, we do not have additional info like function or unit, so we just open it up at line 0
+
+      // If it's a vcp file, we do not have additional info like function or unit, so we just open it at line 0
       if (isVcpFile) {
         testNode = getVcpTestNode(fileID);
-        const sourceFilePath = testNode.sourceFilePath;
+        const sourceFilePath = testNode?.sourceFilePath;
         if (!testNode || !sourceFilePath) {
           vscode.window.showErrorMessage(
             `Unable to open Source File for Node: ${fileID}`
@@ -1593,7 +1593,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         return;
       }
 
-      // If it's a unit test node, we can open up the source file more specifically
+      // Otherwise treat as a unit test node
       testNode = getTestNode(fileID);
       if (!testNode) {
         vscode.window.showErrorMessage(
@@ -1603,7 +1603,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       }
 
       const envData = await getEnvironmentData(testNode.enviroPath);
-      if (!envData.unitData) {
+      if (!envData?.unitData) {
         vscode.window.showErrorMessage(
           `Could not find environment data for: ${testNode.enviroPath}`
         );
@@ -1630,33 +1630,19 @@ function configureExtension(context: vscode.ExtensionContext) {
           }
         }
 
-                // Open the document at the specified line
-                const document = await vscode.workspace.openTextDocument(uri);
-                const position = new vscode.Position(
-                  Math.max(0, lineNumber - 1),
-                  0
-                );
-                const selection = new vscode.Range(position, position);
+        // Open the document at the specified line
+        const uri = vscode.Uri.file(unitInfo.path);
+        const document = await vscode.workspace.openTextDocument(uri);
+        const position = new vscode.Position(Math.max(0, lineNumber - 1), 0);
+        const selection = new vscode.Range(position, position);
 
-                await vscode.window.showTextDocument(document, {
-                  preview: false, // open as a real tab
-                  preserveFocus: false,
-                  selection: selection,
-                });
+        await vscode.window.showTextDocument(document, {
+          preview: false, // open as a real tab
+          preserveFocus: false,
+          selection: selection,
+        });
 
-                break;
-              }
-            }
-          } else {
-            vscode.window.showErrorMessage(
-              `Could not find environment data for: ${enviroPath}`
-            );
-          }
-        } else {
-          vscode.window.showErrorMessage(
-            `Unable to open Source File for Node: ${args.id}`
-          );
-        }
+        break;
       }
     }
   );
@@ -1731,12 +1717,15 @@ function configureExtension(context: vscode.ExtensionContext) {
       // Close sidebar for more screen space
       await vscode.commands.executeCommand("workbench.action.closeSidebar");
 
+      // Use the test node ID directly from the test explorer
+      const testId = args.id;
+
       // Open source file with requirement highlighting
       await openSourceFileWithHighlight(
         matchingUnit.path,
         reqData,
         context,
-        testName
+        testId
       );
 
       // Open TST script beside source file
