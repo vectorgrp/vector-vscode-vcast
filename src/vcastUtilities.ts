@@ -1018,6 +1018,6 @@ export function getATGLineTestCommand(
   }
   envVars["VCAST_ATG_TARGETED_VALUES"] = varValueCommand;
 
-  const commandToRun = `${atgCommandToUse} -v ${scriptPath}`;
+  const commandToRun = `${atgCommandToUse} -d 1 -v ${scriptPath}`;
   return { command: commandToRun, envVars };
 }
