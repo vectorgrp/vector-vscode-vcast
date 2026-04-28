@@ -8,8 +8,6 @@ const fs = require("fs");
 
 let reqs2XFeatureEnabled: boolean = false;
 
-export const GENERATE_REQUIREMENTS_ENABLED: boolean = true;
-
 let CODE2REQS_EXECUTABLE_PATH: string;
 let REQS2TESTS_EXECUTABLE_PATH: string;
 

@@ -62,6 +62,40 @@ export class RGWStaleWriteError extends Error {
   }
 }
 
+/**
+ * What the user is allowed to edit for a given bundle. Single source of
+ * truth for the rule "external-source RGWs lock requirement bodies": webview
+ * disables matching inputs, extension redacts matching fields out of the
+ * incoming patch on save.
+ */
+export interface RequirementsEditPolicy {
+  /** title and description editable iff true. */
+  bodiesEditable: boolean;
+}
+
+export function editPolicyFor(bundle: RGWBundle): RequirementsEditPolicy {
+  return { bodiesEditable: bundle.origin.generated_by_reqs2x };
+}
+
+/**
+ * Apply the policy to a webview-sourced patch. Substitutes the loaded copy of
+ * any field that's locked, so a tampered webview can't sneak edits through.
+ */
+export function applyEditPolicy(
+  bundle: RGWBundle,
+  incoming: {
+    requirements: RGWRequirementsFile;
+    traceability: RGWTraceabilityFile;
+  }
+): { requirements: RGWRequirementsFile; traceability: RGWTraceabilityFile } {
+  return editPolicyFor(bundle).bodiesEditable
+    ? incoming
+    : {
+        requirements: bundle.requirements,
+        traceability: incoming.traceability,
+      };
+}
+
 // ---------- Path / file helpers --------------------------------------------
 
 function rgwFilePaths(gatewayPath: string) {

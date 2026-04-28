@@ -102,7 +102,7 @@
       traceability: JSON.parse(JSON.stringify(state.traceability)),
     };
     for (const [reqId, patch] of dirty.entries()) {
-      if (state.editable && Object.keys(patch.req).length > 0) {
+      if (state.policy.bodiesEditable && Object.keys(patch.req).length > 0) {
         for (const bucket of Object.keys(updates.requirements)) {
           if (updates.requirements[bucket][reqId]) {
             Object.assign(updates.requirements[bucket][reqId], patch.req);

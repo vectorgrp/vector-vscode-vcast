@@ -131,6 +131,7 @@ import {
 import { updateRequirementsAvailability } from "./requirements/availability";
 import { performLLMProviderUsableCheck } from "./requirements/llmProvider";
 import {
+  applyEditPolicy,
   inferTraceability,
   readRGWBundle,
   RGWBundle,
@@ -140,7 +141,6 @@ import {
 import {
   generateRequirementsHtml,
   renderRequirementsBody,
-  resolveRequirementsWebviewBase,
 } from "./requirements/webview/template";
 import type {
   FromWebview,
@@ -148,7 +148,6 @@ import type {
 } from "./requirements/webview/messages";
 
 import {
-  GENERATE_REQUIREMENTS_ENABLED,
   generateRequirements,
   generateTestsFromRequirements,
   initializeReqs2X,
@@ -177,10 +176,9 @@ import {
 import fs = require("fs");
 import {
   compilerTagList,
-  getNonce,
-  resolveWebviewBase,
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
+import { getNonce, resolveWebviewBase } from "./webviewUtils";
 
 const path = require("path");
 
@@ -324,13 +322,6 @@ async function activationLogic(context: vscode.ExtensionContext) {
 
   // start the language server
   activateLanguageServerClient(context);
-
-  // Enable/disable the requirement generation component of the extension
-  vscode.commands.executeCommand(
-    "setContext",
-    "vectorcastTestExplorer.generateRequirementsEnabled",
-    GENERATE_REQUIREMENTS_ENABLED
-  );
 
   // Initialize requirements availability for all environments
   if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
@@ -903,7 +894,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   const addTestsuiteToCompiler = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addTestsuiteToCompiler",
     async (node: any) => {
-      const manageWebviewSrcDir = resolveWebviewBase(context);
+      const manageWebviewSrcDir = resolveWebviewBase(context, "manage", "webviews");
       const panel = vscode.window.createWebviewPanel(
         "addTestsuiteToCompiler",
         "Add Testsuite to Compiler",
@@ -954,7 +945,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel
   ): Promise<string> {
-    const base = resolveWebviewBase(context);
+    const base = resolveWebviewBase(context, "manage", "webviews");
 
     // on-disk locations
     const cssOnDisk = vscode.Uri.file(
@@ -1346,7 +1337,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         // ignore; webview will fall back to free-text inputs
       }
 
-      const webviewBaseDir = resolveRequirementsWebviewBase(context);
+      const webviewBaseDir = resolveWebviewBase(context, "requirements", "webviews");
       const panel = vscode.window.createWebviewPanel(
         "requirementsReport",
         "Requirements Report",
@@ -1388,14 +1379,11 @@ function configureExtension(context: vscode.ExtensionContext) {
         async (msg: FromWebview) => {
           if (msg?.type === "save") {
             try {
-              // External-source RGWs lock requirement bodies; trust the loaded
-              // copy over anything the webview sends for that field.
-              const safeUpdates = currentBundle.origin.generated_by_reqs2x
-                ? msg.updates
-                : {
-                    requirements: currentBundle.requirements,
-                    traceability: msg.updates.traceability,
-                  };
+              // Single source of truth for the edit policy lives in
+              // applyEditPolicy: it redacts any field the loaded bundle
+              // reports as locked, so a tampered webview can't sneak edits
+              // through.
+              const safeUpdates = applyEditPolicy(currentBundle, msg.updates);
               const newMtimes = await writeRGWBundle(
                 enviroPath,
                 currentBundle.gatewayPath,
@@ -1697,7 +1685,7 @@ async function installPreActivationEventHandlers(
   const importEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.importEnviroToProject",
     async (_args: vscode.Uri, argList: vscode.Uri[]) => {
-      const manageWebviewSrcDir = resolveWebviewBase(context);
+      const manageWebviewSrcDir = resolveWebviewBase(context, "manage", "webviews");
       const panel = vscode.window.createWebviewPanel(
         "importEnviroToProject",
         "Import Environment to Project",
@@ -1783,7 +1771,7 @@ async function installPreActivationEventHandlers(
   const addEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addEnviroToProject",
     async (_projectNode: any) => {
-      const manageWebviewSrcDir = resolveWebviewBase(context);
+      const manageWebviewSrcDir = resolveWebviewBase(context, "manage", "webviews");
       const panel = vscode.window.createWebviewPanel(
         "addEnviroToProject",
         "Add Environment To Project",
@@ -1890,7 +1878,7 @@ async function installPreActivationEventHandlers(
     panel: vscode.WebviewPanel,
     argList: vscode.Uri[]
   ): Promise<string> {
-    const base = resolveWebviewBase(context);
+    const base = resolveWebviewBase(context, "manage", "webviews");
 
     // on-disk resource locations
     const cssOnDisk = vscode.Uri.file(path.join(base, "css", "importEnv.css"));
@@ -1943,7 +1931,7 @@ async function installPreActivationEventHandlers(
   const newEnviroInProjectVCASTCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.newEnviroInProjectVCAST",
     async (_args: vscode.Uri, argList: vscode.Uri[]) => {
-      const manageWebviewSrcDir = resolveWebviewBase(context);
+      const manageWebviewSrcDir = resolveWebviewBase(context, "manage", "webviews");
       const panel = vscode.window.createWebviewPanel(
         "newEnvProject",
         "Create Environment in Project",
@@ -2023,7 +2011,7 @@ async function installPreActivationEventHandlers(
     panel: vscode.WebviewPanel,
     argList: vscode.Uri[]
   ): Promise<string> {
-    const base = resolveWebviewBase(context);
+    const base = resolveWebviewBase(context, "manage", "webviews");
     const cssOnDisk = vscode.Uri.file(
       path.join(base, "css", "newEnvProject.css")
     );
@@ -2078,7 +2066,7 @@ async function installPreActivationEventHandlers(
       }
       const workspaceRoot = workspaceFolders[0].uri.fsPath;
 
-      const baseDir = resolveWebviewBase(context);
+      const baseDir = resolveWebviewBase(context, "manage", "webviews");
       const panel = vscode.window.createWebviewPanel(
         "newProject",
         "Create New Project",
@@ -2168,7 +2156,7 @@ async function installPreActivationEventHandlers(
     panel: vscode.WebviewPanel,
     workspaceRoot: string
   ): Promise<string> {
-    const base = resolveWebviewBase(context);
+    const base = resolveWebviewBase(context, "manage", "webviews");
     const cssOnDisk = vscode.Uri.file(path.join(base, "css", "newProject.css"));
     const scriptOnDisk = vscode.Uri.file(
       path.join(base, "webviewScripts", "newProject.js")
@@ -2215,7 +2203,7 @@ async function installPreActivationEventHandlers(
       }
 
       // Create webview panel
-      const baseDir = resolveWebviewBase(context);
+      const baseDir = resolveWebviewBase(context, "manage", "webviews");
       const panel = vscode.window.createWebviewPanel(
         "newCompiler",
         "Create Compiler in Project",
@@ -2285,7 +2273,7 @@ async function installPreActivationEventHandlers(
     panel: vscode.WebviewPanel,
     projectPath: string
   ): Promise<string> {
-    const base = resolveWebviewBase(context);
+    const base = resolveWebviewBase(context, "manage", "webviews");
     const cssOnDisk = vscode.Uri.file(
       path.join(base, "css", "newCompiler.css")
     );

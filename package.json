@@ -1172,12 +1172,12 @@
       {
         "command": "vectorcastTestExplorer.generateRequirements",
         "group": "vcast@8",
-        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.generateRequirementsEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
       },
       {
         "command": "vectorcastTestExplorer.showRequirements",
         "group": "vcast@9",
-        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.generateRequirementsEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
       },
       {
         "command": "vectorcastTestExplorer.generateTestsFromRequirements",
@@ -1187,7 +1187,7 @@
       {
         "command": "vectorcastTestExplorer.removeRequirements",
         "group": "vcast@9",
-        "when": "testId =~ /^vcast:[^|]+$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.generateRequirementsEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && vectorcastTestExplorer.reqs2xFeatureEnabled"
       },
       {
         "command": "vectorcastTestExplorer.viewResults",
