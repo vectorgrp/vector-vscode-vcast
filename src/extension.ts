@@ -148,8 +148,10 @@ import type {
 } from "./requirements/webview/messages";
 
 import {
+  exportRequirements,
   generateRequirements,
   generateTestsFromRequirements,
+  importRequirements,
   initializeReqs2X,
 } from "./requirements/requirementsOperations";
 
@@ -300,6 +302,47 @@ async function getEnvironmentListIncludingUnbuilt(
       }
     );
   });
+}
+
+/**
+ * Pick the environment path to act on for a command. Right-click invocations
+ * pass `{ id }` from a tree node; command-palette invocations pass nothing,
+ * so we show a quick-pick of envs in the workspace. Returns null if the user
+ * dismisses the picker or the workspace has no env files.
+ */
+async function resolveEnviroPathForCommand(
+  args: any
+): Promise<string | null> {
+  if (args?.id) {
+    const testNode: testNodeType = getTestNode(args.id);
+    return testNode?.enviroPath ?? null;
+  }
+
+  const folders = workspace.workspaceFolders;
+  if (!folders || folders.length === 0) {
+    vscode.window.showErrorMessage("No workspace open.");
+    return null;
+  }
+
+  const envPaths = await getEnvironmentListIncludingUnbuilt(folders[0].uri.fsPath);
+  if (envPaths.length === 0) {
+    vscode.window.showErrorMessage(
+      "No VectorCAST environments found in the workspace."
+    );
+    return null;
+  }
+
+  if (envPaths.length === 1) return envPaths[0];
+
+  const picked = await vscode.window.showQuickPick(
+    envPaths.map((p) => ({
+      label: path.basename(p),
+      description: path.relative(folders[0].uri.fsPath, p),
+      envPath: p,
+    })),
+    { placeHolder: "Select environment" }
+  );
+  return picked ? picked.envPath : null;
 }
 
 async function activationLogic(context: vscode.ExtensionContext) {
@@ -514,6 +557,24 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(generateRequirementsTestsCommand);
+
+  let importRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.importRequirements",
+    async (args: any) => {
+      const enviroPath = await resolveEnviroPathForCommand(args);
+      if (enviroPath) await importRequirements(enviroPath);
+    }
+  );
+  context.subscriptions.push(importRequirementsCommand);
+
+  let exportRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.exportRequirements",
+    async (args: any) => {
+      const enviroPath = await resolveEnviroPathForCommand(args);
+      if (enviroPath) await exportRequirements(enviroPath);
+    }
+  );
+  context.subscriptions.push(exportRequirementsCommand);
 
   let testLLMConfigurationCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.testLLMConfiguration",

@@ -182,8 +182,6 @@ export async function generateTestsFromRequirements(
 ) {
   const { findRelevantRequirementGateway } =
     require("./rgwPath") as typeof import("./rgwPath");
-  const { readRGWBundle, inferTraceability } =
-    require("./rgwIo") as typeof import("./rgwIo");
   const { runReqs2xTool } =
     require("./processRunner") as typeof import("./processRunner");
 
@@ -208,30 +206,12 @@ export async function generateTestsFromRequirements(
   // Test generation needs per-requirement traceability — reqs2tests routes
   // each requirement to its mapped function. If the RGW has none, offer to
   // infer it now rather than letting reqs2tests no-op or fail downstream.
-  const bundle = readRGWBundle(enviroPath);
-  if (bundle) {
-    const hasAnyFunction = Object.values(bundle.traceability).some(
-      (entry) => entry?.function != null
-    );
-    if (!hasAnyFunction) {
-      const choice = await vscode.window.showWarningMessage(
-        "None of the requirements trace to a function. Test generation requires per-requirement traceability. Would you like to infer it automatically first?",
-        "Infer traceability",
-        "Cancel"
-      );
-      if (choice !== "Infer traceability") return;
-      try {
-        const refreshed = await inferTraceability(
-          enviroPath,
-          bundle.gatewayPath
-        );
-        if (!refreshed) return; // user cancelled the inference progress
-      } catch (err) {
-        vscode.window.showErrorMessage(`Failed to infer traceability: ${err}`);
-        return;
-      }
-    }
-  }
+  const proceed = await offerTraceabilityInferenceIfMissing(enviroPath, {
+    prompt:
+      "None of the requirements trace to a function. Test generation requires per-requirement traceability. Would you like to infer it automatically first?",
+    cancelMeansAbort: true,
+  });
+  if (!proceed) return;
 
   const config = vscode.workspace.getConfiguration(
     "vectorcastTestExplorer.reqs2x"
@@ -296,3 +276,228 @@ export async function generateTestsFromRequirements(
     logCliError(message, true);
   }
 }
+
+/**
+ * If the bundle has no traceability for any requirement, prompt the user to
+ * run --infer-traceability. Returns true if the caller should proceed (either
+ * we already had traceability, the user accepted and inference succeeded, or
+ * `cancelMeansAbort` is false and the user declined). Returns false to
+ * abort the caller's flow.
+ */
+async function offerTraceabilityInferenceIfMissing(
+  enviroPath: string,
+  options: { prompt: string; cancelMeansAbort: boolean }
+): Promise<boolean> {
+  const { readRGWBundle, inferTraceability } =
+    require("./rgwIo") as typeof import("./rgwIo");
+
+  const bundle = readRGWBundle(enviroPath);
+  if (!bundle) return true; // nothing to evaluate; let caller continue
+
+  const hasAnyFunction = Object.values(bundle.traceability).some(
+    (entry) => entry?.function != null
+  );
+  if (hasAnyFunction) return true;
+
+  const choice = await vscode.window.showWarningMessage(
+    options.prompt,
+    "Infer traceability",
+    options.cancelMeansAbort ? "Cancel" : "Skip"
+  );
+
+  if (choice !== "Infer traceability") {
+    return !options.cancelMeansAbort;
+  }
+
+  try {
+    const refreshed = await inferTraceability(enviroPath, bundle.gatewayPath);
+    if (!refreshed) return false; // user cancelled the inference progress
+    return true;
+  } catch (err) {
+    vscode.window.showErrorMessage(`Failed to infer traceability: ${err}`);
+    return false;
+  }
+}
+
+const EXT_TO_FORMAT: Record<string, string> = {
+  ".xlsx": "excel",
+  ".csv": "csv",
+  ".json": "json",
+};
+
+export async function importRequirements(enviroPath: string) {
+  const {
+    defaultRequirementGatewayPath,
+    findRelevantRequirementGateway,
+    setVcastRepositoryInConfig,
+  } = require("./rgwPath") as typeof import("./rgwPath");
+  const { updateRequirementsAvailability } =
+    require("./availability") as typeof import("./availability");
+  const { runReqs2xTool } =
+    require("./processRunner") as typeof import("./processRunner");
+
+  const sourceUris = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    openLabel: "Import Requirements",
+    filters: {
+      "Requirements files": ["xlsx", "csv", "json"],
+      "Excel (*.xlsx)": ["xlsx"],
+      "CSV (*.csv)": ["csv"],
+      "JSON (*.json)": ["json"],
+    },
+  });
+  if (!sourceUris || sourceUris.length === 0) return;
+  const sourcePath = sourceUris[0].fsPath;
+
+  const ext = path.extname(sourcePath).toLowerCase();
+  if (!EXT_TO_FORMAT[ext]) {
+    vscode.window.showErrorMessage(
+      `Unsupported import format: ${ext}. Use .xlsx, .csv, or .json.`
+    );
+    return;
+  }
+
+  const parentDir = path.dirname(enviroPath);
+  const lowestDirname = path.basename(enviroPath);
+  const envName = `${lowestDirname}.env`;
+  const envPath = path.join(parentDir, envName);
+
+  // Resolve target gateway: existing or set up the default. Mirrors
+  // generateRequirements so import behaves consistently when no
+  // VCAST_REPOSITORY is configured yet.
+  let gatewayPath = findRelevantRequirementGateway(enviroPath);
+  if (gatewayPath) {
+    const choice = await vscode.window.showWarningMessage(
+      `Importing will overwrite the existing requirements gateway at ${gatewayPath}.`,
+      "Continue",
+      "Cancel"
+    );
+    if (choice !== "Continue") return;
+  } else {
+    gatewayPath = defaultRequirementGatewayPath(enviroPath);
+    fs.mkdirSync(path.dirname(gatewayPath), { recursive: true });
+    setVcastRepositoryInConfig(enviroPath, gatewayPath);
+  }
+
+  const args = [
+    sourcePath,
+    gatewayPath,
+    "--target-format",
+    "rgw",
+    "--target-env",
+    envPath,
+    "--json-events",
+  ];
+
+  try {
+    const { cancelled } = await runReqs2xTool({
+      exe: PANREQ_EXECUTABLE_PATH,
+      args,
+      progress: {
+        title: `Importing Requirements for ${lowestDirname}`,
+        logPrefix: "panreq",
+      },
+    });
+    if (cancelled) return;
+
+    await refreshAllExtensionData();
+    updateRequirementsAvailability(enviroPath);
+    vscode.window.showInformationMessage(
+      `Successfully imported requirements from ${path.basename(sourcePath)}`
+    );
+
+    // Same prompt as generateTestsFromRequirements: imported requirements
+    // typically lack code traceability. Skip-vs-infer; "Skip" leaves the user
+    // free to set traceability manually in the editor later.
+    await offerTraceabilityInferenceIfMissing(enviroPath, {
+      prompt:
+        "None of the imported requirements trace to a function. Would you like to infer traceability automatically?",
+      cancelMeansAbort: false,
+    });
+  } catch (err) {
+    const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    vscode.window.showErrorMessage(message);
+    logCliError(message, true);
+  }
+}
+
+export async function exportRequirements(enviroPath: string) {
+  const { findRelevantRequirementGateway } =
+    require("./rgwPath") as typeof import("./rgwPath");
+  const { runReqs2xTool } =
+    require("./processRunner") as typeof import("./processRunner");
+
+  const gatewayPath = findRelevantRequirementGateway(enviroPath);
+  if (!gatewayPath) {
+    vscode.window.showErrorMessage(
+      "No requirements gateway found to export from."
+    );
+    return;
+  }
+
+  const parentDir = path.dirname(enviroPath);
+  const lowestDirname = path.basename(enviroPath);
+  const envName = `${lowestDirname}.env`;
+  const envPath = path.join(parentDir, envName);
+
+  const targetUri = await vscode.window.showSaveDialog({
+    saveLabel: "Export Requirements",
+    defaultUri: vscode.Uri.file(
+      path.join(parentDir, `${lowestDirname}-requirements.csv`)
+    ),
+    filters: {
+      "CSV (*.csv)": ["csv"],
+      "Excel (*.xlsx)": ["xlsx"],
+      "JSON (*.json)": ["json"],
+    },
+  });
+  if (!targetUri) return;
+  const targetPath = targetUri.fsPath;
+
+  const ext = path.extname(targetPath).toLowerCase();
+  const targetFormat = EXT_TO_FORMAT[ext];
+  if (!targetFormat) {
+    vscode.window.showErrorMessage(
+      `Unsupported export format: ${ext}. Use .xlsx, .csv, or .json.`
+    );
+    return;
+  }
+
+  const args = [
+    gatewayPath,
+    targetPath,
+    "--target-format",
+    targetFormat,
+    "--target-env",
+    envPath,
+    "--json-events",
+  ];
+
+  try {
+    const { cancelled } = await runReqs2xTool({
+      exe: PANREQ_EXECUTABLE_PATH,
+      args,
+      progress: {
+        title: `Exporting Requirements for ${lowestDirname}`,
+        logPrefix: "panreq",
+      },
+    });
+    if (cancelled) return;
+
+    const choice = await vscode.window.showInformationMessage(
+      `Successfully exported requirements to ${path.basename(targetPath)}`,
+      "Reveal in File Explorer"
+    );
+    if (choice === "Reveal in File Explorer") {
+      vscode.commands.executeCommand(
+        "revealFileInOS",
+        vscode.Uri.file(targetPath)
+      );
+    }
+  } catch (err) {
+    const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    vscode.window.showErrorMessage(message);
+    logCliError(message, true);
+  }
+}
+

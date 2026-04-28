@@ -329,6 +329,18 @@
         "enablement": "testId in vectorcastTestExplorer.vcastRequirementsAvailable"
       },
       {
+        "command": "vectorcastTestExplorer.importRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Import Requirements",
+        "enablement": "testId not in vectorcastTestExplorer.vcastRequirementsAvailable"
+      },
+      {
+        "command": "vectorcastTestExplorer.exportRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Export Requirements",
+        "enablement": "testId not in vectorcastTestExplorer.vcastEnviroList || testId in vectorcastTestExplorer.vcastRequirementsAvailable"
+      },
+      {
         "command": "vectorcastTestExplorer.testLLMConfiguration",
         "category": "VectorCAST Test Explorer",
         "title": "Test if Reqs2X works with the current LLM configuration"
@@ -921,6 +933,14 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.importRequirements",
+          "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
+        },
+        {
+          "command": "vectorcastTestExplorer.exportRequirements",
+          "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
+        },
+        {
           "command": "vectorcastTestExplorer.testLLMConfiguration",
           "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
         }
@@ -1175,7 +1195,17 @@
         "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
       },
       {
+        "command": "vectorcastTestExplorer.importRequirements",
+        "group": "vcast@8",
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
+      },
+      {
         "command": "vectorcastTestExplorer.showRequirements",
+        "group": "vcast@9",
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.exportRequirements",
         "group": "vcast@9",
         "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
       },
