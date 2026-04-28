@@ -32,12 +32,50 @@ h2 {
   padding: 12px 14px;
   margin: 10px 0;
   background: var(--vscode-editor-background, #fff);
+  position: relative;
+}
+.req--pending-added {
+  border-color: var(--vscode-inputValidation-infoBorder, #4ec9b0);
+  border-style: dashed;
+}
+.req--pending-removal {
+  opacity: 0.45;
+}
+.req--pending-removal .req-id,
+.req--pending-removal .field input,
+.req--pending-removal .field textarea,
+.req--pending-removal .field select {
+  text-decoration: line-through;
 }
 .req-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
+}
+.req-remove-btn,
+.req-restore-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--vscode-descriptionForeground, #888);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font: inherit;
+  line-height: 1;
+}
+.req-remove-btn:hover,
+.req-restore-btn:hover {
+  border-color: var(--vscode-input-border, #ccc);
+  color: var(--vscode-foreground, #000);
+}
+.field input.invalid {
+  outline: 2px solid var(--vscode-inputValidation-errorBorder, #be1100);
+}
+.field-error {
+  font-size: 0.8em;
+  color: var(--vscode-inputValidation-errorBorder, #be1100);
+  margin-top: 2px;
 }
 .req-id {
   font-weight: 600;
@@ -120,7 +158,8 @@ h2 {
 }
 
 #save-btn,
-#infer-btn {
+#infer-btn,
+#add-btn {
   padding: 8px 18px;
   font-size: 1em;
   background: var(--vscode-button-background, #0078d4);
@@ -131,7 +170,8 @@ h2 {
   font-family: inherit;
 }
 #save-btn[disabled],
-#infer-btn[disabled] {
+#infer-btn[disabled],
+#add-btn[disabled] {
   opacity: 0.5;
   cursor: default;
 }

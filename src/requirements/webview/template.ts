@@ -155,7 +155,7 @@ export function generateRequirementsHtml(
 <h1>Requirements</h1>
 <div id="rgw-pill" title="${escapeHtml(bundle.gatewayPath)}">RGW: ${escapeHtml(bundle.gatewayPath)}</div>
 ${bannerHtml}
-<div id="save-toolbar"><button id="infer-btn" title="Use the configured LLM to infer the unit/function each requirement traces to.">✨ Infer traceability</button><button id="save-btn" disabled>Save changes</button></div>
+<div id="save-toolbar">${policy.bodiesEditable ? `<button id="add-btn" title="Add a new requirement to this RGW.">+ Add requirement</button>` : ""}<button id="infer-btn" title="Use the configured LLM to infer the unit/function each requirement traces to.">✨ Infer traceability</button><button id="save-btn" disabled>Save changes</button></div>
 <div id="reqs-body">${body}</div>
 <script nonce="${nonce}">window.__rgwState = ${serializeStateForScriptTag(initialState)};</script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
@@ -177,11 +177,15 @@ function renderCard(
   const reqDis = editable ? "" : "disabled";
   const lastMod = entry.req.last_modified ?? "";
 
+  const removeBtn = editable
+    ? `<button class="req-remove-btn" data-action="remove" data-req-id="${escapeHtml(entry.id)}" title="Remove this requirement">×</button>`
+    : "";
+
   return `
-    <div class="req">
+    <div class="req" data-req-id="${escapeHtml(entry.id)}">
       <div class="req-header">
         <div class="req-id">${escapeHtml(entry.id)}</div>
-        <div class="req-meta">${lastMod ? `modified: ${escapeHtml(lastMod)} · ` : ""}source: ${escapeHtml(entry.source)}</div>
+        <div class="req-meta">${lastMod ? `modified: ${escapeHtml(lastMod)} · ` : ""}source: ${escapeHtml(entry.source)}${removeBtn ? ` ${removeBtn}` : ""}</div>
       </div>
       <div class="field">
         <label>Title</label>
