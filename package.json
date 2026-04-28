@@ -242,7 +242,8 @@
       {
         "command": "vectorcastTestExplorer.generateRequirements",
         "category": "VectorCAST Test Explorer",
-        "title": "Generate Requirements"
+        "title": "Generate Requirements",
+        "enablement": "testId not in vectorcastTestExplorer.vcastRequirementsAvailable"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
@@ -307,7 +308,8 @@
       {
         "command": "vectorcastTestExplorer.generateTestsFromRequirements",
         "category": "VectorCAST Test Explorer",
-        "title": "Generate Tests from Requirements"
+        "title": "Generate Tests from Requirements",
+        "enablement": "testId in vectorcastTestExplorer.vcastRequirementsAvailable"
       },
       {
         "command": "vectorcastTestExplorer.viewMCDCReport",
@@ -317,22 +319,14 @@
       {
         "command": "vectorcastTestExplorer.showRequirements",
         "category": "VectorCAST Test Explorer",
-        "title": "Show Requirements"
+        "title": "Show Requirements",
+        "enablement": "testId in vectorcastTestExplorer.vcastRequirementsAvailable"
       },
       {
         "command": "vectorcastTestExplorer.removeRequirements",
         "category": "VectorCAST Test Explorer",
-        "title": "Remove Requirements"
-      },
-      {
-        "command": "vectorcastTestExplorer.importRequirementsFromGateway",
-        "category": "VectorCAST Test Explorer",
-        "title": "Import Requirements from Gateway"
-      },
-      {
-        "command": "vectorcastTestExplorer.populateRequirementsGateway",
-        "category": "VectorCAST Test Explorer",
-        "title": "Populate RGW from Requirements"
+        "title": "Remove Requirements",
+        "enablement": "testId in vectorcastTestExplorer.vcastRequirementsAvailable"
       },
       {
         "command": "vectorcastTestExplorer.testLLMConfiguration",
@@ -927,14 +921,6 @@
           "when": "never"
         },
         {
-          "command": "vectorcastTestExplorer.importRequirementsFromGateway",
-          "when": "never"
-        },
-        {
-          "command": "vectorcastTestExplorer.populateRequirementsGateway",
-          "when": "never"
-        },
-        {
           "command": "vectorcastTestExplorer.testLLMConfiguration",
           "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
         }
@@ -1184,19 +1170,14 @@
         "when": "testId in vectorcastTestExplorer.globalProjectCompilers"
       },
       {
-        "command": "vectorcastTestExplorer.importRequirementsFromGateway",
-        "group": "vcast@8",
-        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
-      },
-      {
         "command": "vectorcastTestExplorer.generateRequirements",
         "group": "vcast@8",
-        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.generateRequirementsEnabled"
       },
       {
         "command": "vectorcastTestExplorer.showRequirements",
         "group": "vcast@9",
-        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.generateRequirementsEnabled"
       },
       {
         "command": "vectorcastTestExplorer.generateTestsFromRequirements",
@@ -1206,12 +1187,7 @@
       {
         "command": "vectorcastTestExplorer.removeRequirements",
         "group": "vcast@9",
-        "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
-      },
-      {
-        "command": "vectorcastTestExplorer.populateRequirementsGateway",
-        "group": "vcast@9",
-        "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && testId in vectorcastTestExplorer.vcastRequirementsAvailable && vectorcastTestExplorer.generateRequirementsEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.generateRequirementsEnabled"
       },
       {
         "command": "vectorcastTestExplorer.viewResults",
@@ -1303,9 +1279,7 @@
   "dependencies": {
     "@vscode/vsce": "^2.32.0",
     "axios": "^1.7.7",
-    "convert-excel-to-json": "^1.7.0",
     "crc-32": "^1.2.0",
-    "csv-parse": "^5.6.0",
     "glob": "^7.1.7",
     "hasbin": "^1.2.3",
     "jsonc-parser": "^3.2.1",
@@ -1315,7 +1289,6 @@
     "tslib": "^1.9.3",
     "vscode-languageclient": "^5.2.1",
     "vscode-languageserver": "^5.2.1",
-    "xlsx": "^0.18.5",
     "xo": "^0.58.0"
   },
   "extensionDependencies": [],
