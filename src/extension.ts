@@ -157,6 +157,7 @@ import {
   importRequirements,
   initializeReqs2X,
 } from "./requirements/requirementsOperations";
+import { maybeOfferLegacyMigration } from "./requirements/legacyMigration";
 
 import {
   generateNewCodedTestFile,
@@ -383,6 +384,12 @@ async function activationLogic(context: vscode.ExtensionContext) {
   setupRequirementsFileWatchers(context);
 
   initializeReqs2X(context);
+
+  // One-shot prompt: legacy reqs.xlsx / reqs.csv → RGW. Runs after
+  // initializeReqs2X so the panreq executable path is resolved (no-op
+  // otherwise). Fire and forget — we don't want migration to block the
+  // rest of activation.
+  void maybeOfferLegacyMigration(context);
 }
 
 function configureExtension(context: vscode.ExtensionContext) {
