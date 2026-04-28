@@ -37,18 +37,27 @@ function serializeStateForScriptTag(state: unknown): string {
  * the current `function || unit || source` grouping, which can change as the
  * user edits traceability.
  */
-export function renderRequirementsBody(
-  bundle: RGWBundle,
-  unitsToFunctions: Record<string, string[]> | null
-): string {
-  const policy = editPolicyFor(bundle);
+export interface RequirementEntry {
+  source: string;
+  id: string;
+  req: RGWRequirement;
+  trace: RGWTraceabilityEntry;
+}
 
-  const flat: Array<{
-    source: string;
-    id: string;
-    req: RGWRequirement;
-    trace: RGWTraceabilityEntry;
-  }> = [];
+export interface RequirementGroup {
+  name: string;
+  entries: RequirementEntry[];
+}
+
+/**
+ * Flatten the bundle into ordered groups keyed by `function || unit ||
+ * source`. Used by both the TS-side initial render and (sent verbatim to
+ * the webview) the post-save / post-infer refresh path, so the webview can
+ * rebuild the cards section via safe DOM APIs without receiving pre-built
+ * HTML.
+ */
+export function groupRequirements(bundle: RGWBundle): RequirementGroup[] {
+  const flat: RequirementEntry[] = [];
   for (const [source, bucket] of Object.entries(bundle.requirements)) {
     for (const [id, req] of Object.entries(bucket)) {
       flat.push({
@@ -64,19 +73,30 @@ export function renderRequirementsBody(
     }
   }
 
-  // Group by function, falling back to unit, then source.
-  const groups: Record<string, typeof flat> = {};
+  const buckets: Record<string, RequirementEntry[]> = {};
+  const order: string[] = [];
   for (const entry of flat) {
     const key =
       entry.trace.function || entry.trace.unit || entry.source || "Unknown";
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(entry);
+    if (!buckets[key]) {
+      buckets[key] = [];
+      order.push(key);
+    }
+    buckets[key].push(entry);
   }
 
+  return order.map((name) => ({ name, entries: buckets[name] }));
+}
+
+export function renderRequirementsBody(
+  bundle: RGWBundle,
+  unitsToFunctions: Record<string, string[]> | null
+): string {
+  const policy = editPolicyFor(bundle);
   let body = "";
-  for (const [group, entries] of Object.entries(groups)) {
-    body += `<h2>${escapeHtml(group)}</h2>`;
-    for (const entry of entries) {
+  for (const group of groupRequirements(bundle)) {
+    body += `<h2>${escapeHtml(group.name)}</h2>`;
+    for (const entry of group.entries) {
       body += renderCard(entry, policy.bodiesEditable, unitsToFunctions);
     }
   }

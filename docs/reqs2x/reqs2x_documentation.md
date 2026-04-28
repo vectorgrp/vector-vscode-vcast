@@ -93,7 +93,7 @@ Remove any existing versions of the VectorCAST VS-Code extension.
 
 ## 2. Generating Tests from Requirements
 
-The demo release ships with a pre-populated requirements gateway (RGW) including requirements-to-code traceability. The RGW is the single source of truth — the extension reads from and writes to it directly.
+The demo release ships with requirements including requirements-to-code traceability. To use them, import them into the environment which will set up a requirements gateway (RGW). The RGW is the single source of truth — the extension reads from and writes to it directly.
 
 ![Reqs2x demo requirements](./screenshots/VectorCAST_Reqs2x_demo_requirements.png)
 
@@ -101,6 +101,7 @@ The demo release ships with a pre-populated requirements gateway (RGW) including
 
 ### Initial Setup
 1.  Click the **Flask icon** (Test Explorer) on the left sidebar to show the environment tree.
+2. Right-click `TUTORIAL_C` and select **VectorCAST -> Import Requirements**. Choose the file `reqs-TUTORIAL_C/reqs.xlsx`. This will load the requirements into the environment.
 2.  Right-click `TUTORIAL_C` and select **VectorCAST -> Show Requirements**. The requirements webview will appear, rendered directly from the RGW.
 ![Reqs2x demo show requirements](./screenshots/VectorCAST_Reqs2x_show_requirements.png)
 ![Reqs2x demo requirements webview](./screenshots/VectorCAST_Reqs2x_requirements_webview.png)
@@ -138,7 +139,7 @@ The demo release ships with a pre-populated requirements gateway (RGW) including
 
 
 1.  **Modify requirement**:
-    *   Edit the requirement directly in the requirements gateway (RGW) — either through the VectorCAST GUI, `clicast`, or whatever RGW editor you use.
+    *   Edit the requirement directly in the requirements gateway (RGW) in the Requirements view. Open it by selecting ``VectorCAST -> Show Requirements`.
     *   Find `FR27` (Add Included Dessert).
     *   Change the free dessert for `steak, caesar salad and mixed drink` from `pie` to `cake`.
     *   Change the free dessert for `lobster, green salad and wine` from `cake` to `pie`.

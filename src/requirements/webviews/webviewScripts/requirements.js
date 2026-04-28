@@ -1,9 +1,10 @@
 // Requirements editor webview script.
 //
 // State (`window.__rgwState`) is injected as a JSON blob by the extension at
-// load time and refreshed on `saved` / `inferred` messages. Listeners are
-// delegated on #reqs-body so they survive the innerHTML swap that happens on
-// regrouping.
+// load time and refreshed on `saved` / `inferred` messages, which carry a
+// `groups` array (typed RequirementGroup[]). The cards section is rebuilt
+// from that data using safe DOM APIs (createElement / textContent) — we
+// deliberately don't accept pre-built HTML over postMessage.
 //
 // Wire protocol (see src/requirements/webview/messages.ts):
 //   FROM webview: { type: "save" | "infer-traceability" }
@@ -26,6 +27,152 @@
     inferBtn.disabled = dirty.size > 0; // don't clobber unsaved local edits
   }
 
+  // ---------- DOM builders ------------------------------------------------
+
+  function buildTraceField(field, current, options, reqId) {
+    let el;
+    if (!options) {
+      el = document.createElement("input");
+      el.type = "text";
+      el.value = current ?? "";
+    } else {
+      el = document.createElement("select");
+      const noneOpt = document.createElement("option");
+      noneOpt.value = "";
+      noneOpt.textContent = "(none)";
+      if (!current) noneOpt.selected = true;
+      el.appendChild(noneOpt);
+
+      let found = !current;
+      for (const o of options) {
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = o;
+        if (o === current) {
+          opt.selected = true;
+          found = true;
+        }
+        el.appendChild(opt);
+      }
+      if (!found) {
+        const opt = document.createElement("option");
+        opt.value = current;
+        opt.textContent = current + " (not in env)";
+        opt.selected = true;
+        el.appendChild(opt);
+      }
+    }
+    el.dataset.reqId = reqId;
+    el.dataset.scope = "trace";
+    el.dataset.field = field;
+    return el;
+  }
+
+  function buildField(label, child) {
+    const div = document.createElement("div");
+    div.className = "field";
+    const lbl = document.createElement("label");
+    lbl.textContent = label;
+    div.appendChild(lbl);
+    div.appendChild(child);
+    return div;
+  }
+
+  function buildCard(entry) {
+    const policy = state.policy;
+    const lockedBodies = !policy.bodiesEditable;
+
+    const card = document.createElement("div");
+    card.className = "req";
+
+    const header = document.createElement("div");
+    header.className = "req-header";
+    const id = document.createElement("div");
+    id.className = "req-id";
+    id.textContent = entry.id;
+    const meta = document.createElement("div");
+    meta.className = "req-meta";
+    const lastMod = entry.req.last_modified ?? "";
+    meta.textContent =
+      (lastMod ? "modified: " + lastMod + " · " : "") + "source: " + entry.source;
+    header.appendChild(id);
+    header.appendChild(meta);
+    card.appendChild(header);
+
+    const titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.dataset.reqId = entry.id;
+    titleInput.dataset.scope = "req";
+    titleInput.dataset.field = "title";
+    titleInput.value = entry.req.title ?? "";
+    if (lockedBodies) titleInput.disabled = true;
+    card.appendChild(buildField("Title", titleInput));
+
+    const descArea = document.createElement("textarea");
+    descArea.dataset.reqId = entry.id;
+    descArea.dataset.scope = "req";
+    descArea.dataset.field = "description";
+    descArea.value = entry.req.description ?? "";
+    if (lockedBodies) descArea.disabled = true;
+    card.appendChild(buildField("Description", descArea));
+
+    const traceRow = document.createElement("div");
+    traceRow.className = "field trace-row";
+
+    const unitOptions = state.unitsToFunctions
+      ? Object.keys(state.unitsToFunctions)
+      : null;
+    const unitField = buildTraceField(
+      "unit",
+      entry.trace.unit ?? "",
+      unitOptions,
+      entry.id
+    );
+
+    const fnOptions = state.unitsToFunctions
+      ? state.unitsToFunctions[entry.trace.unit ?? ""] ?? []
+      : null;
+    const fnField = buildTraceField(
+      "function",
+      entry.trace.function ?? "",
+      fnOptions,
+      entry.id
+    );
+
+    const unitWrap = document.createElement("div");
+    const unitLabel = document.createElement("label");
+    unitLabel.textContent = "Traceability: unit";
+    unitWrap.appendChild(unitLabel);
+    unitWrap.appendChild(unitField);
+
+    const fnWrap = document.createElement("div");
+    const fnLabel = document.createElement("label");
+    fnLabel.textContent = "Traceability: function";
+    fnWrap.appendChild(fnLabel);
+    fnWrap.appendChild(fnField);
+
+    traceRow.appendChild(unitWrap);
+    traceRow.appendChild(fnWrap);
+    card.appendChild(traceRow);
+
+    return card;
+  }
+
+  function rebuildBody(groups) {
+    const frag = document.createDocumentFragment();
+    for (const group of groups) {
+      const h2 = document.createElement("h2");
+      h2.textContent = group.name;
+      frag.appendChild(h2);
+      for (const entry of group.entries) {
+        frag.appendChild(buildCard(entry));
+      }
+    }
+    reqsBody.replaceChildren(frag);
+  }
+
+  // ---------- Field-change handling --------------------------------------
+
   function refreshFunctionOptions(card, selectedUnit, currentFunction) {
     const fnSelect = card.querySelector(
       '[data-scope="trace"][data-field="function"]'
@@ -34,19 +181,33 @@
     const map = state.unitsToFunctions || {};
     const fns = selectedUnit && map[selectedUnit] ? map[selectedUnit] : [];
     const desired = currentFunction != null ? String(currentFunction) : "";
-    const opts = ['<option value="">(none)</option>'];
-    let foundDesired = !desired;
+
+    // Rebuild via DOM API rather than innerHTML so we never mix in HTML.
+    while (fnSelect.firstChild) fnSelect.removeChild(fnSelect.firstChild);
+    const noneOpt = document.createElement("option");
+    noneOpt.value = "";
+    noneOpt.textContent = "(none)";
+    if (!desired) noneOpt.selected = true;
+    fnSelect.appendChild(noneOpt);
+
+    let found = !desired;
     for (const fn of fns) {
-      const sel = fn === desired ? " selected" : "";
-      if (fn === desired) foundDesired = true;
-      opts.push('<option value="' + fn + '"' + sel + '>' + fn + "</option>");
+      const opt = document.createElement("option");
+      opt.value = fn;
+      opt.textContent = fn;
+      if (fn === desired) {
+        opt.selected = true;
+        found = true;
+      }
+      fnSelect.appendChild(opt);
     }
-    if (!foundDesired) {
-      opts.push(
-        '<option value="' + desired + '" selected>' + desired + " (not in env)</option>"
-      );
+    if (!found) {
+      const opt = document.createElement("option");
+      opt.value = desired;
+      opt.textContent = desired + " (not in env)";
+      opt.selected = true;
+      fnSelect.appendChild(opt);
     }
-    fnSelect.innerHTML = opts.join("");
   }
 
   function handleFieldChange(el) {
@@ -81,7 +242,7 @@
     }
   }
 
-  // Event delegation on the cards container so listeners survive innerHTML
+  // Event delegation on the cards container so listeners survive children
   // replacement when the body is regrouped after save/infer.
   reqsBody.addEventListener("input", (e) => {
     const t = e.target;
@@ -95,6 +256,8 @@
       handleFieldChange(t);
     }
   });
+
+  // ---------- Save / infer ------------------------------------------------
 
   saveBtn.addEventListener("click", () => {
     const updates = {
@@ -139,9 +302,7 @@
     state.mtimes = msg.mtimes;
     state.requirements = msg.requirements;
     state.traceability = msg.traceability;
-    if (typeof msg.body === "string") {
-      reqsBody.innerHTML = msg.body;
-    }
+    if (Array.isArray(msg.groups)) rebuildBody(msg.groups);
     saveBtn.disabled = true;
     inferBtn.disabled = false;
   }
