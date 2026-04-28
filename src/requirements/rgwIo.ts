@@ -142,6 +142,26 @@ function readCsvSourcePath(gatewayPath: string): string | null {
 }
 
 /**
+ * True iff the configured gateway both exists *and* contains a
+ * `requirements.json` we can actually read. This is the predicate menu
+ * enablement and "is there anything to export" should consult — distinct
+ * from `findRelevantRequirementGateway` which only resolves the path.
+ *
+ * Without this distinction, deleting just `requirements.json` (leaving the
+ * gateway directory intact) leaves the UI claiming requirements are
+ * available while every reader downstream returns null.
+ */
+export function hasCompleteAndUsableRGW(enviroPath: string): boolean {
+  const rawGatewayPath = findRelevantRequirementGateway(enviroPath);
+  if (!rawGatewayPath) return false;
+
+  const gatewayPath = expandEnvVars(rawGatewayPath);
+  if (!fs.existsSync(gatewayPath)) return false;
+
+  return fs.existsSync(rgwFilePaths(gatewayPath).requirements);
+}
+
+/**
  * True if `csvPath` looks like a Python-tempfile-generated CSV that's no
  * longer on disk — i.e. the kind of artifact older Reqs2X CLIs left behind
  * in `settings.json` after generating an RGW from a transient working CSV.

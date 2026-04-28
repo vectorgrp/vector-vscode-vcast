@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import { normalizePath } from "../utilities";
 import { makeEnviroNodeID } from "../testPane";
 import { testNodeCache } from "../testData";
-import { findRelevantRequirementGateway } from "./rgwPath";
+import { hasCompleteAndUsableRGW } from "./rgwIo";
+import { logCliOperation } from "./requirementsLog";
 
 const path = require("path");
 
@@ -48,7 +49,7 @@ function setAvailableContext(ids: string[]) {
  */
 export function updateRequirementsAvailability(enviroPath: string) {
   const envNodeID = makeEnviroNodeID(normalizePath(enviroPath));
-  const hasRequirements = findRelevantRequirementGateway(enviroPath) !== null;
+  const hasRequirements = hasCompleteAndUsableRGW(enviroPath);
   const idsForThisEnv = [envNodeID, ...descendantNodeIds(envNodeID)];
 
   if (hasRequirements) {
@@ -69,13 +70,18 @@ export function updateRequirementsAvailability(enviroPath: string) {
 }
 
 /**
- * Re-evaluate availability for every environment in the workspace. Used by
- * the file-system watchers below — out-of-band edits (the user deletes the
- * RGW from a terminal, edits CCAST_.CFG, etc.) don't tell us which env was
- * affected, and the eval is cheap enough to just do everything.
+ * Re-evaluate availability for every environment in the workspace. Out-of-
+ * band edits (the user deletes the RGW from a terminal, edits CCAST_.CFG,
+ * etc.) don't tell us which env was affected, and the eval is cheap enough
+ * (a few `fs.existsSync` per env) to just do everything.
  */
-async function refreshAllRequirementsAvailability(): Promise<void> {
+async function refreshAllRequirementsAvailability(
+  reason: string
+): Promise<void> {
   const envFiles = await vscode.workspace.findFiles("**/*.env");
+  logCliOperation(
+    `availability: refresh (${reason}); ${envFiles.length} env(s) found`
+  );
   for (const uri of envFiles) {
     const envDir = path.dirname(uri.fsPath);
     const envName = path.basename(uri.fsPath, ".env");
@@ -90,27 +96,40 @@ async function refreshAllRequirementsAvailability(): Promise<void> {
  *    appearing or disappearing.
  *  - `CCAST_.CFG` create/change/delete: the user pointing VCAST_REPOSITORY
  *    somewhere else (or unsetting it).
+ *  - VS Code window regains focus: catches everything else (`rm -rf` of the
+ *    parent dir, network FS, etc., where the file-level watcher can drop
+ *    events). The user typically returns to VS Code after terminal-side
+ *    work, so this is a near-zero-cost fallback that almost always fires.
  *
- * Watchers are registered on `context.subscriptions` so they're disposed
- * with the extension.
+ * All disposables are registered on `context.subscriptions`.
  */
 export function setupRequirementsFileWatchers(
   context: vscode.ExtensionContext
 ): void {
-  const refresh = () => {
-    void refreshAllRequirementsAvailability();
+  const refresh = (reason: string) => () => {
+    void refreshAllRequirementsAvailability(reason);
   };
 
   const rgwWatcher = vscode.workspace.createFileSystemWatcher(
     "**/requirements_gateway/requirements.json"
   );
-  rgwWatcher.onDidCreate(refresh, null, context.subscriptions);
-  rgwWatcher.onDidDelete(refresh, null, context.subscriptions);
+  rgwWatcher.onDidCreate(refresh("rgw create"), null, context.subscriptions);
+  rgwWatcher.onDidDelete(refresh("rgw delete"), null, context.subscriptions);
   context.subscriptions.push(rgwWatcher);
 
   const cfgWatcher = vscode.workspace.createFileSystemWatcher("**/CCAST_.CFG");
-  cfgWatcher.onDidChange(refresh, null, context.subscriptions);
-  cfgWatcher.onDidCreate(refresh, null, context.subscriptions);
-  cfgWatcher.onDidDelete(refresh, null, context.subscriptions);
+  cfgWatcher.onDidChange(refresh("ccast change"), null, context.subscriptions);
+  cfgWatcher.onDidCreate(refresh("ccast create"), null, context.subscriptions);
+  cfgWatcher.onDidDelete(refresh("ccast delete"), null, context.subscriptions);
   context.subscriptions.push(cfgWatcher);
+
+  // Fallback: VS Code regains focus. Cheap and catches the bulk-delete case
+  // where the file-level watcher drops events.
+  context.subscriptions.push(
+    vscode.window.onDidChangeWindowState((state) => {
+      if (state.focused) {
+        void refreshAllRequirementsAvailability("window focused");
+      }
+    })
+  );
 }

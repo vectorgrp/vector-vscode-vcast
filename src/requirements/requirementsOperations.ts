@@ -16,7 +16,11 @@ import {
   findRelevantRequirementGateway,
   setVcastRepositoryInConfig,
 } from "./rgwPath";
-import { inferTraceability, readRGWBundle } from "./rgwIo";
+import {
+  hasCompleteAndUsableRGW,
+  inferTraceability,
+  readRGWBundle,
+} from "./rgwIo";
 
 const path = require("path");
 const fs = require("fs");
@@ -353,13 +357,13 @@ export async function importRequirements(enviroPath: string) {
 }
 
 export async function exportRequirements(enviroPath: string) {
-  const gatewayPath = findRelevantRequirementGateway(enviroPath);
-  if (!gatewayPath) {
+  if (!hasCompleteAndUsableRGW(enviroPath)) {
     vscode.window.showErrorMessage(
-      "No requirements gateway found to export from."
+      "No requirements available to export."
     );
     return;
   }
+  const gatewayPath = findRelevantRequirementGateway(enviroPath)!;
 
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
