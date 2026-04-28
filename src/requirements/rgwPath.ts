@@ -43,6 +43,8 @@ export function findRelevantRequirementGateway(
   const parentDir = path.dirname(enviroPath);
   const configPath = path.join(parentDir, "CCAST_.CFG");
 
+  if (!fs.existsSync(configPath)) return null;
+
   const configContent = fs.readFileSync(configPath, "utf-8");
   const gatewayMatch = configContent.match(/VCAST_REPOSITORY:\s*(.+)\s*/);
   if (gatewayMatch == null) return null;

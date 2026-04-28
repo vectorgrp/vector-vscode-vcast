@@ -351,10 +351,22 @@ export async function writeRGWBundle(
     JSON.stringify({ [`[CSV] [${csvPath}]`]: consolidated }, null, 4)
   );
 
-  // 3. Write traceability.json directly.
+  // 3. Write traceability.json directly. RGW's invariant is one-to-one with
+  //    requirements: every requirement key has an entry, even if it's all
+  //    null. Without this normalization a partial save would leave a sparse
+  //    traceability.json (or a stale one with entries for removed
+  //    requirements), which downstream tools mis-handle.
+  const normalizedTraceability: RGWTraceabilityFile = {};
+  for (const reqKey of Object.keys(consolidated)) {
+    normalizedTraceability[reqKey] = updates.traceability[reqKey] ?? {
+      unit: null,
+      function: null,
+      lines: null,
+    };
+  }
   writeAtomic(
     files.traceability,
-    JSON.stringify(updates.traceability, null, 4)
+    JSON.stringify(normalizedTraceability, null, 4)
   );
 
   return {
