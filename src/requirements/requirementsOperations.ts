@@ -1,38 +1,27 @@
 import * as vscode from "vscode";
-import { exeFilename, showSettings } from "../utilities";
+import { showSettings } from "../utilities";
 import { refreshAllExtensionData } from "../testPane";
 import { loadTestScriptIntoEnvironment } from "../vcastAdapter";
+import { updateRequirementsAvailability } from "./availability";
+import { logCliError } from "./requirementsLog";
+import {
+  CODE2REQS_EXECUTABLE_PATH,
+  PANREQ_EXECUTABLE_PATH,
+  REQS2TESTS_EXECUTABLE_PATH,
+  setupReqs2XExecutablePaths,
+} from "./requirementsExecutables";
+import { runReqs2xTool } from "./processRunner";
+import {
+  defaultRequirementGatewayPath,
+  findRelevantRequirementGateway,
+  setVcastRepositoryInConfig,
+} from "./rgwPath";
+import { inferTraceability, readRGWBundle } from "./rgwIo";
 
 const path = require("path");
 const fs = require("fs");
 
 let reqs2XFeatureEnabled: boolean = false;
-
-let CODE2REQS_EXECUTABLE_PATH: string;
-let REQS2TESTS_EXECUTABLE_PATH: string;
-
-export let PANREQ_EXECUTABLE_PATH: string;
-export let LLM2CHECK_EXECUTABLE_PATH: string;
-
-const cliOutputChannel: vscode.OutputChannel = vscode.window.createOutputChannel(
-  "VectorCAST Requirement Test Generation Operations"
-);
-
-export function logCliOperation(message: string): void {
-  const timestamp = new Date().toLocaleTimeString();
-  cliOutputChannel.appendLine(`[${timestamp}] ${message}`);
-}
-
-export function logCliError(
-  message: string,
-  show: boolean | null = null
-): void {
-  const timestamp = new Date().toLocaleTimeString();
-  cliOutputChannel.appendLine(`[${timestamp}] ${message}`);
-  if (show) {
-    cliOutputChannel.show();
-  }
-}
 
 export function initializeReqs2X(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration(
@@ -65,47 +54,7 @@ export function initializeReqs2X(context: vscode.ExtensionContext) {
   );
 }
 
-function setupReqs2XExecutablePaths(context: vscode.ExtensionContext): boolean {
-  // Lazy import to break the circular dependency:
-  // availability → requirementsOperations (for log helpers) → availability.
-  const {
-    getAutoreqExecutableDirectory,
-  } = require("./availability") as typeof import("./availability");
-
-  const baseUri = getAutoreqExecutableDirectory(context);
-  if (!baseUri) return false;
-
-  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    exeFilename("code2reqs")
-  ).fsPath;
-  REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    exeFilename("reqs2tests")
-  ).fsPath;
-  PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    exeFilename("panreq")
-  ).fsPath;
-  LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    exeFilename("llm2check")
-  ).fsPath;
-
-  return true;
-}
-
 export async function generateRequirements(enviroPath: string) {
-  const {
-    defaultRequirementGatewayPath,
-    findRelevantRequirementGateway,
-    setVcastRepositoryInConfig,
-  } = require("./rgwPath") as typeof import("./rgwPath");
-  const { updateRequirementsAvailability } =
-    require("./availability") as typeof import("./availability");
-  const { runReqs2xTool } =
-    require("./processRunner") as typeof import("./processRunner");
-
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
   const envName = `${lowestDirname}.env`;
@@ -180,11 +129,6 @@ export async function generateTestsFromRequirements(
   enviroPath: string,
   unitOrFunctionName: string | null
 ) {
-  const { findRelevantRequirementGateway } =
-    require("./rgwPath") as typeof import("./rgwPath");
-  const { runReqs2xTool } =
-    require("./processRunner") as typeof import("./processRunner");
-
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
   const envName = `${lowestDirname}.env`;
@@ -288,9 +232,6 @@ async function offerTraceabilityInferenceIfMissing(
   enviroPath: string,
   options: { prompt: string; cancelMeansAbort: boolean }
 ): Promise<boolean> {
-  const { readRGWBundle, inferTraceability } =
-    require("./rgwIo") as typeof import("./rgwIo");
-
   const bundle = readRGWBundle(enviroPath);
   if (!bundle) return true; // nothing to evaluate; let caller continue
 
@@ -326,16 +267,6 @@ const EXT_TO_FORMAT: Record<string, string> = {
 };
 
 export async function importRequirements(enviroPath: string) {
-  const {
-    defaultRequirementGatewayPath,
-    findRelevantRequirementGateway,
-    setVcastRepositoryInConfig,
-  } = require("./rgwPath") as typeof import("./rgwPath");
-  const { updateRequirementsAvailability } =
-    require("./availability") as typeof import("./availability");
-  const { runReqs2xTool } =
-    require("./processRunner") as typeof import("./processRunner");
-
   const sourceUris = await vscode.window.showOpenDialog({
     canSelectMany: false,
     openLabel: "Import Requirements",
@@ -422,11 +353,6 @@ export async function importRequirements(enviroPath: string) {
 }
 
 export async function exportRequirements(enviroPath: string) {
-  const { findRelevantRequirementGateway } =
-    require("./rgwPath") as typeof import("./rgwPath");
-  const { runReqs2xTool } =
-    require("./processRunner") as typeof import("./processRunner");
-
   const gatewayPath = findRelevantRequirementGateway(enviroPath);
   if (!gatewayPath) {
     vscode.window.showErrorMessage(
@@ -500,4 +426,3 @@ export async function exportRequirements(enviroPath: string) {
     logCliError(message, true);
   }
 }
-

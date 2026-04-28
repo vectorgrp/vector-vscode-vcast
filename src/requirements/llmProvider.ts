@@ -6,7 +6,7 @@ import {
 import { vcastInstallationDirectory } from "../vcastInstallation";
 import { showSettings } from "../utilities";
 import { extractJson } from "../../src-common/commonUtilities";
-import { LLM2CHECK_EXECUTABLE_PATH } from "./requirementsOperations";
+import { LLM2CHECK_EXECUTABLE_PATH } from "./requirementsExecutables";
 
 export interface LLMProviderSettingsResult {
   provider: string | null;

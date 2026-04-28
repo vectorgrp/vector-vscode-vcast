@@ -101,9 +101,6 @@ function findTestItemRecursively(
   return found;
 }
 
-// `getNonce` and `resolveWebviewBase` were moved to src/webviewUtils.ts so the
-// requirements webview and any future webviews can share them.
-
 /**
  * Adds environments that are part of a managed project (from globalProjectDataCache).
  * @param globalProjectDataCache A Map containing project data.

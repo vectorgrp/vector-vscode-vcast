@@ -5,7 +5,7 @@ import {
   RGW_INNER_DIR,
 } from "./rgwPath";
 import { runReqs2xTool } from "./processRunner";
-import { PANREQ_EXECUTABLE_PATH } from "./requirementsOperations";
+import { PANREQ_EXECUTABLE_PATH } from "./requirementsExecutables";
 
 const path = require("path");
 const fs = require("fs");

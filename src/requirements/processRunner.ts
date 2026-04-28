@@ -3,7 +3,7 @@ import {
   ChildProcessWithoutNullStreams,
   spawn,
 } from "node:child_process";
-import { logCliError, logCliOperation } from "./requirementsOperations";
+import { logCliError, logCliOperation } from "./requirementsLog";
 import { spawnWithVcastEnv } from "./llmProvider";
 
 /**
