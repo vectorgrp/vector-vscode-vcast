@@ -128,7 +128,10 @@ import {
   clearVcastRepositoryInConfig,
   findRelevantRequirementGateway,
 } from "./requirements/rgwPath";
-import { updateRequirementsAvailability } from "./requirements/availability";
+import {
+  setupRequirementsFileWatchers,
+  updateRequirementsAvailability,
+} from "./requirements/availability";
 import { performLLMProviderUsableCheck } from "./requirements/llmProvider";
 import {
   applyEditPolicy,
@@ -366,7 +369,9 @@ async function activationLogic(context: vscode.ExtensionContext) {
   // start the language server
   activateLanguageServerClient(context);
 
-  // Initialize requirements availability for all environments
+  // Initialize requirements availability for all environments, then keep it
+  // in sync with out-of-band changes (RGW deleted in a terminal, CCAST_.CFG
+  // edited by hand, etc.).
   if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
     const envPaths = await getEnvironmentListIncludingUnbuilt(
       workspace.workspaceFolders[0].uri.fsPath
@@ -375,6 +380,7 @@ async function activationLogic(context: vscode.ExtensionContext) {
       updateRequirementsAvailability(envPath);
     }
   }
+  setupRequirementsFileWatchers(context);
 
   initializeReqs2X(context);
 }
