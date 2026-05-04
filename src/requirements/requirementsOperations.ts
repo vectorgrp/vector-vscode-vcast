@@ -270,6 +270,58 @@ const EXT_TO_FORMAT: Record<string, string> = {
   ".json": "json",
 };
 
+/**
+ * Import a requirements file (xlsx / csv / json) into the env's RGW.
+ * Sets up the default gateway location if VCAST_REPOSITORY is unset, runs
+ * panreq with the standard cancellable progress notification, then
+ * refreshes the test pane and the availability context key.
+ *
+ * Returns whether the import actually completed (false on user cancel of
+ * the progress, panreq failure, or other thrown errors). Does not show
+ * success messages — caller decides whether/how to celebrate.
+ */
+export async function importRequirementsFromPath(
+  enviroPath: string,
+  sourcePath: string,
+  options: { progressTitle: string }
+): Promise<boolean> {
+  const parentDir = path.dirname(enviroPath);
+  const envPath = path.join(parentDir, `${path.basename(enviroPath)}.env`);
+
+  let gatewayPath = findRelevantRequirementGateway(enviroPath);
+  if (!gatewayPath) {
+    gatewayPath = defaultRequirementGatewayPath(enviroPath);
+    fs.mkdirSync(path.dirname(gatewayPath), { recursive: true });
+    setVcastRepositoryInConfig(enviroPath, gatewayPath);
+  }
+
+  try {
+    const { cancelled } = await runReqs2xTool({
+      exe: PANREQ_EXECUTABLE_PATH,
+      args: [
+        sourcePath,
+        gatewayPath,
+        "--target-format",
+        "rgw",
+        "--target-env",
+        envPath,
+        "--json-events",
+      ],
+      progress: { title: options.progressTitle, logPrefix: "panreq" },
+    });
+    if (cancelled) return false;
+
+    await refreshAllExtensionData();
+    updateRequirementsAvailability(enviroPath);
+    return true;
+  } catch (err) {
+    const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    vscode.window.showErrorMessage(message);
+    logCliError(message, true);
+    return false;
+  }
+}
+
 export async function importRequirements(enviroPath: string) {
   const sourceUris = await vscode.window.showOpenDialog({
     canSelectMany: false,
@@ -292,68 +344,36 @@ export async function importRequirements(enviroPath: string) {
     return;
   }
 
-  const parentDir = path.dirname(enviroPath);
-  const lowestDirname = path.basename(enviroPath);
-  const envName = `${lowestDirname}.env`;
-  const envPath = path.join(parentDir, envName);
-
-  // Resolve target gateway: existing or set up the default. Mirrors
-  // generateRequirements so import behaves consistently when no
-  // VCAST_REPOSITORY is configured yet.
-  let gatewayPath = findRelevantRequirementGateway(enviroPath);
-  if (gatewayPath) {
+  // If a gateway already exists we ask first — the user may have come here
+  // by mistake. The actual setup-and-run happens in the shared helper.
+  const existingGateway = findRelevantRequirementGateway(enviroPath);
+  if (existingGateway) {
     const choice = await vscode.window.showWarningMessage(
-      `Importing will overwrite the existing requirements gateway at ${gatewayPath}.`,
+      `Importing will overwrite the existing requirements gateway at ${existingGateway}.`,
       "Continue",
       "Cancel"
     );
     if (choice !== "Continue") return;
-  } else {
-    gatewayPath = defaultRequirementGatewayPath(enviroPath);
-    fs.mkdirSync(path.dirname(gatewayPath), { recursive: true });
-    setVcastRepositoryInConfig(enviroPath, gatewayPath);
   }
 
-  const args = [
-    sourcePath,
-    gatewayPath,
-    "--target-format",
-    "rgw",
-    "--target-env",
-    envPath,
-    "--json-events",
-  ];
+  const enviroName = path.basename(enviroPath);
+  const ok = await importRequirementsFromPath(enviroPath, sourcePath, {
+    progressTitle: `Importing Requirements for ${enviroName}`,
+  });
+  if (!ok) return;
 
-  try {
-    const { cancelled } = await runReqs2xTool({
-      exe: PANREQ_EXECUTABLE_PATH,
-      args,
-      progress: {
-        title: `Importing Requirements for ${lowestDirname}`,
-        logPrefix: "panreq",
-      },
-    });
-    if (cancelled) return;
+  vscode.window.showInformationMessage(
+    `Successfully imported requirements from ${path.basename(sourcePath)}`
+  );
 
-    await refreshAllExtensionData();
-    updateRequirementsAvailability(enviroPath);
-    vscode.window.showInformationMessage(
-      `Successfully imported requirements from ${path.basename(sourcePath)}`
-    );
-
-    // Same prompt as generateTestsFromRequirements: imported requirements
-    // typically lack code traceability. Skip-vs-infer; "Skip" leaves the user
-    // free to set traceability manually in the editor later.
-    await offerTraceabilityInferenceIfMissing(enviroPath, {
-      prompt:
-        "None of the imported requirements trace to a function. Would you like to infer traceability automatically?",
-      cancelMeansAbort: false,
-    });
-  } catch (err) {
-    const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
-    vscode.window.showErrorMessage(message);
-    logCliError(message, true);
-  }
+  // Same prompt as generateTestsFromRequirements: imported requirements
+  // typically lack code traceability. Skip-vs-infer; "Skip" leaves the user
+  // free to set traceability manually in the editor later.
+  await offerTraceabilityInferenceIfMissing(enviroPath, {
+    prompt:
+      "None of the imported requirements trace to a function. Would you like to infer traceability automatically?",
+    cancelMeansAbort: false,
+  });
 }
 
 export async function exportRequirements(enviroPath: string) {

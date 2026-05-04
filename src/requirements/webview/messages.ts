@@ -1,13 +1,28 @@
 import type {
   RGWFileMtimes,
+  RGWRequirement,
   RGWRequirementsFile,
+  RGWTraceabilityEntry,
   RGWTraceabilityFile,
 } from "../rgwIo";
-import type { RequirementGroup } from "./template";
 
 // Wire protocol for the requirements webview ↔ extension.
 // Discriminated unions on `type`. The webview script and extension handler
 // both branch on these — keep them in sync.
+
+// --------- Card payloads carried by saved/inferred -------------------------
+
+export interface RequirementEntry {
+  source: string;
+  id: string;
+  req: RGWRequirement;
+  trace: RGWTraceabilityEntry;
+}
+
+export interface RequirementGroup {
+  name: string;
+  entries: RequirementEntry[];
+}
 
 // --------- Webview → Extension ---------------------------------------------
 
@@ -24,7 +39,18 @@ export interface InferTraceabilityMessage {
   type: "infer-traceability";
 }
 
-export type FromWebview = SaveMessage | InferTraceabilityMessage;
+export interface OpenSourceMessage {
+  type: "open-source";
+  /** Unit name as it appears in `envData.unitData[i]` (matches source basename). */
+  unit: string;
+  /** Function name within the unit, or null to just open the file. */
+  function: string | null;
+}
+
+export type FromWebview =
+  | SaveMessage
+  | InferTraceabilityMessage
+  | OpenSourceMessage;
 
 // --------- Extension → Webview ---------------------------------------------
 

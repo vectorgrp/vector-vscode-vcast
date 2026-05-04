@@ -5,6 +5,7 @@ import {
   type RGWRequirement,
   type RGWTraceabilityEntry,
 } from "../rgwIo";
+import type { RequirementEntry, RequirementGroup } from "./messages";
 
 const path = require("path");
 
@@ -29,24 +30,6 @@ function serializeStateForScriptTag(state: unknown): string {
     .replace(/>/g, "\\u003e")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
-}
-
-/**
- * Render the grouped headings + cards for a bundle. Exported so the extension
- * can call it again after save/infer to refresh the headings — they reflect
- * the current `function || unit || source` grouping, which can change as the
- * user edits traceability.
- */
-export interface RequirementEntry {
-  source: string;
-  id: string;
-  req: RGWRequirement;
-  trace: RGWTraceabilityEntry;
-}
-
-export interface RequirementGroup {
-  name: string;
-  entries: RequirementEntry[];
 }
 
 /**
@@ -216,6 +199,9 @@ function renderCard(
             idAttrs,
           })}
         </div>
+      </div>
+      <div class="open-source-row">
+        <button class="open-source-btn" data-action="open-source"${entry.trace.unit ? "" : " disabled"} title="Open the unit's source file at the function definition.">↗ Open source</button>
       </div>
     </div>
   `;

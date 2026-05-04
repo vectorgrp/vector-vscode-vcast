@@ -314,6 +314,106 @@ async function getEnvironmentListIncludingUnbuilt(
  * so we show a quick-pick of envs in the workspace. Returns null if the user
  * dismisses the picker or the workspace has no env files.
  */
+/**
+ * Open the source file backing a trace mapping. If `functionName` is given
+ * and the unit has a matching entry with a startLine, jump to that line;
+ * otherwise just open the file. Used by the requirements editor's "Open
+ * source" button.
+ */
+/**
+ * Resolve a source-file location from VectorCAST envData.  Returns the URI
+ * for the unit's source file and the line of the named function (or 0 if
+ * `functionName` is null or its `startLine` isn't known). Returns null if
+ * envData lacks unit info or the unit isn't present in the env.
+ *
+ * Shared by the test-pane "Open Source File" command and the requirements
+ * editor's per-card "Open source" button — same matching rule (unit name
+ * == source-file basename, sans extension).
+ */
+function resolveSourceLocation(
+  envData: any,
+  unitName: string,
+  functionName: string | null
+): { uri: vscode.Uri; lineNumber: number } | null {
+  const units = envData?.unitData;
+  if (!Array.isArray(units)) return null;
+  const unitInfo = units.find((u: any) => {
+    if (!u?.path) return false;
+    return path.basename(u.path, path.extname(u.path)) === unitName;
+  });
+  if (!unitInfo) return null;
+  let lineNumber = 0;
+  if (functionName && Array.isArray(unitInfo.functionList)) {
+    const fn = unitInfo.functionList.find(
+      (f: any) => f?.name === functionName && f?.startLine !== undefined
+    );
+    if (fn) lineNumber = fn.startLine;
+  }
+  return { uri: vscode.Uri.file(unitInfo.path), lineNumber };
+}
+
+async function openSourceForTrace(
+  enviroPath: string,
+  unitName: string,
+  functionName: string | null,
+  referenceColumn: vscode.ViewColumn | undefined
+): Promise<void> {
+  if (!unitName) return;
+  let envData: any;
+  try {
+    envData = await getEnvironmentData(enviroPath);
+  } catch {
+    vscode.window.showErrorMessage(
+      "Could not query the environment to resolve the source file."
+    );
+    return;
+  }
+  if (!envData?.unitData) {
+    vscode.window.showErrorMessage(
+      "Environment data has no unit information."
+    );
+    return;
+  }
+
+  const located = resolveSourceLocation(envData, unitName, functionName);
+  if (!located) {
+    vscode.window.showErrorMessage(
+      `Unit "${unitName}" not found in this environment.`
+    );
+    return;
+  }
+  const { uri, lineNumber } = located;
+  const position = new vscode.Position(Math.max(0, lineNumber - 1), 0);
+  const selection = new vscode.Range(position, position);
+
+  // If the file is already open in a tab in some *other* column, reveal
+  // that tab. Tabs in the webview's own column are ignored — switching to
+  // them would hide the requirements view. If no other-column tab exists,
+  // fall back to Beside so a new editor opens next to the webview.
+  let targetColumn: vscode.ViewColumn | undefined;
+  for (const group of vscode.window.tabGroups.all) {
+    if (group.viewColumn === referenceColumn) continue;
+    const hit = group.tabs.find(
+      (tab) =>
+        tab.input instanceof vscode.TabInputText &&
+        tab.input.uri.fsPath === uri.fsPath
+    );
+    if (hit) {
+      targetColumn = group.viewColumn;
+      break;
+    }
+  }
+  targetColumn ??= vscode.ViewColumn.Beside;
+
+  const document = await vscode.workspace.openTextDocument(uri);
+  await vscode.window.showTextDocument(document, {
+    preview: false,
+    preserveFocus: false,
+    selection,
+    viewColumn: targetColumn,
+  });
+}
+
 async function resolveEnviroPathForCommand(
   args: any
 ): Promise<string | null> {
@@ -1293,70 +1393,41 @@ function configureExtension(context: vscode.ExtensionContext) {
   let openSourceFileFromTestpaneCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
     async (args: any) => {
-      if (args) {
-        const testNode: testNodeType = getTestNode(args.id);
-        if (testNode) {
-          const enviroPath = testNode.enviroPath;
-          const unitName = testNode.unitName;
-          const functionName = testNode.functionName;
-          const envData = await getEnvironmentData(enviroPath);
-
-          if (envData.unitData) {
-            for (const unitInfo of envData.unitData) {
-              // Extract unit name from path to match against unitName
-              const pathBasename = path.basename(
-                unitInfo.path,
-                path.extname(unitInfo.path)
-              );
-
-              if (pathBasename === unitName) {
-                const sourcePath = unitInfo.path;
-                const uri = vscode.Uri.file(sourcePath);
-
-                // Determine the line number to open at (0 = top default)
-                let lineNumber = 0;
-
-                // If functionName is defined, try to find it in the function list
-                if (functionName && unitInfo.functionList) {
-                  for (const func of unitInfo.functionList) {
-                    if (
-                      func.name === functionName &&
-                      func.startLine !== undefined
-                    ) {
-                      lineNumber = func.startLine;
-                      break;
-                    }
-                  }
-                }
-
-                // Open the document at the specified line
-                const document = await vscode.workspace.openTextDocument(uri);
-                const position = new vscode.Position(
-                  Math.max(0, lineNumber - 1),
-                  0
-                );
-                const selection = new vscode.Range(position, position);
-
-                await vscode.window.showTextDocument(document, {
-                  preview: false, // open as a real tab
-                  preserveFocus: false,
-                  selection: selection,
-                });
-
-                break;
-              }
-            }
-          } else {
-            vscode.window.showErrorMessage(
-              `Could not find environment data for: ${enviroPath}`
-            );
-          }
-        } else {
-          vscode.window.showErrorMessage(
-            `Unable to open Source File for Node: ${args.id}`
-          );
-        }
+      if (!args) return;
+      const testNode: testNodeType = getTestNode(args.id);
+      if (!testNode) {
+        vscode.window.showErrorMessage(
+          `Unable to open Source File for Node: ${args.id}`
+        );
+        return;
       }
+
+      const envData = await getEnvironmentData(testNode.enviroPath);
+      if (!envData?.unitData) {
+        vscode.window.showErrorMessage(
+          `Could not find environment data for: ${testNode.enviroPath}`
+        );
+        return;
+      }
+
+      const located = resolveSourceLocation(
+        envData,
+        testNode.unitName,
+        testNode.functionName ?? null
+      );
+      if (!located) return;
+
+      const document = await vscode.workspace.openTextDocument(located.uri);
+      const position = new vscode.Position(
+        Math.max(0, located.lineNumber - 1),
+        0
+      );
+      const selection = new vscode.Range(position, position);
+      await vscode.window.showTextDocument(document, {
+        preview: false,
+        preserveFocus: false,
+        selection,
+      });
     }
   );
   context.subscriptions.push(openSourceFileFromTestpaneCommand);
@@ -1509,6 +1580,13 @@ function configureExtension(context: vscode.ExtensionContext) {
               vscode.window.showErrorMessage(message);
               post({ type: "infer-failed", message });
             }
+          } else if (msg?.type === "open-source") {
+            await openSourceForTrace(
+              enviroPath,
+              msg.unit,
+              msg.function,
+              panel.viewColumn
+            );
           }
         },
         undefined,

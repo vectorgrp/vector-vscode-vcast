@@ -31,9 +31,14 @@
   // ---------- State helpers ----------------------------------------------
 
   function existingKeys() {
+    // Soft-removed keys don't count: the user can add a fresh requirement
+    // with the same key in the same save (the Save flow drops the removed
+    // entry before inserting the new one).
     const keys = new Set();
     for (const bucket of Object.values(state.requirements)) {
-      for (const k of Object.keys(bucket)) keys.add(k);
+      for (const k of Object.keys(bucket)) {
+        if (!removed.has(k)) keys.add(k);
+      }
     }
     return keys;
   }
@@ -194,6 +199,7 @@
     card.appendChild(
       buildTraceRow(entry.trace.unit, entry.trace.function, { reqId: entry.id })
     );
+    card.appendChild(buildOpenSourceRow(entry.trace.unit ?? ""));
     return card;
   }
 
@@ -263,9 +269,23 @@
     card.appendChild(
       buildTraceRow(pending.unit, pending.function, { tempId: pending.tempId })
     );
+    card.appendChild(buildOpenSourceRow(pending.unit ?? ""));
 
     validatePendingKey(pending, keyInput, keyError);
     return card;
+  }
+
+  function buildOpenSourceRow(unit) {
+    const row = document.createElement("div");
+    row.className = "open-source-row";
+    const btn = document.createElement("button");
+    btn.className = "open-source-btn";
+    btn.dataset.action = "open-source";
+    btn.textContent = "↗ Open source";
+    btn.title = "Open the unit's source file at the function definition.";
+    btn.disabled = !unit;
+    row.appendChild(btn);
+    return row;
   }
 
   function rebuildBody(groups) {
@@ -382,6 +402,7 @@
           if (fnSelect) {
             pending.function = fnSelect.value === "" ? null : fnSelect.value;
           }
+          updateOpenSourceForCard(card, pending.unit);
         }
       }
       refreshButtonStates();
@@ -417,7 +438,14 @@
         setDirty(reqId, "trace", "function", newFn);
         fnSelect.classList.add("dirty");
       }
+      updateOpenSourceForCard(card, value);
     }
+  }
+
+  function updateOpenSourceForCard(card, unit) {
+    if (!card) return;
+    const btn = card.querySelector(".open-source-btn");
+    if (btn) btn.disabled = !unit;
   }
 
   reqsBody.addEventListener("input", (e) => {
@@ -475,6 +503,9 @@
         btn.title = "Restore this requirement";
       }
     }
+    // A soft-delete or restore can flip the validity of pending-add keys
+    // that were colliding/uncolliding with the toggled requirement.
+    revalidateAllPendingKeys();
     refreshButtonStates();
   }
 
@@ -496,12 +527,27 @@
 
   reqsBody.addEventListener("click", (e) => {
     const t = e.target;
-    if (!t || !t.matches || !t.matches(".req-remove-btn")) return;
-    const action = t.dataset.action;
-    if (action === "remove") {
-      toggleRemoveExisting(t.dataset.reqId);
-    } else if (action === "discard-added") {
-      discardPendingAdd(t.dataset.tempId);
+    if (!t || !t.matches) return;
+    if (t.matches(".req-remove-btn")) {
+      const action = t.dataset.action;
+      if (action === "remove") {
+        toggleRemoveExisting(t.dataset.reqId);
+      } else if (action === "discard-added") {
+        discardPendingAdd(t.dataset.tempId);
+      }
+    } else if (t.matches(".open-source-btn") && !t.disabled) {
+      const card = t.closest(".req");
+      if (!card) return;
+      const unitEl = card.querySelector('[data-scope="trace"][data-field="unit"]');
+      const fnEl = card.querySelector('[data-scope="trace"][data-field="function"]');
+      const unit = unitEl ? unitEl.value : "";
+      const fn = fnEl ? fnEl.value : "";
+      if (!unit) return;
+      vscode.postMessage({
+        type: "open-source",
+        unit,
+        function: fn === "" ? null : fn,
+      });
     }
   });
 

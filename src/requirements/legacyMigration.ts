@@ -1,13 +1,8 @@
 import * as vscode from "vscode";
-import { runReqs2xTool } from "./processRunner";
-import {
-  defaultRequirementGatewayPath,
-  findRelevantRequirementGateway,
-  setVcastRepositoryInConfig,
-} from "./rgwPath";
+import { findRelevantRequirementGateway } from "./rgwPath";
 import { PANREQ_EXECUTABLE_PATH } from "./requirementsExecutables";
-import { updateRequirementsAvailability } from "./availability";
-import { logCliError, logCliOperation } from "./requirementsLog";
+import { logCliOperation } from "./requirementsLog";
+import { importRequirementsFromPath } from "./requirementsOperations";
 
 const path = require("path");
 const fs = require("fs");
@@ -50,48 +45,15 @@ async function findEnvsWithLegacyStorage(): Promise<LegacyEnv[]> {
 }
 
 /**
- * Run panreq to import the legacy file into a freshly-set-up RGW under
- * `reqs-<env>/rgw/`, and write VCAST_REPOSITORY to CCAST_.CFG so subsequent
- * operations find the gateway. Mirrors what the Import Requirements command
- * does, just programmatic (no file picker) and tagged with a migration
- * progress title.
+ * Migrate one env: import its legacy reqs.xlsx / reqs.csv into a fresh RGW
+ * under `reqs-<env>/rgw/`. Just a thin wrapper around the shared
+ * importRequirementsFromPath helper with a migration-flavoured progress
+ * title.
  */
 async function migrateOne(env: LegacyEnv): Promise<boolean> {
-  const parentDir = path.dirname(env.enviroPath);
-  const envName = `${path.basename(env.enviroPath)}.env`;
-  const envPath = path.join(parentDir, envName);
-
-  const gatewayPath = defaultRequirementGatewayPath(env.enviroPath);
-  fs.mkdirSync(path.dirname(gatewayPath), { recursive: true });
-  setVcastRepositoryInConfig(env.enviroPath, gatewayPath);
-
-  try {
-    const { cancelled } = await runReqs2xTool({
-      exe: PANREQ_EXECUTABLE_PATH,
-      args: [
-        env.legacySource,
-        gatewayPath,
-        "--target-format",
-        "rgw",
-        "--target-env",
-        envPath,
-        "--json-events",
-      ],
-      progress: {
-        title: `Migrating requirements for ${path.basename(env.enviroPath)}`,
-        logPrefix: "panreq",
-      },
-    });
-    if (cancelled) return false;
-    updateRequirementsAvailability(env.enviroPath);
-    return true;
-  } catch (err) {
-    logCliError(
-      `Failed to migrate ${env.legacySource}: ${err instanceof Error ? err.message : err}`,
-      true
-    );
-    return false;
-  }
+  return importRequirementsFromPath(env.enviroPath, env.legacySource, {
+    progressTitle: `Migrating requirements for ${path.basename(env.enviroPath)}`,
+  });
 }
 
 /**

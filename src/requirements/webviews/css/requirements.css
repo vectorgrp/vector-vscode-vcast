@@ -77,6 +77,27 @@ h2 {
   color: var(--vscode-inputValidation-errorBorder, #be1100);
   margin-top: 2px;
 }
+.open-source-row {
+  margin-top: 6px;
+  text-align: right;
+}
+.open-source-btn {
+  background: transparent;
+  border: 1px solid var(--vscode-input-border, #ccc);
+  color: var(--vscode-foreground, #000);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 10px;
+  font-size: 0.85em;
+  font-family: inherit;
+}
+.open-source-btn:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryBackground, var(--vscode-editorWidget-background, #eee));
+}
+.open-source-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .req-id {
   font-weight: 600;
   color: var(--vscode-textLink-foreground, #2980b9);
