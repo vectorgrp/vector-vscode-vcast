@@ -1,28 +1,12 @@
 import type {
   RGWFileMtimes,
-  RGWRequirement,
   RGWRequirementsFile,
-  RGWTraceabilityEntry,
   RGWTraceabilityFile,
 } from "../rgwIo";
 
 // Wire protocol for the requirements webview ↔ extension.
 // Discriminated unions on `type`. The webview script and extension handler
 // both branch on these — keep them in sync.
-
-// --------- Card payloads carried by saved/inferred -------------------------
-
-export interface RequirementEntry {
-  source: string;
-  id: string;
-  req: RGWRequirement;
-  trace: RGWTraceabilityEntry;
-}
-
-export interface RequirementGroup {
-  name: string;
-  entries: RequirementEntry[];
-}
 
 // --------- Webview → Extension ---------------------------------------------
 
@@ -58,13 +42,6 @@ interface BundleRefreshPayload {
   mtimes: RGWFileMtimes;
   requirements: RGWRequirementsFile;
   traceability: RGWTraceabilityFile;
-  /**
-   * Structured grouping for re-rendering the cards section. The webview
-   * builds the DOM from this — we deliberately don't ship pre-built HTML
-   * over the wire so the webview script has no `innerHTML` surface for
-   * postMessage payloads.
-   */
-  groups: RequirementGroup[];
 }
 
 export interface SavedMessage extends BundleRefreshPayload {

@@ -141,10 +141,7 @@ import {
   RGWStaleWriteError,
   writeRGWBundle,
 } from "./requirements/rgwIo";
-import {
-  generateRequirementsHtml,
-  groupRequirements,
-} from "./requirements/webview/template";
+import { generateRequirementsHtml } from "./requirements/webview/template";
 import type {
   FromWebview,
   ToWebview,
@@ -1547,7 +1544,6 @@ function configureExtension(context: vscode.ExtensionContext) {
                 mtimes: newMtimes,
                 requirements: safeUpdates.requirements,
                 traceability: safeUpdates.traceability,
-                groups: groupRequirements(currentBundle),
               });
             } catch (err) {
               const message =
@@ -1574,7 +1570,6 @@ function configureExtension(context: vscode.ExtensionContext) {
                 mtimes: refreshed.mtimes,
                 requirements: refreshed.requirements,
                 traceability: refreshed.traceability,
-                groups: groupRequirements(refreshed),
               });
             } catch (err) {
               const message = `Failed to infer traceability: ${err}`;
