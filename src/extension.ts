@@ -1489,6 +1489,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         vscode.ViewColumn.One,
         {
           enableScripts: true,
+          enableFindWidget: true, // Ctrl+F text-find inside the webview
           retainContextWhenHidden: true,
           localResourceRoots: [vscode.Uri.file(webviewBaseDir)],
         }

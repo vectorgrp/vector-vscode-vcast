@@ -139,6 +139,7 @@ export function generateRequirementsHtml(
 <div id="rgw-pill" title="${escapeHtml(bundle.gatewayPath)}">RGW: ${escapeHtml(bundle.gatewayPath)}</div>
 ${bannerHtml}
 <div id="save-toolbar">${policy.bodiesEditable ? `<button id="add-btn" title="Add a new requirement to this RGW.">+ Add requirement</button>` : ""}<button id="infer-btn" title="Use the configured LLM to infer the unit/function each requirement traces to.">✨ Infer traceability</button><button id="save-btn" disabled>Save changes</button></div>
+<div id="search-bar"><input id="search-input" type="search" placeholder="Search…" /><select id="filter-unit" title="Filter by unit"></select><select id="filter-function" title="Filter by function"></select><span id="search-count"></span></div>
 <div id="reqs-body">${body}</div>
 <script nonce="${nonce}">window.__rgwState = ${serializeStateForScriptTag(initialState)};</script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
@@ -164,8 +165,21 @@ function renderCard(
     ? `<button class="req-remove-btn" data-action="remove" data-req-id="${escapeHtml(entry.id)}" title="Remove this requirement">×</button>`
     : "";
 
+  // Search haystack: lowercased concat of fields the in-page filter
+  // matches against. Kept as a data attribute so the script doesn't have
+  // to read all the inputs on every keystroke.
+  const haystack = [
+    entry.id,
+    entry.req.title ?? "",
+    entry.req.description ?? "",
+    entry.trace.unit ?? "",
+    entry.trace.function ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
   return `
-    <div class="req" data-req-id="${escapeHtml(entry.id)}">
+    <div class="req" data-req-id="${escapeHtml(entry.id)}" data-haystack="${escapeHtml(haystack)}" data-trace-unit="${escapeHtml(entry.trace.unit ?? "")}" data-trace-function="${escapeHtml(entry.trace.function ?? "")}">
       <div class="req-header">
         <div class="req-id">${escapeHtml(entry.id)}</div>
         <div class="req-meta">${lastMod ? `modified: ${escapeHtml(lastMod)} · ` : ""}source: ${escapeHtml(entry.source)}${removeBtn ? ` ${removeBtn}` : ""}</div>

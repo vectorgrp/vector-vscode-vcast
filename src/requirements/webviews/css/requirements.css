@@ -145,6 +145,54 @@ h2 {
   outline: 2px solid var(--vscode-inputValidation-infoBorder, #9cc);
 }
 
+#search-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--vscode-editor-background, #fff);
+  padding: 4px 0 6px;
+  margin-bottom: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.9em;
+}
+#search-input,
+#filter-unit,
+#filter-function {
+  background: var(--vscode-input-background, #fff);
+  color: var(--vscode-input-foreground, #000);
+  border: 1px solid var(--vscode-input-border, #ccc);
+  padding: 3px 8px;
+  font: inherit;
+  border-radius: 3px;
+}
+#search-input {
+  flex: 1;
+  min-width: 140px;
+}
+#search-input:focus,
+#filter-unit:focus,
+#filter-function:focus {
+  outline: 1px solid var(--vscode-focusBorder, #0078d4);
+}
+#filter-unit,
+#filter-function {
+  max-width: 180px;
+}
+#search-count {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground, #888);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.req--hidden,
+.h2--hidden {
+  display: none;
+}
+
 #rgw-pill {
   position: fixed;
   bottom: 16px;
