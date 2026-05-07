@@ -112,17 +112,29 @@ export async function createNewProject(
     progressMessage
   );
 
-  let activeCFGPath: string | undefined;
-
   // Configure the Compiler / CFG
   if (usingDefaultCFG) {
     // Scenario A: Use an existing CFG file
-    // 'compiler' variable here is the PATH to the CFG
-    activeCFGPath = compiler;
+    if (configurationOptions?.useDefaultDB) {
+      const settings = vscode.workspace.getConfiguration(
+        "vectorcastTestExplorer"
+      );
+      const dbPath = settings.get<string>("databaseLocation");
+
+      if (dbPath && fs.existsSync(dbPath)) {
+        // updateCFGWithVCShellDatabase expects the DIRECTORY containing the CFG
+        await updateCFGWithVCShellDatabase(dbPath, path.dirname(compiler));
+      } else {
+        vscode.window.showWarningMessage(
+          "Could not set Default Database: the database file defined in settings could not be found."
+        );
+      }
+    }
+
     await addCompilerToProject(projectPath, compiler);
   } else {
     // Scenario B: Create a NEW CFG based on a Compiler Tag
-    // 'compiler' variable here is the Compiler Tag (e.g., "GNU_Native")
+    // 'compiler' here is the Compiler Tag (e.g., "GNU_Native")
 
     // Create the CFG file inside the new project directory
     const createdCfgPath = await createNewCFGFromCompiler(
@@ -130,15 +142,13 @@ export async function createNewProject(
       projectPath
     );
 
-    activeCFGPath = createdCfgPath;
-
-    // Handle Additional Configuration Options (if provided)
-    if (configurationOptions) {
+    // Apply Configuration Options to the freshly created CFG.
+    if (configurationOptions && createdCfgPath) {
       const vcDir = getVectorCastInstallationLocation();
       if (vcDir) {
         const clicastCmd = path.join(vcDir, "clicast");
 
-        // Apply Coded Tests Option
+        // Coded Tests option
         const codedFlag = configurationOptions.enableCodedTests
           ? "TRUE"
           : "FALSE";
@@ -149,7 +159,6 @@ export async function createNewProject(
           codedFlag,
         ];
 
-        // We run this command INSIDE the new project path so it affects the local CFG
         await executeWithRealTimeEchoWithProgress(
           clicastCmd,
           codedOptionArgs,
@@ -157,7 +166,27 @@ export async function createNewProject(
           "Setting VCAST_CODED_TESTS_SUPPORT in Project CFG"
         );
 
-        // Set as Default CFG in VS Code Settings
+        // Default Database option
+        if (configurationOptions.useDefaultDB) {
+          const settings = vscode.workspace.getConfiguration(
+            "vectorcastTestExplorer"
+          );
+          const dbPath = settings.get<string>("databaseLocation");
+
+          if (dbPath && fs.existsSync(dbPath)) {
+            // Pass the directory of the CFG, matching defaultVCShell usage
+            await updateCFGWithVCShellDatabase(
+              dbPath,
+              path.dirname(createdCfgPath)
+            );
+          } else {
+            vscode.window.showWarningMessage(
+              "Could not set Default Database: the database file defined in settings could not be found."
+            );
+          }
+        }
+
+        // Set this newly created CFG as the workspace default if requested
         if (configurationOptions.defaultCFG) {
           const settings = vscode.workspace.getConfiguration(
             "vectorcastTestExplorer"
@@ -170,31 +199,16 @@ export async function createNewProject(
         }
       } else {
         vscode.window.showErrorMessage(
-          "Could not determine VectorCAST location. configuration options could not be applied."
+          "Could not determine VectorCAST location. Configuration options could not be applied."
         );
       }
     }
 
-    // If CFG options are done, add the compiler to the project
-    // If the path would be undefined, we will get a message from createNewCFGFromCompiler, so no handling here
+    // Now that the CFG has all options applied, import it into the project.
+    // If createdCfgPath is undefined the user already got a message from
+    // createNewCFGFromCompiler, so no extra handling needed here.
     if (createdCfgPath) {
       await addCompilerToProject(projectPath, createdCfgPath);
-    }
-  }
-
-  // Apply Default Database if requested and path exists
-  if (configurationOptions?.useDefaultDB && activeCFGPath) {
-    const settings = vscode.workspace.getConfiguration(
-      "vectorcastTestExplorer"
-    );
-    const dbPath = settings.get<string>("databaseLocation");
-
-    if (dbPath && fs.existsSync(dbPath)) {
-      await updateCFGWithVCShellDatabase(dbPath, activeCFGPath);
-    } else {
-      vscode.window.showWarningMessage(
-        "Could not set Default Database: The database file defined in settings could not be found."
-      );
     }
   }
 }

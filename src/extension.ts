@@ -2125,7 +2125,6 @@ async function installPreActivationEventHandlers(
         }
 
         let compiler: string | undefined;
-        let configurationOptions: ConfigurationOptions | undefined;
 
         if (useDefaultCFG) {
           const settings = vscode.workspace.getConfiguration(
@@ -2137,15 +2136,12 @@ async function installPreActivationEventHandlers(
             vscode.window.showErrorMessage("No default CFG is defined.");
             return;
           }
-          // When using default CFG, the 'compiler' string is the path to the CFG
           compiler = defaultCFGPath;
         } else {
-          // Manual Compiler Selection
           if (!compilerName) {
             vscode.window.showErrorMessage("Compiler selection is required.");
             return;
           }
-
           compiler = compilerTagList[compilerName];
           if (!compiler) {
             vscode.window.showErrorMessage(
@@ -2153,14 +2149,13 @@ async function installPreActivationEventHandlers(
             );
             return;
           }
-
-          // Pack the boolean options
-          configurationOptions = {
-            enableCodedTests: !!enableCodedTests,
-            defaultCFG: !!defaultCFG,
-            useDefaultDB: !!useDefaultDB,
-          };
         }
+
+        const configurationOptions: ConfigurationOptions = {
+          enableCodedTests: !!enableCodedTests,
+          defaultCFG: !!defaultCFG,
+          useDefaultDB: !!useDefaultDB,
+        };
 
         const base = targetDir ?? workspaceRoot;
         const projectPath = path.join(base, projectName);
