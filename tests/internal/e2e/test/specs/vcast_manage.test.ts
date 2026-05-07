@@ -196,7 +196,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await releaseCtrl();
     console.log("Executing: Set as default Database");
     await vcshell.openContextMenu();
-    await (await $("aria/Set as default Database")).click();
+    await (await $("aria/VectorCAST: Set as default Database")).click();
 
     console.log("Checking whetehr Setting got updated");
     const settingsEditor = await workbench.openSettings();

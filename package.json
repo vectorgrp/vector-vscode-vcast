@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.30",
+  "version": "1.0.31",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -171,7 +171,7 @@
       {
         "command": "vectorcastTestExplorer.defaultVCShell",
         "category": "VectorCAST Test Explorer",
-        "title": "Set as default Database"
+        "title": "VectorCAST: Set as default Database"
       },
       {
         "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
