@@ -2,6 +2,12 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.31] - 2026-05-07
+
+### Added
+- Ability to set a VCDB as default and include in the default CFG
+- Ability to set VCDB option when creating new Projects / CFG files
+- Redesigned new Project / new CFG webviews
 
 ## [1.0.30] - 2026-03-24
 
