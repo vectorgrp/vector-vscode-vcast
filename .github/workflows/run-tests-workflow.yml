@@ -322,7 +322,7 @@ jobs:
           echo "matrix=$(cat gha_matrix.json)" >> "$GITHUB_OUTPUT"
 
   e2e-tests:
-    needs: [generate-e2e-matrix, build-downloadable-vsix]
+    needs: [generate-e2e-matrix]
     if: github.event.pull_request.draft == false
     permissions: write-all
     runs-on: [self-hosted, vscode-vcast, Linux]

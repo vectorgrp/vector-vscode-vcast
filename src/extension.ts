@@ -79,6 +79,7 @@ import {
   forceLowerCaseDriveLetter,
   decodeVar,
   getFullEnvReport,
+  normalizePath,
 } from "./utilities";
 
 import {
@@ -102,7 +103,6 @@ import {
   cleanProjectEnvironment,
   addEnvToTestsuite,
   deleteEnvironmentFromProject,
-  createNewCompilerInProject,
   createNewProject,
 } from "./manage/manageSrc/manageCommands";
 
@@ -149,6 +149,10 @@ import {
   newTestScript,
   openCodedTest,
   ProjectEnvParameters,
+  createNewCFGFile,
+  ConfigurationOptions,
+  updateVCShellDatabase,
+  updateCFGWithVCShellDatabase,
 } from "./vcastTestInterface";
 
 import {
@@ -1619,6 +1623,51 @@ async function installPreActivationEventHandlers(
   );
   context.subscriptions.push(newEnviroVCASTCommand);
 
+  let defaultVCShellCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.defaultVCShell",
+    async (fileURI: Uri) => {
+      await checkPrerequisites(context);
+
+      if (!alreadyConfigured) {
+        return;
+      }
+
+      if (fileURI) {
+        const filePath = fileURI.fsPath;
+        const settings = vscode.workspace.getConfiguration(
+          "vectorcastTestExplorer"
+        );
+
+        const defaultConfigurationPath = settings.get(
+          "configurationLocation",
+          undefined
+        );
+
+        // First update vcshell db setting
+        await updateVCShellDatabase(filePath);
+
+        // In case we have a default cfg, ask the user if he wants to update the cfg with the current default vcshell db
+        if (defaultConfigurationPath) {
+          const choice = await vscode.window.showWarningMessage(
+            `You have set a default CFG at ${defaultConfigurationPath}. Do you want to include your database in that configuration?`,
+            { modal: false },
+            "Yes",
+            "No"
+          );
+
+          if (choice === "Yes") {
+            const normalizedCFGPath = normalizePath(
+              path.dirname(defaultConfigurationPath)
+            );
+            await updateCFGWithVCShellDatabase(filePath, normalizedCFGPath);
+          }
+        }
+      }
+    }
+  );
+
+  context.subscriptions.push(defaultVCShellCommand);
+
   const importEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.importEnviroToProject",
     async (_args: vscode.Uri, argList: vscode.Uri[]) => {
@@ -2055,32 +2104,69 @@ async function installPreActivationEventHandlers(
         projectName?: string;
         compilerName?: string;
         targetDir?: string;
+        useDefaultCFG?: boolean;
+        enableCodedTests?: boolean;
+        defaultCFG?: boolean;
+        useDefaultDB?: boolean;
       }) {
-        const { projectName, compilerName, targetDir } = message;
-        // Make sure that Inputs have to be filled and the compiler tag is found
+        const {
+          projectName,
+          compilerName,
+          targetDir,
+          useDefaultCFG,
+          enableCodedTests,
+          defaultCFG,
+          useDefaultDB,
+        } = message;
+
         if (!projectName) {
           vscode.window.showErrorMessage("Project Name is required.");
           return;
         }
-        if (!compilerName) {
-          vscode.window.showErrorMessage("Compiler selection is required.");
-          return;
-        }
-        const compilerTag = compilerTagList[compilerName];
-        if (!compilerTag) {
-          vscode.window.showErrorMessage(
-            `No compiler tag found for "${compilerName}".`
+
+        let compiler: string | undefined;
+
+        if (useDefaultCFG) {
+          const settings = vscode.workspace.getConfiguration(
+            "vectorcastTestExplorer"
           );
-          return;
+          const defaultCFGPath = settings.get<string>("configurationLocation");
+
+          if (!defaultCFGPath) {
+            vscode.window.showErrorMessage("No default CFG is defined.");
+            return;
+          }
+          compiler = defaultCFGPath;
+        } else {
+          if (!compilerName) {
+            vscode.window.showErrorMessage("Compiler selection is required.");
+            return;
+          }
+          compiler = compilerTagList[compilerName];
+          if (!compiler) {
+            vscode.window.showErrorMessage(
+              `No compiler tag found for "${compilerName}".`
+            );
+            return;
+          }
         }
+
+        const configurationOptions: ConfigurationOptions = {
+          enableCodedTests: !!enableCodedTests,
+          defaultCFG: !!defaultCFG,
+          useDefaultDB: !!useDefaultDB,
+        };
 
         const base = targetDir ?? workspaceRoot;
         const projectPath = path.join(base, projectName);
 
-        vscode.window.showInformationMessage(
-          `Creating project "${projectName}" at ${projectPath} using ${compilerName}.`
+        await createNewProject(
+          projectPath,
+          compiler,
+          !!useDefaultCFG,
+          configurationOptions
         );
-        await createNewProject(projectPath, compilerTag);
+
         panel.dispose();
       }
     }
@@ -2088,6 +2174,7 @@ async function installPreActivationEventHandlers(
 
   context.subscriptions.push(createNewProjectCmd);
 
+  // Helper function for Webview Content
   async function getNewProjectWebviewContent(
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel,
@@ -2104,21 +2191,35 @@ async function installPreActivationEventHandlers(
     const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
 
     const compilersJson = JSON.stringify(Object.keys(compilerTagList));
-    // pass default targetDir as workspace root
     const workspaceJson = JSON.stringify(workspaceRoot);
+
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    const defaultCFG = settings.get<string>("configurationLocation") ?? "";
+
+    // Check default DB setting and if file exists
+    const dbSettingPath = settings.get<string>("databaseLocation");
+    let validDBPath = "";
+    if (dbSettingPath && fs.existsSync(dbSettingPath)) {
+      validDBPath = dbSettingPath;
+    }
 
     let html = fs.readFileSync(htmlPath, "utf8");
     const nonce = getNonce();
+
     html = html.replace(
       /<head>/,
       `<head>
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
-          panel.webview.cspSource
-        }; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
-        <script nonce="${nonce}">
-          window.compilerData = ${compilersJson};
-          window.defaultDir   = ${workspaceJson};
-        </script>`
+      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
+        panel.webview.cspSource
+      }; script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+      <script nonce="${nonce}">
+        window.compilerData = ${compilersJson};
+        window.defaultDir   = ${workspaceJson};
+        window.defaultCFG   = ${JSON.stringify(defaultCFG)};
+        window.defaultDB    = ${JSON.stringify(validDBPath)};
+      </script>`
     );
     html = html.replace("{{ cssUri }}", cssUri.toString());
     html = html.replace(
@@ -2129,21 +2230,23 @@ async function installPreActivationEventHandlers(
     return html;
   }
 
-  const newCompilerCmd = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.newCompilerInProjectVCAST",
-    async (args: any) => {
-      // Retrieve project path from the clicked node's 'id'
+  const createNewCFGCmd = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.createNewCFG",
+    async (args?: any) => {
+      // Project context: command was triggered from a project node
       const projectPath: string | undefined = args?.id;
-      if (!projectPath) {
-        vscode.window.showErrorMessage("No project node provided.");
+
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders?.length) {
+        vscode.window.showErrorMessage("Open a folder first.");
         return;
       }
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
 
-      // Create webview panel
       const baseDir = resolveWebviewBase(context);
       const panel = vscode.window.createWebviewPanel(
-        "newCompiler",
-        "Create Compiler in Project",
+        "newCFG",
+        projectPath ? "Create Compiler in Project" : "Create New CFG File",
         vscode.ViewColumn.Active,
         {
           enableScripts: true,
@@ -2152,104 +2255,154 @@ async function installPreActivationEventHandlers(
         }
       );
 
-      // Load HTML into webview
-      panel.webview.html = await getNewCompilerWebviewContent(
+      panel.webview.html = await getNewCFGWebviewContent(
         context,
         panel,
-        projectPath
+        compilerTagList,
+        workspaceRoot
       );
 
-      // Dispatch table
-      const dispatch: Record<string, (msg?: any) => Promise<void> | void> = {
-        submit: handleSubmit,
-        cancel: () => panel.dispose(),
-      };
-
       panel.webview.onDidReceiveMessage(
-        (message) => dispatch[message.command]?.(message),
+        async (msg) => {
+          switch (msg.command) {
+            case "browseForDir": {
+              const selected = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: "Select Output Folder",
+                defaultUri: vscode.Uri.file(workspaceRoot),
+              });
+              if (selected?.length) {
+                panel.webview.postMessage({
+                  command: "setTargetDir",
+                  targetDir: selected[0].fsPath,
+                });
+              }
+              break;
+            }
+            case "submit": {
+              const compilerName: string | undefined = msg.compilerName?.trim();
+              const targetDir: string = msg.targetDir || workspaceRoot;
+              const enableCodedTests: boolean = !!msg.enableCodedTests;
+              const defaultCFG: boolean = !!msg.defaultCFG;
+              const useDefaultDB: boolean = !!msg.useDefaultDB;
+
+              if (!compilerName) {
+                vscode.window.showErrorMessage(
+                  "Compiler selection is required."
+                );
+                return;
+              }
+
+              const compilerTag = compilerTagList[compilerName];
+              if (!compilerTag) {
+                vscode.window.showErrorMessage(
+                  `No compiler tag found for "${compilerName}".`
+                );
+                return;
+              }
+
+              const configurationOptions: ConfigurationOptions = {
+                enableCodedTests,
+                defaultCFG,
+                useDefaultDB,
+              };
+
+              // Always create the CFG file in the user-chosen folder
+              const createdCFGPath = await createNewCFGFile(
+                targetDir,
+                compilerTag,
+                configurationOptions
+              );
+
+              // If triggered from a project node, also add the compiler to the project
+              if (projectPath) {
+                if (createdCFGPath) {
+                  await addCompilerToProject(projectPath, createdCFGPath);
+                } else {
+                  vscode.window.showErrorMessage(
+                    "CFG creation failed — compiler was not added to the project."
+                  );
+                }
+              }
+
+              panel.dispose();
+              break;
+            }
+            case "cancel": {
+              panel.dispose();
+              break;
+            }
+          }
+        },
         undefined,
         context.subscriptions
       );
-
-      // Handle submission
-      async function handleSubmit(message: { compilerName?: string }) {
-        const compilerName = message.compilerName;
-        if (!compilerName) {
-          vscode.window.showErrorMessage("Compiler Name is required.");
-          return;
-        }
-
-        const compilerTemplate = compilerTagList[compilerName];
-        if (!compilerTemplate) {
-          vscode.window.showErrorMessage(
-            `Compiler Template Name was not found for ${compilerName}.`
-          );
-          return;
-        }
-
-        if (projectPath) {
-          vscode.window.showInformationMessage(
-            `Adding compiler ${compilerName} to project ${projectPath}`
-          );
-          await createNewCompilerInProject(projectPath, compilerTemplate);
-        } else {
-          vscode.window.showErrorMessage(
-            "Project Path is not defined. Cannot add compiler."
-          );
-          return;
-        }
-        panel.dispose();
-      }
     }
   );
 
-  context.subscriptions.push(newCompilerCmd);
+  context.subscriptions.push(createNewCFGCmd);
 
-  async function getNewCompilerWebviewContent(
+  async function getNewCFGWebviewContent(
     context: vscode.ExtensionContext,
     panel: vscode.WebviewPanel,
-    projectPath: string
+    compilerTagList: Record<string, string>,
+    workspaceRoot: string
   ): Promise<string> {
+    // Build paths for webview files
     const base = resolveWebviewBase(context);
-    const cssOnDisk = vscode.Uri.file(
-      path.join(base, "css", "newCompiler.css")
-    );
+    const cssOnDisk = vscode.Uri.file(path.join(base, "css", "newCFG.css"));
     const scriptOnDisk = vscode.Uri.file(
-      path.join(base, "webviewScripts", "newCompiler.js")
+      path.join(base, "webviewScripts", "newCFG.js")
     );
-    const htmlPath = path.join(base, "html", "newCompiler.html");
+    const htmlPath = path.join(base, "html", "newCFG.html");
 
+    // Convert to URIs
     const cssUri = panel.webview.asWebviewUri(cssOnDisk);
     const scriptUri = panel.webview.asWebviewUri(scriptOnDisk);
 
-    // For demo, hard‑coded compiler list
-    const compilerList = JSON.stringify(Object.keys(compilerTagList));
-    const projectDir = path.resolve(projectPath);
-    const projectName = JSON.stringify(path.basename(projectDir));
+    // JSON list of compilers for autocomplete
+    const compilerList = JSON.stringify(Object.keys(compilerTagList ?? {}));
+
+    // Check DB setting
+    const settings = vscode.workspace.getConfiguration(
+      "vectorcastTestExplorer"
+    );
+    const dbSettingPath = settings.get<string>("databaseLocation");
+    let validDBPath = "";
+    if (dbSettingPath && fs.existsSync(dbSettingPath)) {
+      validDBPath = dbSettingPath;
+    }
 
     let html = fs.readFileSync(htmlPath, "utf8");
     const nonce = getNonce();
-    const csp = `
-      <meta http-equiv="Content-Security-Policy"
-            content="default-src 'none';
-                     style-src ${panel.webview.cspSource};
-                     script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
-    `;
-    html = html.replace(/<head>/, `<head>${csp}`);
 
-    html = html
-      .replace(/{{\s*cssUri\s*}}/g, cssUri.toString())
-      .replace(
-        /<script src="{{\s*scriptUri\s*}}"><\/script>/,
-        `<script nonce="${nonce}" src="${scriptUri}"></script>`
-      )
-      .replace(
-        /<\/head>/,
-        `<script nonce="${nonce}">
-           window.projectName = ${projectName};
-           window.compilerData = ${compilerList};
-         </script>\n</head>`
-      );
+    // Build CSP meta
+    const csp = `
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none';
+                   style-src ${panel.webview.cspSource};
+                   script-src 'nonce-${nonce}' ${panel.webview.cspSource};">
+  `;
+
+    // Insert CSP immediately after the opening <head>
+    html = html.replace(/<head>/i, `<head>${csp}`);
+    html = html.replace(/{{\s*cssUri\s*}}/g, cssUri.toString());
+    html = html.replace(
+      /<script\s+src="{{\s*scriptUri\s*}}"><\/script>/i,
+      `<script nonce="${nonce}" src="${scriptUri}"></script>`
+    );
+
+    // Inline script to expose data to the webview client
+    const injectedScript = `<script nonce="${nonce}">
+    window.compilerData = ${compilerList};
+    window.enableCodedTests = ${false};
+    window.defaultCFG = ${false};
+    window.defaultDB = ${JSON.stringify(validDBPath)};
+    window.defaultDir = ${JSON.stringify(workspaceRoot)};
+  </script>`;
+    html = html.replace(/\{\{\s*compilerDataScript\s*\}\}/g, injectedScript);
 
     return html;
   }

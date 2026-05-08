@@ -2,44 +2,44 @@ const vscode = acquireVsCodeApi();
 
 globalThis.addEventListener("DOMContentLoaded", () => {
   const compilers = globalThis.compilerData || [];
-  const defaultCFG = globalThis.defaultCFG || "";
   const defaultDB = globalThis.defaultDB || "";
-  
-  // DOM Elements
-  const defaultRow = document.getElementById("defaultCompilerRow");
-  const defaultPath = document.getElementById("defaultCFGPath");
-  const orSeparator = document.getElementById("orSeparator");
-  const useDefaultCheckbox = document.getElementById("useDefaultCompiler");
-  const newCompilerSection = document.getElementById("newCompilerSection");
 
+  // Folder picker
   const targetInput = document.getElementById("targetDirInput");
-  const browseBtn = document.getElementById("btnBrowse");
-  const nameInput = document.getElementById("projectNameInput");
+  let targetDir = globalThis.defaultDir || "";
+  targetInput.value = targetDir;
+
+  document.getElementById("btnBrowse").addEventListener("click", () => {
+    vscode.postMessage({ command: "browseForDir" });
+  });
+
+  globalThis.addEventListener("message", (e) => {
+    if (e.data.command === "setTargetDir") {
+      targetDir = e.data.targetDir;
+      targetInput.value = targetDir;
+    }
+  });
+
+  // Compiler autocomplete
   const compInput = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");
 
-  // CFG Option Checkboxes
+  // Toggle checkboxes
   const codedCheckbox = document.getElementById("enableCodedTests");
-  const defaultCFGCheckbox = document.getElementById("defaultCFG");
+  const defaultCheckbox = document.getElementById("defaultCFG");
 
-  // DB Option Elements
+  // DB elements
   const dbOptionRow = document.getElementById("dbOptionRow");
   const dbPathLabel = document.getElementById("dbPathLabel");
   const dbCheckbox = document.getElementById("useDefaultDB");
 
-  // --- Initialization Logic ---
-
-  // Show default CFG row + OR only if defaultCFG exists
-  if (defaultCFG) {
-    defaultRow.style.display = "flex";
-    orSeparator.style.display = "block";
-    defaultPath.textContent = defaultCFG;
-  } else {
-    defaultRow.style.display = "none";
-    orSeparator.style.display = "none";
+  if (globalThis.enableCodedTests !== undefined && codedCheckbox) {
+    codedCheckbox.checked = !!globalThis.enableCodedTests;
+  }
+  if (globalThis.defaultCFG !== undefined && defaultCheckbox) {
+    defaultCheckbox.checked = !!globalThis.defaultCFG;
   }
 
-  // Show Default DB row if a valid path exists
   if (defaultDB) {
     dbOptionRow.style.display = "flex";
     dbPathLabel.textContent = defaultDB;
@@ -47,44 +47,13 @@ globalThis.addEventListener("DOMContentLoaded", () => {
     dbOptionRow.style.display = "none";
   }
 
-  function updateCompilerVisibility() {
-    if (useDefaultCheckbox && useDefaultCheckbox.checked) {
-      newCompilerSection.style.display = "none";
-      if (defaultCFG) orSeparator.style.display = "none"; 
-    } else {
-      newCompilerSection.style.display = "block";
-      if (defaultCFG) orSeparator.style.display = "block";
-    }
-  }
-
-  if (useDefaultCheckbox) {
-    useDefaultCheckbox.addEventListener("change", updateCompilerVisibility);
-  }
-  updateCompilerVisibility();
-
-  // --- Target Directory Logic ---
-  let targetDir = globalThis.defaultDir || "";
-  targetInput.value = targetDir;
-  
-  browseBtn.addEventListener("click", () => {
-    vscode.postMessage({ command: "browseForDir" });
-  });
-  
-  globalThis.addEventListener("message", (e) => {
-    const msg = e.data;
-    if (msg.command === "setTargetDir") {
-      targetDir = msg.targetDir;
-      targetInput.value = targetDir;
-    }
-  });
-
-  // --- Autocomplete Logic ---
+  // Autocomplete
   let filtered = [], activeIndex = -1;
 
   function renderSuggestions() {
     suggestions.innerHTML = "";
     if (!filtered.length) return suggestions.classList.remove("visible");
-    
+
     filtered.forEach((item, i) => {
       const li = document.createElement("li");
       li.textContent = item;
@@ -109,8 +78,7 @@ globalThis.addEventListener("DOMContentLoaded", () => {
 
   compInput.addEventListener("input", () => updateSuggestions());
   compInput.addEventListener("focus", () => updateSuggestions(true));
-  compInput.addEventListener("click", () => updateSuggestions(true)); // Ensure click triggers it
-  
+
   compInput.addEventListener("keydown", e => {
     if (!filtered.length) return;
     if (e.key === "ArrowDown") {
@@ -131,30 +99,22 @@ globalThis.addEventListener("DOMContentLoaded", () => {
       suggestions.classList.remove("visible");
     }
   });
-  
+
   document.addEventListener("click", e => {
     if (!e.target.closest(".autocomplete")) suggestions.classList.remove("visible");
   });
 
-  // --- Submit Logic ---
   document.getElementById("btnSubmit").addEventListener("click", () => {
-    const isUsingDefault = useDefaultCheckbox && useDefaultCheckbox.checked;
-
     vscode.postMessage({
       command: "submit",
-      projectName: nameInput.value.trim(),
       targetDir,
-      useDefaultCFG: isUsingDefault,
-      // Send compiler name only if NOT using default CFG
-      compilerName: isUsingDefault ? undefined : compInput.value.trim(),
-      // Send compiler options
+      compilerName: (compInput.value || "").trim(),
       enableCodedTests: !!(codedCheckbox && codedCheckbox.checked),
-      defaultCFG: !!(defaultCFGCheckbox && defaultCFGCheckbox.checked),
-      useDefaultDB: !!(dbCheckbox && dbCheckbox.checked)
+      defaultCFG: !!(defaultCheckbox && defaultCheckbox.checked),
+      useDefaultDB: !!(dbCheckbox && dbCheckbox.checked),
     });
   });
 
-  // --- Cancel Logic ---
   document.getElementById("btnCancel").addEventListener("click", () => {
     vscode.postMessage({ command: "cancel" });
   });
