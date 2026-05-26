@@ -329,6 +329,21 @@ export interface LLMProviderSettingsResult {
   missing: string[];
 }
 
+function applyExtraModelParams(
+  config: vscode.WorkspaceConfiguration,
+  processEnv: Record<string, string | undefined>
+): void {
+  const tmpl = config.get<string>("extraModelParamsTemplate", "");
+  if (tmpl) processEnv.VCAST_REQS2X_EXTRA_MODEL_PARAMS_TEMPLATE = tmpl;
+  const json = config.get<string>("extraModelParamsJson", "");
+  if (json) processEnv.VCAST_REQS2X_EXTRA_MODEL_PARAMS_JSON = json;
+  const rTmpl = config.get<string>("reasoningExtraModelParamsTemplate", "");
+  if (rTmpl)
+    processEnv.VCAST_REQS2X_REASONING_EXTRA_MODEL_PARAMS_TEMPLATE = rTmpl;
+  const rJson = config.get<string>("reasoningExtraModelParamsJson", "");
+  if (rJson) processEnv.VCAST_REQS2X_REASONING_EXTRA_MODEL_PARAMS_JSON = rJson;
+}
+
 export function isLLMProviderEnvironmentUsable(): Promise<{
   usable: boolean;
   problem: string | null;
@@ -340,13 +355,13 @@ export function isLLMProviderEnvironmentUsable(): Promise<{
     if (v) processEnv[k] = v;
   }
 
-  if (
-    vscode.workspace
-      .getConfiguration("vectorcastTestExplorer.reqs2x")
-      .get<boolean>("modelCompatibilityMode", false)
-  ) {
+  const reqs2xConfig = vscode.workspace.getConfiguration(
+    "vectorcastTestExplorer.reqs2x"
+  );
+  if (reqs2xConfig.get<boolean>("modelCompatibilityMode", false)) {
     processEnv.VCAST_REQS2X_MODEL_COMPATIBILITY_MODE = "1";
   }
+  applyExtraModelParams(reqs2xConfig, processEnv);
 
   const proc = spawn(LLM2CHECK_EXECUTABLE_PATH, ["--json"], {
     env: processEnv,
@@ -614,6 +629,8 @@ export async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
   if (config.get<boolean>("modelCompatibilityMode", false)) {
     processEnv.VCAST_REQS2X_MODEL_COMPATIBILITY_MODE = "1";
   }
+
+  applyExtraModelParams(config, processEnv);
 
   // Return the constructed environment
   return processEnv;

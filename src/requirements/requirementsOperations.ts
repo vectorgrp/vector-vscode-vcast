@@ -380,6 +380,7 @@ export async function generateTestsFromRequirements(
   const reorder = config.get<boolean>("reorder", true);
   const funcDefs = config.get<boolean>("functionDefinitions", true);
   const allowUUTStubs = config.get<boolean>("enableUutStubbing", true);
+  const batched = config.get<boolean>("batched", true);
 
   const retries = config.get<number>("retries", 2);
   if (retries < 1) {
@@ -402,7 +403,7 @@ export async function generateTestsFromRequirements(
     tstPath,
     "--retries",
     retries.toString(),
-    "--batched",
+    batched ? "--batched" : "--no-batched",
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
     ...(noTestExamples ? ["--no-test-examples"] : []),
     ...(reorder ? [] : ["--no-reorder"]),
