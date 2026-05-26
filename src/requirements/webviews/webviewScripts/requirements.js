@@ -97,6 +97,11 @@ if (filterFunction) filterFunction.addEventListener("change", applyFilter);
 // ---------- Extension → webview messages ---------------------------------
 
 window.addEventListener("message", (event) => {
+  // VS Code webview messages always arrive with a `vscode-webview:` origin
+  // (or the panel's configured `vscode-webview-resource:` variant). Anything
+  // else is from an unrelated frame and must be ignored.
+  if (!/^vscode-webview(-resource)?:/.test(event.origin)) return;
+
   const msg = event.data;
   if (msg.type === "saved" || msg.type === "inferred") {
     applyRefreshedBundle(msg);

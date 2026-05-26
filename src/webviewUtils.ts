@@ -1,20 +1,15 @@
 import * as vscode from "vscode";
+import { randomBytes } from "crypto";
 
 const path = require("path");
 const fs = require("fs");
 
 /**
- * Generate a fresh 32-character alphanumeric nonce. Used to gate `<script>`
- * execution in webview panels via `script-src 'nonce-…'`.
+ * Generate a fresh 32-character hex nonce. Used to gate `<script>` execution
+ * in webview panels via `script-src 'nonce-…'`, so it must be unguessable.
  */
 export function getNonce(): string {
-  let text = "";
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) {
-    text += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return text;
+  return randomBytes(16).toString("hex");
 }
 
 /**

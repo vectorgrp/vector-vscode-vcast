@@ -53,7 +53,7 @@ export function rebuildFilterDropdowns() {
     none.textContent = "(Not set)";
     sel.appendChild(none);
 
-    for (const v of [...items].sort()) {
+    for (const v of [...items].sort((a, b) => a.localeCompare(b))) {
       const opt = document.createElement("option");
       opt.value = v;
       opt.textContent = v;
