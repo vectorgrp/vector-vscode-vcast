@@ -22,36 +22,46 @@ body {
   padding: 25px;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  max-height: 95vh;
+  overflow-y: auto;
 }
 
-/* Center only the title, not all modal text */
+/* Modal Main Title */
 .modal h2 {
   text-align: center;
-}
-
-h2 {
   color: #ffffff;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   font-size: 22px;
+  font-weight: 600;
 }
 
-/* Labels and inputs */
-label {
-  font-size: 16px;
+/* Generic Labels */
+label, .toggle-label {
+  font-size: 14px;
+  color: #cccccc;
   display: block;
-  text-align: left;
-  margin-top: 12px;
   margin-bottom: 6px;
+  font-weight: 400; 
 }
 
+/* Inputs */
 input[type="text"], select {
-  padding: 10px;
+  padding: 8px 10px;
   font-size: 14px;
   background-color: #3c3c3c;
   color: #d4d4d4;
-  border: 1px solid #555;
+  border: 1px solid #3c3c3c;
   border-radius: 4px;
   width: 100%;
+  margin-bottom: 15px;
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus, select:focus {
+  border-color: #007acc;
+  outline: none;
 }
 
 /* Folder-picker row */
@@ -59,98 +69,246 @@ input[type="text"], select {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
-  align-items: center;
+  align-items: start;
   margin-bottom: 15px;
 }
+.single-input-container input[type="text"] {
+  margin-bottom: 0;
+}
 
-/* “Select” button beside the input */
+/* Select Button */
 .select-button {
   background-color: #007acc;
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 10px 16px;
+  padding: 0 16px;
   font-size: 14px;
   cursor: pointer;
+  height: 35px; /* Match input height */
   transition: background-color 0.3s;
+  display: flex;
+  align-items: center;
 }
-
-.select-button:hover {
-  background-color: #005f99;
-}
+.select-button:hover { background-color: #005f99; }
 
 /* Autocomplete */
 .autocomplete {
   position: relative;
   width: 100%;
 }
-
 .suggestions {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background: #2a2a2a;
-  border: 1px solid #555;
+  background: #252526;
+  border: 1px solid #454545;
   max-height: 180px;
   overflow-y: auto;
   list-style: none;
   padding: 0;
-  margin-top: 4px;
+  margin-top: 2px;
   display: none;
-  z-index: 10;
-  text-align: left; /* ensure left alignment */
+  z-index: 100;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
-
-.suggestions.visible {
-  display: block;
-}
-
+.suggestions.visible { display: block; }
 .suggestions li {
   padding: 8px 12px;
   cursor: pointer;
   font-size: 14px;
+  border-bottom: 1px solid #333;
 }
-
+.suggestions li:last-child { border-bottom: none; }
 .suggestions li:hover,
 .suggestions li.active {
   background: #007acc;
   color: white;
 }
 
-/* Button container */
+/* =========================================
+   Options Section & Headers
+   ========================================= */
+
+.options-section {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #3e3e3e;
+  width: 98%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* MAIN SECTION TITLE (Compiler Selection) */
+.options-section h3 {
+  font-size: 16px;
+  font-weight: 700;     
+  color: #ffffff;       
+  margin: 0 0 15px 0;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Selection Boxes */
+.selection-box {
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background-color: #2d2d2d;
+}
+
+/* Default Compiler Row */
+#defaultCompilerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#defaultCompilerRow .toggle-label {
+  margin: 0;
+  color: #fff;
+  font-weight: 600;
+}
+#defaultCFGPath {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #888;
+  font-weight: 400;
+  word-break: break-all;
+}
+
+/* OR Separator */
+#orSeparator {
+  text-align: center;
+  margin: 10px 0;
+}
+#orSeparator h3 {
+  font-size: 14px;
+  color: #ffffff;    
+  font-weight: 700;   
+  margin: 0;
+  text-transform: none;
+}
+
+/* New Compiler Section */
+#newCompilerSection {
+  display: block; 
+}
+
+/* SUB-SECTION TITLE (Configuration Options) */
+.config-options-wrapper {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px dashed #444;
+}
+
+.config-options-wrapper h4 {
+  font-size: 14px;
+  color: #ffffff;    
+  font-weight: 700;   
+  margin-bottom: 12px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Option Rows */
+.option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  width: 100%;
+}
+
+.option-row .toggle-label {
+  font-size: 14px;
+  color: #d4d4d4;
+  font-weight: 400;
+  margin-bottom: 0;
+}
+
+/* Toggle Switch */
+.vscode-toggle {
+  display: inline-block;
+  cursor: pointer;
+}
+.toggle-switch {
+  display: inline-block;
+  position: relative;
+  width: 40px;
+  height: 20px;
+  vertical-align: middle;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-switch .slider {
+  position: absolute;
+  inset: 0;
+  background: #3c3c3c;
+  border: 1px solid #555;
+  border-radius: 10px;
+  transition: .2s;
+}
+.toggle-switch .slider::before {
+  content: "";
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 1px;
+  background-color: #ccc;
+  border-radius: 50%;
+  transition: .2s;
+}
+.toggle-switch input:checked + .slider {
+  background-color: #007acc;
+  border-color: #007acc;
+}
+.toggle-switch input:checked + .slider::before {
+  transform: translateX(20px);
+  background-color: white;
+}
+.vscode-toggle:hover .slider {
+  border-color: #666;
+}
+
+/* Buttons */
 .button-container {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+  padding-top: 10px;
 }
 
-/* Primary & cancel buttons */
 .primary-button,
 .cancel-button {
-  padding: 10px 20px;
-  font-size: 16px;
+  padding: 8px 24px;
+  font-size: 14px;
+  font-weight: 600;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.2s;
 }
 
 .primary-button {
   background-color: #007acc;
   color: white;
 }
-
-.primary-button:hover {
-  background-color: #005f99;
-}
+.primary-button:hover { background-color: #005f99; }
 
 .cancel-button {
   background-color: #cc4444;
   color: white;
 }
-
 .cancel-button:hover {
   background-color: #992222;
 }

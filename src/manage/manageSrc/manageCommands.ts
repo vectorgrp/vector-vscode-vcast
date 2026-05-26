@@ -23,7 +23,10 @@ import { getEnviroNodeData } from "../../testData";
 
 import { executeWithRealTimeEchoWithProgress } from "../../vcastCommandRunner";
 
-import { manageCommandToUse } from "../../vcastInstallation";
+import {
+  getVectorCastInstallationLocation,
+  manageCommandToUse,
+} from "../../vcastInstallation";
 
 import {
   checkIfEnvironmentIsBuildMultipleTimes,
@@ -44,6 +47,10 @@ import {
 } from "../../testPane";
 import { normalizePath } from "../../utilities";
 import { viewResultsReportVC } from "../../reporting";
+import {
+  ConfigurationOptions,
+  updateCFGWithVCShellDatabase,
+} from "../../vcastTestInterface";
 
 const path = require("path");
 
@@ -80,53 +87,22 @@ export async function buildProjectEnvironment(
 }
 
 /**
- * Creates a new compiler in a selected project
- * @param projectPath Path to project
- * @param compiler Selected Compiler
- * @returns
- */
-export async function createNewCompilerInProject(
-  projectPath: string,
-  compiler: string
-) {
-  const projectName = path.basename(projectPath);
-  const projectLocation = projectPath.split(".vcm")[0];
-  // We save all new created compilers in a compilers dir
-  // Check if it already exists, otherwise create it
-  if (!fs.existsSync(projectLocation)) {
-    vectorMessage(`${projectLocation} does not exist.`);
-    return;
-  }
-  const projectCompilerPath = path.join(projectLocation, "compilers");
-  if (!fs.existsSync(projectCompilerPath)) {
-    await vscode.workspace.fs.createDirectory(
-      vscode.Uri.file(projectCompilerPath)
-    );
-  }
-
-  const compilerPath = await createNewCFGFromCompiler(
-    compiler,
-    projectCompilerPath
-  );
-
-  if (compilerPath) {
-    const compilerName = path.basename(compilerPath);
-    await addCompilerToProject(projectPath, compilerPath);
-    vectorMessage(`Added Compiler ${compilerName} to Project ${projectName}`);
-  } else {
-    vectorMessage(`No Compiler found for Project ${projectName}`);
-  }
-}
-
-/**
  * Creates a new Project including a new Compiler
  * @param projectPath Path to the new project file
- * @param compiler Compiler Name
+ * @param compiler Compiler Tag OR compiler path in case we are using the default CFG from the settings
+ * @param usingDefaultCFG Boolean, if the user selected to use the default cfg in the settings
  */
-export async function createNewProject(projectPath: string, compiler: string) {
+export async function createNewProject(
+  projectPath: string,
+  compiler: string,
+  usingDefaultCFG: boolean = false,
+  configurationOptions?: ConfigurationOptions
+) {
   const projectName = path.basename(projectPath);
   const projectLocation = path.dirname(projectPath);
-  const progressMessage = `Creating new Project ${projectName}  ...`;
+
+  // Create the Project Directory Structure
+  const progressMessage = `Creating new Project ${projectName} ...`;
   const manageArgs = [`-p${projectName}`, `--create`, "--force"];
 
   await executeWithRealTimeEchoWithProgress(
@@ -136,7 +112,105 @@ export async function createNewProject(projectPath: string, compiler: string) {
     progressMessage
   );
 
-  await createNewCompilerInProject(projectPath, compiler);
+  // Configure the Compiler / CFG
+  if (usingDefaultCFG) {
+    // Scenario A: Use an existing CFG file
+    if (configurationOptions?.useDefaultDB) {
+      const settings = vscode.workspace.getConfiguration(
+        "vectorcastTestExplorer"
+      );
+      const dbPath = settings.get<string>("databaseLocation");
+
+      if (dbPath && fs.existsSync(dbPath)) {
+        // updateCFGWithVCShellDatabase expects the DIRECTORY containing the CFG
+        await updateCFGWithVCShellDatabase(dbPath, path.dirname(compiler));
+      } else {
+        vscode.window.showWarningMessage(
+          "Could not set Default Database: the database file defined in settings could not be found."
+        );
+      }
+    }
+
+    await addCompilerToProject(projectPath, compiler);
+  } else {
+    // Scenario B: Create a NEW CFG based on a Compiler Tag
+    // 'compiler' here is the Compiler Tag (e.g., "GNU_Native")
+
+    // Create the CFG file inside the new project directory
+    const createdCfgPath = await createNewCFGFromCompiler(
+      compiler,
+      projectPath
+    );
+
+    // Apply Configuration Options to the freshly created CFG.
+    if (configurationOptions && createdCfgPath) {
+      const vcDir = getVectorCastInstallationLocation();
+      if (vcDir) {
+        const clicastCmd = path.join(vcDir, "clicast");
+
+        // Coded Tests option
+        const codedFlag = configurationOptions.enableCodedTests
+          ? "TRUE"
+          : "FALSE";
+        const codedOptionArgs = [
+          "-lc",
+          "option",
+          "VCAST_CODED_TESTS_SUPPORT",
+          codedFlag,
+        ];
+
+        await executeWithRealTimeEchoWithProgress(
+          clicastCmd,
+          codedOptionArgs,
+          projectPath,
+          "Setting VCAST_CODED_TESTS_SUPPORT in Project CFG"
+        );
+
+        // Default Database option
+        if (configurationOptions.useDefaultDB) {
+          const settings = vscode.workspace.getConfiguration(
+            "vectorcastTestExplorer"
+          );
+          const dbPath = settings.get<string>("databaseLocation");
+
+          if (dbPath && fs.existsSync(dbPath)) {
+            // Pass the directory of the CFG, matching defaultVCShell usage
+            await updateCFGWithVCShellDatabase(
+              dbPath,
+              path.dirname(createdCfgPath)
+            );
+          } else {
+            vscode.window.showWarningMessage(
+              "Could not set Default Database: the database file defined in settings could not be found."
+            );
+          }
+        }
+
+        // Set this newly created CFG as the workspace default if requested
+        if (configurationOptions.defaultCFG) {
+          const settings = vscode.workspace.getConfiguration(
+            "vectorcastTestExplorer"
+          );
+          await settings.update(
+            "configurationLocation",
+            createdCfgPath,
+            vscode.ConfigurationTarget.Workspace
+          );
+        }
+      } else {
+        vscode.window.showErrorMessage(
+          "Could not determine VectorCAST location. Configuration options could not be applied."
+        );
+      }
+    }
+
+    // Now that the CFG has all options applied, import it into the project.
+    // If createdCfgPath is undefined the user already got a message from
+    // createNewCFGFromCompiler, so no extra handling needed here.
+    if (createdCfgPath) {
+      await addCompilerToProject(projectPath, createdCfgPath);
+    }
+  }
 }
 
 export async function cleanProjectEnvironment(
@@ -371,6 +445,7 @@ export async function addCompilerToProject(
   );
 
   await refreshAllExtensionData();
+  vectorMessage(`${pathToCFG} has been added into project ${projectName}`);
 }
 
 /**

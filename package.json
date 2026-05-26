@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.30",
+  "version": "1.0.31",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -46,7 +46,11 @@
     "commands": [
       {
         "command": "vectorcastTestExplorer.createNewProject",
-        "title": "VectorCAST: Create New Project"
+        "title": "Create New Project"
+      },
+      {
+        "command": "vectorcastTestExplorer.createNewCFG",
+        "title": "Create new CFG"
       },
       {
         "command": "vectorcastTestExplorer.configure",
@@ -103,11 +107,6 @@
         "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
         "category": "VectorCAST Test Explorer",
         "title": "Add Testsuite to Compiler"
-      },
-      {
-        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
-        "category": "VectorCAST Test Explorer",
-        "title": "Create new Compiler in Project"
       },
       {
         "command": "vectorcastTestExplorer.addEnviroToProject",
@@ -168,6 +167,11 @@
         "command": "vectorcastTestExplorer.newEnviroVCAST",
         "category": "VectorCAST Test Explorer",
         "title": "Create VectorCAST Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.defaultVCShell",
+        "category": "VectorCAST Test Explorer",
+        "title": "VectorCAST: Set as default Database"
       },
       {
         "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
@@ -391,6 +395,12 @@
             "order": 4,
             "default": "",
             "description": "The file path to an existing VectorCAST configuration that should be used when creating new environments.  If a value is not specified, the configuration editor will be launched"
+          },
+          "vectorcastTestExplorer.databaseLocation": {
+            "type": "string",
+            "order": 4,
+            "default": "",
+            "description": "The file path to an existing VectorCAST database file that should be used when creating new environments."
           },
           "vectorcastTestExplorer.showReportOnExecute": {
             "type": "boolean",
@@ -713,7 +723,11 @@
       "file/newFile": [
         {
           "command": "vectorcastTestExplorer.createNewProject",
-          "group": "1_createnew"
+          "group": "VectorCAST: New Ressources"
+        },
+        {
+          "command": "vectorcastTestExplorer.createNewCFG",
+          "group": "VectorCAST: New Ressources"
         }
       ],
       "commandPalette": [
@@ -754,10 +768,6 @@
         },
         {
           "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
-          "when": "never"
-        },
-        {
-          "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
           "when": "never"
         },
         {
@@ -806,6 +816,10 @@
         },
         {
           "command": "vectorcastTestExplorer.newEnviroVCAST",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.defaultVCShell",
           "when": "never"
         },
         {
@@ -964,6 +978,11 @@
           "group": "2_workspace"
         },
         {
+          "command": "vectorcastTestExplorer.defaultVCShell",
+          "when": "vectorcastTestExplorer.configured && (resourceExtname==.db || resourceFilename==compile_commands.json)",
+          "group": "2_workspace"
+        },
+        {
           "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
           "when": "(resourceLangId == cpp || resourceLangId == c) && vectorcastTestExplorer.globalProjectIsOpenedChecker",
           "group": "2_workspace"
@@ -1065,12 +1084,12 @@
         "when": "testId =~ /\\.vcm$/"
       },
       {
-        "command": "vectorcastTestExplorer.addEnviroToProject",
+        "command": "vectorcastTestExplorer.createNewCFG", 
         "group": "vcast.project",
         "when": "testId =~ /\\.vcm$/"
       },
       {
-        "command": "vectorcastTestExplorer.newCompilerInProjectVCAST",
+        "command": "vectorcastTestExplorer.addEnviroToProject",
         "group": "vcast.project",
         "when": "testId =~ /\\.vcm$/"
       },
