@@ -632,6 +632,11 @@ export async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
 
   applyExtraModelParams(config, processEnv);
 
+  const sourceFileEncoding = config.get<string>("sourceFileEncoding", "");
+  if (sourceFileEncoding) {
+    processEnv.VCAST_REQS2X_SOURCE_FILE_ENCODING = sourceFileEncoding;
+  }
+
   // Return the constructed environment
   return processEnv;
 }
