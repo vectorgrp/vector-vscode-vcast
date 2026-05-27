@@ -329,24 +329,19 @@ export interface LLMProviderSettingsResult {
   missing: string[];
 }
 
-export function isLLMProviderEnvironmentUsable(): Promise<{
+export async function isLLMProviderEnvironmentUsable(): Promise<{
   usable: boolean;
   problem: string | null;
 }> {
-  const processEnv = { ...process.env };
+  const processEnv = await createProcessEnvironment();
+  const provider = gatherLLMProviderSettings().provider;
+  const debugEnabled = processEnv.VCAST_REQS2X_LOG_LEVEL === "debug";
 
-  const gatheredSettings = gatherLLMProviderSettings();
-  for (const [k, v] of Object.entries(gatheredSettings.env)) {
-    if (v) processEnv[k] = v;
-  }
-
-  if (
-    vscode.workspace
-      .getConfiguration("vectorcastTestExplorer.reqs2x")
-      .get<boolean>("modelCompatibilityMode", false)
-  ) {
-    processEnv.VCAST_REQS2X_MODEL_COMPATIBILITY_MODE = "1";
-  }
+  logCliOperation(
+    `llm2check: starting LLM provider check (provider=${
+      provider ?? "<none>"
+    }${debugEnabled ? ", debug=on" : ""})`
+  );
 
   const proc = spawn(LLM2CHECK_EXECUTABLE_PATH, ["--json"], {
     env: processEnv,
@@ -354,16 +349,36 @@ export function isLLMProviderEnvironmentUsable(): Promise<{
 
   return new Promise((resolve) => {
     let output = "";
+
     proc.stdout.on("data", (data) => {
       output += data.toString();
     });
 
-    proc.on("close", () => {
+    proc.stderr.on("data", (data) => {
+      logCliError(`llm2check: ${data.toString()}`);
+    });
+
+    proc.on("error", (err) => {
+      logCliError(`llm2check: failed to spawn process: ${err.message}`);
+    });
+
+    proc.on("close", (code) => {
       const result = extractJson(output);
       if (result && typeof result.usable === "boolean") {
+        if (result.usable) {
+          logCliOperation(`llm2check: LLM provider check passed (exit ${code})`);
+        } else {
+          logCliError(
+            `llm2check: LLM provider check failed (exit ${code}): ${
+              result.problem ?? "<no reason reported>"
+            }`
+          );
+        }
         resolve({ usable: result.usable, problem: result.problem || null });
       } else {
-        console.error(`Failed to parse llm2check output: ${output}`);
+        logCliError(
+          `llm2check: failed to parse output (exit ${code}). Raw output: ${output}`
+        );
         resolve({ usable: false, problem: "Failed to parse llm2check output" });
       }
     });
