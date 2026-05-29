@@ -205,8 +205,24 @@ describe("vTypeCheck VS Code Extension", () => {
     const testExplorerSection = sections[0];
     const testEnvironments = await testExplorerSection.getVisibleItems();
 
+    const menuItemState = (label: string) =>
+      browser.execute((text: string) => {
+        const spans = Array.from(
+          document.querySelectorAll<HTMLElement>(".action-label")
+        );
+        const span = spans.find((s) => s.textContent?.trim() === text);
+        if (!span) return "not-found";
+        let el: HTMLElement | null = span;
+        while (el) {
+          if (el.getAttribute("aria-disabled") === "true") return "disabled";
+          if (el.classList.contains("disabled")) return "disabled";
+          el = el.parentElement;
+        }
+        return "enabled";
+      }, label);
+
     // Verify the env already has requirements: Generate Requirements and
-    // Import Requirements should be disabled in the VectorCAST submenu
+    // Import Requirements should be disabled in the VectorCAST submenu.
     for (const testEnvironment of testEnvironments) {
       let testEnvironmentContextMenu;
 
@@ -222,22 +238,15 @@ describe("vTypeCheck VS Code Extension", () => {
       if (testEnvironmentContextMenu != undefined) {
         await testEnvironmentContextMenu.select("VectorCAST");
 
-        const generateButton = await $("aria/Generate Requirements");
-        const importButton = await $("aria/Import Requirements");
-
-        // VS Code menus mark disabled items with aria-disabled="true"
-        // rather than the HTML `disabled` attribute, so isEnabled() isn't
-        // reliable: Inspect the attribute directly.
-        const generateDisabled =
-          await generateButton.getAttribute("aria-disabled");
-        const importDisabled = await importButton.getAttribute("aria-disabled");
+        const generateState = await menuItemState("Generate Requirements");
+        const importState = await menuItemState("Import Requirements");
 
         console.log(
-          `Generate Requirements aria-disabled=${generateDisabled}, Import Requirements aria-disabled=${importDisabled}`
+          `Generate Requirements state=${generateState}, Import Requirements state=${importState}`
         );
 
-        expect(generateDisabled).toBe("true");
-        expect(importDisabled).toBe("true");
+        expect(generateState).toBe("disabled");
+        expect(importState).toBe("disabled");
 
         // Dismiss the open submenu + parent menu so the next iteration /
         // next test starts from a clean state.
@@ -246,7 +255,6 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     }
   });
-
   it("should show requirements", async () => {
     await updateTestID();
 
