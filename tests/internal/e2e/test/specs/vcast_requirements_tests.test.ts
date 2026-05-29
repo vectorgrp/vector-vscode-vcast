@@ -255,6 +255,7 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     }
   });
+
   it("should show requirements", async () => {
     await updateTestID();
 
@@ -352,6 +353,15 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    // Make sure we're on the reqs channel and clear it so we only see
+    // output from THIS invocation of reqs2tests.
+    try {
+      await outputView.selectChannel(
+        "VectorCAST Requirement Test Generation Operations"
+      );
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
     await outputView.clearText();
 
     const contextMenu = await subprogramMethod.openContextMenu();
@@ -359,18 +369,47 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    // 2025sp1 shows the first log and then doesnt switch back to the other output channel.
+    // In ext2 generateTestsFromRequirements may show a warning notification
+    // ("None of the requirements trace to a function … infer it
+    // automatically first?") with buttons [Infer traceability] [Cancel].
+    // If we don't click it, the whole operation aborts silently and the
+    // output channel stays empty --> try clicking it, ignore
+    // if it isn't shown.
     try {
-      // First, try waiting for the "reqs2tests" log
+      const inferBtn = await $("aria/Infer traceability");
+      if (await inferBtn.isExisting()) {
+        await inferBtn.click();
+        console.log("Clicked 'Infer traceability' on the warning dialog");
+      }
+    } catch (err) {
+      console.log(
+        "No 'Infer traceability' dialog shown (traceability already present)"
+      );
+    }
+
+    // Primary: wait for the reqs2tests completion line on the reqs channel.
+    // Fallback: switch to the main "VectorCAST Test Explorer" channel and
+    // wait for the post-load message there.
+    try {
       await browser.waitUntil(
         async () =>
           (await (await bottomBar.openOutputView()).getText())
             .toString()
-            .includes("reqs2tests completed successfully with code 0"),
+            .includes("reqs2tests exit code: 0"),
         { timeout: 240_000 }
       );
     } catch (err) {
-      // If that fails, fall back to "Processing environment data"
+      console.log(
+        "reqs2tests log not seen on reqs channel, falling back to VectorCAST Test Explorer channel"
+      );
+      try {
+        await outputView.selectChannel("VectorCAST Test Explorer");
+      } catch (e) {
+        console.warn(
+          "Could not switch to VectorCAST Test Explorer channel:",
+          (e as Error).message
+        );
+      }
       try {
         await browser.waitUntil(
           async () =>
@@ -380,7 +419,6 @@ describe("vTypeCheck VS Code Extension", () => {
           { timeout: 240_000 }
         );
       } catch (err2) {
-        // Both attempts failed → rethrow the first error (or combine them)
         console.log(await outputView.getText());
         throw new Error(
           `Neither log message appeared within the timeout.\n` +
