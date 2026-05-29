@@ -273,10 +273,10 @@ describe("vTypeCheck VS Code Extension", () => {
     const testExplorerSection = sections[0];
     const testEnvironments = await testExplorerSection.getVisibleItems();
 
-    // CLick on Show Requirements for the (only) env
+    // Find an env, open Show Requirements
+    let opened = false;
     for (const testEnvironment of testEnvironments) {
       let testEnvironmentContextMenu;
-
       try {
         testEnvironmentContextMenu = await (
           testEnvironment as CustomTreeItem
@@ -288,10 +288,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
       if (testEnvironmentContextMenu != undefined) {
         await testEnvironmentContextMenu.select("VectorCAST");
-        const importButton = await $("aria/Show Requirements");
-        if (importButton == undefined) break;
-
-        await importButton.click();
+        const showButton = await $("aria/Show Requirements");
+        if (showButton == undefined) break;
+        await showButton.click();
 
         const editorView = workbench.getEditorView();
         await browser.waitUntil(
@@ -299,18 +298,144 @@ describe("vTypeCheck VS Code Extension", () => {
             (await (await editorView.getActiveTab()).getTitle()) ===
             "Requirements Report"
         );
-
         (await editorView.openEditor("Requirements Report")) as TextEditor;
-
-        // Expect some HTML stuff to be present
-        expect(await checkElementExistsInHTML("extreme.1")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme.2")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme.3")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme.4")).toBe(true);
-
-        await editorView.closeEditor("Requirements Report", 0);
+        opened = true;
+        break;
       }
     }
+
+    if (!opened) {
+      throw new Error("Could not open the Requirements Report webview");
+    }
+
+    // ---- Enter the webview iframe -----------------------------------------
+
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews.length).toBeGreaterThanOrEqual(1);
+    const webview = webviews[0];
+    await webview.open();
+
+    // ---- Smoke: the editor's chrome is present ----------------------------
+    // Title, RGW pill, toolbar buttons, search input, reqs body container.
+
+    expect(await $("h1=Requirements").isExisting()).toBe(true);
+    expect(await $("#rgw-pill").isExisting()).toBe(true);
+    expect(await $("#save-toolbar").isExisting()).toBe(true);
+    expect(await $("#search-input").isExisting()).toBe(true);
+
+    // Editable banner is shown when bundle is Reqs2X-generated; read-only
+    // banner is shown when imported. We don't care which — just that one
+    // of them rendered.
+    const bannerCount = await $$(".banner").length;
+    expect(bannerCount).toBeGreaterThanOrEqual(1);
+
+    // ---- The 4 existing requirement IDs are rendered as cards -------------
+    // Each one becomes a <div class="req-id">extreme.N</div> built by cards.js.
+
+    for (const id of ["extreme.1", "extreme.2", "extreme.3", "extreme.4"]) {
+      const card = await $(`.req[data-req-id="${id}"]`);
+      await card.waitForExist({ timeout: 10_000 });
+      expect(await card.isExisting()).toBe(true);
+    }
+
+    // Initially nothing is dirty → Save changes is disabled.
+    const saveBtn = await $("#save-btn");
+    expect(await saveBtn.getAttribute("disabled")).not.toBe(null);
+
+    // ---- Try editing an existing card's title (only works when editable) --
+    // The bodies are only editable in Reqs2X-generated bundles. If they're
+    // locked, the input is disabled and we just verify that.
+
+    const firstTitleInput = await $(
+      `.req[data-req-id="extreme.1"] input[data-field="title"]`
+    );
+    await firstTitleInput.waitForExist({ timeout: 5_000 });
+    const titleDisabled = await firstTitleInput.getAttribute("disabled");
+
+    if (titleDisabled === null) {
+      // Editable case: typing dirties the form and enables Save.
+      const original = (await firstTitleInput.getValue()) || "";
+      const edited = `${original} [edited by e2e]`;
+      await firstTitleInput.setValue(edited);
+      // give the input listener a tick to fire
+      await browser.pause(200);
+      expect(await saveBtn.getAttribute("disabled")).toBe(null);
+
+      // Revert before moving on so we don't trip the unsaved-changes guard.
+      await firstTitleInput.setValue(original);
+      await browser.pause(200);
+      // After revert the input handler may or may not re-disable Save
+      // (dirty maps still contain an entry that's now == original). We
+      // don't assert on it here — it's an implementation detail.
+    } else {
+      console.log(
+        "Title input is disabled → bundle policy is read-only (imported requirements). Skipping edit assertions."
+      );
+    }
+
+    // ---- Add a new requirement (only in editable mode) --------------------
+
+    const addBtn = await $("#add-btn");
+    const addBtnExists = await addBtn.isExisting();
+    if (addBtnExists) {
+      await addBtn.click();
+
+      // A new pending card appears below the existing ones.
+      const pendingCard = await $(".req--pending-added");
+      await pendingCard.waitForExist({ timeout: 5_000 });
+      expect(await pendingCard.isExisting()).toBe(true);
+
+      // The new card has a Key input — required and validated against
+      // existing keys.
+      const keyInput = await pendingCard.$(`input[data-field="key"]`);
+      const newTitleInput = await pendingCard.$(`input[data-field="title"]`);
+      const newDescArea = await pendingCard.$(
+        `textarea[data-field="description"]`
+      );
+
+      // Try a duplicate key first → expect a validation error to be shown
+      // (cards.js writes into .field-error[data-role="key-error"]).
+      await keyInput.setValue("extreme.1");
+      await browser.pause(200);
+      const errorEl = await pendingCard.$(
+        '.field-error[data-role="key-error"]'
+      );
+      const errorText = (await errorEl.getText()).toString();
+      console.log(`Duplicate-key error message: "${errorText}"`);
+      expect(errorText.length).toBeGreaterThan(0);
+
+      // Now switch to a unique key.
+      await keyInput.setValue("extreme.e2e_added");
+      await newTitleInput.setValue("E2E added requirement");
+      await newDescArea.setValue(
+        "This requirement was added by the e2e test to verify the editor flow."
+      );
+      await browser.pause(200);
+
+      // With a valid pending add, Save should become enabled.
+      expect(await saveBtn.getAttribute("disabled")).toBe(null);
+
+      // Discard it (×) so we don't actually mutate the gateway and break
+      // the next test runs.
+      const discardBtn = await pendingCard.$(
+        'button[data-action="discard-added"]'
+      );
+      await discardBtn.click();
+      await browser.pause(200);
+
+      // Card should be gone.
+      expect(await $(".req--pending-added").isExisting()).toBe(false);
+    } else {
+      console.log(
+        "No #add-btn in the toolbar → bundle is read-only, skipping add-requirement assertions."
+      );
+    }
+
+    // ---- Leave the iframe and close the editor ----------------------------
+
+    await webview.close();
+    const editorView = workbench.getEditorView();
+    await editorView.closeEditor("Requirements Report", 0);
   });
 
   it("should generate requirements tests", async () => {
