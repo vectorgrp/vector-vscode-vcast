@@ -425,11 +425,30 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     }
 
+    try {
+      await browser.waitUntil(async () =>
+        (await outputView.getChannelNames())
+          .toString()
+          .includes("VectorCAST Test Explorer")
+      );
+      await outputView.selectChannel("VectorCAST Test Explorer");
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
+
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("before_run_test.png");
+
     await (
       await (
         await subprogramMethod.getActionButton("Run Test")
       ).elem
     ).click();
+
+    await browser.takeScreenshot();
+    await browser.saveScreenshot(
+      "info_finished_creating_vcast_environment.png"
+    );
 
     // -------- Coverage validation --------
 
