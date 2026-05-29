@@ -369,9 +369,28 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
+    // In ext2 generateTestsFromRequirements may show a warning notification
+    // ("None of the requirements trace to a function … infer it
+    // automatically first?") with buttons [Infer traceability] [Cancel].
+    // If we don't click it, the whole operation aborts silently and the
+    // output channel stays empty --> try clicking it, ignore
+    // if it isn't shown.
+    try {
+      const inferBtn = await $("aria/Infer traceability");
+      if (await inferBtn.isExisting()) {
+        await inferBtn.click();
+        console.log("Clicked 'Infer traceability' on the warning dialog");
+      }
+    } catch (err) {
+      console.log(
+        "No 'Infer traceability' dialog shown (traceability already present)"
+      );
+    }
+
     // Primary: wait for the reqs2tests completion line on the reqs channel.
     // Fallback: switch to the main "VectorCAST Test Explorer" channel and
     // wait for the post-load message there.
+    await outputView.clearText();
     try {
       await browser.waitUntil(
         async () =>
@@ -380,24 +399,21 @@ describe("vTypeCheck VS Code Extension", () => {
             .includes("reqs2tests exit code: 0"),
         { timeout: 240_000 }
       );
+      // Generating reqs tests automatically open the VectorCAST Channel, so we maybe have to switch the channel here again
     } catch (err) {
-      console.log(
-        "reqs2tests log not seen on reqs channel, falling back to VectorCAST Test Explorer channel"
-      );
       try {
-        await outputView.selectChannel("VectorCAST Test Explorer");
-      } catch (e) {
-        console.warn(
-          "Could not switch to VectorCAST Test Explorer channel:",
-          (e as Error).message
+        await outputView.selectChannel(
+          "VectorCAST Requirement Test Generation Operations"
         );
+      } catch (err) {
+        console.warn("selectChannel failed, continuing anyway:", err.message);
       }
       try {
         await browser.waitUntil(
           async () =>
             (await (await bottomBar.openOutputView()).getText())
               .toString()
-              .includes("Processing environment data for:"),
+              .includes("reqs2tests exit code: 0"),
           { timeout: 240_000 }
         );
       } catch (err2) {
