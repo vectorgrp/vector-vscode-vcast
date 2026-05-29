@@ -196,21 +196,6 @@ describe("vTypeCheck VS Code Extension", () => {
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
 
-    const outputView = await bottomBar.openOutputView();
-    // ── guard the channel‐select so a failure doesn’t abort the test ──
-    try {
-      await browser.waitUntil(async () =>
-        (await outputView.getChannelNames())
-          .toString()
-          .includes("VectorCAST Requirement Test Generation Operations")
-      );
-      await outputView.selectChannel(
-        "VectorCAST Requirement Test Generation Operations"
-      );
-      console.log("Channel selected");
-    } catch (err) {
-      console.warn("selectChannel failed, continuing anyway:", err.message);
-    }
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
     const vcastTestingViewContent = await getViewContent("Testing");
@@ -220,7 +205,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const testExplorerSection = sections[0];
     const testEnvironments = await testExplorerSection.getVisibleItems();
 
-    // Go thorugh the (only) env and click on Generate Requirements
+    // Verify the env already has requirements: Generate Requirements and
+    // Import Requirements should be disabled in the VectorCAST submenu
     for (const testEnvironment of testEnvironments) {
       let testEnvironmentContextMenu;
 
@@ -235,19 +221,28 @@ describe("vTypeCheck VS Code Extension", () => {
 
       if (testEnvironmentContextMenu != undefined) {
         await testEnvironmentContextMenu.select("VectorCAST");
+
         const generateButton = await $("aria/Generate Requirements");
-        if (generateButton == undefined) break;
+        const importButton = await $("aria/Import Requirements");
 
-        await generateButton.click();
+        // VS Code menus mark disabled items with aria-disabled="true"
+        // rather than the HTML `disabled` attribute, so isEnabled() isn't
+        // reliable: Inspect the attribute directly.
+        const generateDisabled =
+          await generateButton.getAttribute("aria-disabled");
+        const importDisabled = await importButton.getAttribute("aria-disabled");
 
-        // Should exit with code 0
-        await browser.waitUntil(
-          async () =>
-            (await (await bottomBar.openOutputView()).getText())
-              .toString()
-              .includes("code2reqs exit code: 0"),
-          { timeout: 180_000 }
+        console.log(
+          `Generate Requirements aria-disabled=${generateDisabled}, Import Requirements aria-disabled=${importDisabled}`
         );
+
+        expect(generateDisabled).toBe("true");
+        expect(importDisabled).toBe("true");
+
+        // Dismiss the open submenu + parent menu so the next iteration /
+        // next test starts from a clean state.
+        await browser.keys(Key.Escape);
+        await browser.keys(Key.Escape);
       }
     }
   });
