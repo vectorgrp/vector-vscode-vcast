@@ -240,18 +240,12 @@ describe("vTypeCheck VS Code Extension", () => {
 
         await generateButton.click();
 
-        const vcastNotificationSourceElement = await $(
-          "aria/VectorCAST Test Explorer (Extension)"
-        );
-        const vcastNotification = await vcastNotificationSourceElement.$("..");
-        await (await vcastNotification.$("aria/Continue")).click();
-
         // Should exit with code 0
         await browser.waitUntil(
           async () =>
             (await (await bottomBar.openOutputView()).getText())
               .toString()
-              .includes("code2reqs completed successfully with code 0"),
+              .includes("code2reqs exit code: 0"),
           { timeout: 180_000 }
         );
       }
