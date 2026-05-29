@@ -308,46 +308,72 @@ describe("vTypeCheck VS Code Extension", () => {
       throw new Error("Could not open the Requirements Report webview");
     }
 
-    // ---- Enter the webview iframe -----------------------------------------
+    // Enter the webview iframe
 
     const webviews = await workbench.getAllWebviews();
     expect(webviews.length).toBeGreaterThanOrEqual(1);
     const webview = webviews[0];
     await webview.open();
 
-    // ---- Smoke: the editor's chrome is present ----------------------------
-    // Title, RGW pill, toolbar buttons, search input, reqs body container.
+    // Smoke: the editor's chrome is present
 
     expect(await $("h1=Requirements").isExisting()).toBe(true);
     expect(await $("#rgw-pill").isExisting()).toBe(true);
     expect(await $("#save-toolbar").isExisting()).toBe(true);
     expect(await $("#search-input").isExisting()).toBe(true);
 
-    // Editable banner is shown when bundle is Reqs2X-generated; read-only
-    // banner is shown when imported. We don't care which — just that one
-    // of them rendered.
     const bannerCount = await $$(".banner").length;
     expect(bannerCount).toBeGreaterThanOrEqual(1);
 
-    // ---- The 4 existing requirement IDs are rendered as cards -------------
-    // Each one becomes a <div class="req-id">extreme.N</div> built by cards.js.
+    // Verify cards rendered, whatever their IDs are
+    // The bundle in this env is CSV (FR11…FRxx); the previous spec ran
+    // against a Reqs2X-generated bundle (extreme.1…extreme.4). Either way
+    // we just expect ≥1 card and read the IDs out of the DOM.
 
-    for (const id of ["extreme.1", "extreme.2", "extreme.3", "extreme.4"]) {
-      const card = await $(`.req[data-req-id="${id}"]`);
-      await card.waitForExist({ timeout: 10_000 });
-      expect(await card.isExisting()).toBe(true);
+    await browser.waitUntil(
+      async () => (await $$(".req[data-req-id]").length) > 0,
+      {
+        timeout: 10_000,
+        timeoutMsg: "No requirement cards rendered inside the webview",
+      }
+    );
+
+    const cards = await $$(".req[data-req-id]");
+    const cardCount = cards.length;
+    console.log(`Rendered ${cardCount} requirement card(s) in the webview`);
+    expect(cardCount).toBeGreaterThan(0);
+
+    const renderedIds: string[] = [];
+    for (const c of cards) {
+      const id = await c.getAttribute("data-req-id");
+      if (id) renderedIds.push(id);
     }
+    console.log(`Rendered requirement IDs: ${renderedIds.join(", ")}`);
+
+    // Pick the first card to drive the rest of the test against.
+    const firstId = renderedIds[0];
+    const firstCardSel = `.req[data-req-id="${firstId}"]`;
 
     // Initially nothing is dirty → Save changes is disabled.
     const saveBtn = await $("#save-btn");
     expect(await saveBtn.getAttribute("disabled")).not.toBe(null);
 
-    // ---- Try editing an existing card's title (only works when editable) --
-    // The bodies are only editable in Reqs2X-generated bundles. If they're
-    // locked, the input is disabled and we just verify that.
+    // Detect the policy from the toolbar
+    // policy.bodiesEditable → the "+ Add requirement" button is rendered.
+    // Otherwise the bundle is imported/read-only and Title/Description
+    // inputs on existing cards are disabled.
 
+    const addBtn = await $("#add-btn");
+    const isEditableBundle = await addBtn.isExisting();
+    console.log(
+      `Bundle policy: bodiesEditable=${isEditableBundle} (${
+        isEditableBundle ? "Reqs2X-generated" : "imported"
+      })`
+    );
+
+    // Try editing an existing card's title
     const firstTitleInput = await $(
-      `.req[data-req-id="extreme.1"] input[data-field="title"]`
+      `${firstCardSel} input[data-field="title"]`
     );
     await firstTitleInput.waitForExist({ timeout: 5_000 });
     const titleDisabled = await firstTitleInput.getAttribute("disabled");
@@ -357,45 +383,54 @@ describe("vTypeCheck VS Code Extension", () => {
       const original = (await firstTitleInput.getValue()) || "";
       const edited = `${original} [edited by e2e]`;
       await firstTitleInput.setValue(edited);
-      // give the input listener a tick to fire
       await browser.pause(200);
       expect(await saveBtn.getAttribute("disabled")).toBe(null);
 
-      // Revert before moving on so we don't trip the unsaved-changes guard.
+      // Revert so we don't leave a dirty buffer hanging.
       await firstTitleInput.setValue(original);
       await browser.pause(200);
-      // After revert the input handler may or may not re-disable Save
-      // (dirty maps still contain an entry that's now == original). We
-      // don't assert on it here — it's an implementation detail.
     } else {
       console.log(
-        "Title input is disabled → bundle policy is read-only (imported requirements). Skipping edit assertions."
+        "Title input on existing card is disabled → bundle is read-only. Skipping title-edit assertion."
       );
     }
 
-    // ---- Add a new requirement (only in editable mode) --------------------
+    // Traceability dropdowns are always editable, even on read-only bundles
+    // (the read-only banner says: "Only traceability information can be updated…").
+    // Change unit/function and verify it dirties the form.
 
-    const addBtn = await $("#add-btn");
-    const addBtnExists = await addBtn.isExisting();
-    if (addBtnExists) {
+    const traceUnitSelect = await $(
+      `${firstCardSel} [data-scope="trace"][data-field="unit"]`
+    );
+    const traceUnitExists = await traceUnitSelect.isExisting();
+    if (traceUnitExists) {
+      const tagName = (
+        (await traceUnitSelect.getTagName()) ?? ""
+      ).toLowerCase();
+      // <select> when unitsToFunctions is known, <input> when it isn't.
+      // We only assert it's there + interactable; setting a value on a
+      // <select> requires a real option, which we can't always guarantee.
+      console.log(`Traceability:unit element is a <${tagName}>`);
+      expect(["select", "input"]).toContain(tagName);
+    }
+
+    //Add a new requirement
+
+    if (isEditableBundle) {
       await addBtn.click();
 
-      // A new pending card appears below the existing ones.
       const pendingCard = await $(".req--pending-added");
       await pendingCard.waitForExist({ timeout: 5_000 });
       expect(await pendingCard.isExisting()).toBe(true);
 
-      // The new card has a Key input — required and validated against
-      // existing keys.
       const keyInput = await pendingCard.$(`input[data-field="key"]`);
       const newTitleInput = await pendingCard.$(`input[data-field="title"]`);
       const newDescArea = await pendingCard.$(
         `textarea[data-field="description"]`
       );
 
-      // Try a duplicate key first → expect a validation error to be shown
-      // (cards.js writes into .field-error[data-role="key-error"]).
-      await keyInput.setValue("extreme.1");
+      // Duplicate key → validation error written into the .field-error div.
+      await keyInput.setValue(firstId);
       await browser.pause(200);
       const errorEl = await pendingCard.$(
         '.field-error[data-role="key-error"]'
@@ -404,30 +439,27 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log(`Duplicate-key error message: "${errorText}"`);
       expect(errorText.length).toBeGreaterThan(0);
 
-      // Now switch to a unique key.
-      await keyInput.setValue("extreme.e2e_added");
+      // Unique key now.
+      await keyInput.setValue(`${firstId}.e2e_added`);
       await newTitleInput.setValue("E2E added requirement");
       await newDescArea.setValue(
         "This requirement was added by the e2e test to verify the editor flow."
       );
       await browser.pause(200);
 
-      // With a valid pending add, Save should become enabled.
       expect(await saveBtn.getAttribute("disabled")).toBe(null);
 
-      // Discard it (×) so we don't actually mutate the gateway and break
-      // the next test runs.
+      // Discard so we don't actually mutate the gateway.
       const discardBtn = await pendingCard.$(
         'button[data-action="discard-added"]'
       );
       await discardBtn.click();
       await browser.pause(200);
 
-      // Card should be gone.
       expect(await $(".req--pending-added").isExisting()).toBe(false);
     } else {
       console.log(
-        "No #add-btn in the toolbar → bundle is read-only, skipping add-requirement assertions."
+        "Skipping add-requirement assertions (read-only bundle: no #add-btn in toolbar)."
       );
     }
 
