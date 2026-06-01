@@ -244,7 +244,8 @@ describe("vTypeCheck VS Code Extension", () => {
           "aria/VectorCAST Test Explorer (Extension)"
         );
         const vcastNotification = await vcastNotificationSourceElement.$("..");
-        await bottomBar.openOutputView().clearText();
+        const outputView = await bottomBar.openOutputView();
+        await outputView.clearText();
         await browser.takeScreenshot();
         await browser.saveScreenshot("remove_requirements.png");
         await (await vcastNotification.$("aria/Remove")).click();
@@ -252,7 +253,7 @@ describe("vTypeCheck VS Code Extension", () => {
         // Should exit with code 0
         await browser.waitUntil(
           async () =>
-            (await (await bottomBar.openOutputView()).getText())
+            (await outputView.getText())
               .toString()
               .includes("Processing environment data for:"),
           { timeout: 180_000 }
