@@ -307,6 +307,17 @@ describe("vTypeCheck VS Code Extension", () => {
         break;
       }
 
+      await testEnvironmentContextMenu.select("VectorCAST");
+      const rebuildButton = await $("aria/Re-Build Environment");
+      await rebuildButton.click();
+      await browser.waitUntil(
+        async () =>
+          (await (await bottomBar.openOutputView()).getText())
+            .toString()
+            .includes("Environment re-build complete"),
+        { timeout: 180_000 }
+      );
+
       if (testEnvironmentContextMenu != undefined) {
         await testEnvironmentContextMenu.select("VectorCAST");
         const generateButton = await $("aria/Generate Requirements");
