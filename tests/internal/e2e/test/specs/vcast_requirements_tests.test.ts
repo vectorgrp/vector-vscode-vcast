@@ -538,6 +538,8 @@ describe("vTypeCheck VS Code Extension", () => {
     try {
       const inferBtn = await $("aria/Infer traceability");
       if (await inferBtn.isExisting()) {
+        await browser.takeScreenshot();
+        await browser.saveScreenshot("clicked_infer_traceability.png");
         await inferBtn.click();
         console.log("Clicked 'Infer traceability' on the warning dialog");
       }
