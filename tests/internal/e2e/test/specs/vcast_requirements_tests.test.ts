@@ -540,6 +540,7 @@ describe("vTypeCheck VS Code Extension", () => {
       if (await inferBtn.isExisting()) {
         await browser.takeScreenshot();
         await browser.saveScreenshot("clicked_infer_traceability.png");
+        await outputView.clearText();
         await inferBtn.click();
         console.log("Clicked 'Infer traceability' on the warning dialog");
       }
@@ -548,11 +549,17 @@ describe("vTypeCheck VS Code Extension", () => {
         "No 'Infer traceability' dialog shown (traceability already present)"
       );
     }
-
+    await bottomBar.maximize();
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("panreq"),
+      { timeout: 240_000 }
+    );
     // Primary: wait for the reqs2tests completion line on the reqs channel.
     // Fallback: switch to the main "VectorCAST Test Explorer" channel and
     // wait for the post-load message there.
-    await outputView.clearText();
     try {
       await browser.waitUntil(
         async () =>
@@ -561,6 +568,7 @@ describe("vTypeCheck VS Code Extension", () => {
             .includes("reqs2tests exit code: 0"),
         { timeout: 240_000 }
       );
+      console.log(await outputView.getText());
       // Generating reqs tests automatically open the VectorCAST Channel, so we maybe have to switch the channel here again
     } catch (err) {
       try {
@@ -570,6 +578,7 @@ describe("vTypeCheck VS Code Extension", () => {
       } catch (err) {
         console.warn("selectChannel failed, continuing anyway:", err.message);
       }
+      console.log(await outputView.getText());
       try {
         await browser.waitUntil(
           async () =>
