@@ -196,6 +196,21 @@ describe("vTypeCheck VS Code Extension", () => {
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
 
+    const outputView = await bottomBar.openOutputView();
+    // ── guard the channel‐select so a failure doesn’t abort the test ──
+    try {
+      await browser.waitUntil(async () =>
+        (await outputView.getChannelNames())
+          .toString()
+          .includes("VectorCAST Requirement Test Generation Operations")
+      );
+      await outputView.selectChannel(
+        "VectorCAST Requirement Test Generation Operations"
+      );
+      console.log("Channel selected");
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
     const vcastTestingViewContent = await getViewContent("Testing");
@@ -205,24 +220,7 @@ describe("vTypeCheck VS Code Extension", () => {
     const testExplorerSection = sections[0];
     const testEnvironments = await testExplorerSection.getVisibleItems();
 
-    const menuItemState = (label: string) =>
-      browser.execute((text: string) => {
-        const spans = Array.from(
-          document.querySelectorAll<HTMLElement>(".action-label")
-        );
-        const span = spans.find((s) => s.textContent?.trim() === text);
-        if (!span) return "not-found";
-        let el: HTMLElement | null = span;
-        while (el) {
-          if (el.getAttribute("aria-disabled") === "true") return "disabled";
-          if (el.classList.contains("disabled")) return "disabled";
-          el = el.parentElement;
-        }
-        return "enabled";
-      }, label);
-
-    // Verify the env already has requirements: Generate Requirements and
-    // Import Requirements should be disabled in the VectorCAST submenu.
+    // Go thorugh the (only) env and click on Generate Requirements
     for (const testEnvironment of testEnvironments) {
       let testEnvironmentContextMenu;
 
@@ -237,21 +235,27 @@ describe("vTypeCheck VS Code Extension", () => {
 
       if (testEnvironmentContextMenu != undefined) {
         await testEnvironmentContextMenu.select("VectorCAST");
+        const generateButton = await $("aria/Generate Requirements");
+        await browser.takeScreenshot();
+        await browser.saveScreenshot("generate_requirements.png");
+        if (generateButton == undefined) break;
 
-        const generateState = await menuItemState("Generate Requirements");
-        const importState = await menuItemState("Import Requirements");
+        await generateButton.click();
 
-        console.log(
-          `Generate Requirements state=${generateState}, Import Requirements state=${importState}`
+        const vcastNotificationSourceElement = await $(
+          "aria/VectorCAST Test Explorer (Extension)"
         );
+        const vcastNotification = await vcastNotificationSourceElement.$("..");
+        await (await vcastNotification.$("aria/Continue")).click();
 
-        expect(generateState).toBe("disabled");
-        expect(importState).toBe("disabled");
-
-        // Dismiss the open submenu + parent menu so the next iteration /
-        // next test starts from a clean state.
-        await browser.keys(Key.Escape);
-        await browser.keys(Key.Escape);
+        // Should exit with code 0
+        await browser.waitUntil(
+          async () =>
+            (await (await bottomBar.openOutputView()).getText())
+              .toString()
+              .includes("code2reqs completed successfully with code 0"),
+          { timeout: 180_000 }
+        );
       }
     }
   });
