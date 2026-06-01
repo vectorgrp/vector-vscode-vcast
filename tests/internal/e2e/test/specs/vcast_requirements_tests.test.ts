@@ -317,6 +317,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Smoke: the editor's chrome is present
 
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("show_requirements.png");
+
     expect(await $("h1=Requirements").isExisting()).toBe(true);
     expect(await $("#rgw-pill").isExisting()).toBe(true);
     expect(await $("#save-toolbar").isExisting()).toBe(true);
@@ -525,6 +528,24 @@ describe("vTypeCheck VS Code Extension", () => {
     await contextMenu.select("VectorCAST");
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
+
+    // In ext2 generateTestsFromRequirements may show a warning notification
+    // ("None of the requirements trace to a function … infer it
+    // automatically first?") with buttons [Infer traceability] [Cancel].
+    // If we don't click it, the whole operation aborts silently and the
+    // output channel stays empty --> try clicking it, ignore
+    // if it isn't shown.
+    try {
+      const inferBtn = await $("aria/Infer traceability");
+      if (await inferBtn.isExisting()) {
+        await inferBtn.click();
+        console.log("Clicked 'Infer traceability' on the warning dialog");
+      }
+    } catch (err) {
+      console.log(
+        "No 'Infer traceability' dialog shown (traceability already present)"
+      );
+    }
 
     // Primary: wait for the reqs2tests completion line on the reqs channel.
     // Fallback: switch to the main "VectorCAST Test Explorer" channel and
