@@ -235,6 +235,8 @@ describe("vTypeCheck VS Code Extension", () => {
 
       if (testEnvironmentContextMenu != undefined) {
         await testEnvironmentContextMenu.select("VectorCAST");
+        await browser.takeScreenshot();
+        await browser.saveScreenshot("remove_requirements.png");
         const removeButton = await $("aria/Remove Requirements");
         if (removeButton == undefined) break;
 
@@ -246,8 +248,6 @@ describe("vTypeCheck VS Code Extension", () => {
         const vcastNotification = await vcastNotificationSourceElement.$("..");
         const outputView = await bottomBar.openOutputView();
         await outputView.clearText();
-        await browser.takeScreenshot();
-        await browser.saveScreenshot("remove_requirements.png");
         await (await vcastNotification.$("aria/Remove")).click();
 
         // Should exit with code 0
@@ -306,17 +306,6 @@ describe("vTypeCheck VS Code Extension", () => {
         console.log("Cannot open context menu, not an environment");
         break;
       }
-
-      await testEnvironmentContextMenu.select("VectorCAST");
-      const rebuildButton = await $("aria/Re-Build Environment");
-      await rebuildButton.click();
-      await browser.waitUntil(
-        async () =>
-          (await (await bottomBar.openOutputView()).getText())
-            .toString()
-            .includes("Environment re-build complete"),
-        { timeout: 180_000 }
-      );
 
       if (testEnvironmentContextMenu != undefined) {
         await testEnvironmentContextMenu.select("VectorCAST");

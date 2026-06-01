@@ -453,7 +453,9 @@ export const config: Options.Testrunner = {
       }
 
       // Execute RGW commands and copy necessary files
-      await executeRGWCommands(testInputVcastTutorial);
+      if (!process.env.REQS2X_PCT_RELEASE) {
+        await executeRGWCommands(testInputVcastTutorial);
+      }
       await copyPathsToTestLocation(testInputVcastTutorial);
 
       const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
