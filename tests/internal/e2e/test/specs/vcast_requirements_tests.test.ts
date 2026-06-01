@@ -578,6 +578,8 @@ describe("vTypeCheck VS Code Extension", () => {
               .includes("reqs2tests exit code: 0"),
           { timeout: 240_000 }
         );
+        console.log("REQS2TESTS Exited with 0");
+        console.log(await outputView.getText());
       } catch (err2) {
         console.log(await outputView.getText());
         throw new Error(
