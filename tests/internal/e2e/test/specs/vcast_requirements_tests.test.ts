@@ -599,7 +599,7 @@ describe("vTypeCheck VS Code Extension", () => {
     } catch (err) {
       console.warn("selectChannel failed, continuing anyway:", err.message);
     }
-
+    console.log(await outputView.getText());
     await browser.takeScreenshot();
     await browser.saveScreenshot("before_run_test.png");
 
