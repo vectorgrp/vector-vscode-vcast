@@ -142,25 +142,29 @@ def compareJSON(left, right):
 
 def compareTestScriptFiles(expected, actual):
     """
-    This is used to compare two test scripts.
-    The first line in the scripts is the vcast version
-    so we need to ignore that line for the compare
+    Compare two test scripts, ignoring the first line (the vcast version stamp).
+    On mismatch, print a unified diff so CI logs show exactly what changed.
     """
+    import difflib
 
     with open(expected, "r") as f:
-        expectedData = f.readlines()
-        expectedData = "\n".join(expectedData[1:])
-
+        expectedLines = f.readlines()[1:]
     with open(actual, "r") as f:
-        actualData = f.readlines()
-        actualData = "\n".join(actualData[1:])
+        actualLines = f.readlines()[1:]
 
-    returnValue = expectedData == actualData
+    returnValue = expectedLines == actualLines
 
     if not returnValue:
         print(
-            f"-- Data miss-match - compare: {os.path.basename (expected)}  to: {os.path.basename(actual)} ..."
+            f"-- Data miss-match - compare: {os.path.basename(expected)}  to: {os.path.basename(actual)} ..."
         )
+        diff = difflib.unified_diff(
+            expectedLines, actualLines,
+            fromfile=os.path.basename(expected),
+            tofile=os.path.basename(actual),
+            lineterm="",
+        )
+        print("".join(line if line.endswith("\n") else line + "\n" for line in diff))
 
     return returnValue
 
