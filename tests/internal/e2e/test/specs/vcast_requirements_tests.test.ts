@@ -236,8 +236,6 @@ describe("vTypeCheck VS Code Extension", () => {
       if (testEnvironmentContextMenu != undefined) {
         await testEnvironmentContextMenu.select("VectorCAST");
         const generateButton = await $("aria/Generate Requirements");
-        await browser.takeScreenshot();
-        await browser.saveScreenshot("generate_requirements.png");
         if (generateButton == undefined) break;
 
         await generateButton.click();
@@ -307,17 +305,12 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     // Enter the webview iframe
-
     const webviews = await workbench.getAllWebviews();
     expect(webviews.length).toBeGreaterThanOrEqual(1);
     const webview = webviews[0];
     await webview.open();
 
-    // Smoke: the editor's chrome is present
-
-    await browser.takeScreenshot();
-    await browser.saveScreenshot("show_requirements.png");
-
+    // Check for html fields
     expect(await $("h1=Requirements").isExisting()).toBe(true);
     expect(await $("#rgw-pill").isExisting()).toBe(true);
     expect(await $("#save-toolbar").isExisting()).toBe(true);
@@ -327,10 +320,7 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(bannerCount).toBeGreaterThanOrEqual(1);
 
     // Verify cards rendered, whatever their IDs are
-    // The bundle in this env is CSV (FR11…FRxx); the previous spec ran
-    // against a Reqs2X-generated bundle (extreme.1…extreme.4). Either way
-    // we just expect ≥1 card and read the IDs out of the DOM.
-
+    // we just expect >=1 card and read the IDs out of the DOM.
     await browser.waitUntil(
       async () => (await $$(".req[data-req-id]").length) > 0,
       {
@@ -339,6 +329,7 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     );
 
+    // Check that there are some Requirement fields / cards
     const cards = await $$(".req[data-req-id]");
     const cardCount = cards.length;
     console.log(`Rendered ${cardCount} requirement card(s) in the webview`);
@@ -355,15 +346,12 @@ describe("vTypeCheck VS Code Extension", () => {
     const firstId = renderedIds[0];
     const firstCardSel = `.req[data-req-id="${firstId}"]`;
 
-    // Initially nothing is dirty → Save changes is disabled.
+    // Initially nothing is dirty -> Save changes is disabled.
     const saveBtn = await $("#save-btn");
     expect(await saveBtn.getAttribute("disabled")).not.toBe(null);
 
     // Detect the policy from the toolbar
-    // policy.bodiesEditable → the "+ Add requirement" button is rendered.
-    // Otherwise the bundle is imported/read-only and Title/Description
-    // inputs on existing cards are disabled.
-
+    // policy.bodiesEditable -> the "+ Add requirement" button is rendered.
     const addBtn = await $("#add-btn");
     const isEditableBundle = await addBtn.isExisting();
     console.log(
@@ -396,10 +384,7 @@ describe("vTypeCheck VS Code Extension", () => {
       );
     }
 
-    // Traceability dropdowns are always editable, even on read-only bundles
-    // (the read-only banner says: "Only traceability information can be updated…").
-    // Change unit/function and verify it dirties the form.
-
+    // Traceability dropdowns
     const traceUnitSelect = await $(
       `${firstCardSel} [data-scope="trace"][data-field="unit"]`
     );
@@ -409,14 +394,12 @@ describe("vTypeCheck VS Code Extension", () => {
         (await traceUnitSelect.getTagName()) ?? ""
       ).toLowerCase();
       // <select> when unitsToFunctions is known, <input> when it isn't.
-      // We only assert it's there + interactable; setting a value on a
-      // <select> requires a real option, which we can't always guarantee.
+      // We only assert it's there + interactable;
       console.log(`Traceability:unit element is a <${tagName}>`);
       expect(["select", "input"]).toContain(tagName);
     }
 
     //Add a new requirement
-
     if (isEditableBundle) {
       await addBtn.click();
 
@@ -430,7 +413,7 @@ describe("vTypeCheck VS Code Extension", () => {
         `textarea[data-field="description"]`
       );
 
-      // Duplicate key → validation error written into the .field-error div.
+      // Duplicate key -> validation error written into the .field-error div.
       await keyInput.setValue(firstId);
       await browser.pause(200);
       const errorEl = await pendingCard.$(
@@ -464,8 +447,7 @@ describe("vTypeCheck VS Code Extension", () => {
       );
     }
 
-    // ---- Leave the iframe and close the editor ----------------------------
-
+    // Leave the iframe and close the editor
     await webview.close();
     const editorView = workbench.getEditorView();
     await editorView.closeEditor("Requirements Report", 0);
@@ -479,7 +461,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const outputView = await bottomBar.openOutputView();
 
-    // Find Manager::PlaceOrder subprogram and click on Generate Tests
+    // Find moo::extreme subprogram and click on Generate Tests
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
         await vcastTestingViewSection.expand();
