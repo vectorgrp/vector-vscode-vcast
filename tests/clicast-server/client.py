@@ -166,7 +166,8 @@ def compareTestScriptFiles(expected, actual):
             f"-- Data miss-match - compare: {os.path.basename(expected)}  to: {os.path.basename(actual)} ..."
         )
         diff = difflib.unified_diff(
-            expectedLines, actualLines,
+            expectedLines,
+            actualLines,
             fromfile=os.path.basename(expected),
             tofile=os.path.basename(actual),
             lineterm="",
@@ -174,6 +175,7 @@ def compareTestScriptFiles(expected, actual):
         print("".join(line if line.endswith("\n") else line + "\n" for line in diff))
 
     return returnValue
+
 
 def compareToExpected(expectedFile, newData):
 

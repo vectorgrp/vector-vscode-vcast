@@ -838,9 +838,8 @@ async function processSingleEnvData(
   // (Generate Tests from Requirements) stay greyed even when the env has
   // requirements. Lazy require to avoid an import cycle through
   // requirements → testPane.
-  const {
-    updateRequirementsAvailability,
-  } = require("./requirements/availability") as typeof import("./requirements/availability");
+  const { updateRequirementsAvailability } =
+    require("./requirements/availability") as typeof import("./requirements/availability");
   updateRequirementsAvailability(enviroData.buildDirectory);
 
   // Instead of grouping, add the environment directly.

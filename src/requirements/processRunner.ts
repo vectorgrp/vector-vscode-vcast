@@ -1,8 +1,5 @@
 import * as vscode from "vscode";
-import {
-  ChildProcessWithoutNullStreams,
-  spawn,
-} from "node:child_process";
+import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { logCliError, logCliOperation } from "./requirementsLog";
 import { spawnWithVcastEnv } from "./llmProvider";
 
@@ -64,7 +61,10 @@ export class ProgressTracker {
         );
       }
     } else if (json.event === "problem") {
-      if (this.logPrefix === "reqs2tests" && json.value.includes("Individual")) {
+      if (
+        this.logPrefix === "reqs2tests" &&
+        json.value.includes("Individual")
+      ) {
         return;
       }
       vscode.window.showWarningMessage(json.value);
@@ -149,14 +149,18 @@ export async function runReqs2xTool(
           });
           proc.stderr.on("data", (d) => {
             const errOut = d.toString();
-            if (errOut.trim()) logCliError(`${progressOpts.logPrefix}: ${errOut.trim()}`);
+            if (errOut.trim())
+              logCliError(`${progressOpts.logPrefix}: ${errOut.trim()}`);
           });
           proc.on("error", reject);
           proc.on("close", (code) => {
             logCliOperation(`${progressOpts.logPrefix} exit code: ${code}`);
             if (cancelled) return resolve();
             if (code === 0) resolve();
-            else reject(new Error(`${progressOpts.logPrefix} exited with code ${code}`));
+            else
+              reject(
+                new Error(`${progressOpts.logPrefix} exited with code ${code}`)
+              );
           });
         });
 

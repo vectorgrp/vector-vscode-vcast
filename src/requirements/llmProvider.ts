@@ -1,8 +1,5 @@
 import * as vscode from "vscode";
-import {
-  ChildProcessWithoutNullStreams,
-  spawn,
-} from "node:child_process";
+import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { vcastInstallationDirectory } from "../vcastInstallation";
 import { showSettings } from "../utilities";
 import { extractJson } from "../../src-common/commonUtilities";
