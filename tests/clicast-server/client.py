@@ -142,15 +142,22 @@ def compareJSON(left, right):
 
 def compareTestScriptFiles(expected, actual):
     """
-    Compare two test scripts, ignoring the first line (the vcast version stamp).
+    Compare two test scripts, ignoring:
+      - the first line (the vcast version stamp), and
+      - TEST.SCRIPT_FEATURE: lines, which are release-level capability flags
+        that newer VectorCAST versions add/remove independent of test content.
     On mismatch, print a unified diff so CI logs show exactly what changed.
     """
     import difflib
 
-    with open(expected, "r") as f:
-        expectedLines = f.readlines()[1:]
-    with open(actual, "r") as f:
-        actualLines = f.readlines()[1:]
+    def normalize(path):
+        with open(path, "r") as f:
+            lines = f.readlines()[1:]  # drop version-stamp first line
+        # drop release-metadata feature flags
+        return [ln for ln in lines if not ln.startswith("TEST.SCRIPT_FEATURE:")]
+
+    expectedLines = normalize(expected)
+    actualLines = normalize(actual)
 
     returnValue = expectedLines == actualLines
 
@@ -167,7 +174,6 @@ def compareTestScriptFiles(expected, actual):
         print("".join(line if line.endswith("\n") else line + "\n" for line in diff))
 
     return returnValue
-
 
 def compareToExpected(expectedFile, newData):
 
