@@ -132,7 +132,11 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: getSpecs(process.env.USE_VCAST_24 === "True", groupName),
+  specs: getSpecs(
+    process.env.USE_VCAST_24 === "True",
+    groupName,
+    process.env.USE_VCAST_25 === "True"
+  ),
   // Patterns to exclude.
   // exclude:
   //
