@@ -560,20 +560,24 @@ export async function validateGeneratedTestScriptContent(
 
   await editorView.closeAllEditors();
 
-  console.log("=== GENERATED TST SCRIPT (" + envName + ") ===");
-  console.log(fullGenTstScript);
-  console.log("=== EXPECTED LINES ===");
-  for (let line of expectedTestCode) {
-    const trimmed = line.trim();
-    const present = fullGenTstScript.includes(trimmed);
-    if (!present) {
-      console.log("MISSING >>> " + trimmed);
-    }
-  }
+  // Strip the TEST.NOTES: ... TEST.END_NOTES: block. Its wording is
+  // explanatory and changed between VC releases (e.g. the "no controllable
+  // inputs" note was reworded in vc26), so it's not something we should
+  // assert on. Everything that matters (VALUE/STUB/structure) stays.
+  const stripNotes = (s) =>
+    s.replace(/TEST\.NOTES:[\s\S]*?TEST\.END_NOTES:/g, "");
 
-  for (let line of expectedTestCode) {
+  const genStripped = stripNotes(fullGenTstScript);
+
+  // expectedTestCode may be a single string or an array of lines.
+  const expectedLines = Array.isArray(expectedTestCode)
+    ? expectedTestCode
+    : stripNotes(expectedTestCode).split("\n");
+
+  for (let line of expectedLines) {
     line = line.trim();
-    expect(fullGenTstScript.includes(line)).toBe(true);
+    if (!line) continue;
+    expect(genStripped.includes(line)).toBe(true);
   }
 }
 
