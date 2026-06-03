@@ -558,12 +558,40 @@ export async function validateGeneratedTestScriptContent(
   );
   const tab = (await editorView.openEditor(tstFilename)) as TextEditor;
 
-  const fullGenTstScript = await tab.getText();
+  // Strip TEST.NOTES: ... TEST.END_NOTES: — the wording changed between VC
+  // releases (vc26 reworded the "no controllable inputs" note), so it isn't
+  // something we should assert on. Structure/VALUE/STUB lines stay.
+  const stripNotes = (s: string) =>
+    s.replace(/TEST\.NOTES:[\s\S]*?TEST\.END_NOTES:/g, "");
+
+  // expectedTestCode may be a single string or an array of lines.
+  const expectedLines = (
+    Array.isArray(expectedTestCode)
+      ? expectedTestCode
+      : stripNotes(expectedTestCode).split("\n")
+  )
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  // Wait until the editor has fully rendered all expected lines — it can
+  // return partial text right after opening.
+  let genStripped = "";
+  await browser.waitUntil(
+    async () => {
+      genStripped = stripNotes(await tab.getText());
+      return expectedLines.every((line) => genStripped.includes(line));
+    },
+    {
+      timeout: 15_000,
+      interval: 300,
+      timeoutMsg: "Generated tst did not contain all expected lines in time",
+    }
+  );
 
   await editorView.closeAllEditors();
-  for (let line of expectedTestCode) {
-    line = line.trim();
-    expect(fullGenTstScript.includes(line)).toBe(true);
+
+  for (const line of expectedLines) {
+    expect(genStripped.includes(line)).toBe(true);
   }
 }
 
