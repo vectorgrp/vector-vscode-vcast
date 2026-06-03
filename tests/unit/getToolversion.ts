@@ -64,7 +64,7 @@ export async function getToolVersion(givenClicastPath?: string) {
       .toString()
       .trim();
 
-    const match = toolVersion.match(/\d+/);
+    const match = /\d+/.exec(toolVersion);
     const versionNumber = match ? Number(match[0]) : Number.NaN;
 
     if (Number.isNaN(versionNumber)) {
