@@ -64,13 +64,13 @@ export async function getToolVersion(givenClicastPath?: string) {
       .toString()
       .trim();
 
-    // Extract the first two characters & try to cast it to a number
-    const firstTwoChars = toolVersion.slice(0, 2);
-    const versionNumber = Number(firstTwoChars);
+    const match = toolVersion.match(/\d+/);
+    const versionNumber = match ? Number(match[0]) : Number.NaN;
 
-    // Check if the conversion was successful (not NaN)
     if (Number.isNaN(versionNumber)) {
-      console.error(`Error: Could not cast "${firstTwoChars}" to a number`);
+      console.error(
+        `Error: could not parse a version number from "${toolVersion}"`
+      );
       return Number.NaN;
     }
 

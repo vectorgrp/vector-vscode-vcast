@@ -17,6 +17,8 @@ import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
+import expectedAtgTests26 from "../atg_tests_26.json";
+import { getToolVersion } from "../../../../unit/getToolversion";
 
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 240_000;
@@ -556,47 +558,12 @@ export async function validateGeneratedTestScriptContent(
   );
   const tab = (await editorView.openEditor(tstFilename)) as TextEditor;
 
-  // Strip the TEST.NOTES: ... TEST.END_NOTES: block. Its wording is
-  // explanatory and changed between VC releases (e.g. the "no controllable
-  // inputs" note was reworded in vc26), so it's not something we should
-  // assert on. Everything that matters (VALUE/STUB/structure) stays.
-  const stripNotes = (s: string) =>
-    s.replace(/TEST\.NOTES:[\s\S]*?TEST\.END_NOTES:/g, "");
-
-  const expectedLines = (
-    Array.isArray(expectedTestCode)
-      ? expectedTestCode
-      : stripNotes(expectedTestCode).split("\n")
-  )
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  let genStripped = "";
-  try {
-    await browser.waitUntil(
-      async () => {
-        genStripped = stripNotes(await tab.getText());
-        return expectedLines.every((line) => genStripped.includes(line));
-      },
-      { timeout: 15_000, interval: 300 }
-    );
-  } catch {
-    // gate never satisfied — dump what's missing so we can see the real diff
-    console.log(
-      "=== TIMED OUT. GENERATED (notes stripped) " + envName + " ==="
-    );
-    console.log(genStripped);
-    for (const line of expectedLines) {
-      if (!genStripped.includes(line)) {
-        console.log("MISSING >>> " + JSON.stringify(line));
-      }
-    }
-  }
+  const fullGenTstScript = await tab.getText();
 
   await editorView.closeAllEditors();
-
-  for (const line of expectedLines) {
-    expect(genStripped.includes(line)).toBe(true);
+  for (let line of expectedTestCode) {
+    line = line.trim();
+    expect(fullGenTstScript.includes(line)).toBe(true);
   }
 }
 
@@ -971,7 +938,11 @@ export async function getAllExpectedTests(testGenMethodText: string) {
   if (testGenMethodText === testGenMethod.BasisPath) {
     return expectedBasisPathTests;
   }
-
+  // ATG output drifted in vc26 (reworded notes, dropped some TEST.VALUE lines)
+  const toolVersion = await getToolVersion();
+  if (toolVersion >= 26) {
+    return expectedAtgTests26;
+  }
   return expectedAtgTests;
 }
 
