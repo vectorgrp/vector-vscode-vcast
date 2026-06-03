@@ -493,7 +493,9 @@ export const config: Options.Testrunner = {
       let vcastRoot = await getVcastRoot();
       const toolVersion = await getToolVersion();
       let coded_mock_different_env_version: string;
-      if (toolVersion == 25) {
+      if (toolVersion == 26) {
+        coded_mock_different_env_version = "2026sp1";
+      } else if (toolVersion == 25) {
         coded_mock_different_env_version = "2025sp0";
       } else {
         coded_mock_different_env_version = "2024sp1";
