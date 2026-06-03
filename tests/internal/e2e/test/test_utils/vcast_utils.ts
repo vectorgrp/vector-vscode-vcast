@@ -556,40 +556,49 @@ export async function validateGeneratedTestScriptContent(
   );
   const tab = (await editorView.openEditor(tstFilename)) as TextEditor;
 
-  // Wait until the script is fully rendered before reading — the editor
-  // can return partial text immediately after opening.
-  let fullGenTstScript = "";
-  await browser.waitUntil(
-    async () => {
-      fullGenTstScript = await tab.getText();
-      return fullGenTstScript.includes("TEST.END");
-    },
-    {
-      timeout: 10_000,
-      interval: 250,
-      timeoutMsg: "tst script did not fully load",
-    }
-  );
-
-  await editorView.closeAllEditors();
-
   // Strip the TEST.NOTES: ... TEST.END_NOTES: block. Its wording is
   // explanatory and changed between VC releases (e.g. the "no controllable
   // inputs" note was reworded in vc26), so it's not something we should
   // assert on. Everything that matters (VALUE/STUB/structure) stays.
-  const stripNotes = (s) =>
+  const stripNotes = (s: string) =>
     s.replace(/TEST\.NOTES:[\s\S]*?TEST\.END_NOTES:/g, "");
 
-  const genStripped = stripNotes(fullGenTstScript);
-
   // expectedTestCode may be a single string or an array of lines.
-  const expectedLines = Array.isArray(expectedTestCode)
-    ? expectedTestCode
-    : stripNotes(expectedTestCode).split("\n");
+  const expectedLines = (
+    Array.isArray(expectedTestCode)
+      ? expectedTestCode
+      : stripNotes(expectedTestCode).split("\n")
+  )
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
 
-  for (let line of expectedLines) {
-    line = line.trim();
-    if (!line) continue;
+  // Wait until the editor has fully rendered the script... it can return
+  // partial text right after opening (only the first test case present),
+  // so gate on all expected lines being there, not just "TEST.END".
+  let genStripped = "";
+  await browser.waitUntil(
+    async () => {
+      genStripped = stripNotes(await tab.getText());
+      return expectedLines.every((line) => genStripped.includes(line));
+    },
+    {
+      timeout: 15_000,
+      interval: 300,
+      timeoutMsg: "Generated tst did not contain all expected lines in time",
+    }
+  );
+
+  // TEMPORARY DEBUG
+  for (const line of expectedLines) {
+    if (!genStripped.includes(line)) {
+      console.log("MISSING >>> " + JSON.stringify(line));
+      console.log("GEN LENGTH: " + genStripped.length);
+    }
+  }
+
+  await editorView.closeAllEditors();
+
+  for (const line of expectedLines) {
     expect(genStripped.includes(line)).toBe(true);
   }
 }
