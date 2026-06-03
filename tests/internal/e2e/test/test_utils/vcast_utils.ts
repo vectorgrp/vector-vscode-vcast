@@ -558,40 +558,41 @@ export async function validateGeneratedTestScriptContent(
   );
   const tab = (await editorView.openEditor(tstFilename)) as TextEditor;
 
-  // Strip TEST.NOTES: ... TEST.END_NOTES: — the wording changed between VC
-  // releases (vc26 reworded the "no controllable inputs" note), so it isn't
-  // something we should assert on. Structure/VALUE/STUB lines stay.
-  const stripNotes = (s: string) =>
-    s.replace(/TEST\.NOTES:[\s\S]*?TEST\.END_NOTES:/g, "");
+  // Only compare TEST.* directive lines. The "-- ..." comment lines (unit /
+  // subprogram headers, path descriptions, note prose) are unreliable:
+  // - the "-- Unit:" header appears once per unit and scrolls out of the
+  //   editor viewport, and tab.getText() only returns rendered lines;
+  // - note wording was reworded in vc26.
+  // The TEST.* lines carry the real content and sit at the focused test case.
+  const onlyTestLines = (s: string) =>
+    s
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("TEST."));
 
-  // expectedTestCode may be a single string or an array of lines.
-  const expectedLines = (
-    Array.isArray(expectedTestCode)
-      ? expectedTestCode
-      : stripNotes(expectedTestCode).split("\n")
-  )
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+  const expectedTestDirectives = onlyTestLines(
+    Array.isArray(expectedTestCode) ? expectedTestCode.join("\n") : expectedTestCode
+  );
 
-  // Wait until the editor has fully rendered all expected lines — it can
-  // return partial text right after opening.
-  let genStripped = "";
+  let genTestDirectives: string[] = [];
   await browser.waitUntil(
     async () => {
-      genStripped = stripNotes(await tab.getText());
-      return expectedLines.every((line) => genStripped.includes(line));
+      genTestDirectives = onlyTestLines(await tab.getText());
+      return expectedTestDirectives.every((line) =>
+        genTestDirectives.includes(line)
+      );
     },
     {
       timeout: 15_000,
       interval: 300,
-      timeoutMsg: "Generated tst did not contain all expected lines in time",
+      timeoutMsg: "Generated tst did not contain all expected TEST.* lines",
     }
   );
 
   await editorView.closeAllEditors();
 
-  for (const line of expectedLines) {
-    expect(genStripped.includes(line)).toBe(true);
+  for (const line of expectedTestDirectives) {
+    expect(genTestDirectives.includes(line)).toBe(true);
   }
 }
 
