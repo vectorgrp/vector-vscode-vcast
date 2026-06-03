@@ -559,6 +559,18 @@ export async function validateGeneratedTestScriptContent(
   const fullGenTstScript = await tab.getText();
 
   await editorView.closeAllEditors();
+
+  console.log("=== GENERATED TST SCRIPT (" + envName + ") ===");
+  console.log(fullGenTstScript);
+  console.log("=== EXPECTED LINES ===");
+  for (let line of expectedTestCode) {
+    const trimmed = line.trim();
+    const present = fullGenTstScript.includes(trimmed);
+    if (!present) {
+      console.log("MISSING >>> " + trimmed);
+    }
+  }
+
   for (let line of expectedTestCode) {
     line = line.trim();
     expect(fullGenTstScript.includes(line)).toBe(true);
