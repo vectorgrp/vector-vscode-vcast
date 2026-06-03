@@ -556,7 +556,20 @@ export async function validateGeneratedTestScriptContent(
   );
   const tab = (await editorView.openEditor(tstFilename)) as TextEditor;
 
-  const fullGenTstScript = await tab.getText();
+  // Wait until the script is fully rendered before reading — the editor
+  // can return partial text immediately after opening.
+  let fullGenTstScript = "";
+  await browser.waitUntil(
+    async () => {
+      fullGenTstScript = await tab.getText();
+      return fullGenTstScript.includes("TEST.END");
+    },
+    {
+      timeout: 10_000,
+      interval: 250,
+      timeoutMsg: "tst script did not fully load",
+    }
+  );
 
   await editorView.closeAllEditors();
 
@@ -573,13 +586,7 @@ export async function validateGeneratedTestScriptContent(
   const expectedLines = Array.isArray(expectedTestCode)
     ? expectedTestCode
     : stripNotes(expectedTestCode).split("\n");
-  console.log("=== GENERATED (notes stripped) " + envName + " ===");
-  console.log(genStripped);
-  for (let l of expectedLines) {
-    const t = l.trim();
-    if (t && !genStripped.includes(t))
-      console.log("MISSING >>> " + JSON.stringify(t));
-  }
+
   for (let line of expectedLines) {
     line = line.trim();
     if (!line) continue;
