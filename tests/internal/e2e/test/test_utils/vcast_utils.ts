@@ -573,7 +573,13 @@ export async function validateGeneratedTestScriptContent(
   const expectedLines = Array.isArray(expectedTestCode)
     ? expectedTestCode
     : stripNotes(expectedTestCode).split("\n");
-
+  console.log("=== GENERATED (notes stripped) " + envName + " ===");
+  console.log(genStripped);
+  for (let l of expectedLines) {
+    const t = l.trim();
+    if (t && !genStripped.includes(t))
+      console.log("MISSING >>> " + JSON.stringify(t));
+  }
   for (let line of expectedLines) {
     line = line.trim();
     if (!line) continue;
