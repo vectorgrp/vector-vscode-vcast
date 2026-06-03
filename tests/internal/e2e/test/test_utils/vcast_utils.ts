@@ -563,7 +563,6 @@ export async function validateGeneratedTestScriptContent(
   const stripNotes = (s: string) =>
     s.replace(/TEST\.NOTES:[\s\S]*?TEST\.END_NOTES:/g, "");
 
-  // expectedTestCode may be a single string or an array of lines.
   const expectedLines = (
     Array.isArray(expectedTestCode)
       ? expectedTestCode
@@ -572,27 +571,25 @@ export async function validateGeneratedTestScriptContent(
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
 
-  // Wait until the editor has fully rendered the script... it can return
-  // partial text right after opening (only the first test case present),
-  // so gate on all expected lines being there, not just "TEST.END".
   let genStripped = "";
-  await browser.waitUntil(
-    async () => {
-      genStripped = stripNotes(await tab.getText());
-      return expectedLines.every((line) => genStripped.includes(line));
-    },
-    {
-      timeout: 15_000,
-      interval: 300,
-      timeoutMsg: "Generated tst did not contain all expected lines in time",
-    }
-  );
-
-  // TEMPORARY DEBUG
-  for (const line of expectedLines) {
-    if (!genStripped.includes(line)) {
-      console.log("MISSING >>> " + JSON.stringify(line));
-      console.log("GEN LENGTH: " + genStripped.length);
+  try {
+    await browser.waitUntil(
+      async () => {
+        genStripped = stripNotes(await tab.getText());
+        return expectedLines.every((line) => genStripped.includes(line));
+      },
+      { timeout: 15_000, interval: 300 }
+    );
+  } catch {
+    // gate never satisfied — dump what's missing so we can see the real diff
+    console.log(
+      "=== TIMED OUT. GENERATED (notes stripped) " + envName + " ==="
+    );
+    console.log(genStripped);
+    for (const line of expectedLines) {
+      if (!genStripped.includes(line)) {
+        console.log("MISSING >>> " + JSON.stringify(line));
+      }
     }
   }
 
