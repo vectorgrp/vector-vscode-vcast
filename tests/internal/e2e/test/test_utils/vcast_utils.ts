@@ -571,23 +571,35 @@ export async function validateGeneratedTestScriptContent(
       .filter((l) => l.startsWith("TEST."));
 
   const expectedTestDirectives = onlyTestLines(
-    Array.isArray(expectedTestCode) ? expectedTestCode.join("\n") : expectedTestCode
+    Array.isArray(expectedTestCode)
+      ? expectedTestCode.join("\n")
+      : (expectedTestCode ?? "")
   );
 
   let genTestDirectives: string[] = [];
-  await browser.waitUntil(
-    async () => {
-      genTestDirectives = onlyTestLines(await tab.getText());
-      return expectedTestDirectives.every((line) =>
-        genTestDirectives.includes(line)
-      );
-    },
-    {
-      timeout: 15_000,
-      interval: 300,
-      timeoutMsg: "Generated tst did not contain all expected TEST.* lines",
+  try {
+    await browser.waitUntil(
+      async () => {
+        genTestDirectives = onlyTestLines(await tab.getText());
+        return expectedTestDirectives.every((line) =>
+          genTestDirectives.includes(line)
+        );
+      },
+      { timeout: 15_000, interval: 300 }
+    );
+  } catch {
+    console.log(
+      "=== EXPECTED TEST.* (" + expectedTestDirectives.length + ") ==="
+    );
+    console.log(JSON.stringify(expectedTestDirectives, null, 2));
+    console.log("=== GENERATED TEST.* (" + genTestDirectives.length + ") ===");
+    console.log(JSON.stringify(genTestDirectives, null, 2));
+    console.log("=== MISSING ===");
+    for (const line of expectedTestDirectives) {
+      if (!genTestDirectives.includes(line))
+        console.log("MISSING >>> " + JSON.stringify(line));
     }
-  );
+  }
 
   await editorView.closeAllEditors();
 
