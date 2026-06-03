@@ -603,7 +603,9 @@ TEST.END`;
       await executeCommand(setEnviro);
       await executeCommand(runTest);
 
-      if (toolVersion == 25) {
+      if (toolVersion == 26) {
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, "2026sp1");
+      } else if (toolVersion == 25) {
         process.env.VECTORCAST_DIR = path.join(vcastRoot, "2025sp1");
       } else {
         process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");
