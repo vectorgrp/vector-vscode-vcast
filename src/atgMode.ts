@@ -824,47 +824,41 @@ export class ATGSidebarViewProvider implements vscode.WebviewViewProvider {
 <html>
 <head>
 <style>
-  body { background: #1e1e1e; color: #d4d4d4; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 8px; margin: 0; font-size: 13px; }
-  .header { color: #9cdcfe; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-  .info { color: #888; font-size: 11px; margin-bottom: 12px; }
-  .inactive { color: #666; font-style: italic; padding: 16px 0; }
+  body { background: var(--vscode-sideBar-background); color: var(--vscode-foreground); font-family: var(--vscode-font-family, sans-serif); padding: 8px; margin: 0; font-size: var(--vscode-font-size, 13px); }
+  .header { color: var(--vscode-textLink-foreground); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .info { color: var(--vscode-descriptionForeground); font-size: 11px; margin-bottom: 12px; }
+  .inactive { color: var(--vscode-disabledForeground); font-style: italic; padding: 16px 0; }
   .inactive p { margin-bottom: 8px; font-size: 12px; }
 
   #varList { min-height: 20px; }
   .sv-item { display: flex; align-items: center; gap: 6px; padding: 5px 4px; min-height: 30px; border-radius: 3px; }
-  .sv-item:hover { background: rgba(78, 201, 176, 0.08); }
-  .sv-name { color: #9cdcfe; font-family: "Courier New", monospace; font-size: 12px; font-weight: 500; min-width: 50px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; white-space: nowrap; }
-  .badge.int { background: #1a3a5c; color: #6cb6ff; }
-  .badge.float { background: #3a2a1a; color: #e6a855; }
-  .badge.enum { background: #1a3a2a; color: #6bc96b; }
-  .badge.bool { background: #1a3a3a; color: #6bcbcb; }
-  .badge.array { background: #1a2a3a; color: #7aafdf; }
-  .badge.unknown { background: #2a2a2a; color: #888; }
-  input, select { flex: 1; min-width: 50px; background: #3c3c3c; color: #d4d4d4; border: 1px solid #555; border-radius: 3px; padding: 3px 6px; font-size: 12px; }
-  input:focus, select:focus { border-color: #007acc; outline: none; }
-  .rm { background: transparent; color: #666; border: none; cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 3px; flex-shrink: 0; }
-  .rm:hover { color: #cc4444; background: rgba(204,68,68,0.15); }
+  .sv-item:hover { background: var(--vscode-list-hoverBackground); }
+  .sv-name { color: var(--vscode-textLink-foreground); font-family: var(--vscode-editor-font-family, "Courier New", monospace); font-size: 12px; font-weight: 500; min-width: 50px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge { font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; white-space: nowrap; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+  input, select { flex: 1; min-width: 50px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, transparent); border-radius: 3px; padding: 3px 6px; font-size: 12px; }
+  input:focus, select:focus { border-color: var(--vscode-focusBorder); outline: none; }
+  .rm { background: transparent; color: var(--vscode-disabledForeground); border: none; cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 3px; flex-shrink: 0; }
+  .rm:hover { color: var(--vscode-errorForeground); background: transparent; }
   .actions { display: flex; gap: 8px; margin-top: 12px; }
   .btn { border: none; border-radius: 4px; cursor: pointer; font-size: 13px; padding: 7px 14px; }
-  .btn-fetch { background: #007acc; color: white; }
-  .btn-fetch:hover { background: #005f99; }
-  .btn-cancel { background: #3c3c3c; color: #d4d4d4; }
-  .btn-cancel:hover { background: #4c4c4c; }
-  .empty { color: #666; font-size: 12px; font-style: italic; padding: 8px 0; }
+  .btn-fetch { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+  .btn-fetch:hover { background: var(--vscode-button-hoverBackground); }
+  .btn-cancel { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+  .btn-cancel:hover { background: var(--vscode-button-secondaryHoverBackground); }
+  .empty { color: var(--vscode-disabledForeground); font-size: 12px; font-style: italic; padding: 8px 0; }
   .truth-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-  .truth-label { color: #888; font-size: 11px; white-space: nowrap; }
-  .truth-btn { background: #2d2d2d; color: #999; border: 1px solid #444; border-radius: 3px; cursor: pointer; font-size: 11px; padding: 2px 8px; }
-  .truth-btn:hover { background: #3c3c3c; }
-  .truth-btn.active { background: #264f78; color: #fff; border-color: #007acc; }
+  .truth-label { color: var(--vscode-descriptionForeground); font-size: 11px; white-space: nowrap; }
+  .truth-btn { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: 1px solid var(--vscode-input-border, transparent); border-radius: 3px; cursor: pointer; font-size: 11px; padding: 2px 8px; }
+  .truth-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+  .truth-btn.active { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: var(--vscode-focusBorder); }
   .arr-entries { margin: 2px 0 4px 16px; }
   .arr-entry { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
   .arr-entry input { min-width: 30px; }
   .arr-entry .idx-input { max-width: 45px; flex: 0 0 45px; text-align: center; }
   .arr-entry .val-input { flex: 1; }
-  .arr-entry .idx-label { color: #888; font-size: 11px; flex-shrink: 0; }
-  .add-entry { background: transparent; color: #007acc; border: 1px dashed #007acc; border-radius: 3px; cursor: pointer; font-size: 11px; padding: 2px 8px; margin-top: 2px; }
-  .add-entry:hover { background: rgba(0, 122, 204, 0.1); }
+  .arr-entry .idx-label { color: var(--vscode-descriptionForeground); font-size: 11px; flex-shrink: 0; }
+  .add-entry { background: transparent; color: var(--vscode-textLink-foreground); border: 1px dashed var(--vscode-textLink-foreground); border-radius: 3px; cursor: pointer; font-size: 11px; padding: 2px 8px; margin-top: 2px; }
+  .add-entry:hover { background: var(--vscode-list-hoverBackground); }
 </style>
 </head>
 <body>
