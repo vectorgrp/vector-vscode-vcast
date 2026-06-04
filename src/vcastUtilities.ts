@@ -47,6 +47,7 @@ import {
 import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
 import {
   cachedWorkspaceEnvData,
+  findTestItemByLabel,
   globalController,
   globalProjectDataCache,
   globalProjectMap,
@@ -908,6 +909,16 @@ export async function loadATGLineTest(
       truthValue,
       sourceFile
     );
+
+    const testItem = findTestItemByLabel(
+      new RegExp(`ATG-.*-LINE-${lineNumber}\\b`)
+    );
+    if (testItem) {
+      vscode.commands.executeCommand(
+        "vscode.revealTestInExplorer",
+        testItem
+      );
+    }
   } else {
     vectorMessage(`No Environment found for ${sourceFile}`);
   }

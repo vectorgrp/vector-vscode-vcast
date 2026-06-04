@@ -926,6 +926,20 @@ function deleteItemByID(item: vscode.TestItem, nodeID: string) {
   });
 }
 
+export function findTestItemByLabel(
+  pattern: RegExp
+): vscode.TestItem | undefined {
+  let found: vscode.TestItem | undefined;
+  function walk(item: vscode.TestItem) {
+    if (pattern.test(item.label)) {
+      found = item;
+    }
+    item.children.forEach((child) => walk(child));
+  }
+  globalController.items.forEach((item) => walk(item));
+  return found;
+}
+
 export function deleteAllItems(item: vscode.TestItem) {
   item.children.forEach((child) => {
     // Recursively delete children of the current child.
