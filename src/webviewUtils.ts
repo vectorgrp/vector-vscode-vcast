@@ -43,8 +43,6 @@ export function resolveWebviewBase(
 
   throw new Error(
     `Could not resolve webview base directory '${segments.join("/")}'. Tried:\n  ${normal}` +
-      (idx !== -1
-        ? `\n  ${path.join(extPath.slice(0, idx), ...segments)}`
-        : "")
+      (idx !== -1 ? `\n  ${path.join(extPath.slice(0, idx), ...segments)}` : "")
   );
 }

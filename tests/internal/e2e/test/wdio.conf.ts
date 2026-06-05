@@ -132,7 +132,11 @@ export const config: Options.Testrunner = {
   // then the current working directory is where your `package.json` resides, so `wdio`
   // will be called from there.
   //
-  specs: getSpecs(process.env.USE_VCAST_24 === "True", groupName),
+  specs: getSpecs(
+    process.env.USE_VCAST_24 === "True",
+    groupName,
+    process.env.USE_VCAST_25 === "True"
+  ),
   // Patterns to exclude.
   // exclude:
   //
@@ -453,7 +457,9 @@ export const config: Options.Testrunner = {
       }
 
       // Execute RGW commands and copy necessary files
-      await executeRGWCommands(testInputVcastTutorial);
+      if (!process.env.REQS2X_PCT_RELEASE) {
+        await executeRGWCommands(testInputVcastTutorial);
+      }
       await copyPathsToTestLocation(testInputVcastTutorial);
 
       const toolVersion = await getToolVersion(clicastExecutablePath.trimEnd());
@@ -487,7 +493,9 @@ export const config: Options.Testrunner = {
       let vcastRoot = await getVcastRoot();
       const toolVersion = await getToolVersion();
       let coded_mock_different_env_version: string;
-      if (toolVersion == 25) {
+      if (toolVersion == 26) {
+        coded_mock_different_env_version = "2026sp1";
+      } else if (toolVersion == 25) {
         coded_mock_different_env_version = "2025sp0";
       } else {
         coded_mock_different_env_version = "2024sp1";
@@ -595,7 +603,9 @@ TEST.END`;
       await executeCommand(setEnviro);
       await executeCommand(runTest);
 
-      if (toolVersion == 25) {
+      if (toolVersion == 26) {
+        process.env.VECTORCAST_DIR = path.join(vcastRoot, "2026sp1");
+      } else if (toolVersion == 25) {
         process.env.VECTORCAST_DIR = path.join(vcastRoot, "2025sp1");
       } else {
         process.env.VECTORCAST_DIR = path.join(vcastRoot, "2024sp4");

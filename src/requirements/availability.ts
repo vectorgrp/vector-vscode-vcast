@@ -65,7 +65,8 @@ export function updateRequirementsAvailability(enviroPath: string) {
   } else {
     const drop = new Set(idsForThisEnv);
     const updated = availableNodeIds.filter((id) => !drop.has(id));
-    if (updated.length !== availableNodeIds.length) setAvailableContext(updated);
+    if (updated.length !== availableNodeIds.length)
+      setAvailableContext(updated);
   }
 }
 

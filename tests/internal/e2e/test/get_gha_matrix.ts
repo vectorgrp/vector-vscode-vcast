@@ -21,7 +21,8 @@ function dumpGhaMatrix() {
   versions.forEach((version) => {
     const year = Number(version.slice(0, 4));
     const is2024OrHigher = year >= 2024;
-    const specs = getSpecGroups(is2024OrHigher);
+    const is2025OrHigher = year >= 2025;
+    const specs = getSpecGroups(is2024OrHigher, is2025OrHigher);
 
     Object.keys(specs).forEach((group) => {
       // If prioritizedGroups is set, only include groups that contain one of the names in the list

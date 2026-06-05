@@ -378,9 +378,7 @@ export async function importRequirements(enviroPath: string) {
 
 export async function exportRequirements(enviroPath: string) {
   if (!hasCompleteAndUsableRGW(enviroPath)) {
-    vscode.window.showErrorMessage(
-      "No requirements available to export."
-    );
+    vscode.window.showErrorMessage("No requirements available to export.");
     return;
   }
   const gatewayPath = findRelevantRequirementGateway(enviroPath)!;

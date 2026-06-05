@@ -142,10 +142,7 @@ import {
   writeRGWBundle,
 } from "./requirements/rgwIo";
 import { generateRequirementsHtml } from "./requirements/webview/template";
-import type {
-  FromWebview,
-  ToWebview,
-} from "./requirements/webview/messages";
+import type { FromWebview, ToWebview } from "./requirements/webview/messages";
 
 import {
   exportRequirements,
@@ -370,9 +367,7 @@ async function openSourceForTrace(
     return;
   }
   if (!envData?.unitData) {
-    vscode.window.showErrorMessage(
-      "Environment data has no unit information."
-    );
+    vscode.window.showErrorMessage("Environment data has no unit information.");
     return;
   }
 
@@ -415,9 +410,7 @@ async function openSourceForTrace(
   });
 }
 
-async function resolveEnviroPathForCommand(
-  args: any
-): Promise<string | null> {
+async function resolveEnviroPathForCommand(args: any): Promise<string | null> {
   if (args?.id) {
     const testNode: testNodeType = getTestNode(args.id);
     return testNode?.enviroPath ?? null;
@@ -429,7 +422,9 @@ async function resolveEnviroPathForCommand(
     return null;
   }
 
-  const envPaths = await getEnvironmentListIncludingUnbuilt(folders[0].uri.fsPath);
+  const envPaths = await getEnvironmentListIncludingUnbuilt(
+    folders[0].uri.fsPath
+  );
   if (envPaths.length === 0) {
     vscode.window.showErrorMessage(
       "No VectorCAST environments found in the workspace."
@@ -1069,7 +1064,11 @@ function configureExtension(context: vscode.ExtensionContext) {
   const addTestsuiteToCompiler = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addTestsuiteToCompiler",
     async (node: any) => {
-      const manageWebviewSrcDir = resolveWebviewBase(context, "manage", "webviews");
+      const manageWebviewSrcDir = resolveWebviewBase(
+        context,
+        "manage",
+        "webviews"
+      );
       const panel = vscode.window.createWebviewPanel(
         "addTestsuiteToCompiler",
         "Add Testsuite to Compiler",
@@ -1483,7 +1482,11 @@ function configureExtension(context: vscode.ExtensionContext) {
         // ignore; webview will fall back to free-text inputs
       }
 
-      const webviewBaseDir = resolveWebviewBase(context, "requirements", "webviews");
+      const webviewBaseDir = resolveWebviewBase(
+        context,
+        "requirements",
+        "webviews"
+      );
       const panel = vscode.window.createWebviewPanel(
         "requirementsReport",
         "Requirements Report",
@@ -1882,7 +1885,11 @@ async function installPreActivationEventHandlers(
   const importEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.importEnviroToProject",
     async (_args: vscode.Uri, argList: vscode.Uri[]) => {
-      const manageWebviewSrcDir = resolveWebviewBase(context, "manage", "webviews");
+      const manageWebviewSrcDir = resolveWebviewBase(
+        context,
+        "manage",
+        "webviews"
+      );
       const panel = vscode.window.createWebviewPanel(
         "importEnviroToProject",
         "Import Environment to Project",
@@ -1968,7 +1975,11 @@ async function installPreActivationEventHandlers(
   const addEnviroToProject = vscode.commands.registerCommand(
     "vectorcastTestExplorer.addEnviroToProject",
     async (_projectNode: any) => {
-      const manageWebviewSrcDir = resolveWebviewBase(context, "manage", "webviews");
+      const manageWebviewSrcDir = resolveWebviewBase(
+        context,
+        "manage",
+        "webviews"
+      );
       const panel = vscode.window.createWebviewPanel(
         "addEnviroToProject",
         "Add Environment To Project",
@@ -2128,7 +2139,11 @@ async function installPreActivationEventHandlers(
   const newEnviroInProjectVCASTCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.newEnviroInProjectVCAST",
     async (_args: vscode.Uri, argList: vscode.Uri[]) => {
-      const manageWebviewSrcDir = resolveWebviewBase(context, "manage", "webviews");
+      const manageWebviewSrcDir = resolveWebviewBase(
+        context,
+        "manage",
+        "webviews"
+      );
       const panel = vscode.window.createWebviewPanel(
         "newEnvProject",
         "Create Environment in Project",

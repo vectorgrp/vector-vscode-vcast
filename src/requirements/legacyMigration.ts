@@ -111,12 +111,12 @@ export async function maybeOfferLegacyMigration(
   if (failed === 0) {
     vscode.window.showInformationMessage(
       `Migrated ${succeeded} ${envWord} to the new RGW format. ` +
-      `The legacy reqs.xlsx / reqs.csv files were left in place as a backup.`
+        `The legacy reqs.xlsx / reqs.csv files were left in place as a backup.`
     );
   } else {
     vscode.window.showWarningMessage(
       `Migrated ${succeeded}; ${failed} failed. See the ` +
-      `"VectorCAST Requirement Test Generation Operations" output channel for details.`
+        `"VectorCAST Requirement Test Generation Operations" output channel for details.`
     );
   }
 }

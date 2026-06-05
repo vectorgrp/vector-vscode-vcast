@@ -4,9 +4,10 @@ import * as vscode from "vscode";
 // panreq, llm2check). Lives in a leaf module so every other requirements
 // module can import the log helpers without pulling in requirementsOperations
 // — the dependency that previously forced lazy `require()` calls.
-const cliOutputChannel: vscode.OutputChannel = vscode.window.createOutputChannel(
-  "VectorCAST Requirement Test Generation Operations"
-);
+const cliOutputChannel: vscode.OutputChannel =
+  vscode.window.createOutputChannel(
+    "VectorCAST Requirement Test Generation Operations"
+  );
 
 export function logCliOperation(message: string): void {
   const timestamp = new Date().toLocaleTimeString();
