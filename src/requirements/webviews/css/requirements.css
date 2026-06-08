@@ -56,18 +56,22 @@ h2 {
 .req-remove-btn,
 .req-restore-btn {
   background: transparent;
-  border: 1px solid transparent;
-  color: var(--vscode-descriptionForeground, #888);
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+  color: var(--vscode-inputValidation-errorBorder, #be1100);
   cursor: pointer;
   border-radius: 4px;
-  padding: 2px 8px;
-  font: inherit;
+  padding: 3px 10px;
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
   line-height: 1;
+  white-space: nowrap;
+  flex: none;
 }
 .req-remove-btn:hover,
 .req-restore-btn:hover {
-  border-color: var(--vscode-input-border, #ccc);
-  color: var(--vscode-foreground, #000);
+  background: var(--vscode-inputValidation-errorBorder, #be1100);
+  color: var(--vscode-editor-background, #fff);
 }
 .field input.invalid {
   outline: 2px solid var(--vscode-inputValidation-errorBorder, #be1100);

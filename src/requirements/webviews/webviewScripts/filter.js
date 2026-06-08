@@ -14,6 +14,69 @@ import {
 // collide with a legitimate identifier.
 export const NOT_SET = "\u0000not-set";
 
+function fillSelect(sel, label, items) {
+  const previous = sel.value;
+  while (sel.firstChild) sel.removeChild(sel.firstChild);
+
+  const any = document.createElement("option");
+  any.value = "";
+  any.textContent = `(Any ${label})`;
+  sel.appendChild(any);
+
+  const none = document.createElement("option");
+  none.value = NOT_SET;
+  none.textContent = "(Not set)";
+  sel.appendChild(none);
+
+  for (const v of [...items].sort((a, b) => a.localeCompare(b))) {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  }
+
+  sel.value = [...sel.options].some((o) => o.value === previous)
+    ? previous
+    : "";
+}
+
+// All units known to the env plus any "(not in env)" stragglers that appear
+// in current traceability.
+function collectUnits() {
+  const units = new Set();
+  const map = state.unitsToFunctions || {};
+  for (const u of Object.keys(map)) units.add(u);
+  for (const trace of Object.values(state.traceability)) {
+    if (trace?.unit) units.add(trace.unit);
+  }
+  return units;
+}
+
+// Functions to offer in the function dropdown, scoped to the selected unit:
+// only that unit's functions (env list + traceability stragglers under it).
+// With no unit selected ("(Any)") every function is offered; with "(Not set)"
+// only functions of requirements that have no unit.
+function collectFunctions(selectedUnit) {
+  const fns = new Set();
+  const map = state.unitsToFunctions || {};
+  if (selectedUnit === NOT_SET) {
+    for (const trace of Object.values(state.traceability)) {
+      if (trace?.function && !trace.unit) fns.add(trace.function);
+    }
+  } else if (selectedUnit) {
+    for (const f of map[selectedUnit] || []) fns.add(f);
+    for (const trace of Object.values(state.traceability)) {
+      if (trace?.function && trace.unit === selectedUnit) fns.add(trace.function);
+    }
+  } else {
+    for (const u of Object.keys(map)) for (const f of map[u] || []) fns.add(f);
+    for (const trace of Object.values(state.traceability)) {
+      if (trace?.function) fns.add(trace.function);
+    }
+  }
+  return fns;
+}
+
 /**
  * Populate the unit and function dropdowns. Options come from the env's
  * canonical list (so a brand-new unit shows up before anything traces to
@@ -21,52 +84,25 @@ export const NOT_SET = "\u0000not-set";
  * plus any "(not in env)" stragglers that legitimately appear in current
  * traceability. Both dropdowns also offer "(Any)" and "(Not set)" — the
  * latter is what to pick when looking for requirements that still need
- * traceability.
+ * traceability. The function dropdown is scoped to the selected unit so a
+ * unit's functions don't bleed across units (mirrors the per-card behaviour).
  */
 export function rebuildFilterDropdowns() {
   if (!filterUnit || !filterFunction) return;
+  fillSelect(filterUnit, "unit", collectUnits());
+  fillSelect(filterFunction, "function", collectFunctions(filterUnit.value));
+}
 
-  const units = new Set();
-  const fns = new Set();
-
-  const map = state.unitsToFunctions || {};
-  for (const u of Object.keys(map)) {
-    units.add(u);
-    for (const f of map[u] || []) fns.add(f);
+/**
+ * Run when the unit filter changes: re-scope the function dropdown to the
+ * newly selected unit (dropping a now-irrelevant function selection), then
+ * re-apply the filter.
+ */
+export function onUnitFilterChange() {
+  if (filterFunction) {
+    fillSelect(filterFunction, "function", collectFunctions(filterUnit.value));
   }
-  for (const trace of Object.values(state.traceability)) {
-    if (trace?.unit) units.add(trace.unit);
-    if (trace?.function) fns.add(trace.function);
-  }
-
-  const fillSelect = (sel, label, items) => {
-    const previous = sel.value;
-    while (sel.firstChild) sel.removeChild(sel.firstChild);
-
-    const any = document.createElement("option");
-    any.value = "";
-    any.textContent = `(Any ${label})`;
-    sel.appendChild(any);
-
-    const none = document.createElement("option");
-    none.value = NOT_SET;
-    none.textContent = "(Not set)";
-    sel.appendChild(none);
-
-    for (const v of [...items].sort((a, b) => a.localeCompare(b))) {
-      const opt = document.createElement("option");
-      opt.value = v;
-      opt.textContent = v;
-      sel.appendChild(opt);
-    }
-
-    sel.value = [...sel.options].some((o) => o.value === previous)
-      ? previous
-      : "";
-  };
-
-  fillSelect(filterUnit, "unit", units);
-  fillSelect(filterFunction, "function", fns);
+  applyFilter();
 }
 
 /**

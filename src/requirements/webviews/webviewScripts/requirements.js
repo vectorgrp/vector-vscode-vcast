@@ -33,7 +33,7 @@ import {
   handleFieldChange,
   rebuildBody,
 } from "./cards.js";
-import { applyFilter } from "./filter.js";
+import { applyFilter, onUnitFilterChange } from "./filter.js";
 import { postSave, postInfer, applyRefreshedBundle } from "./save.js";
 
 // ---------- Event delegation on the cards container ----------------------
@@ -91,7 +91,7 @@ saveBtn.addEventListener("click", postSave);
 inferBtn.addEventListener("click", postInfer);
 
 if (searchInput) searchInput.addEventListener("input", applyFilter);
-if (filterUnit) filterUnit.addEventListener("change", applyFilter);
+if (filterUnit) filterUnit.addEventListener("change", onUnitFilterChange);
 if (filterFunction) filterFunction.addEventListener("change", applyFilter);
 
 // ---------- Extension → webview messages ---------------------------------

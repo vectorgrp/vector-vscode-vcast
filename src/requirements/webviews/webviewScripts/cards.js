@@ -123,7 +123,7 @@ function buildRemoveButton(reqId) {
   btn.dataset.action = "remove";
   btn.dataset.reqId = reqId;
   btn.title = "Remove this requirement";
-  btn.textContent = "×";
+  btn.textContent = "✕ Remove";
   return btn;
 }
 
@@ -457,8 +457,16 @@ export function appendPendingAdd() {
     keyValid: false,
   };
   added.push(pending);
-  reqsBody.appendChild(buildPendingAddCard(pending));
+  const card = buildPendingAddCard(pending);
+  reqsBody.appendChild(card);
   refreshButtonStates();
+  // New cards append below the persisted groups — and the Add button lives in
+  // the toolbar pinned to the bottom — so the freshly added card is usually
+  // off-screen. Bring it into view (centred, clear of the pinned toolbar) and
+  // focus its key field so the click visibly does something.
+  card.scrollIntoView({ behavior: "smooth", block: "center" });
+  const keyInput = card.querySelector('[data-field="key"]');
+  if (keyInput) keyInput.focus({ preventScroll: true });
 }
 
 export function toggleRemoveExisting(reqId) {
@@ -469,7 +477,7 @@ export function toggleRemoveExisting(reqId) {
     card.classList.remove("req--pending-removal");
     const btn = card.querySelector(".req-remove-btn");
     if (btn) {
-      btn.textContent = "×";
+      btn.textContent = "✕ Remove";
       btn.title = "Remove this requirement";
     }
   } else {
@@ -477,7 +485,7 @@ export function toggleRemoveExisting(reqId) {
     card.classList.add("req--pending-removal");
     const btn = card.querySelector(".req-remove-btn");
     if (btn) {
-      btn.textContent = "↩";
+      btn.textContent = "↩ Restore";
       btn.title = "Restore this requirement";
     }
   }
