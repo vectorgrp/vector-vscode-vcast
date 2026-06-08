@@ -14,13 +14,20 @@
       <h1 id="title">Boundary Tests</h1>
       <p id="subtitle"></p>
     </header>
+    <div class="caveat">
+      <strong>Heads-up:</strong> per-parameter overrides currently no-op
+      upstream — only <em>globals</em> and <em>stub returns</em> actually
+      take effect (pyatg&nbsp;#3285). You can still edit param rows; they
+      just won't change the generated tests until pyatg lands the
+      lookup fix.
+    </div>
     <main>
       <div class="toolbar">
         <span id="row-count"></span>
         <span class="hint">
-          Iteration 1: all rows generate with
-          <code>&lt;AUTO_GENERATE&gt;</code>. Per-row editing arrives in
-          iteration 2.
+          Default: <code>Auto</code> (pyatg picks type-extreme values).
+          Switch to <code>Fixed</code> or <code>Range</code> per row to
+          override.
         </span>
       </div>
       <table id="rows-table">
@@ -31,6 +38,9 @@
             <th>Expression</th>
             <th>Type</th>
             <th>Annotation</th>
+            <th>Mode</th>
+            <th>Value</th>
+            <th title="Skip ±1 boundary adjustment for this input">Skip ±1</th>
           </tr>
         </thead>
         <tbody id="rows-body"></tbody>

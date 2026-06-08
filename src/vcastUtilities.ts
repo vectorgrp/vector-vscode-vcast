@@ -953,11 +953,83 @@ export function parseBoundaryMappingCsv(
   return rows;
 }
 
-// Iteration 1 has no per-row overrides: autogen mode is triggered by
-// Boundaries.csv being absent, so we deliberately do not write one here.
-// (Note: Boundaries.csv is a 3-column named-classes file in pyatg's manual
-// flow — not the 8-column per-input override sheet. The 8-column form
-// lives in inputs.xlsx/.csv. Iteration 2 will write the right file.)
+// Iteration 1 ran in autogen mode (no Boundaries.csv).
+// Iteration 2's manual flow uses these helpers to write the
+// 8-column inputs.xlsx + a (deliberately empty) Boundaries.csv:
+// pyatg keys on Boundaries.csv presence to flip into manual mode,
+// then reads inputs.xlsx as 8-column CSV (it tries xlsx parsing first
+// and silently falls back to CSV — see boundary/gentst.py::process_xls).
+
+export interface BoundaryOverride {
+  rowIndex: number;
+  mode: "Auto" | "Fixed" | "Range";
+  skipAdj: boolean;
+  value: string;
+  lo: string;
+  hi: string;
+}
+
+// Quote a CSV field per RFC 4180 if it contains comma, newline or quote.
+function csvField(value: string): string {
+  if (/[,\n\r"]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+// Translate a webview override into the boundary_type cell pyatg reads.
+function boundaryTypeForOverride(o: BoundaryOverride): string {
+  if (o.mode === "Fixed") return o.value;
+  if (o.mode === "Range") return `[${o.lo}, ${o.hi}]`;
+  return "<AUTO_GENERATE>";
+}
+
+export function writeManualInputsXlsx(
+  sheetDir: string,
+  rows: BoundaryMappingRow[],
+  overrides: BoundaryOverride[]
+): { inputsPath: string; boundariesPath: string } {
+  // Build a lookup of overrides by row index.
+  const overrideByIndex = new Map<number, BoundaryOverride>();
+  for (const o of overrides) overrideByIndex.set(o.rowIndex, o);
+
+  const lines = rows.map((r, idx) => {
+    const o = overrideByIndex.get(idx);
+    const boundaryType = o ? boundaryTypeForOverride(o) : "<AUTO_GENERATE>";
+    // Mirror the convention used by the manual-mode gold fixtures
+    // (e.g. minus_one.c.gold.inputs.xlsx): "x" in the skip column means
+    // "force ±1 adjustment off"; empty means "let pyatg decide".
+    const skipAdj = o && o.skipAdj ? "x" : "";
+    // 8-column manual schema: var_declared_in, scope, _, expression_name,
+    // _, boundary_type, skip_adjustments, bsc_remarks.
+    // We use the mapping row's scope verbatim because pyatg looks it up
+    // identically when registering the entity (proc_mapping_row in
+    // gentst.py).
+    return [
+      csvField(r.origFile),
+      csvField(r.scope),
+      "",
+      csvField(r.nodeStr),
+      "",
+      csvField(boundaryType),
+      csvField(skipAdj),
+      "",
+    ].join(",");
+  });
+
+  const inputsPath = path.join(sheetDir, "inputs.xlsx");
+  // Overwrite the autogen 5-col xlsx with our 8-col CSV. pyatg opens it
+  // first as xlsx, fails, falls back to CSV.
+  fs.writeFileSync(inputsPath, lines.join("\n") + "\n", "utf8");
+
+  // Empty Boundaries.csv: just its presence flips pyatg into manual mode.
+  // No named classes are needed — we write inline range values directly
+  // into the boundary_type column above.
+  const boundariesPath = path.join(sheetDir, "Boundaries.csv");
+  fs.writeFileSync(boundariesPath, "", "utf8");
+
+  return { inputsPath, boundariesPath };
+}
 
 export function findEnviroForSourceFile(sourceFile: string): string[] {
   // Returns enviroPaths whose coverage data references this source file.

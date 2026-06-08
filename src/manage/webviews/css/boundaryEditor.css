@@ -90,6 +90,56 @@ tbody tr:hover td {
   background: var(--vscode-list-hoverBackground);
 }
 
+tbody tr.no-effect td {
+  opacity: 0.55;
+}
+
+.caveat {
+  margin: 0;
+  padding: 8px 20px;
+  background: var(--vscode-inputValidation-warningBackground, rgba(255, 200, 0, 0.1));
+  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
+  border-bottom: 1px solid
+    var(--vscode-inputValidation-warningBorder, var(--vscode-panel-border, #444));
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.caveat strong {
+  font-weight: 600;
+}
+
+select.mode-select,
+input.value-input {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.85rem;
+  padding: 1px 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border, #555));
+  border-radius: 2px;
+}
+
+select.mode-select:disabled,
+input.value-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input.value-input {
+  width: 7ch;
+  margin-right: 2px;
+}
+
+.value-cell .dash {
+  color: var(--vscode-descriptionForeground);
+  user-select: none;
+}
+
+td.skip-cell {
+  text-align: center;
+}
+
 footer {
   display: flex;
   justify-content: flex-end;

@@ -13,26 +13,151 @@
     payload.rows.length === 1 ? "" : "s"
   }`;
 
+  // Per-row UI state, indexed by row position in payload.rows.
+  // Each entry: { mode: 'Auto'|'Fixed'|'Range', value: '', lo: '', hi: '', skipAdj: false }
+  const state = payload.rows.map(() => ({
+    mode: "Auto",
+    value: "",
+    lo: "",
+    hi: "",
+    skipAdj: false,
+  }));
+
+  // A row is "scalar-editable" if its annotation looks like enum:S:N or
+  // enum:U:N. Arrays, pointers, function pointers stay Auto-only in
+  // iteration 2.
+  function isScalar(row) {
+    return /^enum:[SU]:\d+/.test(row.annotation || "");
+  }
+
   const body = document.getElementById("rows-body");
-  for (const row of payload.rows) {
+  payload.rows.forEach((row, idx) => {
     const tr = document.createElement("tr");
-    const cells = [
-      row.scope,
-      row.routine,
-      row.nodeStr,
-      row.nodeType,
-      row.annotation,
-    ];
-    for (const c of cells) {
-      const td = document.createElement("td");
-      td.textContent = c;
-      tr.appendChild(td);
+    if (!isScalar(row)) tr.classList.add("no-effect");
+
+    appendText(tr, row.scope);
+    appendText(tr, row.routine);
+    appendText(tr, row.nodeStr);
+    appendText(tr, row.nodeType);
+    appendText(tr, row.annotation);
+
+    const modeTd = document.createElement("td");
+    const sel = document.createElement("select");
+    sel.className = "mode-select";
+    for (const opt of ["Auto", "Fixed", "Range"]) {
+      const o = document.createElement("option");
+      o.value = opt;
+      o.textContent = opt;
+      sel.appendChild(o);
     }
+    sel.value = state[idx].mode;
+    sel.disabled = !isScalar(row);
+    sel.addEventListener("change", () => {
+      state[idx].mode = sel.value;
+      renderValueCell(valueTd, idx, row);
+    });
+    modeTd.appendChild(sel);
+    tr.appendChild(modeTd);
+
+    const valueTd = document.createElement("td");
+    valueTd.className = "value-cell";
+    renderValueCell(valueTd, idx, row);
+    tr.appendChild(valueTd);
+
+    const skipTd = document.createElement("td");
+    skipTd.className = "skip-cell";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = state[idx].skipAdj;
+    cb.disabled = !isScalar(row);
+    cb.addEventListener("change", () => {
+      state[idx].skipAdj = cb.checked;
+    });
+    skipTd.appendChild(cb);
+    tr.appendChild(skipTd);
+
     body.appendChild(tr);
+  });
+
+  function appendText(tr, text) {
+    const td = document.createElement("td");
+    td.textContent = text || "";
+    tr.appendChild(td);
+  }
+
+  function renderValueCell(td, idx, row) {
+    td.innerHTML = "";
+    const s = state[idx];
+    if (s.mode === "Auto" || !isScalar(row)) {
+      const span = document.createElement("span");
+      span.className = "dash";
+      span.textContent = "—";
+      td.appendChild(span);
+      return;
+    }
+    if (s.mode === "Fixed") {
+      const inp = makeInput(s.value || "", (v) => {
+        s.value = v;
+      });
+      inp.placeholder = "value";
+      td.appendChild(inp);
+    } else if (s.mode === "Range") {
+      const loInp = makeInput(s.lo || "", (v) => {
+        s.lo = v;
+      });
+      loInp.placeholder = "lo";
+      const sep = document.createElement("span");
+      sep.textContent = ", ";
+      const hiInp = makeInput(s.hi || "", (v) => {
+        s.hi = v;
+      });
+      hiInp.placeholder = "hi";
+      td.appendChild(loInp);
+      td.appendChild(sep);
+      td.appendChild(hiInp);
+    }
+  }
+
+  function makeInput(initial, onChange) {
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.className = "value-input";
+    inp.value = initial;
+    inp.addEventListener("input", () => onChange(inp.value));
+    return inp;
+  }
+
+  // Collect overrides into the shape the extension expects. Auto rows
+  // are omitted from the override list (autogen handles them). Empty
+  // fields in Fixed/Range mode are treated as Auto with a console
+  // warning — keeps a slip of the keyboard from breaking the run.
+  function collectOverrides() {
+    const overrides = [];
+    payload.rows.forEach((row, idx) => {
+      const s = state[idx];
+      if (!isScalar(row)) return;
+      if (s.mode === "Auto" && !s.skipAdj) return;
+      const entry = {
+        rowIndex: idx,
+        mode: s.mode,
+        skipAdj: s.skipAdj,
+        value: s.value.trim(),
+        lo: s.lo.trim(),
+        hi: s.hi.trim(),
+      };
+      // Drop incomplete Fixed/Range entries — fall through to autogen.
+      if (s.mode === "Fixed" && entry.value === "") return;
+      if (s.mode === "Range" && (entry.lo === "" || entry.hi === "")) return;
+      overrides.push(entry);
+    });
+    return overrides;
   }
 
   document.getElementById("btn-generate").addEventListener("click", () => {
-    vscode.postMessage({ command: "generate" });
+    vscode.postMessage({
+      command: "generate",
+      overrides: collectOverrides(),
+    });
   });
   document.getElementById("btn-cancel").addEventListener("click", () => {
     vscode.postMessage({ command: "cancel" });

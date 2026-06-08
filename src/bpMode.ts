@@ -12,10 +12,12 @@ import { executeATGCommandWithProgress } from "./vcastCommandRunner";
 import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import {
   BoundaryMappingRow,
+  BoundaryOverride,
   findEnviroForSourceFile,
   getBoundaryStageOneCommand,
   getBoundaryStageTwoCommand,
   parseBoundaryMappingCsv,
+  writeManualInputsXlsx,
 } from "./vcastUtilities";
 
 const fs = require("fs");
@@ -37,11 +39,17 @@ export class BPModeManager {
       return;
     }
 
-    // 2. Set up the sheet directory inside the env directory.
+    // 2. Set up the sheet directory inside the env directory. Wipe any
+    // stale Boundaries.csv from a previous manual-mode run — stage 1 will
+    // regenerate the 5-col autogen inputs.xlsx, and a leftover
+    // Boundaries.csv would flip pyatg into manual mode against
+    // mismatched input data.
     const sheetDir = path.join(path.dirname(enviroPath), ".bp-sheets");
     if (!fs.existsSync(sheetDir)) {
       fs.mkdirSync(sheetDir, { recursive: true });
     }
+    const staleBoundaries = path.join(sheetDir, "Boundaries.csv");
+    if (fs.existsSync(staleBoundaries)) fs.unlinkSync(staleBoundaries);
     const sheetSeed = path.join(sheetDir, "sheet.xlsx");
     const mappingCsv = path.join(sheetDir, "mapping.csv");
 
@@ -134,7 +142,10 @@ export class BPModeManager {
 
     panel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.command === "generate") {
-        await this.runStageTwo(state);
+        const overrides: BoundaryOverride[] = Array.isArray(msg.overrides)
+          ? msg.overrides
+          : [];
+        await this.runStageTwo(state, overrides);
         panel.dispose();
       } else if (msg.command === "cancel") {
         panel.dispose();
@@ -192,16 +203,33 @@ export class BPModeManager {
       .replace(/\$\{PAYLOAD\}/g, JSON.stringify(payload));
   }
 
-  private async runStageTwo(state: {
-    sourceFile: string;
-    enviroPath: string;
-    sheetDir: string;
-    rows: BoundaryMappingRow[];
-  }): Promise<void> {
-    // Iteration 1: no per-row overrides — autogen mode is selected by the
-    // absence of Boundaries.csv. Make sure any stale one is gone.
-    const staleBoundaries = path.join(state.sheetDir, "Boundaries.csv");
-    if (fs.existsSync(staleBoundaries)) fs.unlinkSync(staleBoundaries);
+  private async runStageTwo(
+    state: {
+      sourceFile: string;
+      enviroPath: string;
+      sheetDir: string;
+      rows: BoundaryMappingRow[];
+    },
+    overrides: BoundaryOverride[]
+  ): Promise<void> {
+    // If any overrides are present, switch pyatg into manual mode:
+    // overwrite inputs.xlsx with the 8-column manual form and create
+    // an empty Boundaries.csv (its presence is what flips the mode).
+    // Otherwise stay in autogen mode by deleting any stale Boundaries.csv.
+    const boundariesPath = path.join(state.sheetDir, "Boundaries.csv");
+    if (overrides.length > 0) {
+      const { boundariesPath: bp } = writeManualInputsXlsx(
+        state.sheetDir,
+        state.rows,
+        overrides
+      );
+      vectorMessage(
+        `[BP] Manual mode: wrote ${overrides.length} override row(s); ${bp} present.`
+      );
+    } else {
+      if (fs.existsSync(boundariesPath)) fs.unlinkSync(boundariesPath);
+      vectorMessage("[BP] Autogen mode (no overrides).");
+    }
 
     // Run --from-ranges-sheet, producing the .tst. The .tst must be a
     // sibling of the env directory because loadTestScriptIntoEnvironment
