@@ -15,6 +15,8 @@
 
   // Per-row UI state, indexed by row position in payload.rows.
   // Each entry: { mode: 'Auto'|'Fixed'|'Range', value: '', lo: '', hi: '', skipAdj: false }
+  // Pre-populate from any persisted overrides the extension passed in
+  // (re-runs of the same unit retain previous edits).
   const state = payload.rows.map(() => ({
     mode: "Auto",
     value: "",
@@ -22,6 +24,19 @@
     hi: "",
     skipAdj: false,
   }));
+  if (Array.isArray(payload.savedOverrides)) {
+    for (const o of payload.savedOverrides) {
+      if (typeof o.rowIndex !== "number") continue;
+      if (o.rowIndex < 0 || o.rowIndex >= state.length) continue;
+      state[o.rowIndex] = {
+        mode: o.mode || "Auto",
+        value: o.value || "",
+        lo: o.lo || "",
+        hi: o.hi || "",
+        skipAdj: !!o.skipAdj,
+      };
+    }
+  }
 
   // A row is "scalar-editable" if its annotation looks like enum:S:N or
   // enum:U:N. Arrays, pointers, function pointers stay Auto-only in
@@ -123,16 +138,42 @@
     inp.type = "text";
     inp.className = "value-input";
     inp.value = initial;
-    inp.addEventListener("input", () => onChange(inp.value));
+    inp.addEventListener("input", () => {
+      onChange(inp.value);
+      markInputValidity(inp);
+    });
+    markInputValidity(inp);
     return inp;
+  }
+
+  // Accept decimal (-?\d+), hex (0x[0-9a-f]+). Empty string is allowed
+  // mid-typing — collectOverrides drops empty entries.
+  function isNumericish(s) {
+    if (s.trim() === "") return true;
+    return /^-?\d+$/.test(s.trim()) || /^0x[0-9a-fA-F]+$/.test(s.trim());
+  }
+
+  function markInputValidity(inp) {
+    if (isNumericish(inp.value)) {
+      inp.classList.remove("invalid");
+      inp.title = "";
+    } else {
+      inp.classList.add("invalid");
+      inp.title =
+        "Enter an integer (decimal or 0x-prefixed hex). For 'c' use 99.";
+    }
   }
 
   // Collect overrides into the shape the extension expects. Auto rows
   // are omitted from the override list (autogen handles them). Empty
   // fields in Fixed/Range mode are treated as Auto with a console
   // warning — keeps a slip of the keyboard from breaking the run.
+  // Returns { overrides, badRowIndices } so the caller can decide
+  // whether to abort on validation errors. One bad row in manual mode
+  // tanks the whole pyatg run, so we block submission until cleared.
   function collectOverrides() {
     const overrides = [];
+    const badRowIndices = [];
     payload.rows.forEach((row, idx) => {
       const s = state[idx];
       if (!isScalar(row)) return;
@@ -145,19 +186,49 @@
         lo: s.lo.trim(),
         hi: s.hi.trim(),
       };
-      // Drop incomplete Fixed/Range entries — fall through to autogen.
-      if (s.mode === "Fixed" && entry.value === "") return;
-      if (s.mode === "Range" && (entry.lo === "" || entry.hi === "")) return;
+      if (s.mode === "Fixed") {
+        if (entry.value === "") return;
+        if (!isNumericish(entry.value)) {
+          badRowIndices.push(idx);
+          return;
+        }
+      } else if (s.mode === "Range") {
+        if (entry.lo === "" || entry.hi === "") return;
+        if (!isNumericish(entry.lo) || !isNumericish(entry.hi)) {
+          badRowIndices.push(idx);
+          return;
+        }
+      }
       overrides.push(entry);
     });
-    return overrides;
+    return { overrides, badRowIndices };
+  }
+
+  function renderError(text) {
+    let bar = document.getElementById("error-bar");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "error-bar";
+      bar.className = "error-bar";
+      document.body.insertBefore(bar, document.querySelector("footer"));
+    }
+    bar.textContent = text;
+    bar.style.display = text ? "block" : "none";
   }
 
   document.getElementById("btn-generate").addEventListener("click", () => {
-    vscode.postMessage({
-      command: "generate",
-      overrides: collectOverrides(),
-    });
+    const { overrides, badRowIndices } = collectOverrides();
+    if (badRowIndices.length > 0) {
+      const bad = badRowIndices
+        .map((i) => payload.rows[i].nodeStr)
+        .join(", ");
+      renderError(
+        `Cannot submit: non-numeric value(s) in ${bad}. Fix the highlighted field(s) and try again.`
+      );
+      return;
+    }
+    renderError("");
+    vscode.postMessage({ command: "generate", overrides });
   });
   document.getElementById("btn-cancel").addEventListener("click", () => {
     vscode.postMessage({ command: "cancel" });

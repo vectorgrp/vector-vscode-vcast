@@ -131,6 +131,20 @@ input.value-input {
   margin-right: 2px;
 }
 
+input.value-input.invalid {
+  border-color: var(--vscode-inputValidation-errorBorder, #d72) !important;
+  background: var(--vscode-inputValidation-errorBackground, rgba(255, 0, 0, 0.1));
+}
+
+.error-bar {
+  margin: 0;
+  padding: 8px 20px;
+  background: var(--vscode-inputValidation-errorBackground, rgba(255, 0, 0, 0.15));
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
+  border-top: 1px solid var(--vscode-inputValidation-errorBorder, #d72);
+  font-size: 0.85rem;
+}
+
 .value-cell .dash {
   color: var(--vscode-descriptionForeground);
   user-select: none;

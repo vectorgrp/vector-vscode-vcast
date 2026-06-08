@@ -16,7 +16,9 @@ import {
   findEnviroForSourceFile,
   getBoundaryStageOneCommand,
   getBoundaryStageTwoCommand,
+  loadPersistedOverrides,
   parseBoundaryMappingCsv,
+  savePersistedOverrides,
   writeManualInputsXlsx,
 } from "./vcastUtilities";
 
@@ -73,7 +75,9 @@ export class BPModeManager {
       return;
     }
 
-    // 4. Parse mapping.csv and open the read-only review webview.
+    // 4. Parse mapping.csv and open the editor. Pre-populate from any
+    // previous run's saved overrides so small edits don't require
+    // re-entering every row.
     const rows = parseBoundaryMappingCsv(mappingCsv);
     if (rows.length === 0) {
       vscode.window.showInformationMessage(
@@ -81,11 +85,13 @@ export class BPModeManager {
       );
       return;
     }
+    const savedOverrides = loadPersistedOverrides(sheetDir, rows);
     this.openReviewPanel(context, {
       sourceFile,
       enviroPath,
       sheetDir,
       rows,
+      savedOverrides,
     });
   }
 
@@ -119,6 +125,7 @@ export class BPModeManager {
       enviroPath: string;
       sheetDir: string;
       rows: BoundaryMappingRow[];
+      savedOverrides: BoundaryOverride[];
     }
   ): void {
     if (this.currentPanel) {
@@ -165,6 +172,7 @@ export class BPModeManager {
       enviroPath: string;
       sheetDir: string;
       rows: BoundaryMappingRow[];
+      savedOverrides: BoundaryOverride[];
     }
   ): string {
     const resourceRoot = vscode.Uri.joinPath(
@@ -195,6 +203,7 @@ export class BPModeManager {
       enviroPath: state.enviroPath,
       sheetDir: state.sheetDir,
       rows: state.rows,
+      savedOverrides: state.savedOverrides,
     };
     return template
       .replace(/\$\{CSP_SOURCE\}/g, webview.cspSource)
@@ -209,9 +218,15 @@ export class BPModeManager {
       enviroPath: string;
       sheetDir: string;
       rows: BoundaryMappingRow[];
+      savedOverrides: BoundaryOverride[];
     },
     overrides: BoundaryOverride[]
   ): Promise<void> {
+    // Persist the user's choices so a re-run pre-populates the editor.
+    // Save unconditionally (including the empty list) so an explicit
+    // clear is also captured.
+    savePersistedOverrides(state.sheetDir, state.rows, overrides);
+
     // If any overrides are present, switch pyatg into manual mode:
     // overwrite inputs.xlsx with the 8-column manual form and create
     // an empty Boundaries.csv (its presence is what flips the mode).
