@@ -359,6 +359,99 @@ export function executeWithRealTimeEchoWithProgress(
   );
 }
 
+// Spawn a shell command with env-var injection, stream stdout/stderr to
+// the message pane, and resolve with the exit code. Used by the boundary-
+// processor flow (BP_INTEGRATION_PLAN.md) where we need to pass
+// VCAST_ATG_PATH and related env vars into the atg invocation.
+export async function executeATGCommandWithProgress(
+  command: string,
+  cwd: string,
+  envVars: Record<string, string>,
+  progressTitle: string
+): Promise<number> {
+  return await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: progressTitle,
+      cancellable: true,
+    },
+    async (progress, token) => {
+      progress.report({ increment: 5 });
+      vectorMessage("-".repeat(80));
+      const envVarStr = Object.entries(envVars)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(" ");
+      vectorMessage(`Executing: ${envVarStr ? envVarStr + " " : ""}${command}`);
+      vectorMessage(`cwd: ${cwd}`);
+      vectorMessage("-".repeat(80));
+
+      const proc = spawn(command, [], {
+        cwd,
+        shell: true,
+        windowsHide: true,
+        env: { ...process.env, ...envVars },
+      });
+
+      let stdoutFragment = "";
+
+      const progressInterval = setInterval(() => {
+        try {
+          progress.report({ increment: 5 });
+        } catch {
+          /* ignore */
+        }
+      }, 2000);
+
+      token.onCancellationRequested(() => {
+        if (proc && !proc.killed) {
+          vectorMessage("User cancelled — sending SIGTERM.");
+          proc.kill("SIGTERM");
+        }
+        clearInterval(progressInterval);
+      });
+
+      const streamLines = (chunk: Buffer | string, isFrag: boolean) => {
+        const s = chunk.toString();
+        const parts = s.split(/[\r\n]+/);
+        if (isFrag && stdoutFragment.length > 0) {
+          parts[0] = stdoutFragment + parts[0];
+          stdoutFragment = "";
+        }
+        if (isFrag && !s.endsWith("\n") && !s.endsWith("\r")) {
+          stdoutFragment = parts.pop() || "";
+        }
+        for (const line of parts) {
+          if (line.length) vectorMessage(line);
+        }
+      };
+
+      if (proc.stdout) {
+        proc.stdout.on("data", (chunk) => streamLines(chunk, true));
+      }
+      if (proc.stderr) {
+        proc.stderr.on("data", (chunk) => streamLines(chunk, false));
+      }
+
+      return await new Promise<number>((resolve) => {
+        proc.on("close", (exitCode: number | null) => {
+          clearInterval(progressInterval);
+          progress.report({ increment: 100 });
+          const code = exitCode === null ? 1 : Number(exitCode);
+          vectorMessage("-".repeat(80));
+          vectorMessage(`atg exited with code ${code}`);
+          vectorMessage("-".repeat(80));
+          resolve(code);
+        });
+        proc.on("error", (err) => {
+          clearInterval(progressInterval);
+          vectorMessage(`Error spawning atg: ${err.message}`);
+          resolve(1);
+        });
+      });
+    }
+  );
+}
+
 // A command runner simmilar to executeWithRealTimeEcho for long running commands
 // With the difference that it runs multiple commands sequentially and waits for each to finish
 export function executeWithRealTimeEchoWithProgressSequential(

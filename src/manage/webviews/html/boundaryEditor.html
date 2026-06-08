@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src ${CSP_SOURCE} 'unsafe-inline'; script-src ${CSP_SOURCE};"
+    />
+    <link rel="stylesheet" href="${CSS_URI}" />
+    <title>Boundary Tests</title>
+  </head>
+  <body>
+    <header>
+      <h1 id="title">Boundary Tests</h1>
+      <p id="subtitle"></p>
+    </header>
+    <main>
+      <div class="toolbar">
+        <span id="row-count"></span>
+        <span class="hint">
+          Iteration 1: all rows generate with
+          <code>&lt;AUTO_GENERATE&gt;</code>. Per-row editing arrives in
+          iteration 2.
+        </span>
+      </div>
+      <table id="rows-table">
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th>Routine</th>
+            <th>Expression</th>
+            <th>Type</th>
+            <th>Annotation</th>
+          </tr>
+        </thead>
+        <tbody id="rows-body"></tbody>
+      </table>
+    </main>
+    <footer>
+      <button id="btn-cancel" class="secondary" type="button">Cancel</button>
+      <button id="btn-generate" class="primary" type="button">
+        Generate Tests
+      </button>
+    </footer>
+    <script id="payload" type="application/json">${PAYLOAD}</script>
+    <script src="${JS_URI}"></script>
+  </body>
+</html>

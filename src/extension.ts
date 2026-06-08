@@ -192,9 +192,13 @@ function decodeAndRemoveDeveloperEnvs() {
   }
 }
 
+import { BPModeManager } from "./bpMode";
+
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
+
+const bpModeManager = new BPModeManager();
 
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
@@ -488,6 +492,29 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(insertATGTestsFromEditorCommand);
+
+  // Command: vectorcastTestExplorer.bpGenerateForUnit ////////////////////////
+  // Boundary-processor entry point (pyatg #3285). See BP_INTEGRATION_PLAN.md.
+  let bpGenerateForUnitCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.bpGenerateForUnit",
+    async (uri?: vscode.Uri) => {
+      let sourceFile: string | undefined;
+      if (uri && uri.fsPath) {
+        sourceFile = uri.fsPath;
+      } else {
+        const active = vscode.window.activeTextEditor;
+        if (active) sourceFile = active.document.uri.fsPath;
+      }
+      if (!sourceFile) {
+        vscode.window.showWarningMessage(
+          "Boundary mode: no source file in focus."
+        );
+        return;
+      }
+      await bpModeManager.enter(sourceFile, context);
+    }
+  );
+  context.subscriptions.push(bpGenerateForUnitCommand);
 
   let generateRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.generateRequirements",

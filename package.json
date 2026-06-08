@@ -45,6 +45,11 @@
     ],
     "commands": [
       {
+        "command": "vectorcastTestExplorer.bpGenerateForUnit",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Boundary Tests for Unit"
+      },
+      {
         "command": "vectorcastTestExplorer.createNewProject",
         "title": "Create New Project"
       },
@@ -413,6 +418,12 @@
             "order": 7,
             "default": false,
             "description": "Log internal extension details"
+          },
+          "vectorcastTestExplorer.atgPath": {
+            "type": "string",
+            "order": 8,
+            "default": "",
+            "description": "Path to the ATG main.py script (e.g., /path/to/pyatg/atg/main.py). If not set, the VCAST_ATG_PATH environment variable is used."
           }
         }
       },
@@ -1029,6 +1040,11 @@
         {
           "command": "vectorcastTestExplorer.addIncludePath",
           "when": "vectorcastTestExplorer.codedTestingAvailable && resourceFilename==c_cpp_properties.json"
+        },
+        {
+          "command": "vectorcastTestExplorer.bpGenerateForUnit",
+          "when": "vectorcastTestExplorer.configured && (resourceExtname==.c || resourceExtname==.cpp || resourceExtname==.cxx || resourceExtname==.cc)",
+          "group": "vcast"
         }
       ],
       "editor/lineNumber/context": [

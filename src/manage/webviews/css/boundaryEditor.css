@@ -1,0 +1,126 @@
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+header {
+  padding: 14px 20px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border, #444);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+#subtitle {
+  margin: 4px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85rem;
+}
+
+main {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 12px 20px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.toolbar .hint {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.8rem;
+}
+
+.toolbar code {
+  background: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--vscode-editor-background);
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border, #444);
+  font-weight: 600;
+}
+
+tbody td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(127, 127, 127, 0.2));
+  vertical-align: top;
+  font-family: var(--vscode-editor-font-family, monospace);
+  white-space: nowrap;
+}
+
+tbody tr:hover td {
+  background: var(--vscode-list-hoverBackground);
+}
+
+footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--vscode-panel-border, #444);
+}
+
+button {
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+button.primary:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--vscode-foreground);
+  border-color: var(--vscode-button-border, var(--vscode-panel-border, #666));
+}
+
+button.secondary:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.1));
+}

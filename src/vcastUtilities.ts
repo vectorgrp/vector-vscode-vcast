@@ -33,6 +33,7 @@ import {
 import { cleanProjectEnvironment } from "./manage/manageSrc/manageCommands";
 
 import {
+  atgCommandToUse,
   clicastCommandToUse,
   configFileContainsCorrectInclude,
   globalIncludePath,
@@ -865,4 +866,109 @@ export async function getEnvironmentData(enviroPath: string) {
   }
 
   return envData;
+}
+
+// ─── Boundary processor (pyatg #3285) ────────────────────────────────
+
+export interface BoundaryCommand {
+  command: string;
+  envVars: Record<string, string>;
+}
+
+// Column order matches atg/solvers/boundary/support.py:OutputRow.MAPPING_FIELDS.
+// nodeStr is the user-facing expression (e.g. "x", "arr[*]"); nodeType is
+// its C type (e.g. "int", "samDeviceType*[4]"). inputSortStr is a coarser
+// classification (often duplicates scope, but not always — keep both).
+export interface BoundaryMappingRow {
+  origFile: string;
+  unit: string;
+  routine: string;
+  scope: string;
+  inputSortStr: string;
+  disabledType: string;
+  nodeStr: string;
+  nodeType: string;
+  testValueLine: string;
+  annotation: string;
+}
+
+function buildBoundaryEnvVars(): Record<string, string> {
+  const atgPathSetting = vscode.workspace
+    .getConfiguration("vectorcastTestExplorer")
+    .get<string>("atgPath", "");
+  const envVars: Record<string, string> = {};
+  if (atgPathSetting) {
+    envVars["VCAST_ATG_PATH"] = atgPathSetting;
+  }
+  return envVars;
+}
+
+export function getBoundaryStageOneCommand(
+  enviroPath: string,
+  sheetFile: string
+): BoundaryCommand {
+  // sheetFile is just the seed path passed to --generate-ranges-sheet;
+  // the actual outputs (inputs.xlsx, mapping.csv) land in its dirname.
+  const envVars = buildBoundaryEnvVars();
+  const command = `${atgCommandToUse} --generate-ranges-sheet ${sheetFile}`;
+  return { command, envVars };
+}
+
+export function getBoundaryStageTwoCommand(
+  enviroPath: string,
+  sheetDir: string,
+  scriptPath: string
+): BoundaryCommand {
+  // --from-ranges-sheet <dir> reads inputs.xlsx + mapping.csv (+ optional
+  // Boundaries.csv) from <dir>; -v writes the .tst to scriptPath.
+  const envVars = buildBoundaryEnvVars();
+  const command = `${atgCommandToUse} --from-ranges-sheet ${sheetDir} -v ${scriptPath}`;
+  return { command, envVars };
+}
+
+export function parseBoundaryMappingCsv(
+  mappingCsvPath: string
+): BoundaryMappingRow[] {
+  // mapping.csv is 10 columns, no header, comma-separated, no embedded commas
+  // in production data — quote handling is intentionally simple.
+  const text = fs.readFileSync(mappingCsvPath, "utf8");
+  const rows: BoundaryMappingRow[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    if (rawLine.length === 0) continue;
+    const cols = rawLine.split(",");
+    if (cols.length < 10) continue;
+    rows.push({
+      origFile: cols[0],
+      unit: cols[1],
+      routine: cols[2],
+      scope: cols[3],
+      inputSortStr: cols[4],
+      disabledType: cols[5],
+      nodeStr: cols[6],
+      nodeType: cols[7],
+      testValueLine: cols[8],
+      annotation: cols.slice(9).join(","),
+    });
+  }
+  return rows;
+}
+
+// Iteration 1 has no per-row overrides: autogen mode is triggered by
+// Boundaries.csv being absent, so we deliberately do not write one here.
+// (Note: Boundaries.csv is a 3-column named-classes file in pyatg's manual
+// flow — not the 8-column per-input override sheet. The 8-column form
+// lives in inputs.xlsx/.csv. Iteration 2 will write the right file.)
+
+export function findEnviroForSourceFile(sourceFile: string): string[] {
+  // Returns enviroPaths whose coverage data references this source file.
+  // Empty list if no env is known yet (workspace not scanned, or no
+  // coverage executed).
+  //
+  // Lazy import to avoid a circular dep at module load.
+  const { getGlobalCoverageData } = require("./vcastTestInterface");
+  const map = getGlobalCoverageData() as Map<string, any> | undefined;
+  if (!map) return [];
+  const fileEntry = map.get(sourceFile);
+  if (!fileEntry || !fileEntry.enviroList) return [];
+  return Array.from(fileEntry.enviroList.keys() as Iterable<string>);
 }
