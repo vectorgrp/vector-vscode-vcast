@@ -205,10 +205,16 @@ export class BPModeManager {
 
     // Run --from-ranges-sheet, producing the .tst. The .tst must be a
     // sibling of the env directory because loadTestScriptIntoEnvironment
-    // resolves the env as path.dirname(scriptPath)/enviroName.
+    // resolves the env as path.dirname(scriptPath)/enviroName. Name it
+    // after the source file basename so it's recognisable in the file
+    // explorer (e.g. moo-boundary.tst).
+    const baseName = path.basename(
+      state.sourceFile,
+      path.extname(state.sourceFile)
+    );
     const scriptPath = path.join(
       path.dirname(state.enviroPath),
-      `boundary-${Date.now()}.tst`
+      `${baseName}-boundary.tst`
     );
     const stage2 = getBoundaryStageTwoCommand(
       state.enviroPath,
