@@ -82,25 +82,73 @@ One command. No editing yet. Proves the pipeline works.
    similar from the pyatg tree).
 3. The `.tst` arrives in the env. Coverage report comes back > 0%.
 
-## Iteration 2 (after slice works)
+## Long-term vision
 
-Per-row editor: dropdown driven by `mapping.csv` annotation:
+What the user should ultimately see is **only the variables and their
+ranges**, with the **source code itself** as the context. The pyatg
+annotations (`enum:S:32`, `arr:4`, `ptr`, …) are an implementation
+detail of the boundary classifier and should not bleed into the UI.
 
-| Annotation | Editor |
-|---|---|
-| `enum:S:32`, `enum:U:8`, … | "Auto" / "Fixed value" / "Range `[lo, hi]`" |
-| `arr:N` | "Auto" / "Range per index" |
-| `ptr` | "Allocate" / "NULL" |
-| `func:VCAST_ATG_FP_N` | Function-pointer candidates (DataAPI lookup) |
-| `stub`, `stub_param` | Same as scalar |
+Concretely, the target shape of the webview is roughly:
 
-Plus a per-row "skip ±1 adjustment" toggle (column 6).
+```
+┌─────────────────────────────┬───────────────────────────────────────┐
+│  moo.c (read-only, scrolls) │  Inputs                                │
+│                             │                                        │
+│   1  struct point {         │   score   [ Auto      ▼ ]              │
+│   2    int x;               │   threshold [ Range  ] lo:  hi:        │
+│   3    int y;               │   flags    [ Fixed   ] value: 0x01     │
+│   4  };                     │   pt.x     [ Auto    ▼ ]               │
+│   5                         │   pt.y     [ Auto    ▼ ]               │
+│   6  int threshold;         │   arr      ...                         │
+│   7                         │   …                                    │
+│   8  void moo(int score, …) │                                        │
+│   9    if (score > thresh…) │                                        │
+└─────────────────────────────┴───────────────────────────────────────┘
+```
 
-## Iteration 3 (beyond MVP)
+When the user hovers a variable row, the matching identifier in the
+code highlights (and vice versa). The annotation column we currently
+display in iteration 1 disappears — the source is the reference.
+
+Iterations below are intermediate steps toward that shape.
+
+## Iteration 2 — scalars-only editor
+
+Adds editing to iteration 1's webview. Scope: scalar-annotated rows
+(`enum:S:N`, `enum:U:N`) get a per-row mode selector:
+
+- **Auto** (default) — no override; pyatg autogens
+- **Fixed value** — single int field; one boundary value
+- **Range `[lo, hi]`** — two int fields; explicit boundary range
+
+Array/pointer/fptr rows stay on Auto for now (greyed-out selector).
+
+A per-row toggle: "Skip ±1 adjustments" (maps to pyatg's
+`<FORCE_DISABLED_ADJUSTMENT>` flag in the manual-form inputs row).
+
+Annotation column stays visible in iteration 2 as a diagnostic aid;
+hiding it lives behind iteration 3 once we trust the editors.
+
+On submit, write the 8-column manual-form `inputs.csv` (next to the
+existing 5-column `inputs.xlsx`) and run stage 2 with the manual flow.
+
+## Iteration 3 — code-as-reference UI
+
+- Two-pane layout: source on the left (read-only, syntax-highlighted),
+  inputs list on the right.
+- Hover-link between code identifiers and inputs (echoes the line-test
+  feature).
+- Annotation column hidden by default; available in a "show details"
+  toggle for debugging.
+- Array / pointer / function-pointer editors land here, driven by
+  annotation but presented as code-natural choices.
+
+## Iteration 4+ (beyond MVP)
 
 - Persist the user's edits per-unit in workspace storage so reopening
   shows the last state.
-- Diff view between autogen `Boundaries.csv` and user-edited.
+- Diff view between autogen sheets and user-edited.
 - Direct import of an existing `*.boundaries.csv` from the project
   source tree.
 - Sidebar panel listing all boundary-tested units in the workspace.
