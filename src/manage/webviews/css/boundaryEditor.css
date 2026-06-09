@@ -297,6 +297,26 @@ td.skip-cell {
   text-align: center;
 }
 
+td.generates-cell {
+  font-size: 0.78rem;
+  color: var(--vscode-descriptionForeground);
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+td.generates-cell.modified {
+  color: var(--vscode-foreground);
+  background: var(--vscode-diffEditor-insertedTextBackground,
+    rgba(120, 200, 120, 0.12));
+  font-weight: 500;
+}
+
+td.generates-cell.empty {
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.5;
+}
+
 footer {
   display: flex;
   justify-content: flex-end;

@@ -336,6 +336,60 @@
     return /^enum:[SU]:\d+/.test(row.annotation || "");
   }
 
+  // Predict the test values pyatg will emit for one row, given its
+  // current Mode / Value / lo / hi / skipAdj. Mirrors what we observed
+  // from CLI smoke tests:
+  //   - Auto: type-extreme min and max, ±1 always disabled
+  //   - Fixed N: N-1, N, N+1 (or just N when skipAdj)
+  //   - Range [lo, hi]: lo-1, lo, lo+1, hi-1, hi, hi+1 (or just lo, hi
+  //     when skipAdj)
+  // Returns { text, isModified } — text is human-readable comma-joined,
+  // isModified is true when the row diverges from autogen defaults.
+  function predictValues(row, s) {
+    const annot = row.annotation || "";
+    const m = annot.match(/^enum:([SU]):(\d+)/);
+    if (!m || !isScalar(row)) {
+      return { text: "(complex)", isModified: false };
+    }
+    const sign = m[1];
+    const bits = Math.min(parseInt(m[2], 10), 32); // clamp to JS-safe
+    let typeMin, typeMax;
+    if (sign === "U") {
+      typeMin = 0;
+      typeMax = Math.pow(2, bits) - 1;
+    } else {
+      typeMin = -Math.pow(2, bits - 1);
+      typeMax = Math.pow(2, bits - 1) - 1;
+    }
+    const autoText = `${typeMin}, ${typeMax}`;
+
+    if (s.mode === "Auto" && !s.skipAdj) {
+      return { text: autoText, isModified: false };
+    }
+
+    let values = [];
+    if (s.mode === "Auto") {
+      values = [typeMin, typeMax];
+    } else if (s.mode === "Fixed") {
+      const v = parseValue(s.value);
+      if (v === null) return { text: "(incomplete)", isModified: true };
+      const n = Number(v);
+      values = s.skipAdj ? [n] : [n - 1, n, n + 1];
+    } else if (s.mode === "Range") {
+      const lo = parseValue(s.lo);
+      const hi = parseValue(s.hi);
+      if (lo === null || hi === null) {
+        return { text: "(incomplete)", isModified: true };
+      }
+      const lN = Number(lo);
+      const hN = Number(hi);
+      values = s.skipAdj
+        ? [lN, hN]
+        : [lN - 1, lN, lN + 1, hN - 1, hN, hN + 1];
+    }
+    return { text: values.join(", "), isModified: true };
+  }
+
   // Mouseenter/leave handlers used by every input row to highlight
   // (and un-highlight) the matching identifier spans in the source
   // pane. Symmetric to the click-to-jump from source -> row.
@@ -348,6 +402,27 @@
     document
       .querySelectorAll(`.src-ident[data-row-index="${idx}"]`)
       .forEach((s) => s.classList.remove("hl"));
+  }
+
+  // Per-row DOM refs to the Generates cell so handlers can refresh it
+  // in-place when Mode / Value / Skip change.
+  const generatesTdByIndex = new Array(payload.rows.length).fill(null);
+  function refreshGenerates(idx) {
+    const td = generatesTdByIndex[idx];
+    if (!td) return;
+    const { text, isModified } = predictValues(payload.rows[idx], state[idx]);
+    td.textContent = text;
+    td.classList.toggle("modified", isModified);
+    td.classList.toggle("empty", text === "(complex)" || text === "(incomplete)");
+    // Tooltip on modified rows: what autogen would have produced.
+    if (isModified && isScalar(payload.rows[idx])) {
+      const def = predictValues(payload.rows[idx], {
+        mode: "Auto", value: "", lo: "", hi: "", skipAdj: false,
+      });
+      td.title = `Autogen default: ${def.text}`;
+    } else {
+      td.title = "";
+    }
   }
 
   const body = document.getElementById("rows-body");
@@ -378,6 +453,7 @@
     sel.addEventListener("change", () => {
       state[idx].mode = sel.value;
       renderValueCell(valueTd, idx, row);
+      refreshGenerates(idx);
     });
     modeTd.appendChild(sel);
     tr.appendChild(modeTd);
@@ -395,9 +471,16 @@
     cb.disabled = !isScalar(row);
     cb.addEventListener("change", () => {
       state[idx].skipAdj = cb.checked;
+      refreshGenerates(idx);
     });
     skipTd.appendChild(cb);
     tr.appendChild(skipTd);
+
+    const genTd = document.createElement("td");
+    genTd.className = "generates-cell";
+    generatesTdByIndex[idx] = genTd;
+    tr.appendChild(genTd);
+    refreshGenerates(idx);
 
     body.appendChild(tr);
   });
@@ -422,18 +505,21 @@
     if (s.mode === "Fixed") {
       const inp = makeInput(s.value || "", (v) => {
         s.value = v;
+        refreshGenerates(idx);
       });
       inp.placeholder = "value";
       td.appendChild(inp);
     } else if (s.mode === "Range") {
       const loInp = makeInput(s.lo || "", (v) => {
         s.lo = v;
+        refreshGenerates(idx);
       });
       loInp.placeholder = "lo";
       const sep = document.createElement("span");
       sep.textContent = ", ";
       const hiInp = makeInput(s.hi || "", (v) => {
         s.hi = v;
+        refreshGenerates(idx);
       });
       hiInp.placeholder = "hi";
       td.appendChild(loInp);
