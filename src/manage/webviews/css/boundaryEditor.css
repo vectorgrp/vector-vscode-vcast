@@ -159,6 +159,16 @@ body.vscode-high-contrast .tok-preproc { color: #569cd6; }
   text-decoration-style: solid;
 }
 
+/* Reverse direction: hovering an input row triggers .hl on every
+   matching identifier in the source pane. Subtle background so it
+   doesn't fight the syntax colouring. */
+.src-ident.hl {
+  background: var(--vscode-editor-selectionBackground, rgba(80, 160, 220, 0.35));
+  border-radius: 2px;
+  padding: 0 1px;
+  text-decoration-style: solid;
+}
+
 tbody tr.flash td {
   animation: bp-flash 1.2s ease-out;
 }

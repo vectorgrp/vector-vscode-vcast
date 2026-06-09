@@ -304,11 +304,27 @@
     return /^enum:[SU]:\d+/.test(row.annotation || "");
   }
 
+  // Mouseenter/leave handlers used by every input row to highlight
+  // (and un-highlight) the matching identifier spans in the source
+  // pane. Symmetric to the click-to-jump from source -> row.
+  function highlightForRow(idx) {
+    document
+      .querySelectorAll(`.src-ident[data-row-index="${idx}"]`)
+      .forEach((s) => s.classList.add("hl"));
+  }
+  function unhighlightForRow(idx) {
+    document
+      .querySelectorAll(`.src-ident[data-row-index="${idx}"]`)
+      .forEach((s) => s.classList.remove("hl"));
+  }
+
   const body = document.getElementById("rows-body");
   payload.rows.forEach((row, idx) => {
     const tr = document.createElement("tr");
     tr.dataset.rowIndex = String(idx);
     if (!isScalar(row)) tr.classList.add("no-effect");
+    tr.addEventListener("mouseenter", () => highlightForRow(idx));
+    tr.addEventListener("mouseleave", () => unhighlightForRow(idx));
 
     appendText(tr, row.scope);
     appendText(tr, row.routine);
