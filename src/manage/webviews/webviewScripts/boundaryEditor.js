@@ -362,7 +362,7 @@
     appendText(tr, row.routine);
     appendText(tr, row.nodeStr);
     appendText(tr, row.nodeType);
-    appendText(tr, row.annotation);
+    appendText(tr, row.annotation, "col-annotation");
 
     const modeTd = document.createElement("td");
     const sel = document.createElement("select");
@@ -402,8 +402,9 @@
     body.appendChild(tr);
   });
 
-  function appendText(tr, text) {
+  function appendText(tr, text, cls) {
     const td = document.createElement("td");
+    if (cls) td.className = cls;
     td.textContent = text || "";
     tr.appendChild(td);
   }
@@ -564,6 +565,28 @@
     }
     bar.textContent = text;
     bar.style.display = text ? "block" : "none";
+  }
+
+  // Show-details toggle (iter 3.6). Hidden by default — annotations
+  // are an implementation detail of pyatg's classifier, not a thing
+  // the user should normally need. Preference persists across this
+  // webview's lifetime (and across hidden/shown transitions thanks
+  // to retainContextWhenHidden) via vscode.getState/setState.
+  const detailsCheckbox = document.getElementById("toggle-details");
+  const rowsTable = document.getElementById("rows-table");
+  const savedUiState = vscode.getState ? (vscode.getState() || {}) : {};
+  const showDetailsInitial = !!savedUiState.showDetails;
+  detailsCheckbox.checked = showDetailsInitial;
+  applyShowDetails(showDetailsInitial);
+  detailsCheckbox.addEventListener("change", () => {
+    applyShowDetails(detailsCheckbox.checked);
+    if (vscode.setState) {
+      vscode.setState({ ...savedUiState, showDetails: detailsCheckbox.checked });
+    }
+  });
+  function applyShowDetails(on) {
+    if (on) rowsTable.classList.add("show-details");
+    else rowsTable.classList.remove("show-details");
   }
 
   document.getElementById("btn-generate").addEventListener("click", () => {
