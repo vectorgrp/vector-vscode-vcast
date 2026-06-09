@@ -1077,42 +1077,47 @@ export function writeManualInputsXlsx(
   rows: BoundaryMappingRow[],
   overrides: BoundaryOverride[]
 ): { inputsPath: string; boundariesPath: string } {
-  // Build a lookup of overrides by row index.
-  const overrideByIndex = new Map<number, BoundaryOverride>();
-  for (const o of overrides) overrideByIndex.set(o.rowIndex, o);
-
-  const lines = rows.map((r, idx) => {
-    const o = overrideByIndex.get(idx);
-    const boundaryType = o ? boundaryTypeForOverride(o) : "<AUTO_GENERATE>";
-    // Mirror the convention used by the manual-mode gold fixtures
-    // (e.g. minus_one.c.gold.inputs.xlsx): "x" in the skip column means
+  // IMPORTANT: emit ONLY the overridden rows. If we also include
+  // <AUTO_GENERATE> rows for the non-overridden ones, pyatg's
+  // validate_all_classes() trips for the still-autogen entries and the
+  // whole run produces no tests. Non-overridden inputs are picked up
+  // from the existing mapping.csv and treated as autogen even in
+  // manual mode (Boundaries.csv-present mode).
+  const lines: string[] = [];
+  for (const o of overrides) {
+    const r = rows[o.rowIndex];
+    if (!r) continue;
+    const boundaryType = boundaryTypeForOverride(o);
+    // Convention from the manual-mode gold fixtures (e.g.
+    // minus_one.c.gold.inputs.xlsx): "x" in the skip column means
     // "force ±1 adjustment off"; empty means "let pyatg decide".
-    const skipAdj = o && o.skipAdj ? "x" : "";
+    const skipAdj = o.skipAdj ? "x" : "";
     // 8-column manual schema: var_declared_in, scope, _, expression_name,
-    // _, boundary_type, skip_adjustments, bsc_remarks.
-    // We use the mapping row's scope verbatim because pyatg looks it up
-    // identically when registering the entity (proc_mapping_row in
-    // gentst.py).
-    return [
-      csvField(r.origFile),
-      csvField(r.scope),
-      "",
-      csvField(r.nodeStr),
-      "",
-      csvField(boundaryType),
-      csvField(skipAdj),
-      "",
-    ].join(",");
-  });
+    // _, boundary_type, skip_adjustments, bsc_remarks. We use the
+    // mapping row's scope verbatim because pyatg's proc_mapping_row
+    // registers entities under the same key.
+    lines.push(
+      [
+        csvField(r.origFile),
+        csvField(r.scope),
+        "",
+        csvField(r.nodeStr),
+        "",
+        csvField(boundaryType),
+        csvField(skipAdj),
+        "",
+      ].join(",")
+    );
+  }
 
   const inputsPath = path.join(sheetDir, "inputs.xlsx");
   // Overwrite the autogen 5-col xlsx with our 8-col CSV. pyatg opens it
   // first as xlsx, fails, falls back to CSV.
-  fs.writeFileSync(inputsPath, lines.join("\n") + "\n", "utf8");
+  fs.writeFileSync(inputsPath, lines.join("\n") + (lines.length ? "\n" : ""), "utf8");
 
-  // Empty Boundaries.csv: just its presence flips pyatg into manual mode.
-  // No named classes are needed — we write inline range values directly
-  // into the boundary_type column above.
+  // Empty Boundaries.csv: its presence is what flips pyatg into manual
+  // mode. No named classes are needed — we write inline range values
+  // directly into the boundary_type column above.
   const boundariesPath = path.join(sheetDir, "Boundaries.csv");
   fs.writeFileSync(boundariesPath, "", "utf8");
 

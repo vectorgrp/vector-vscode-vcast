@@ -146,21 +146,57 @@
     return inp;
   }
 
-  // Accept decimal (-?\d+), hex (0x[0-9a-f]+). Empty string is allowed
-  // mid-typing — collectOverrides drops empty entries.
-  function isNumericish(s) {
+  // Parse a value cell into the decimal-string form pyatg accepts.
+  // Returns null for invalid input. Empty string returns null too;
+  // callers check that separately (mid-typing is allowed).
+  //
+  // Accepts:
+  //   42, -7, 0x63                -- numeric literals
+  //   'c', '\n', '\\', '\x63'     -- C-style char literals (normalised)
+  // pyatg's own inline-value parser rejects 'c' as a named-class
+  // reference, so we convert client-side before submit.
+  const NAMED_ESCAPES = {
+    n: 10, t: 9, r: 13, "0": 0, "\\": 92,
+    "'": 39, '"': 34, b: 8, f: 12, v: 11, a: 7,
+  };
+
+  function parseValue(s) {
+    s = s.trim();
+    if (s === "") return null;
+    if (/^-?\d+$/.test(s)) return s;
+    if (/^0x[0-9a-fA-F]+$/.test(s)) return String(parseInt(s, 16));
+    const m = s.match(/^'(.+)'$/);
+    if (!m) return null;
+    const inner = m[1];
+    if (inner.length === 1 && inner !== "\\") {
+      return String(inner.charCodeAt(0));
+    }
+    if (inner[0] === "\\") {
+      const esc = inner.slice(1);
+      const hx = esc.match(/^x([0-9a-fA-F]+)$/);
+      if (hx) return String(parseInt(hx[1], 16));
+      const oct = esc.match(/^([0-7]{1,3})$/);
+      if (oct) return String(parseInt(oct[1], 8));
+      if (esc.length === 1 && NAMED_ESCAPES.hasOwnProperty(esc)) {
+        return String(NAMED_ESCAPES[esc]);
+      }
+    }
+    return null;
+  }
+
+  function isValidValue(s) {
     if (s.trim() === "") return true;
-    return /^-?\d+$/.test(s.trim()) || /^0x[0-9a-fA-F]+$/.test(s.trim());
+    return parseValue(s) !== null;
   }
 
   function markInputValidity(inp) {
-    if (isNumericish(inp.value)) {
+    if (isValidValue(inp.value)) {
       inp.classList.remove("invalid");
       inp.title = "";
     } else {
       inp.classList.add("invalid");
       inp.title =
-        "Enter an integer (decimal or 0x-prefixed hex). For 'c' use 99.";
+        "Enter an integer (42, -7, 0x63) or a C char literal ('c', '\\n', '\\x63').";
     }
   }
 
@@ -188,16 +224,22 @@
       };
       if (s.mode === "Fixed") {
         if (entry.value === "") return;
-        if (!isNumericish(entry.value)) {
+        const v = parseValue(entry.value);
+        if (v === null) {
           badRowIndices.push(idx);
           return;
         }
+        entry.value = v;
       } else if (s.mode === "Range") {
         if (entry.lo === "" || entry.hi === "") return;
-        if (!isNumericish(entry.lo) || !isNumericish(entry.hi)) {
+        const lo = parseValue(entry.lo);
+        const hi = parseValue(entry.hi);
+        if (lo === null || hi === null) {
           badRowIndices.push(idx);
           return;
         }
+        entry.lo = lo;
+        entry.hi = hi;
       }
       overrides.push(entry);
     });
