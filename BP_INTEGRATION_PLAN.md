@@ -113,25 +113,29 @@ display in iteration 1 disappears — the source is the reference.
 
 Iterations below are intermediate steps toward that shape.
 
-## Iteration 2 — scalars-only editor
+## Iteration 2 — scalars-only editor ✓ DONE
 
-Adds editing to iteration 1's webview. Scope: scalar-annotated rows
-(`enum:S:N`, `enum:U:N`) get a per-row mode selector:
+Added editing to iteration 1's webview. Scalar-annotated rows
+(`enum:S:N`, `enum:U:N`) get a per-row Mode selector (Auto / Fixed /
+Range), value inputs, and a Skip-±1 toggle. Array/pointer/fptr rows
+stay Auto-only (greyed).
 
-- **Auto** (default) — no override; pyatg autogens
-- **Fixed value** — single int field; one boundary value
-- **Range `[lo, hi]`** — two int fields; explicit boundary range
+On submit, writes an 8-column manual-form `inputs.xlsx` next to an
+empty `Boundaries.csv` (its presence is what flips pyatg into manual
+mode) and runs stage 2.
 
-Array/pointer/fptr rows stay on Auto for now (greyed-out selector).
+**Sub-iterations shipped:**
 
-A per-row toggle: "Skip ±1 adjustments" (maps to pyatg's
-`<FORCE_DISABLED_ADJUSTMENT>` flag in the manual-form inputs row).
-
-Annotation column stays visible in iteration 2 as a diagnostic aid;
-hiding it lives behind iteration 3 once we trust the editors.
-
-On submit, write the 8-column manual-form `inputs.csv` (next to the
-existing 5-column `inputs.xlsx`) and run stage 2 with the manual flow.
+- **2.1** Persist overrides to `.bp-sheets/overrides.json` keyed by
+  `(origFile, scope, nodeStr)` so the editor pre-populates on
+  re-open. Numeric validation in the webview blocks bad values before
+  submit (one bad row used to kill the whole pyatg run).
+- **2.2** Char-literal input: accept `'c'`, `'\n'`, `'\x63'`,
+  `'\\'`, octal; normalise to decimal client-side. Also fixed the
+  manual-mode emitter to write only overridden rows — the prior
+  `<AUTO_GENERATE>` mix-in tripped pyatg's validator and was
+  responsible for the (mistaken) "params no-op" caveat. Params now
+  actually take effect.
 
 ## Iteration 3 — code-as-reference UI
 
@@ -146,8 +150,7 @@ existing 5-column `inputs.xlsx`) and run stage 2 with the manual flow.
 
 ## Iteration 4+ (beyond MVP)
 
-- Persist the user's edits per-unit in workspace storage so reopening
-  shows the last state.
+- ~~Persist the user's edits per-unit~~ — shipped in 2.1.
 - Diff view between autogen sheets and user-edited.
 - Direct import of an existing `*.boundaries.csv` from the project
   source tree.
