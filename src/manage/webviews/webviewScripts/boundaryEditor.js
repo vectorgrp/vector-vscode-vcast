@@ -305,7 +305,10 @@
   }
 
   // Per-row UI state, indexed by row position in payload.rows.
-  // Each entry: { mode: 'Auto'|'Fixed'|'Range', value: '', lo: '', hi: '', skipAdj: false }
+  // Each entry: { mode, value, lo, hi, skipAdj, namedRef }
+  //   mode: 'Auto'|'Fixed'|'Range'|'Named'
+  //   namedRef: when mode==='Named', the name of a NamedRange in the
+  //             namedRanges array; otherwise ''.
   // Pre-populate from any persisted overrides the extension passed in
   // (re-runs of the same unit retain previous edits).
   const state = payload.rows.map(() => ({
@@ -314,6 +317,7 @@
     lo: "",
     hi: "",
     skipAdj: false,
+    namedRef: "",
   }));
   if (Array.isArray(payload.savedOverrides)) {
     for (const o of payload.savedOverrides) {
@@ -325,8 +329,195 @@
         lo: o.lo || "",
         hi: o.hi || "",
         skipAdj: !!o.skipAdj,
+        namedRef: o.namedRef || "",
       };
     }
+  }
+
+  // ── Named ranges ─────────────────────────────────────────────────
+  // Defined once per unit, persisted alongside per-row overrides.
+  // Each entry is { name, definition }. The definition is a pyatg
+  // inline form: a number ("42"), hex ("0xff"), range ("[10, 100]"),
+  // signed ("-7"), or a bundled multi-line form ("A=10\nB=20").
+  // Stage 2 will write a Boundaries.csv with one 3-col row per entry
+  // and use the name as a reference in inputs.xlsx for Named rows.
+  const namedRanges = Array.isArray(payload.savedNamedRanges)
+    ? payload.savedNamedRanges.map((nr) => ({
+        name: String((nr && nr.name) || ""),
+        definition: String((nr && nr.definition) || ""),
+      }))
+    : [];
+
+  // Listeners fired whenever the namedRanges list changes shape or
+  // content. Per-row value cells in Named mode subscribe so their
+  // dropdowns repopulate when the user adds / renames / removes
+  // a range.
+  const namedListeners = [];
+  function onNamedChanged(fn) {
+    namedListeners.push(fn);
+  }
+  function fireNamedChanged() {
+    for (const fn of namedListeners) {
+      try { fn(); } catch { /* keep others firing */ }
+    }
+  }
+
+  function isValidRangeName(name) {
+    const t = (name || "").trim();
+    if (!/^[A-Za-z_]\w*$/.test(t)) return false;
+    if (C_KEYWORDS.has(t) || C_TYPES.has(t)) return false;
+    if (t === "AUTO_GENERATE" || t === "FORCE_DISABLED_ADJUSTMENT") return false;
+    return true;
+  }
+
+  // Loose mirror of pyatg's is_inline(): the definition can be a
+  // numeric / hex / signed literal, a range with brackets, or a
+  // bundled form that contains `=`. We don't validate the inner
+  // structure of the bundle; pyatg will diagnose if it's malformed.
+  function isValidDefinition(s) {
+    const t = (s || "").trim();
+    if (t === "") return false;
+    if (parseValue(t) !== null) return true;
+    if (/^\[.*\]$/.test(t)) return true;
+    if (/=/.test(t)) return true;
+    return false;
+  }
+
+  // Parse "[lo, hi]" with integer / hex / signed endpoints. Returns
+  // null if the definition isn't a clean numeric range.
+  function parseRangeBrackets(def) {
+    const t = (def || "").trim();
+    const m = t.match(
+      /^\[\s*(-?\d+|0x[0-9a-fA-F]+)\s*,\s*(-?\d+|0x[0-9a-fA-F]+)\s*\]$/
+    );
+    if (!m) return null;
+    const lo = parseValue(m[1]);
+    const hi = parseValue(m[2]);
+    if (lo === null || hi === null) return null;
+    return { lo: Number(lo), hi: Number(hi) };
+  }
+
+  // Return the set of namedRanges indices that share at least one
+  // endpoint with another. Only [lo, hi] form is checked; multi-line
+  // bundles are skipped (their structure varies).
+  function detectOverlaps() {
+    const parsed = namedRanges
+      .map((nr, idx) => {
+        const r = parseRangeBrackets(nr.definition);
+        return r ? { idx, lo: r.lo, hi: r.hi } : null;
+      })
+      .filter(Boolean);
+    const out = new Set();
+    for (let i = 0; i < parsed.length; i += 1) {
+      for (let j = i + 1; j < parsed.length; j += 1) {
+        const a = parsed[i];
+        const b = parsed[j];
+        if (Math.max(a.lo, b.lo) <= Math.min(a.hi, b.hi)) {
+          out.add(a.idx);
+          out.add(b.idx);
+        }
+      }
+    }
+    return out;
+  }
+
+  function renderNamedRanges() {
+    const tbody = document.getElementById("named-tbody");
+    const empty = document.getElementById("named-empty");
+    const countPill = document.getElementById("named-count");
+    tbody.innerHTML = "";
+    const overlaps = detectOverlaps();
+    namedRanges.forEach((nr, idx) => {
+      const tr = document.createElement("tr");
+
+      const nameTd = document.createElement("td");
+      nameTd.className = "named-name";
+      const nameInp = document.createElement("input");
+      nameInp.className = "named-name-input";
+      nameInp.placeholder = "name";
+      nameInp.value = nr.name;
+      nameInp.addEventListener("input", () => {
+        nr.name = nameInp.value;
+        const t = nameInp.value.trim();
+        const dup = t !== "" &&
+          namedRanges.some((x, i) => i !== idx && x.name.trim() === t);
+        const bad = t !== "" && (!isValidRangeName(t) || dup);
+        nameInp.classList.toggle("invalid", bad);
+        nameInp.title = dup
+          ? "Another named range already uses this name."
+          : (bad
+            ? "Names must be a C-style identifier (letters, digits, _) and not a C keyword."
+            : "");
+        fireNamedChanged();
+      });
+      nameTd.appendChild(nameInp);
+
+      const defTd = document.createElement("td");
+      defTd.className = "named-def";
+      const defInp = document.createElement("input");
+      defInp.className = "named-def-input";
+      defInp.placeholder = "[lo, hi]   or   42   or   A=10\\nB=20";
+      defInp.value = nr.definition;
+      defInp.addEventListener("input", () => {
+        nr.definition = defInp.value;
+        const t = defInp.value.trim();
+        const bad = t !== "" && !isValidDefinition(t);
+        defInp.classList.toggle("invalid", bad);
+        fireNamedChanged();
+      });
+      defTd.appendChild(defInp);
+      if (overlaps.has(idx)) {
+        const badge = document.createElement("span");
+        badge.className = "named-warning";
+        badge.textContent = "overlaps";
+        badge.title =
+          "This range overlaps with another defined range. pyatg dedupes shared endpoints; usually fine.";
+        defTd.appendChild(badge);
+      }
+
+      const actTd = document.createElement("td");
+      actTd.className = "named-actions";
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "named-del";
+      del.textContent = "✕";
+      del.title = "Delete this named range";
+      del.addEventListener("click", () => {
+        namedRanges.splice(idx, 1);
+        renderNamedRanges();
+        fireNamedChanged();
+      });
+      actTd.appendChild(del);
+
+      tr.appendChild(nameTd);
+      tr.appendChild(defTd);
+      tr.appendChild(actTd);
+      tbody.appendChild(tr);
+    });
+    countPill.textContent =
+      namedRanges.length > 0 ? `(${namedRanges.length})` : "";
+    empty.style.display = namedRanges.length === 0 ? "block" : "none";
+  }
+
+  document.getElementById("named-add").addEventListener("click", () => {
+    namedRanges.push({ name: "", definition: "" });
+    renderNamedRanges();
+    fireNamedChanged();
+  });
+  const namedSection = document.getElementById("named-section");
+  const namedToggleBtn = document.getElementById("named-toggle");
+  const caret = namedToggleBtn.querySelector(".caret");
+  namedToggleBtn.addEventListener("click", () => {
+    const collapsed = namedSection.classList.toggle("collapsed");
+    caret.textContent = collapsed ? "▸" : "▾";
+    namedToggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  });
+  renderNamedRanges();
+  // Start collapsed when nothing is defined; expand if we restored some.
+  if (namedRanges.length === 0) {
+    namedSection.classList.add("collapsed");
+    caret.textContent = "▸";
+    namedToggleBtn.setAttribute("aria-expanded", "false");
   }
 
   // A row is "scalar-editable" if its annotation looks like enum:S:N or
@@ -386,6 +577,29 @@
       values = s.skipAdj
         ? [lN, hN]
         : [lN - 1, lN, lN + 1, hN - 1, hN, hN + 1];
+    } else if (s.mode === "Named") {
+      if (!s.namedRef) {
+        return { text: "(no range selected)", isModified: false };
+      }
+      const nr = namedRanges.find((x) => (x.name || "").trim() === s.namedRef);
+      if (!nr) {
+        return { text: `(undefined: ${s.namedRef})`, isModified: true };
+      }
+      const rg = parseRangeBrackets(nr.definition);
+      if (rg) {
+        values = s.skipAdj
+          ? [rg.lo, rg.hi]
+          : [rg.lo - 1, rg.lo, rg.lo + 1, rg.hi - 1, rg.hi, rg.hi + 1];
+      } else {
+        const v = parseValue((nr.definition || "").trim());
+        if (v !== null) {
+          const n = Number(v);
+          values = s.skipAdj ? [n] : [n - 1, n, n + 1];
+        } else {
+          // Bundle (A=10\nB=20) or unparseable — show the literal text.
+          return { text: nr.definition.trim() || "(empty)", isModified: true };
+        }
+      }
     }
     return { text: formatValueSet(values), isModified: true };
   }
@@ -465,7 +679,7 @@
     const modeTd = document.createElement("td");
     const sel = document.createElement("select");
     sel.className = "mode-select";
-    for (const opt of ["Auto", "Fixed", "Range"]) {
+    for (const opt of ["Auto", "Fixed", "Range", "Named"]) {
       const o = document.createElement("option");
       o.value = opt;
       o.textContent = opt;
@@ -485,6 +699,14 @@
     valueTd.className = "value-cell";
     renderValueCell(valueTd, idx, row);
     tr.appendChild(valueTd);
+    // Keep the Named-mode dropdown in sync with renames / additions /
+    // deletions in the named-ranges editor.
+    onNamedChanged(() => {
+      if (state[idx].mode === "Named") {
+        renderValueCell(valueTd, idx, row);
+        refreshGenerates(idx);
+      }
+    });
 
     const skipTd = document.createElement("td");
     skipTd.className = "skip-cell";
@@ -548,6 +770,30 @@
       td.appendChild(loInp);
       td.appendChild(sep);
       td.appendChild(hiInp);
+    } else if (s.mode === "Named") {
+      const namedSel = document.createElement("select");
+      namedSel.className = "mode-select";
+      const blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = namedRanges.length === 0
+        ? "(no ranges defined)"
+        : "(pick one)";
+      namedSel.appendChild(blank);
+      for (const nr of namedRanges) {
+        const nm = (nr.name || "").trim();
+        if (!nm) continue;
+        const o = document.createElement("option");
+        o.value = nm;
+        o.textContent = nm;
+        namedSel.appendChild(o);
+      }
+      namedSel.value = s.namedRef || "";
+      namedSel.disabled = namedRanges.length === 0;
+      namedSel.addEventListener("change", () => {
+        s.namedRef = namedSel.value;
+        refreshGenerates(idx);
+      });
+      td.appendChild(namedSel);
     }
   }
 
@@ -658,10 +904,32 @@
         }
         entry.lo = lo;
         entry.hi = hi;
+      } else if (s.mode === "Named") {
+        // Drop silently if the user hasn't picked a name or picked one
+        // that's no longer defined — treat as Auto for that row.
+        if (!s.namedRef) return;
+        if (!namedRanges.find((nr) => (nr.name || "").trim() === s.namedRef)) {
+          return;
+        }
+        entry.namedRef = s.namedRef;
       }
       overrides.push(entry);
     });
     return { overrides, badRowIndices };
+  }
+
+  // Trim out empty / invalid named ranges before submit. Anything with
+  // a blank name or a definition that fails our loose validator is
+  // silently dropped — the user sees their bad input flagged inline.
+  function collectNamedRanges() {
+    return namedRanges
+      .map((nr) => ({
+        name: (nr.name || "").trim(),
+        definition: (nr.definition || "").trim(),
+      }))
+      .filter(
+        (nr) => isValidRangeName(nr.name) && isValidDefinition(nr.definition)
+      );
   }
 
   function renderError(text) {
@@ -710,7 +978,11 @@
       return;
     }
     renderError("");
-    vscode.postMessage({ command: "generate", overrides });
+    vscode.postMessage({
+      command: "generate",
+      overrides,
+      namedRanges: collectNamedRanges(),
+    });
   });
   document.getElementById("btn-cancel").addEventListener("click", () => {
     vscode.postMessage({ command: "cancel" });

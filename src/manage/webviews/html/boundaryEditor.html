@@ -26,6 +26,36 @@
         </div>
       </section>
       <section class="inputs-pane" aria-label="Inputs">
+        <div class="named-section" id="named-section">
+          <div class="named-header">
+            <button
+              type="button"
+              id="named-toggle"
+              class="named-toggle"
+              aria-expanded="true"
+              title="Show / hide named ranges"
+            >
+              <span class="caret">▾</span>
+              <span class="pane-title">Named ranges</span>
+              <span id="named-count" class="row-count-pill"></span>
+            </button>
+            <button
+              type="button"
+              id="named-add"
+              class="secondary named-add"
+              title="Define a new named range"
+            >+ Add</button>
+          </div>
+          <div class="named-body" id="named-body">
+            <table class="named-table" id="named-table">
+              <tbody id="named-tbody"></tbody>
+            </table>
+            <p id="named-empty" class="named-empty-msg">
+              No named ranges yet. Click <strong>+ Add</strong> to define
+              one (e.g. <code>fast = [30, 120]</code>).
+            </p>
+          </div>
+        </div>
         <div class="pane-header">
           <span class="pane-title">Inputs</span>
           <span id="row-count" class="row-count-pill"></span>

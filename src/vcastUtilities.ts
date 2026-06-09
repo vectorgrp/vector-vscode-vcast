@@ -962,11 +962,14 @@ export function parseBoundaryMappingCsv(
 
 export interface BoundaryOverride {
   rowIndex: number;
-  mode: "Auto" | "Fixed" | "Range";
+  mode: "Auto" | "Fixed" | "Range" | "Named";
   skipAdj: boolean;
   value: string;
   lo: string;
   hi: string;
+  // When mode === "Named", the name of a defined NamedRange. Empty
+  // string for the other modes.
+  namedRef?: string;
 }
 
 // Quote a CSV field per RFC 4180 if it contains comma, newline or quote.
@@ -984,14 +987,20 @@ function boundaryTypeForOverride(o: BoundaryOverride): string {
   return "<AUTO_GENERATE>";
 }
 
-// ─── Override persistence ─────────────────────────────────────────────
+// ─── Persistence ──────────────────────────────────────────────────────
 //
-// We snapshot the user's overrides into .bp-sheets/overrides.json so a
-// re-run of "Generate Boundary Tests for Unit" pre-populates the
-// editor with last time's choices. The key is the (origFile, scope,
-// nodeStr) triple, which survives row reordering if the source is
-// edited. Rows that no longer match (e.g. you renamed a variable) are
-// silently dropped on load.
+// We snapshot the user's editor state into .bp-sheets/overrides.json so
+// a re-run of "Generate Boundary Tests for Unit" pre-populates the
+// editor with last time's choices. Two pieces are persisted:
+//
+//   - per-row overrides, keyed by (origFile, scope, nodeStr) so they
+//     survive row reordering when the source is edited;
+//   - named ranges, a flat array of { name, definition } that map onto
+//     pyatg's Boundaries.csv on stage 2.
+//
+// The file historically contained just the override array; the new
+// shape is { namedRanges, overrides }. The loader accepts both so old
+// .bp-sheets dirs continue to work.
 
 const OVERRIDES_FILENAME = "overrides.json";
 
@@ -999,78 +1008,121 @@ interface PersistedOverride {
   origFile: string;
   scope: string;
   nodeStr: string;
-  mode: "Auto" | "Fixed" | "Range";
+  mode: "Auto" | "Fixed" | "Range" | "Named";
   skipAdj: boolean;
   value: string;
   lo: string;
   hi: string;
+  namedRef?: string;
 }
 
-export function loadPersistedOverrides(
+export interface NamedRange {
+  name: string;
+  definition: string;
+}
+
+export interface PersistedState {
+  overrides: BoundaryOverride[];
+  namedRanges: NamedRange[];
+}
+
+export function loadPersistedState(
   sheetDir: string,
   rows: BoundaryMappingRow[]
-): BoundaryOverride[] {
+): PersistedState {
   const filePath = path.join(sheetDir, OVERRIDES_FILENAME);
-  if (!fs.existsSync(filePath)) return [];
+  const empty: PersistedState = { overrides: [], namedRanges: [] };
+  if (!fs.existsSync(filePath)) return empty;
 
-  let raw: PersistedOverride[];
+  let parsed: any;
   try {
-    const text = fs.readFileSync(filePath, "utf8");
-    raw = JSON.parse(text);
-    if (!Array.isArray(raw)) return [];
+    parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
-    return [];
+    return empty;
   }
 
-  // Index rows by their identity triple so we can resolve the
-  // persisted entries back to current row positions.
+  // Forward-compat: accept both the old plain-array form and the new
+  // object form.
+  const rawOverrides: PersistedOverride[] = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed.overrides)
+      ? parsed.overrides
+      : [];
+  const rawNamed: NamedRange[] =
+    parsed && Array.isArray(parsed.namedRanges) ? parsed.namedRanges : [];
+
   const indexByKey = new Map<string, number>();
   rows.forEach((r, idx) => {
     indexByKey.set(`${r.origFile}\x00${r.scope}\x00${r.nodeStr}`, idx);
   });
 
-  const out: BoundaryOverride[] = [];
-  for (const entry of raw) {
+  const overrides: BoundaryOverride[] = [];
+  for (const entry of rawOverrides) {
     const idx = indexByKey.get(
       `${entry.origFile}\x00${entry.scope}\x00${entry.nodeStr}`
     );
     if (idx === undefined) continue;
-    out.push({
+    overrides.push({
       rowIndex: idx,
       mode: entry.mode,
       skipAdj: !!entry.skipAdj,
       value: entry.value || "",
       lo: entry.lo || "",
       hi: entry.hi || "",
+      namedRef: entry.namedRef || "",
     });
   }
-  return out;
+
+  const namedRanges = rawNamed
+    .filter((nr) => nr && typeof nr.name === "string")
+    .map((nr) => ({
+      name: String(nr.name),
+      definition: String(nr.definition || ""),
+    }));
+
+  return { overrides, namedRanges };
 }
 
-export function savePersistedOverrides(
+export function savePersistedState(
+  sheetDir: string,
+  rows: BoundaryMappingRow[],
+  overrides: BoundaryOverride[],
+  namedRanges: NamedRange[]
+): void {
+  const persistedOverrides: PersistedOverride[] = [];
+  for (const o of overrides) {
+    const r = rows[o.rowIndex];
+    if (!r) continue;
+    persistedOverrides.push({
+      origFile: r.origFile,
+      scope: r.scope,
+      nodeStr: r.nodeStr,
+      mode: o.mode,
+      skipAdj: o.skipAdj,
+      value: o.value,
+      lo: o.lo,
+      hi: o.hi,
+      namedRef: o.namedRef || "",
+    });
+  }
+  const payload = {
+    namedRanges,
+    overrides: persistedOverrides,
+  };
+  const filePath = path.join(sheetDir, OVERRIDES_FILENAME);
+  fs.writeFileSync(filePath, JSON.stringify(payload, null, 2) + "\n", "utf8");
+}
+
+// Back-compat shim for callers that still import the old names.
+export const loadPersistedOverrides = (
+  sheetDir: string,
+  rows: BoundaryMappingRow[]
+) => loadPersistedState(sheetDir, rows).overrides;
+export const savePersistedOverrides = (
   sheetDir: string,
   rows: BoundaryMappingRow[],
   overrides: BoundaryOverride[]
-): void {
-  const persisted: PersistedOverride[] = overrides
-    .map((o) => {
-      const r = rows[o.rowIndex];
-      if (!r) return null;
-      return {
-        origFile: r.origFile,
-        scope: r.scope,
-        nodeStr: r.nodeStr,
-        mode: o.mode,
-        skipAdj: o.skipAdj,
-        value: o.value,
-        lo: o.lo,
-        hi: o.hi,
-      };
-    })
-    .filter((x): x is PersistedOverride => x !== null);
-  const filePath = path.join(sheetDir, OVERRIDES_FILENAME);
-  fs.writeFileSync(filePath, JSON.stringify(persisted, null, 2) + "\n", "utf8");
-}
+) => savePersistedState(sheetDir, rows, overrides, []);
 
 export function writeManualInputsXlsx(
   sheetDir: string,

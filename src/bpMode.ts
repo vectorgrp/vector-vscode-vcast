@@ -13,12 +13,13 @@ import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import {
   BoundaryMappingRow,
   BoundaryOverride,
+  NamedRange,
   findEnviroForSourceFile,
   getBoundaryStageOneCommand,
   getBoundaryStageTwoCommand,
-  loadPersistedOverrides,
+  loadPersistedState,
   parseBoundaryMappingCsv,
-  savePersistedOverrides,
+  savePersistedState,
   writeManualInputsXlsx,
 } from "./vcastUtilities";
 
@@ -85,13 +86,14 @@ export class BPModeManager {
       );
       return;
     }
-    const savedOverrides = loadPersistedOverrides(sheetDir, rows);
+    const saved = loadPersistedState(sheetDir, rows);
     this.openReviewPanel(context, {
       sourceFile,
       enviroPath,
       sheetDir,
       rows,
-      savedOverrides,
+      savedOverrides: saved.overrides,
+      savedNamedRanges: saved.namedRanges,
     });
   }
 
@@ -126,6 +128,7 @@ export class BPModeManager {
       sheetDir: string;
       rows: BoundaryMappingRow[];
       savedOverrides: BoundaryOverride[];
+      savedNamedRanges: NamedRange[];
     }
   ): void {
     if (this.currentPanel) {
@@ -152,7 +155,10 @@ export class BPModeManager {
         const overrides: BoundaryOverride[] = Array.isArray(msg.overrides)
           ? msg.overrides
           : [];
-        await this.runStageTwo(state, overrides);
+        const namedRanges: NamedRange[] = Array.isArray(msg.namedRanges)
+          ? msg.namedRanges
+          : [];
+        await this.runStageTwo(state, overrides, namedRanges);
         panel.dispose();
       } else if (msg.command === "cancel") {
         panel.dispose();
@@ -173,6 +179,7 @@ export class BPModeManager {
       sheetDir: string;
       rows: BoundaryMappingRow[];
       savedOverrides: BoundaryOverride[];
+      savedNamedRanges: NamedRange[];
     }
   ): string {
     const resourceRoot = vscode.Uri.joinPath(
@@ -214,6 +221,7 @@ export class BPModeManager {
       sheetDir: state.sheetDir,
       rows: state.rows,
       savedOverrides: state.savedOverrides,
+      savedNamedRanges: state.savedNamedRanges,
       sourceContent,
     };
     return template
@@ -230,13 +238,15 @@ export class BPModeManager {
       sheetDir: string;
       rows: BoundaryMappingRow[];
       savedOverrides: BoundaryOverride[];
+      savedNamedRanges: NamedRange[];
     },
-    overrides: BoundaryOverride[]
+    overrides: BoundaryOverride[],
+    namedRanges: NamedRange[]
   ): Promise<void> {
     // Persist the user's choices so a re-run pre-populates the editor.
-    // Save unconditionally (including the empty list) so an explicit
-    // clear is also captured.
-    savePersistedOverrides(state.sheetDir, state.rows, overrides);
+    // Save unconditionally (including empty lists) so an explicit
+    // clear is captured.
+    savePersistedState(state.sheetDir, state.rows, overrides, namedRanges);
 
     // If any overrides are present, switch pyatg into manual mode:
     // overwrite inputs.xlsx with the 8-column manual form and create
