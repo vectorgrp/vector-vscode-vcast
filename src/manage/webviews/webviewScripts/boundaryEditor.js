@@ -21,19 +21,23 @@
   srcFilenameEl.textContent = (payload.sourceFile || "").split("/").pop() || "";
 
   // Build click-to-jump indices for the source pane.
-  //   pathToRowIndex maps a fully-qualified dotted path → row index
-  //     (e.g. "pt.x" → its own row). Array suffixes are stripped, so
-  //     "arr[*]" indexes as "arr".
-  //   rootToRowIndex maps a bare root identifier → first matching row
-  //     (e.g. "pt" → the first pt.* row). Used as a fall-back when no
-  //     longer dotted match exists.
+  //   pathToRowIndex maps a normalised path (with bracket contents
+  //     replaced by [*]) → row index. So "arr[*]" stays "arr[*]" and
+  //     "arr" stays "arr"; they get separate entries.
+  //   rootToRowIndex maps a bare root identifier → first matching row.
+  //     Used only as a fall-back when no full path matches.
+  // Normalisation: pyatg writes `arr[*]` for the element-wildcard and
+  // also `arr[0]` for fixed-index overrides; we collapse both to the
+  // wildcard form so a source occurrence of `arr[3]` matches `arr[*]`.
+  function normalisePath(s) {
+    return (s || "").replace(/\[[^\]]*\]/g, "[*]");
+  }
   const pathToRowIndex = new Map();
   const rootToRowIndex = new Map();
   payload.rows.forEach((row, idx) => {
-    const ns = row.nodeStr || "";
-    const path = ns.replace(/\[[^\]]*\]/g, "");
-    if (path && !pathToRowIndex.has(path)) pathToRowIndex.set(path, idx);
-    const root = (path.match(/^[A-Za-z_]\w*/) || [])[0];
+    const key = normalisePath(row.nodeStr);
+    if (key && !pathToRowIndex.has(key)) pathToRowIndex.set(key, idx);
+    const root = (key.match(/^[A-Za-z_]\w*/) || [])[0];
     if (root && !rootToRowIndex.has(root)) rootToRowIndex.set(root, idx);
   });
 
@@ -91,10 +95,11 @@
     span.textContent = text;
     td.appendChild(span);
   }
-  // pushIdent renders one identifier token (bare or dotted). Keywords
-  // and primitive types take precedence over click-jump (no underlining
-  // of `int` or `struct`). Otherwise: if a row matches this exact text,
-  // make it clickable; if not, fall back to plain text.
+  // Render one bare identifier (no extension). Keywords / primitive
+  // types take precedence over click-jump (we never underline `int`
+  // or `struct`). Path lookup goes through normalisePath so e.g. a
+  // raw `arr` in source still matches an `arr` row, but if no full
+  // match exists falls back to the bare root.
   function pushIdent(td, text) {
     if (C_KEYWORDS.has(text)) {
       pushSpan(td, "tok-keyword", text);
@@ -104,21 +109,44 @@
       pushSpan(td, "tok-type", text);
       return;
     }
-    const rowIndex = pathToRowIndex.has(text)
-      ? pathToRowIndex.get(text)
+    const norm = normalisePath(text);
+    const rowIndex = pathToRowIndex.has(norm)
+      ? pathToRowIndex.get(norm)
       : rootToRowIndex.has(text)
         ? rootToRowIndex.get(text)
         : null;
     if (rowIndex !== null) {
-      const span = document.createElement("span");
-      span.className = "src-ident";
-      span.textContent = text;
-      span.dataset.rowIndex = String(rowIndex);
-      span.addEventListener("click", onIdentifierClick);
-      td.appendChild(span);
+      pushClickableIdent(td, text, rowIndex);
     } else {
       pushText(td, text);
     }
+  }
+
+  // Render an already-resolved clickable identifier span. Used by the
+  // lexer when it has done its own longest-match lookup and just needs
+  // to emit the result.
+  function pushClickableIdent(td, text, rowIndex) {
+    const span = document.createElement("span");
+    span.className = "src-ident";
+    span.textContent = text;
+    span.dataset.rowIndex = String(rowIndex);
+    span.addEventListener("click", onIdentifierClick);
+    td.appendChild(span);
+  }
+
+  // Consume `[...]` starting at `start`, with nesting. Returns the
+  // index just past the matching `]`, or `start` if line[start] isn't
+  // `[`. Doesn't handle `]` inside strings — fine for typical C.
+  function consumeBracketed(line, start) {
+    if (line[start] !== "[") return start;
+    let k = start + 1;
+    let depth = 1;
+    while (k < line.length && depth > 0) {
+      if (line[k] === "[") depth += 1;
+      else if (line[k] === "]") depth -= 1;
+      k += 1;
+    }
+    return k;
   }
 
   function renderCodeLine(td, line, inBlockComment) {
@@ -210,43 +238,47 @@
         i = j;
         continue;
       }
-      // Identifier — optionally extended through .field accesses so
-      // that pt.x is recognised as one clickable span (matching the
-      // pt.x row) rather than `pt` + `.x`. Longest dotted match wins;
-      // if no full dotted path matches a row, we fall back to the
-      // shortest sequence (bare ident only).
+      // Identifier — optionally extended through `[...]` and `.field`
+      // accesses so that `arr[0]` is one clickable span pointing at
+      // the arr[*] row, and `pt.x` is one span at the pt.x row.
+      // Longest match wins; we record each candidate end and walk
+      // back through them until one normalises to a known path.
       if (/[A-Za-z_]/.test(c)) {
         let j = i + 1;
         while (j < n && /[A-Za-z0-9_]/.test(line[j])) j += 1;
+        // Optional bracketed index right after the bare identifier.
+        j = consumeBracketed(line, j);
 
-        // Capture segment end positions so we can shrink back if the
-        // full path doesn't match any row.
         const ends = [j];
-        let k = j;
-        while (k < n && line[k] === ".") {
-          const sStart = k + 1;
-          if (sStart >= n || !/[A-Za-z_]/.test(line[sStart])) break;
-          let sEnd = sStart + 1;
-          while (sEnd < n && /[A-Za-z0-9_]/.test(line[sEnd])) sEnd += 1;
-          ends.push(sEnd);
-          k = sEnd;
+        let cursor = j;
+        while (cursor < n && line[cursor] === ".") {
+          const segStart = cursor + 1;
+          if (segStart >= n || !/[A-Za-z_]/.test(line[segStart])) break;
+          let segEnd = segStart + 1;
+          while (segEnd < n && /[A-Za-z0-9_]/.test(line[segEnd])) segEnd += 1;
+          segEnd = consumeBracketed(line, segEnd);
+          ends.push(segEnd);
+          cursor = segEnd;
         }
 
-        // Longest-first match.
-        let consumed = j;
+        // Longest-first lookup via normalised path.
+        let consumed = -1;
         for (let depth = ends.length; depth >= 1; depth -= 1) {
           const end = ends[depth - 1];
-          const candidate = line.slice(i, end);
-          if (pathToRowIndex.has(candidate)) {
-            pushIdent(td, candidate);
+          const literal = line.slice(i, end);
+          const norm = normalisePath(literal);
+          if (pathToRowIndex.has(norm)) {
+            pushClickableIdent(td, literal, pathToRowIndex.get(norm));
             consumed = end;
             break;
           }
         }
-        if (consumed === j) {
-          // No dotted match — fall back to bare ident (pushIdent will
-          // still root-match if applicable).
-          pushIdent(td, line.slice(i, j));
+        if (consumed < 0) {
+          // No dotted/bracketed match — emit just the bare ident and
+          // let pushIdent decide (root fallback or plain text).
+          const bareEnd = i + (line.slice(i).match(/^[A-Za-z_]\w*/) || [""])[0].length;
+          pushIdent(td, line.slice(i, bareEnd));
+          consumed = bareEnd;
         }
         i = consumed;
         continue;
