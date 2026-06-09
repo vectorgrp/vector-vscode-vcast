@@ -981,9 +981,12 @@ function csvField(value: string): string {
 }
 
 // Translate a webview override into the boundary_type cell pyatg reads.
+// Named-mode rows reference a class defined in Boundaries.csv by bare
+// name; the other modes use inline values.
 function boundaryTypeForOverride(o: BoundaryOverride): string {
   if (o.mode === "Fixed") return o.value;
   if (o.mode === "Range") return `[${o.lo}, ${o.hi}]`;
+  if (o.mode === "Named") return o.namedRef || "<AUTO_GENERATE>";
   return "<AUTO_GENERATE>";
 }
 
@@ -1127,7 +1130,8 @@ export const savePersistedOverrides = (
 export function writeManualInputsXlsx(
   sheetDir: string,
   rows: BoundaryMappingRow[],
-  overrides: BoundaryOverride[]
+  overrides: BoundaryOverride[],
+  namedRanges: NamedRange[] = []
 ): { inputsPath: string; boundariesPath: string } {
   // IMPORTANT: emit ONLY the overridden rows. If we also include
   // <AUTO_GENERATE> rows for the non-overridden ones, pyatg's
@@ -1167,11 +1171,23 @@ export function writeManualInputsXlsx(
   // first as xlsx, fails, falls back to CSV.
   fs.writeFileSync(inputsPath, lines.join("\n") + (lines.length ? "\n" : ""), "utf8");
 
-  // Empty Boundaries.csv: its presence is what flips pyatg into manual
-  // mode. No named classes are needed — we write inline range values
-  // directly into the boundary_type column above.
+  // Boundaries.csv: 3-column file (name, definition, remarks). pyatg
+  // looks it up to resolve a name in the inputs row's boundary_type
+  // column. Multi-line definitions (bundles like
+  // "reverse=[-10,0]\nslow=[0,10]") are CSV-quoted by csvField().
+  // An empty file still flips pyatg into manual mode, which is what
+  // we want when the user only uses inline values.
   const boundariesPath = path.join(sheetDir, "Boundaries.csv");
-  fs.writeFileSync(boundariesPath, "", "utf8");
+  const boundaryLines = namedRanges
+    .filter((nr) => nr.name.trim() !== "" && nr.definition.trim() !== "")
+    .map((nr) =>
+      [csvField(nr.name.trim()), csvField(nr.definition), ""].join(",")
+    );
+  fs.writeFileSync(
+    boundariesPath,
+    boundaryLines.join("\n") + (boundaryLines.length ? "\n" : ""),
+    "utf8"
+  );
 
   return { inputsPath, boundariesPath };
 }

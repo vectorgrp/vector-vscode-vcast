@@ -370,17 +370,27 @@
     return true;
   }
 
-  // Loose mirror of pyatg's is_inline(): the definition can be a
-  // numeric / hex / signed literal, a range with brackets, or a
-  // bundled form that contains `=`. We don't validate the inner
-  // structure of the bundle; pyatg will diagnose if it's malformed.
+  // A definition is acceptable if at least one line parses as a value
+  // or a [lo, hi] range, OR if it contains `=` (the bundle form). We
+  // don't deeply validate bundle structure; pyatg diagnoses malformed
+  // entries at stage 2.
   function isValidDefinition(s) {
     const t = (s || "").trim();
     if (t === "") return false;
     if (parseValue(t) !== null) return true;
-    if (/^\[.*\]$/.test(t)) return true;
-    if (/=/.test(t)) return true;
+    if (parseRangeBrackets(t)) return true;
+    if (t.includes("=")) return true;
+    // Multi-line: any non-blank line is a value or a range?
+    const lines = t.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    if (lines.length > 1) return true;
     return false;
+  }
+
+  // Resize a textarea to fit its content (1 row min, grows with line
+  // count). Avoids the user having to drag the resize handle.
+  function resizeTextarea(ta) {
+    ta.style.height = "auto";
+    ta.style.height = (ta.scrollHeight || ta.offsetHeight || 22) + "px";
   }
 
   // Parse "[lo, hi]" with integer / hex / signed endpoints. Returns
@@ -395,6 +405,41 @@
     const hi = parseValue(m[2]);
     if (lo === null || hi === null) return null;
     return { lo: Number(lo), hi: Number(hi) };
+  }
+
+  // Parse a definition string into a list of sub-ranges. Each line can
+  // be a bare "[lo, hi]" / value, or pyatg's "name=value" bundle form.
+  // Empty / unparseable lines become null entries (skipped by callers).
+  //   "[10, 100]"                -> [ {lo:10, hi:100} ]
+  //   "42"                       -> [ {value:42} ]
+  //   "fast=[30, 120]"           -> [ {name:"fast", lo:30, hi:120} ]
+  //   "rev=[-10, 0]\nslow=[0,10]"-> [ {name:"rev",...}, {name:"slow",...} ]
+  function parseBundle(def) {
+    const lines = (def || "").split(/\r?\n/);
+    const out = [];
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (line === "") continue;
+      let rest = line;
+      let subName = null;
+      const eq = line.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/);
+      if (eq) {
+        subName = eq[1];
+        rest = eq[2].trim();
+      }
+      const rg = parseRangeBrackets(rest);
+      if (rg) {
+        out.push({ name: subName, lo: rg.lo, hi: rg.hi });
+        continue;
+      }
+      const v = parseValue(rest);
+      if (v !== null) {
+        out.push({ name: subName, value: Number(v) });
+        continue;
+      }
+      out.push(null);
+    }
+    return out;
   }
 
   // Return the set of namedRanges indices that share at least one
@@ -454,15 +499,19 @@
 
       const defTd = document.createElement("td");
       defTd.className = "named-def";
-      const defInp = document.createElement("input");
+      const defInp = document.createElement("textarea");
       defInp.className = "named-def-input";
-      defInp.placeholder = "[lo, hi]   or   42   or   A=10\\nB=20";
+      defInp.rows = 1;
+      defInp.spellcheck = false;
+      defInp.placeholder = "[lo, hi]   or   reverse=[-10,0]⏎slow=[0,10]";
       defInp.value = nr.definition;
+      resizeTextarea(defInp);
       defInp.addEventListener("input", () => {
         nr.definition = defInp.value;
         const t = defInp.value.trim();
         const bad = t !== "" && !isValidDefinition(t);
         defInp.classList.toggle("invalid", bad);
+        resizeTextarea(defInp);
         fireNamedChanged();
       });
       defTd.appendChild(defInp);
@@ -585,19 +634,24 @@
       if (!nr) {
         return { text: `(undefined: ${s.namedRef})`, isModified: true };
       }
-      const rg = parseRangeBrackets(nr.definition);
-      if (rg) {
-        values = s.skipAdj
-          ? [rg.lo, rg.hi]
-          : [rg.lo - 1, rg.lo, rg.lo + 1, rg.hi - 1, rg.hi, rg.hi + 1];
-      } else {
-        const v = parseValue((nr.definition || "").trim());
-        if (v !== null) {
-          const n = Number(v);
-          values = s.skipAdj ? [n] : [n - 1, n, n + 1];
-        } else {
-          // Bundle (A=10\nB=20) or unparseable — show the literal text.
-          return { text: nr.definition.trim() || "(empty)", isModified: true };
+      // Parse the definition as a (possibly multi-line) bundle. Each
+      // sub-range contributes its boundary cluster; formatValueSet
+      // unions and adds `…` between non-contiguous clusters.
+      const subs = parseBundle(nr.definition);
+      const parseable = subs.filter((x) => x !== null);
+      if (parseable.length === 0) {
+        const literal = (nr.definition || "").trim();
+        return { text: literal || "(empty)", isModified: true };
+      }
+      values = [];
+      for (const sub of parseable) {
+        if (sub.lo !== undefined) {
+          if (s.skipAdj) values.push(sub.lo, sub.hi);
+          else values.push(sub.lo - 1, sub.lo, sub.lo + 1,
+                           sub.hi - 1, sub.hi, sub.hi + 1);
+        } else if (sub.value !== undefined) {
+          if (s.skipAdj) values.push(sub.value);
+          else values.push(sub.value - 1, sub.value, sub.value + 1);
         }
       }
     }

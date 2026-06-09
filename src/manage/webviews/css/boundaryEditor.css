@@ -162,6 +162,14 @@ main {
   border-radius: 2px;
 }
 
+textarea.named-def-input {
+  resize: vertical;
+  line-height: 1.3;
+  min-height: 22px;
+  white-space: pre;
+  overflow-y: hidden;
+}
+
 .named-name-input.invalid,
 .named-def-input.invalid {
   border-color: var(--vscode-inputValidation-errorBorder, #d72) !important;

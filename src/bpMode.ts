@@ -248,19 +248,21 @@ export class BPModeManager {
     // clear is captured.
     savePersistedState(state.sheetDir, state.rows, overrides, namedRanges);
 
-    // If any overrides are present, switch pyatg into manual mode:
-    // overwrite inputs.xlsx with the 8-column manual form and create
-    // an empty Boundaries.csv (its presence is what flips the mode).
-    // Otherwise stay in autogen mode by deleting any stale Boundaries.csv.
+    // Manual mode is needed if there are per-row overrides OR named
+    // ranges to define. Otherwise stay in autogen mode by removing
+    // any stale Boundaries.csv (its presence is what pyatg keys on).
     const boundariesPath = path.join(state.sheetDir, "Boundaries.csv");
-    if (overrides.length > 0) {
+    const wantsManual = overrides.length > 0 || namedRanges.length > 0;
+    if (wantsManual) {
       const { boundariesPath: bp } = writeManualInputsXlsx(
         state.sheetDir,
         state.rows,
-        overrides
+        overrides,
+        namedRanges
       );
       vectorMessage(
-        `[BP] Manual mode: wrote ${overrides.length} override row(s); ${bp} present.`
+        `[BP] Manual mode: ${overrides.length} override row(s), ` +
+          `${namedRanges.length} named range(s); ${bp} present.`
       );
     } else {
       if (fs.existsSync(boundariesPath)) fs.unlinkSync(boundariesPath);
