@@ -36,32 +36,11 @@
     if (a && !anchorToRowIndex.has(a)) anchorToRowIndex.set(a, idx);
   });
 
-  const sourceText = typeof payload.sourceContent === "string"
-    ? payload.sourceContent
-    : "";
-  const lines = sourceText.split(/\r?\n/);
-  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
-  // Lexer state carries across lines for multi-line /* ... */ comments.
-  let inBlockComment = false;
-  lines.forEach((line, idx) => {
-    const tr = document.createElement("tr");
-    const numTd = document.createElement("td");
-    numTd.className = "lineno";
-    numTd.textContent = String(idx + 1);
-    const codeTd = document.createElement("td");
-    codeTd.className = "codeline";
-    inBlockComment = renderCodeLine(codeTd, line, inBlockComment);
-    tr.appendChild(numTd);
-    tr.appendChild(codeTd);
-    srcBody.appendChild(tr);
-  });
-
-  // ── Tiny C/C++ lexer ───────────────────────────────────────────────
-  // Not a full grammar — just enough to colour keywords, types,
-  // strings, chars, numbers, comments, preprocessor directives, and to
-  // keep identifier click-handlers intact for inputs. Returns the new
-  // in-block-comment state so multi-line /* ... */ comments survive
-  // line breaks.
+  // ── Tiny C/C++ lexer (keyword/type sets) ──────────────────────────
+  // Declared *before* the source-rendering loop, because renderCodeLine
+  // -> pushIdent reads them and the loop fires immediately. `const`
+  // declarations are in the temporal dead zone until the line that
+  // declares them is reached.
 
   const C_KEYWORDS = new Set([
     "auto", "break", "case", "const", "continue", "default", "do",
@@ -81,6 +60,26 @@
     "uint8_t", "uint16_t", "uint32_t", "uint64_t",
     "intptr_t", "uintptr_t", "FILE", "wchar_t",
   ]);
+
+  const sourceText = typeof payload.sourceContent === "string"
+    ? payload.sourceContent
+    : "";
+  const lines = sourceText.split(/\r?\n/);
+  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  // Lexer state carries across lines for multi-line /* ... */ comments.
+  let inBlockComment = false;
+  lines.forEach((line, idx) => {
+    const tr = document.createElement("tr");
+    const numTd = document.createElement("td");
+    numTd.className = "lineno";
+    numTd.textContent = String(idx + 1);
+    const codeTd = document.createElement("td");
+    codeTd.className = "codeline";
+    inBlockComment = renderCodeLine(codeTd, line, inBlockComment);
+    tr.appendChild(numTd);
+    tr.appendChild(codeTd);
+    srcBody.appendChild(tr);
+  });
 
   function pushText(td, text) {
     if (text) td.appendChild(document.createTextNode(text));
