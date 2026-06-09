@@ -118,31 +118,33 @@ table.source-table td.codeline {
   white-space: pre;
 }
 
-/* Token colours — pull from the active VS Code theme where possible
-   (semantic token colours), with sensible fallbacks for light/dark. */
-.tok-keyword {
-  color: var(--vscode-symbolIcon-keywordForeground, #c586c0);
-}
-.tok-type {
-  color: var(--vscode-symbolIcon-typeParameterForeground, #4ec9b0);
-}
-.tok-string {
-  color: var(--vscode-debugTokenExpression-string, #ce9178);
-}
-.tok-number {
-  color: var(--vscode-debugTokenExpression-number, #b5cea8);
-}
-.tok-comment {
-  color: var(--vscode-editorLineNumber-foreground, #6a9955);
-  font-style: italic;
-}
-.tok-preproc {
-  color: var(--vscode-debugTokenExpression-name, #569cd6);
-}
-.tok-punct {
-  color: var(--vscode-foreground);
-  opacity: 0.85;
-}
+/* Token colours.
+   Webviews only get a small subset of VS Code theme CSS variables —
+   the symbolIcon/* / debugTokenExpression/* names we tried first turn
+   out NOT to be exposed, so var() resolved to empty and the fallback
+   never fired. Two explicit palettes (Dark+/Light+) keyed off the
+   body class VS Code sets on every webview. */
+.tok-keyword { color: #c586c0; }
+.tok-type    { color: #4ec9b0; }
+.tok-string  { color: #ce9178; }
+.tok-number  { color: #b5cea8; }
+.tok-comment { color: #6a9955; font-style: italic; }
+.tok-preproc { color: #569cd6; }
+.tok-punct   { opacity: 0.85; }
+
+body.vscode-light .tok-keyword { color: #af00db; }
+body.vscode-light .tok-type    { color: #267f99; }
+body.vscode-light .tok-string  { color: #a31515; }
+body.vscode-light .tok-number  { color: #098658; }
+body.vscode-light .tok-comment { color: #008000; }
+body.vscode-light .tok-preproc { color: #0451a5; }
+
+body.vscode-high-contrast .tok-keyword { color: #569cd6; }
+body.vscode-high-contrast .tok-type    { color: #4ec9b0; }
+body.vscode-high-contrast .tok-string  { color: #ce9178; }
+body.vscode-high-contrast .tok-number  { color: #b5cea8; }
+body.vscode-high-contrast .tok-comment { color: #7ca668; }
+body.vscode-high-contrast .tok-preproc { color: #569cd6; }
 
 .src-ident {
   cursor: pointer;
