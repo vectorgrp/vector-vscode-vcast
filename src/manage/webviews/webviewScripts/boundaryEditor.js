@@ -387,7 +387,30 @@
         ? [lN, hN]
         : [lN - 1, lN, lN + 1, hN - 1, hN, hN + 1];
     }
-    return { text: values.join(", "), isModified: true };
+    return { text: formatValueSet(values), isModified: true };
+  }
+
+  // Render a list of integer boundary values compactly. Deduplicates
+  // (a Range like [0, 2] would otherwise emit 1 twice — lo+1 and
+  // hi-1 collide) and inserts `…` between values that aren't
+  // arithmetically adjacent so wide ranges stay scannable.
+  // Examples:
+  //   [-1, 0, 1, 2, 3, 4]                  → "-1, 0, 1, 2, 3, 4"
+  //   [-1, 0, 1, 99, 100, 101]             → "-1, 0, 1, …, 99, 100, 101"
+  //   [-1, 0, 1, 1, 2, 3]                  → "-1, 0, 1, 2, 3"
+  function formatValueSet(values) {
+    if (!values || values.length === 0) return "";
+    const sorted = Array.from(new Set(values)).sort((a, b) => a - b);
+    if (sorted.length === 1) return String(sorted[0]);
+    // For a solo pair (Auto, or Range+skipAdj) treat them as two
+    // distinct points, not a range with omitted middle.
+    if (sorted.length === 2) return sorted.join(", ");
+    const parts = [String(sorted[0])];
+    for (let k = 1; k < sorted.length; k += 1) {
+      if (sorted[k] - sorted[k - 1] > 1) parts.push("…");
+      parts.push(String(sorted[k]));
+    }
+    return parts.join(", ");
   }
 
   // Mouseenter/leave handlers used by every input row to highlight
