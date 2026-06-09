@@ -77,77 +77,162 @@ main {
   color: var(--vscode-descriptionForeground);
 }
 
-.named-section {
-  border-bottom: 1px solid var(--vscode-panel-border, #444);
-  flex: 0 0 auto;
-}
-
-.named-header {
+/* Tab bar at the top of the right pane. VSCode-ish look: flat
+   buttons, active tab highlighted by a coloured underline. */
+.tab-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
+  flex: 0 0 auto;
+  align-items: stretch;
   background: var(--vscode-editorGroupHeader-tabsBackground, transparent);
+  border-bottom: 1px solid var(--vscode-panel-border, #444);
 }
 
-.named-toggle {
+.tab-btn {
   background: transparent;
   border: none;
-  padding: 2px 4px;
-  color: var(--vscode-foreground);
+  border-bottom: 2px solid transparent;
+  padding: 7px 14px;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--vscode-descriptionForeground);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.85rem;
-  text-align: left;
 }
 
-.named-toggle .caret {
-  width: 1ch;
-  display: inline-block;
-  text-align: center;
+.tab-btn:hover {
+  color: var(--vscode-foreground);
 }
 
+.tab-btn.active {
+  color: var(--vscode-foreground);
+  border-bottom-color: var(--vscode-focusBorder, var(--vscode-button-background));
+}
+
+.tab-pill {
+  font-size: 0.72rem;
+  color: var(--vscode-descriptionForeground);
+}
+
+.tab-btn.active .tab-pill {
+  color: var(--vscode-foreground);
+  opacity: 0.7;
+}
+
+.tab-pane {
+  display: none;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tab-pane.active {
+  display: flex;
+}
+
+/* Structured named-ranges editor (replaces the previous textarea
+   bundle). Each named range is a card; inside each card a sub-range
+   table with per-row Value/Range mode and inputs. */
 .named-add {
-  margin-left: auto;
-  padding: 2px 10px;
-  font-size: 0.78rem;
+  padding: 4px 12px;
+  font-size: 0.82rem;
+}
+
+.named-pane-header {
+  justify-content: space-between;
 }
 
 .named-body {
-  padding: 4px 14px 10px;
-  max-height: 32vh;
+  padding: 8px 14px 12px;
   overflow: auto;
+  flex: 1 1 auto;
 }
 
-.named-section.collapsed .named-body {
-  display: none;
+#named-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.named-table {
+.named-card {
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 4px;
+  padding: 10px 12px 12px;
+  background: var(--vscode-editorWidget-background, transparent);
+}
+
+.named-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.named-card-head .named-name-input {
+  width: 24ch;
+  flex: 0 0 auto;
+}
+
+.named-card-head .named-card-del {
+  margin-left: auto;
+}
+
+.sub-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
 }
 
-.named-table td {
+.sub-table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--vscode-descriptionForeground);
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--vscode-panel-border, #444);
+}
+
+.sub-table td {
   padding: 3px 6px;
   vertical-align: middle;
   border-bottom: none;
 }
 
-.named-table td.named-name {
-  width: 18ch;
+.sub-name-input {
+  width: 14ch;
 }
 
-.named-table td.named-def {
-  width: auto;
+.sub-mode-select {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.85rem;
+  padding: 1px 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border, #555));
+  border-radius: 2px;
 }
 
-.named-table td.named-actions {
-  width: 1%;
-  text-align: right;
+.sub-val-input {
+  width: 9ch;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border, #555));
+  border-radius: 2px;
+}
+
+.sub-val-input.invalid {
+  border-color: var(--vscode-inputValidation-errorBorder, #d72) !important;
+  background: var(--vscode-inputValidation-errorBackground, rgba(255, 0, 0, 0.1));
+}
+
+.sub-add {
+  margin-top: 6px;
+  padding: 2px 10px;
+  font-size: 0.78rem;
 }
 
 .named-name-input,

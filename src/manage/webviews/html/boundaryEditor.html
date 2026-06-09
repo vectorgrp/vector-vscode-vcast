@@ -26,39 +26,29 @@
         </div>
       </section>
       <section class="inputs-pane" aria-label="Inputs">
-        <div class="named-section" id="named-section">
-          <div class="named-header">
-            <button
-              type="button"
-              id="named-toggle"
-              class="named-toggle"
-              aria-expanded="true"
-              title="Show / hide named ranges"
-            >
-              <span class="caret">▾</span>
-              <span class="pane-title">Named ranges</span>
-              <span id="named-count" class="row-count-pill"></span>
-            </button>
-            <button
-              type="button"
-              id="named-add"
-              class="secondary named-add"
-              title="Define a new named range"
-            >+ Add</button>
-          </div>
-          <div class="named-body" id="named-body">
-            <table class="named-table" id="named-table">
-              <tbody id="named-tbody"></tbody>
-            </table>
-            <p id="named-empty" class="named-empty-msg">
-              No named ranges yet. Click <strong>+ Add</strong> to define
-              one (e.g. <code>fast = [30, 120]</code>).
-            </p>
-          </div>
+        <div class="tab-bar" role="tablist">
+          <button
+            type="button"
+            class="tab-btn active"
+            id="tab-inputs"
+            role="tab"
+            aria-selected="true"
+          >Inputs <span id="row-count" class="tab-pill"></span></button>
+          <button
+            type="button"
+            class="tab-btn"
+            id="tab-named"
+            role="tab"
+            aria-selected="false"
+          >Named ranges <span id="named-count" class="tab-pill"></span></button>
         </div>
+        <div
+          class="tab-pane active"
+          id="pane-inputs"
+          role="tabpanel"
+          aria-labelledby="tab-inputs"
+        >
         <div class="pane-header">
-          <span class="pane-title">Inputs</span>
-          <span id="row-count" class="row-count-pill"></span>
           <label class="details-toggle">
             <input type="checkbox" id="toggle-details" />
             Show details
@@ -84,6 +74,32 @@
             <tbody id="rows-body"></tbody>
           </table>
         </div>
+        </div><!-- /pane-inputs -->
+
+        <div
+          class="tab-pane"
+          id="pane-named"
+          role="tabpanel"
+          aria-labelledby="tab-named"
+        >
+          <div class="pane-header named-pane-header">
+            <span class="pane-title">Named ranges</span>
+            <button
+              type="button"
+              id="named-add"
+              class="primary named-add"
+              title="Define a new named range"
+            >+ Add named range</button>
+          </div>
+          <div class="named-body" id="named-body">
+            <div id="named-list"></div>
+            <p id="named-empty" class="named-empty-msg">
+              No named ranges yet. Click <strong>+ Add named range</strong>
+              to define one (e.g. <code>fast</code> containing
+              <code>[30, 120]</code>).
+            </p>
+          </div>
+        </div><!-- /pane-named -->
       </section>
     </main>
     <footer>

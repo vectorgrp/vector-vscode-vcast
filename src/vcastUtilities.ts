@@ -980,6 +980,35 @@ function csvField(value: string): string {
   return value;
 }
 
+// Serialise one structured named range back to the text definition
+// pyatg's Boundaries.csv expects:
+//   - 0 valid sub-ranges  -> ""  (caller skips emitting the row)
+//   - 1 sub-range, no sub-name -> bare "[lo, hi]" or "42"
+//   - everything else      -> bundle "subname=val\nsubname=val"
+//     (any missing sub-name auto-filled "<rangeName>_<index>"; pyatg
+//     refuses anonymous entries inside a bundle)
+function subRangeBare(s: SubRange): string {
+  if (s.mode === "Range") {
+    if (s.lo.trim() === "" || s.hi.trim() === "") return "";
+    return `[${s.lo.trim()}, ${s.hi.trim()}]`;
+  }
+  return s.value.trim();
+}
+
+function namedRangeToDefinition(nr: NamedRange): string {
+  const subs = (nr.subRanges || []).filter((s) => subRangeBare(s) !== "");
+  if (subs.length === 0) return "";
+  if (subs.length === 1 && subs[0].subName.trim() === "") {
+    return subRangeBare(subs[0]);
+  }
+  return subs
+    .map((s, i) => {
+      const subName = s.subName.trim() || `${nr.name.trim()}_${i}`;
+      return `${subName}=${subRangeBare(s)}`;
+    })
+    .join("\n");
+}
+
 // Translate a webview override into the boundary_type cell pyatg reads.
 // Named-mode rows reference a class defined in Boundaries.csv by bare
 // name; the other modes use inline values.
@@ -1019,9 +1048,21 @@ interface PersistedOverride {
   namedRef?: string;
 }
 
+// A named range is a top-level name and a list of structured sub-ranges.
+// Each sub-range is either a single value or a [lo, hi] range, with an
+// optional sub-name. Multi-sub bundles are pyatg's "name=value" form;
+// single-sub anonymous bundles render as the bare value/range.
+export interface SubRange {
+  subName: string;
+  mode: "Value" | "Range";
+  value: string;
+  lo: string;
+  hi: string;
+}
+
 export interface NamedRange {
   name: string;
-  definition: string;
+  subRanges: SubRange[];
 }
 
 export interface PersistedState {
@@ -1076,14 +1117,61 @@ export function loadPersistedState(
     });
   }
 
-  const namedRanges = rawNamed
-    .filter((nr) => nr && typeof nr.name === "string")
-    .map((nr) => ({
-      name: String(nr.name),
-      definition: String(nr.definition || ""),
-    }));
+  const namedRanges: NamedRange[] = rawNamed
+    .filter((nr: any) => nr && typeof nr.name === "string")
+    .map((nr: any) => {
+      // New structured form.
+      if (Array.isArray(nr.subRanges)) {
+        return {
+          name: String(nr.name),
+          subRanges: nr.subRanges.map((s: any) => normalizeSubRange(s)),
+        };
+      }
+      // Legacy form: { name, definition: "name=val\nname=val" or "[lo,hi]" }.
+      const subs = bundleStringToSubRanges(String(nr.definition || ""));
+      return { name: String(nr.name), subRanges: subs };
+    });
 
   return { overrides, namedRanges };
+}
+
+function normalizeSubRange(s: any): SubRange {
+  return {
+    subName: String((s && s.subName) || ""),
+    mode: s && s.mode === "Range" ? "Range" : "Value",
+    value: String((s && s.value) || ""),
+    lo: String((s && s.lo) || ""),
+    hi: String((s && s.hi) || ""),
+  };
+}
+
+// Convert a legacy text definition (`"name=value\nname=value"` or
+// `"[lo, hi]"` or `"42"`) into structured sub-range entries. Best-
+// effort: unparseable lines are kept as a Value entry holding the raw
+// text so the user can still see what was there and fix it up.
+function bundleStringToSubRanges(def: string): SubRange[] {
+  const lines = def.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+  const out: SubRange[] = [];
+  for (const line of lines) {
+    let subName = "";
+    let rest = line;
+    const eq = line.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/);
+    if (eq) {
+      subName = eq[1];
+      rest = eq[2].trim();
+    }
+    const range = rest.match(
+      /^\[\s*(-?\d+|0x[0-9a-fA-F]+)\s*,\s*(-?\d+|0x[0-9a-fA-F]+)\s*\]$/
+    );
+    if (range) {
+      out.push({ subName, mode: "Range", value: "", lo: range[1], hi: range[2] });
+      continue;
+    }
+    // Single value fallback (keeps even malformed text so user can fix).
+    out.push({ subName, mode: "Value", value: rest, lo: "", hi: "" });
+  }
+  return out;
 }
 
 export function savePersistedState(
@@ -1173,16 +1261,20 @@ export function writeManualInputsXlsx(
 
   // Boundaries.csv: 3-column file (name, definition, remarks). pyatg
   // looks it up to resolve a name in the inputs row's boundary_type
-  // column. Multi-line definitions (bundles like
-  // "reverse=[-10,0]\nslow=[0,10]") are CSV-quoted by csvField().
+  // column. Each named range's structured sub-ranges are flattened
+  // back to pyatg's text form: bare value/range for a single anonymous
+  // sub-range, or "name=value\nname=value" for multi-sub bundles.
   // An empty file still flips pyatg into manual mode, which is what
-  // we want when the user only uses inline values.
+  // we want when the user only uses inline overrides.
   const boundariesPath = path.join(sheetDir, "Boundaries.csv");
-  const boundaryLines = namedRanges
-    .filter((nr) => nr.name.trim() !== "" && nr.definition.trim() !== "")
-    .map((nr) =>
-      [csvField(nr.name.trim()), csvField(nr.definition), ""].join(",")
+  const boundaryLines: string[] = [];
+  for (const nr of namedRanges) {
+    const def = namedRangeToDefinition(nr);
+    if (nr.name.trim() === "" || def === "") continue;
+    boundaryLines.push(
+      [csvField(nr.name.trim()), csvField(def), ""].join(",")
     );
+  }
   fs.writeFileSync(
     boundariesPath,
     boundaryLines.join("\n") + (boundaryLines.length ? "\n" : ""),

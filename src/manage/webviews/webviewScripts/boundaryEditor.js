@@ -335,17 +335,57 @@
   }
 
   // ── Named ranges ─────────────────────────────────────────────────
-  // Defined once per unit, persisted alongside per-row overrides.
-  // Each entry is { name, definition }. The definition is a pyatg
-  // inline form: a number ("42"), hex ("0xff"), range ("[10, 100]"),
-  // signed ("-7"), or a bundled multi-line form ("A=10\nB=20").
-  // Stage 2 will write a Boundaries.csv with one 3-col row per entry
-  // and use the name as a reference in inputs.xlsx for Named rows.
+  // Each entry is structured:
+  //   { name, subRanges: [{ subName, mode: "Value"|"Range",
+  //                         value, lo, hi }, ...] }
+  // Sub-names are optional for a single-sub range; for multi-sub
+  // bundles the writer auto-fills any blank sub-name on stage 2.
+  // The loader normalises both forms (current structured + legacy
+  // textual { name, definition }) so old persistence files still work.
+  function migrateNamedRange(nr) {
+    if (!nr) return { name: "", subRanges: [] };
+    if (Array.isArray(nr.subRanges)) {
+      return {
+        name: String(nr.name || ""),
+        subRanges: nr.subRanges.map(normalizeSubRange),
+      };
+    }
+    return {
+      name: String(nr.name || ""),
+      subRanges: stringDefinitionToSubRanges(String(nr.definition || "")),
+    };
+  }
+  function normalizeSubRange(s) {
+    s = s || {};
+    return {
+      subName: String(s.subName || ""),
+      mode: s.mode === "Range" ? "Range" : "Value",
+      value: String(s.value || ""),
+      lo: String(s.lo || ""),
+      hi: String(s.hi || ""),
+    };
+  }
+  function stringDefinitionToSubRanges(def) {
+    const lines = def.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    const out = [];
+    for (const line of lines) {
+      let subName = "";
+      let rest = line;
+      const eq = line.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/);
+      if (eq) { subName = eq[1]; rest = eq[2].trim(); }
+      const range = rest.match(
+        /^\[\s*(-?\d+|0x[0-9a-fA-F]+)\s*,\s*(-?\d+|0x[0-9a-fA-F]+)\s*\]$/
+      );
+      if (range) {
+        out.push({ subName, mode: "Range", value: "", lo: range[1], hi: range[2] });
+      } else {
+        out.push({ subName, mode: "Value", value: rest, lo: "", hi: "" });
+      }
+    }
+    return out;
+  }
   const namedRanges = Array.isArray(payload.savedNamedRanges)
-    ? payload.savedNamedRanges.map((nr) => ({
-        name: String((nr && nr.name) || ""),
-        definition: String((nr && nr.definition) || ""),
-      }))
+    ? payload.savedNamedRanges.map(migrateNamedRange)
     : [];
 
   // Listeners fired whenever the namedRanges list changes shape or
@@ -370,35 +410,16 @@
     return true;
   }
 
-  // A definition is acceptable if at least one line parses as a value
-  // or a [lo, hi] range, OR if it contains `=` (the bundle form). We
-  // don't deeply validate bundle structure; pyatg diagnoses malformed
-  // entries at stage 2.
-  function isValidDefinition(s) {
-    const t = (s || "").trim();
-    if (t === "") return false;
-    if (parseValue(t) !== null) return true;
-    if (parseRangeBrackets(t)) return true;
-    if (t.includes("=")) return true;
-    // Multi-line: any non-blank line is a value or a range?
-    const lines = t.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
-    if (lines.length > 1) return true;
-    return false;
-  }
-
-  // Resize a textarea to fit its content (1 row min, grows with line
-  // count). When collapsed (CSS max-height = 22px) the JS height is
-  // capped automatically; expanding via :focus lifts the cap.
-  function resizeTextarea(ta) {
-    ta.style.height = "auto";
-    ta.style.height = (ta.scrollHeight || ta.offsetHeight || 22) + "px";
-  }
-
-  // Toggle the "▾ more" indicator on a named-def cell when the textarea
-  // content spans multiple lines (collapsed view hides the rest).
-  function updateHasMore(td, text) {
-    const multi = (text || "").includes("\n");
-    td.classList.toggle("has-more", multi);
+  // Mark a sub-range value/lo/hi input invalid when it doesn't parse
+  // as a number. Empty is OK (mid-typing, or just the wrong column).
+  function markSubInputValidity(inp) {
+    const v = inp.value.trim();
+    if (v === "") {
+      inp.classList.remove("invalid");
+      return;
+    }
+    const ok = parseValue(v) !== null;
+    inp.classList.toggle("invalid", !ok);
   }
 
   // Parse "[lo, hi]" with integer / hex / signed endpoints. Returns
@@ -415,171 +436,254 @@
     return { lo: Number(lo), hi: Number(hi) };
   }
 
-  // Parse a definition string into a list of sub-ranges. Each line can
-  // be a bare "[lo, hi]" / value, or pyatg's "name=value" bundle form.
-  // Empty / unparseable lines become null entries (skipped by callers).
-  //   "[10, 100]"                -> [ {lo:10, hi:100} ]
-  //   "42"                       -> [ {value:42} ]
-  //   "fast=[30, 120]"           -> [ {name:"fast", lo:30, hi:120} ]
-  //   "rev=[-10, 0]\nslow=[0,10]"-> [ {name:"rev",...}, {name:"slow",...} ]
-  function parseBundle(def) {
-    const lines = (def || "").split(/\r?\n/);
-    const out = [];
-    for (const raw of lines) {
-      const line = raw.trim();
-      if (line === "") continue;
-      let rest = line;
-      let subName = null;
-      const eq = line.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/);
-      if (eq) {
-        subName = eq[1];
-        rest = eq[2].trim();
-      }
-      const rg = parseRangeBrackets(rest);
-      if (rg) {
-        out.push({ name: subName, lo: rg.lo, hi: rg.hi });
-        continue;
-      }
-      const v = parseValue(rest);
-      if (v !== null) {
-        out.push({ name: subName, value: Number(v) });
-        continue;
-      }
-      out.push(null);
-    }
-    return out;
-  }
+  // (parseBundle removed — structured sub-ranges are used directly.)
 
-  // Return the set of namedRanges indices that share at least one
-  // endpoint with another. Only [lo, hi] form is checked; multi-line
-  // bundles are skipped (their structure varies).
-  function detectOverlaps() {
-    const parsed = namedRanges
-      .map((nr, idx) => {
-        const r = parseRangeBrackets(nr.definition);
-        return r ? { idx, lo: r.lo, hi: r.hi } : null;
-      })
-      .filter(Boolean);
-    const out = new Set();
-    for (let i = 0; i < parsed.length; i += 1) {
-      for (let j = i + 1; j < parsed.length; j += 1) {
-        const a = parsed[i];
-        const b = parsed[j];
+  // Numeric Range subs that overlap with another range's Range sub
+  // get an "overlaps" badge. We compare across all named ranges' Range
+  // subs in one flat pass so two ranges sharing an endpoint (e.g.
+  // slow=[0,10], medium=[10,30]) both light up. Value subs are
+  // ignored.
+  function detectOverlapRanges() {
+    const items = [];
+    namedRanges.forEach((nr, rIdx) => {
+      nr.subRanges.forEach((sub, sIdx) => {
+        if (sub.mode !== "Range") return;
+        const lo = parseValue(sub.lo);
+        const hi = parseValue(sub.hi);
+        if (lo === null || hi === null) return;
+        items.push({ rIdx, sIdx, lo: Number(lo), hi: Number(hi) });
+      });
+    });
+    const flagged = new Set();
+    for (let i = 0; i < items.length; i += 1) {
+      for (let j = i + 1; j < items.length; j += 1) {
+        const a = items[i], b = items[j];
         if (Math.max(a.lo, b.lo) <= Math.min(a.hi, b.hi)) {
-          out.add(a.idx);
-          out.add(b.idx);
+          flagged.add(`${a.rIdx}.${a.sIdx}`);
+          flagged.add(`${b.rIdx}.${b.sIdx}`);
         }
       }
     }
-    return out;
+    return flagged;
   }
 
   function renderNamedRanges() {
-    const tbody = document.getElementById("named-tbody");
+    const list = document.getElementById("named-list");
     const empty = document.getElementById("named-empty");
     const countPill = document.getElementById("named-count");
-    tbody.innerHTML = "";
-    const overlaps = detectOverlaps();
-    namedRanges.forEach((nr, idx) => {
-      const tr = document.createElement("tr");
-
-      const nameTd = document.createElement("td");
-      nameTd.className = "named-name";
-      const nameInp = document.createElement("input");
-      nameInp.className = "named-name-input";
-      nameInp.placeholder = "name";
-      nameInp.value = nr.name;
-      nameInp.addEventListener("input", () => {
-        nr.name = nameInp.value;
-        const t = nameInp.value.trim();
-        const dup = t !== "" &&
-          namedRanges.some((x, i) => i !== idx && x.name.trim() === t);
-        const bad = t !== "" && (!isValidRangeName(t) || dup);
-        nameInp.classList.toggle("invalid", bad);
-        nameInp.title = dup
-          ? "Another named range already uses this name."
-          : (bad
-            ? "Names must be a C-style identifier (letters, digits, _) and not a C keyword."
-            : "");
-        fireNamedChanged();
-      });
-      nameTd.appendChild(nameInp);
-
-      const defTd = document.createElement("td");
-      defTd.className = "named-def";
-      const defInp = document.createElement("textarea");
-      defInp.className = "named-def-input";
-      defInp.rows = 1;
-      defInp.spellcheck = false;
-      defInp.placeholder = "[lo, hi]   or   reverse=[-10,0]⏎slow=[0,10]";
-      defInp.value = nr.definition;
-      defInp.title = nr.definition;
-      resizeTextarea(defInp);
-      updateHasMore(defTd, nr.definition);
-      defInp.addEventListener("input", () => {
-        nr.definition = defInp.value;
-        const t = defInp.value.trim();
-        const bad = t !== "" && !isValidDefinition(t);
-        defInp.classList.toggle("invalid", bad);
-        defInp.title = defInp.value;
-        updateHasMore(defTd, defInp.value);
-        resizeTextarea(defInp);
-        fireNamedChanged();
-      });
-      defTd.appendChild(defInp);
-      if (overlaps.has(idx)) {
-        const badge = document.createElement("span");
-        badge.className = "named-warning";
-        badge.textContent = "overlaps";
-        badge.title =
-          "This range overlaps with another defined range. pyatg dedupes shared endpoints; usually fine.";
-        defTd.appendChild(badge);
-      }
-
-      const actTd = document.createElement("td");
-      actTd.className = "named-actions";
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "named-del";
-      del.textContent = "✕";
-      del.title = "Delete this named range";
-      del.addEventListener("click", () => {
-        namedRanges.splice(idx, 1);
-        renderNamedRanges();
-        fireNamedChanged();
-      });
-      actTd.appendChild(del);
-
-      tr.appendChild(nameTd);
-      tr.appendChild(defTd);
-      tr.appendChild(actTd);
-      tbody.appendChild(tr);
+    list.innerHTML = "";
+    const overlapKeys = detectOverlapRanges();
+    namedRanges.forEach((nr, rIdx) => {
+      list.appendChild(buildRangeCard(nr, rIdx, overlapKeys));
     });
     countPill.textContent =
       namedRanges.length > 0 ? `(${namedRanges.length})` : "";
     empty.style.display = namedRanges.length === 0 ? "block" : "none";
   }
 
+  function buildRangeCard(nr, rIdx, overlapKeys) {
+    const card = document.createElement("div");
+    card.className = "named-card";
+
+    // Head: name input + delete-whole-range button.
+    const head = document.createElement("div");
+    head.className = "named-card-head";
+    const nameInp = document.createElement("input");
+    nameInp.className = "named-name-input";
+    nameInp.placeholder = "Range name (e.g. speed)";
+    nameInp.value = nr.name;
+    function reflectNameValidity() {
+      const t = nameInp.value.trim();
+      const dup = t !== "" &&
+        namedRanges.some((x, i) => i !== rIdx && x.name.trim() === t);
+      const bad = t !== "" && (!isValidRangeName(t) || dup);
+      nameInp.classList.toggle("invalid", bad);
+      nameInp.title = dup
+        ? "Another named range already uses this name."
+        : (bad
+          ? "Names must be a C-style identifier and not a C keyword."
+          : "");
+    }
+    nameInp.addEventListener("input", () => {
+      nr.name = nameInp.value;
+      reflectNameValidity();
+      fireNamedChanged();
+    });
+    reflectNameValidity();
+    head.appendChild(nameInp);
+
+    const delCard = document.createElement("button");
+    delCard.type = "button";
+    delCard.className = "named-del named-card-del";
+    delCard.textContent = "✕";
+    delCard.title = "Delete this named range";
+    delCard.addEventListener("click", () => {
+      namedRanges.splice(rIdx, 1);
+      renderNamedRanges();
+      fireNamedChanged();
+    });
+    head.appendChild(delCard);
+    card.appendChild(head);
+
+    // Sub-range table.
+    const tbl = document.createElement("table");
+    tbl.className = "sub-table";
+    tbl.innerHTML =
+      "<thead><tr>" +
+        "<th>Sub-name (optional)</th>" +
+        "<th>Mode</th>" +
+        "<th>Value / Lo</th>" +
+        "<th>Hi</th>" +
+        "<th></th>" +
+      "</tr></thead>";
+    const tbody = document.createElement("tbody");
+    nr.subRanges.forEach((sub, sIdx) => {
+      tbody.appendChild(buildSubRow(nr, rIdx, sub, sIdx, overlapKeys));
+    });
+    tbl.appendChild(tbody);
+    card.appendChild(tbl);
+
+    // Add-sub-range button.
+    const addSub = document.createElement("button");
+    addSub.type = "button";
+    addSub.className = "secondary sub-add";
+    addSub.textContent = "+ Add sub-range";
+    addSub.addEventListener("click", () => {
+      nr.subRanges.push({
+        subName: "",
+        mode: "Range",
+        value: "",
+        lo: "",
+        hi: "",
+      });
+      renderNamedRanges();
+      fireNamedChanged();
+    });
+    card.appendChild(addSub);
+    return card;
+  }
+
+  function buildSubRow(parentRange, rIdx, sub, sIdx, overlapKeys) {
+    const tr = document.createElement("tr");
+
+    const nameTd = document.createElement("td");
+    const nameInp = document.createElement("input");
+    nameInp.className = "sub-val-input sub-name-input";
+    nameInp.placeholder = "(optional)";
+    nameInp.value = sub.subName;
+    nameInp.addEventListener("input", () => {
+      sub.subName = nameInp.value;
+      fireNamedChanged();
+    });
+    nameTd.appendChild(nameInp);
+    tr.appendChild(nameTd);
+
+    const modeTd = document.createElement("td");
+    const modeSel = document.createElement("select");
+    modeSel.className = "sub-mode-select";
+    for (const m of ["Value", "Range"]) {
+      const o = document.createElement("option");
+      o.value = m;
+      o.textContent = m;
+      modeSel.appendChild(o);
+    }
+    modeSel.value = sub.mode;
+    modeSel.addEventListener("change", () => {
+      sub.mode = modeSel.value;
+      renderNamedRanges();
+      fireNamedChanged();
+    });
+    modeTd.appendChild(modeSel);
+    tr.appendChild(modeTd);
+
+    const valTd = document.createElement("td");
+    const valInp = document.createElement("input");
+    valInp.className = "sub-val-input";
+    valInp.placeholder = sub.mode === "Range" ? "lo" : "value";
+    valInp.value = sub.mode === "Range" ? sub.lo : sub.value;
+    valInp.addEventListener("input", () => {
+      if (sub.mode === "Range") sub.lo = valInp.value;
+      else sub.value = valInp.value;
+      markSubInputValidity(valInp);
+      fireNamedChanged();
+    });
+    markSubInputValidity(valInp);
+    valTd.appendChild(valInp);
+    tr.appendChild(valTd);
+
+    const hiTd = document.createElement("td");
+    if (sub.mode === "Range") {
+      const hiInp = document.createElement("input");
+      hiInp.className = "sub-val-input";
+      hiInp.placeholder = "hi";
+      hiInp.value = sub.hi;
+      hiInp.addEventListener("input", () => {
+        sub.hi = hiInp.value;
+        markSubInputValidity(hiInp);
+        fireNamedChanged();
+      });
+      markSubInputValidity(hiInp);
+      hiTd.appendChild(hiInp);
+      if (overlapKeys.has(`${rIdx}.${sIdx}`)) {
+        const badge = document.createElement("span");
+        badge.className = "named-warning";
+        badge.textContent = "overlaps";
+        badge.title =
+          "This sub-range overlaps with another defined range. pyatg dedupes shared endpoints; usually fine.";
+        hiTd.appendChild(badge);
+      }
+    } else {
+      const dash = document.createElement("span");
+      dash.className = "dash";
+      dash.textContent = "—";
+      hiTd.appendChild(dash);
+    }
+    tr.appendChild(hiTd);
+
+    const actTd = document.createElement("td");
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "named-del";
+    del.textContent = "✕";
+    del.title = "Delete this sub-range";
+    del.addEventListener("click", () => {
+      parentRange.subRanges.splice(sIdx, 1);
+      renderNamedRanges();
+      fireNamedChanged();
+    });
+    actTd.appendChild(del);
+    tr.appendChild(actTd);
+    return tr;
+  }
+
   document.getElementById("named-add").addEventListener("click", () => {
-    namedRanges.push({ name: "", definition: "" });
+    namedRanges.push({
+      name: "",
+      subRanges: [
+        { subName: "", mode: "Range", value: "", lo: "", hi: "" },
+      ],
+    });
     renderNamedRanges();
     fireNamedChanged();
+    // If the user is currently on Inputs, hop them to Named so they
+    // see the new card.
+    switchTab("named");
   });
-  const namedSection = document.getElementById("named-section");
-  const namedToggleBtn = document.getElementById("named-toggle");
-  const caret = namedToggleBtn.querySelector(".caret");
-  namedToggleBtn.addEventListener("click", () => {
-    const collapsed = namedSection.classList.toggle("collapsed");
-    caret.textContent = collapsed ? "▸" : "▾";
-    namedToggleBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-  });
-  renderNamedRanges();
-  // Start collapsed when nothing is defined; expand if we restored some.
-  if (namedRanges.length === 0) {
-    namedSection.classList.add("collapsed");
-    caret.textContent = "▸";
-    namedToggleBtn.setAttribute("aria-expanded", "false");
+
+  // Tab bar: switch between Inputs and Named ranges panes.
+  function switchTab(which) {
+    const showInputs = which === "inputs";
+    document.getElementById("tab-inputs").classList.toggle("active", showInputs);
+    document.getElementById("tab-named").classList.toggle("active", !showInputs);
+    document.getElementById("pane-inputs").classList.toggle("active", showInputs);
+    document.getElementById("pane-named").classList.toggle("active", !showInputs);
+    document.getElementById("tab-inputs").setAttribute("aria-selected", showInputs);
+    document.getElementById("tab-named").setAttribute("aria-selected", !showInputs);
   }
+  document.getElementById("tab-inputs").addEventListener("click", () => switchTab("inputs"));
+  document.getElementById("tab-named").addEventListener("click", () => switchTab("named"));
+
+  renderNamedRanges();
 
   // A row is "scalar-editable" if its annotation looks like enum:S:N or
   // enum:U:N. Arrays, pointers, function pointers stay Auto-only in
@@ -646,25 +750,32 @@
       if (!nr) {
         return { text: `(undefined: ${s.namedRef})`, isModified: true };
       }
-      // Parse the definition as a (possibly multi-line) bundle. Each
-      // sub-range contributes its boundary cluster; formatValueSet
-      // unions and adds `…` between non-contiguous clusters.
-      const subs = parseBundle(nr.definition);
-      const parseable = subs.filter((x) => x !== null);
-      if (parseable.length === 0) {
-        const literal = (nr.definition || "").trim();
-        return { text: literal || "(empty)", isModified: true };
+      if (!nr.subRanges || nr.subRanges.length === 0) {
+        return { text: "(empty)", isModified: true };
       }
+      // Each sub-range contributes its boundary cluster;
+      // formatValueSet unions and adds `…` between non-contiguous
+      // clusters.
       values = [];
-      for (const sub of parseable) {
-        if (sub.lo !== undefined) {
-          if (s.skipAdj) values.push(sub.lo, sub.hi);
-          else values.push(sub.lo - 1, sub.lo, sub.lo + 1,
-                           sub.hi - 1, sub.hi, sub.hi + 1);
-        } else if (sub.value !== undefined) {
-          if (s.skipAdj) values.push(sub.value);
-          else values.push(sub.value - 1, sub.value, sub.value + 1);
+      for (const sub of nr.subRanges) {
+        if (sub.mode === "Range") {
+          const lo = parseValue(sub.lo);
+          const hi = parseValue(sub.hi);
+          if (lo === null || hi === null) continue;
+          const lN = Number(lo);
+          const hN = Number(hi);
+          if (s.skipAdj) values.push(lN, hN);
+          else values.push(lN - 1, lN, lN + 1, hN - 1, hN, hN + 1);
+        } else {
+          const v = parseValue(sub.value);
+          if (v === null) continue;
+          const nN = Number(v);
+          if (s.skipAdj) values.push(nN);
+          else values.push(nN - 1, nN, nN + 1);
         }
+      }
+      if (values.length === 0) {
+        return { text: "(invalid sub-ranges)", isModified: true };
       }
     }
     return { text: formatValueSet(values), isModified: true };
@@ -978,18 +1089,34 @@
     return { overrides, badRowIndices };
   }
 
-  // Trim out empty / invalid named ranges before submit. Anything with
-  // a blank name or a definition that fails our loose validator is
-  // silently dropped — the user sees their bad input flagged inline.
+  // Trim out empty / invalid named ranges and sub-ranges before
+  // submit. Bad inputs are flagged inline; here we just drop them
+  // silently rather than failing the whole save.
   function collectNamedRanges() {
-    return namedRanges
-      .map((nr) => ({
-        name: (nr.name || "").trim(),
-        definition: (nr.definition || "").trim(),
-      }))
-      .filter(
-        (nr) => isValidRangeName(nr.name) && isValidDefinition(nr.definition)
-      );
+    const out = [];
+    for (const nr of namedRanges) {
+      const name = (nr.name || "").trim();
+      if (!isValidRangeName(name)) continue;
+      const subRanges = [];
+      for (const sub of nr.subRanges || []) {
+        const subName = (sub.subName || "").trim();
+        if (sub.mode === "Range") {
+          const lo = (sub.lo || "").trim();
+          const hi = (sub.hi || "").trim();
+          if (lo === "" || hi === "") continue;
+          if (parseValue(lo) === null || parseValue(hi) === null) continue;
+          subRanges.push({ subName, mode: "Range", value: "", lo, hi });
+        } else {
+          const value = (sub.value || "").trim();
+          if (value === "") continue;
+          if (parseValue(value) === null) continue;
+          subRanges.push({ subName, mode: "Value", value, lo: "", hi: "" });
+        }
+      }
+      if (subRanges.length === 0) continue;
+      out.push({ name, subRanges });
+    }
+    return out;
   }
 
   function renderError(text) {
