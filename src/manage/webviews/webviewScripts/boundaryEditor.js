@@ -20,20 +20,21 @@
   // (full path is already in the subtitle).
   srcFilenameEl.textContent = (payload.sourceFile || "").split("/").pop() || "";
 
-  // Build anchor → rowIndex map for click-to-jump. The anchor is the
-  // root C identifier extracted from a row's nodeStr — e.g. arr[*] and
-  // arr both anchor to "arr"; pt.x and pt.y both anchor to "pt". If
-  // multiple rows share an anchor (common for struct fields and array
-  // forms), the first row in payload order wins; click takes the user
-  // there and they can scroll to siblings nearby.
-  function anchorIdent(nodeStr) {
-    const m = (nodeStr || "").match(/^[A-Za-z_]\w*/);
-    return m ? m[0] : null;
-  }
-  const anchorToRowIndex = new Map();
+  // Build click-to-jump indices for the source pane.
+  //   pathToRowIndex maps a fully-qualified dotted path → row index
+  //     (e.g. "pt.x" → its own row). Array suffixes are stripped, so
+  //     "arr[*]" indexes as "arr".
+  //   rootToRowIndex maps a bare root identifier → first matching row
+  //     (e.g. "pt" → the first pt.* row). Used as a fall-back when no
+  //     longer dotted match exists.
+  const pathToRowIndex = new Map();
+  const rootToRowIndex = new Map();
   payload.rows.forEach((row, idx) => {
-    const a = anchorIdent(row.nodeStr);
-    if (a && !anchorToRowIndex.has(a)) anchorToRowIndex.set(a, idx);
+    const ns = row.nodeStr || "";
+    const path = ns.replace(/\[[^\]]*\]/g, "");
+    if (path && !pathToRowIndex.has(path)) pathToRowIndex.set(path, idx);
+    const root = (path.match(/^[A-Za-z_]\w*/) || [])[0];
+    if (root && !rootToRowIndex.has(root)) rootToRowIndex.set(root, idx);
   });
 
   // ── Tiny C/C++ lexer (keyword/type sets) ──────────────────────────
@@ -90,16 +91,29 @@
     span.textContent = text;
     td.appendChild(span);
   }
+  // pushIdent renders one identifier token (bare or dotted). Keywords
+  // and primitive types take precedence over click-jump (no underlining
+  // of `int` or `struct`). Otherwise: if a row matches this exact text,
+  // make it clickable; if not, fall back to plain text.
   function pushIdent(td, text) {
     if (C_KEYWORDS.has(text)) {
       pushSpan(td, "tok-keyword", text);
-    } else if (C_TYPES.has(text)) {
+      return;
+    }
+    if (C_TYPES.has(text)) {
       pushSpan(td, "tok-type", text);
-    } else if (anchorToRowIndex.has(text)) {
+      return;
+    }
+    const rowIndex = pathToRowIndex.has(text)
+      ? pathToRowIndex.get(text)
+      : rootToRowIndex.has(text)
+        ? rootToRowIndex.get(text)
+        : null;
+    if (rowIndex !== null) {
       const span = document.createElement("span");
       span.className = "src-ident";
       span.textContent = text;
-      span.dataset.rowIndex = String(anchorToRowIndex.get(text));
+      span.dataset.rowIndex = String(rowIndex);
       span.addEventListener("click", onIdentifierClick);
       td.appendChild(span);
     } else {
@@ -196,12 +210,45 @@
         i = j;
         continue;
       }
-      // Identifier
+      // Identifier — optionally extended through .field accesses so
+      // that pt.x is recognised as one clickable span (matching the
+      // pt.x row) rather than `pt` + `.x`. Longest dotted match wins;
+      // if no full dotted path matches a row, we fall back to the
+      // shortest sequence (bare ident only).
       if (/[A-Za-z_]/.test(c)) {
         let j = i + 1;
         while (j < n && /[A-Za-z0-9_]/.test(line[j])) j += 1;
-        pushIdent(td, line.slice(i, j));
-        i = j;
+
+        // Capture segment end positions so we can shrink back if the
+        // full path doesn't match any row.
+        const ends = [j];
+        let k = j;
+        while (k < n && line[k] === ".") {
+          const sStart = k + 1;
+          if (sStart >= n || !/[A-Za-z_]/.test(line[sStart])) break;
+          let sEnd = sStart + 1;
+          while (sEnd < n && /[A-Za-z0-9_]/.test(line[sEnd])) sEnd += 1;
+          ends.push(sEnd);
+          k = sEnd;
+        }
+
+        // Longest-first match.
+        let consumed = j;
+        for (let depth = ends.length; depth >= 1; depth -= 1) {
+          const end = ends[depth - 1];
+          const candidate = line.slice(i, end);
+          if (pathToRowIndex.has(candidate)) {
+            pushIdent(td, candidate);
+            consumed = end;
+            break;
+          }
+        }
+        if (consumed === j) {
+          // No dotted match — fall back to bare ident (pushIdent will
+          // still root-match if applicable).
+          pushIdent(td, line.slice(i, j));
+        }
+        i = consumed;
         continue;
       }
       // Punctuation / operators / whitespace — passthrough.
