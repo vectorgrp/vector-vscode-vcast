@@ -98,6 +98,12 @@ table.source-table {
   line-height: 1.4;
 }
 
+table.source-table td {
+  /* Inherits the inputs-table tbody border by default — kill it on the
+     source pane so consecutive code lines read as a block, not a list. */
+  border-bottom: none;
+}
+
 table.source-table td.lineno {
   width: 1%;
   text-align: right;
@@ -110,6 +116,32 @@ table.source-table td.lineno {
 table.source-table td.codeline {
   padding: 0 12px 0 0;
   white-space: pre;
+}
+
+/* Token colours — pull from the active VS Code theme where possible
+   (semantic token colours), with sensible fallbacks for light/dark. */
+.tok-keyword {
+  color: var(--vscode-symbolIcon-keywordForeground, #c586c0);
+}
+.tok-type {
+  color: var(--vscode-symbolIcon-typeParameterForeground, #4ec9b0);
+}
+.tok-string {
+  color: var(--vscode-debugTokenExpression-string, #ce9178);
+}
+.tok-number {
+  color: var(--vscode-debugTokenExpression-number, #b5cea8);
+}
+.tok-comment {
+  color: var(--vscode-editorLineNumber-foreground, #6a9955);
+  font-style: italic;
+}
+.tok-preproc {
+  color: var(--vscode-debugTokenExpression-name, #569cd6);
+}
+.tok-punct {
+  color: var(--vscode-foreground);
+  opacity: 0.85;
 }
 
 .src-ident {

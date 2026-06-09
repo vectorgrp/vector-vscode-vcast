@@ -41,6 +41,8 @@
     : "";
   const lines = sourceText.split(/\r?\n/);
   if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  // Lexer state carries across lines for multi-line /* ... */ comments.
+  let inBlockComment = false;
   lines.forEach((line, idx) => {
     const tr = document.createElement("tr");
     const numTd = document.createElement("td");
@@ -48,38 +50,166 @@
     numTd.textContent = String(idx + 1);
     const codeTd = document.createElement("td");
     codeTd.className = "codeline";
-    renderCodeLine(codeTd, line);
+    inBlockComment = renderCodeLine(codeTd, line, inBlockComment);
     tr.appendChild(numTd);
     tr.appendChild(codeTd);
     srcBody.appendChild(tr);
   });
 
-  // Split a source line into identifier / non-identifier runs. Each
-  // identifier whose anchor matches a row becomes a clickable span.
-  function renderCodeLine(td, line) {
-    const tokenRe = /[A-Za-z_]\w*/g;
-    let last = 0;
-    let m;
-    while ((m = tokenRe.exec(line)) !== null) {
-      if (m.index > last) {
-        td.appendChild(document.createTextNode(line.slice(last, m.index)));
-      }
-      const tok = m[0];
-      if (anchorToRowIndex.has(tok)) {
-        const span = document.createElement("span");
-        span.className = "src-ident";
-        span.textContent = tok;
-        span.dataset.rowIndex = String(anchorToRowIndex.get(tok));
-        span.addEventListener("click", onIdentifierClick);
-        td.appendChild(span);
-      } else {
-        td.appendChild(document.createTextNode(tok));
-      }
-      last = m.index + tok.length;
+  // ── Tiny C/C++ lexer ───────────────────────────────────────────────
+  // Not a full grammar — just enough to colour keywords, types,
+  // strings, chars, numbers, comments, preprocessor directives, and to
+  // keep identifier click-handlers intact for inputs. Returns the new
+  // in-block-comment state so multi-line /* ... */ comments survive
+  // line breaks.
+
+  const C_KEYWORDS = new Set([
+    "auto", "break", "case", "const", "continue", "default", "do",
+    "else", "enum", "extern", "for", "goto", "if", "register",
+    "return", "sizeof", "static", "struct", "switch", "typedef",
+    "union", "volatile", "while", "inline", "restrict", "_Bool",
+    "_Static_assert", "_Atomic",
+    // C++ extras (mild guess — we lex .cpp the same way)
+    "class", "namespace", "template", "typename", "public", "private",
+    "protected", "virtual", "override", "final", "new", "delete",
+    "this", "nullptr", "constexpr", "noexcept", "using",
+  ]);
+  const C_TYPES = new Set([
+    "void", "char", "short", "int", "long", "float", "double",
+    "signed", "unsigned", "bool", "size_t", "ssize_t", "ptrdiff_t",
+    "int8_t", "int16_t", "int32_t", "int64_t",
+    "uint8_t", "uint16_t", "uint32_t", "uint64_t",
+    "intptr_t", "uintptr_t", "FILE", "wchar_t",
+  ]);
+
+  function pushText(td, text) {
+    if (text) td.appendChild(document.createTextNode(text));
+  }
+  function pushSpan(td, cls, text) {
+    const span = document.createElement("span");
+    span.className = cls;
+    span.textContent = text;
+    td.appendChild(span);
+  }
+  function pushIdent(td, text) {
+    if (C_KEYWORDS.has(text)) {
+      pushSpan(td, "tok-keyword", text);
+    } else if (C_TYPES.has(text)) {
+      pushSpan(td, "tok-type", text);
+    } else if (anchorToRowIndex.has(text)) {
+      const span = document.createElement("span");
+      span.className = "src-ident";
+      span.textContent = text;
+      span.dataset.rowIndex = String(anchorToRowIndex.get(text));
+      span.addEventListener("click", onIdentifierClick);
+      td.appendChild(span);
+    } else {
+      pushText(td, text);
     }
-    if (last < line.length) {
-      td.appendChild(document.createTextNode(line.slice(last)));
+  }
+
+  function renderCodeLine(td, line, inBlockComment) {
+    let i = 0;
+    const n = line.length;
+    while (i < n) {
+      // Continue an open /* */ comment from a previous line.
+      if (inBlockComment) {
+        const end = line.indexOf("*/", i);
+        if (end === -1) {
+          pushSpan(td, "tok-comment", line.slice(i));
+          return true;
+        }
+        pushSpan(td, "tok-comment", line.slice(i, end + 2));
+        i = end + 2;
+        inBlockComment = false;
+        continue;
+      }
+      const c = line[i];
+      const c2 = line.slice(i, i + 2);
+
+      // Line comment
+      if (c2 === "//") {
+        pushSpan(td, "tok-comment", line.slice(i));
+        return false;
+      }
+      // Block comment
+      if (c2 === "/*") {
+        const end = line.indexOf("*/", i + 2);
+        if (end === -1) {
+          pushSpan(td, "tok-comment", line.slice(i));
+          return true;
+        }
+        pushSpan(td, "tok-comment", line.slice(i, end + 2));
+        i = end + 2;
+        continue;
+      }
+      // Preprocessor directive — colour from # to end of line, but
+      // first ensure we're at the start of the (non-whitespace) line.
+      if (c === "#") {
+        const before = line.slice(0, i);
+        if (/^\s*$/.test(before)) {
+          pushSpan(td, "tok-preproc", line.slice(i));
+          return inBlockComment;
+        }
+      }
+      // String literal "..."
+      if (c === '"') {
+        let j = i + 1;
+        while (j < n && line[j] !== '"') {
+          if (line[j] === "\\" && j + 1 < n) j += 2;
+          else j += 1;
+        }
+        if (j < n) j += 1; // include the closing quote if present
+        pushSpan(td, "tok-string", line.slice(i, j));
+        i = j;
+        continue;
+      }
+      // Char literal '...'
+      if (c === "'") {
+        let j = i + 1;
+        while (j < n && line[j] !== "'") {
+          if (line[j] === "\\" && j + 1 < n) j += 2;
+          else j += 1;
+        }
+        if (j < n) j += 1;
+        pushSpan(td, "tok-string", line.slice(i, j));
+        i = j;
+        continue;
+      }
+      // Number (decimal, hex, float). Accepts trailing U/L/UL/f suffixes.
+      if (/\d/.test(c) || (c === "." && i + 1 < n && /\d/.test(line[i + 1]))) {
+        let j = i;
+        if (line.slice(i, i + 2).match(/^0[xX]$/)) {
+          j = i + 2;
+          while (j < n && /[0-9a-fA-F_']/.test(line[j])) j += 1;
+        } else {
+          while (j < n && /[0-9.eE+\-_']/.test(line[j])) {
+            // Allow + or - only right after an e/E
+            if ((line[j] === "+" || line[j] === "-") &&
+                !(j > i && (line[j - 1] === "e" || line[j - 1] === "E"))) {
+              break;
+            }
+            j += 1;
+          }
+        }
+        while (j < n && /[uUlLfF]/.test(line[j])) j += 1;
+        pushSpan(td, "tok-number", line.slice(i, j));
+        i = j;
+        continue;
+      }
+      // Identifier
+      if (/[A-Za-z_]/.test(c)) {
+        let j = i + 1;
+        while (j < n && /[A-Za-z0-9_]/.test(line[j])) j += 1;
+        pushIdent(td, line.slice(i, j));
+        i = j;
+        continue;
+      }
+      // Punctuation / operators / whitespace — passthrough.
+      pushText(td, c);
+      i += 1;
     }
+    return inBlockComment;
   }
 
   function onIdentifierClick(ev) {
