@@ -387,10 +387,18 @@
   }
 
   // Resize a textarea to fit its content (1 row min, grows with line
-  // count). Avoids the user having to drag the resize handle.
+  // count). When collapsed (CSS max-height = 22px) the JS height is
+  // capped automatically; expanding via :focus lifts the cap.
   function resizeTextarea(ta) {
     ta.style.height = "auto";
     ta.style.height = (ta.scrollHeight || ta.offsetHeight || 22) + "px";
+  }
+
+  // Toggle the "▾ more" indicator on a named-def cell when the textarea
+  // content spans multiple lines (collapsed view hides the rest).
+  function updateHasMore(td, text) {
+    const multi = (text || "").includes("\n");
+    td.classList.toggle("has-more", multi);
   }
 
   // Parse "[lo, hi]" with integer / hex / signed endpoints. Returns
@@ -505,12 +513,16 @@
       defInp.spellcheck = false;
       defInp.placeholder = "[lo, hi]   or   reverse=[-10,0]⏎slow=[0,10]";
       defInp.value = nr.definition;
+      defInp.title = nr.definition;
       resizeTextarea(defInp);
+      updateHasMore(defTd, nr.definition);
       defInp.addEventListener("input", () => {
         nr.definition = defInp.value;
         const t = defInp.value.trim();
         const bad = t !== "" && !isValidDefinition(t);
         defInp.classList.toggle("invalid", bad);
+        defInp.title = defInp.value;
+        updateHasMore(defTd, defInp.value);
         resizeTextarea(defInp);
         fireNamedChanged();
       });
@@ -705,15 +717,17 @@
     td.textContent = text;
     td.classList.toggle("modified", isModified);
     td.classList.toggle("empty", text === "(complex)" || text === "(incomplete)");
-    // Tooltip on modified rows: what autogen would have produced.
+    // The cell ellipsizes when narrow — always set a tooltip with the
+    // full predicted text so the user can hover to read it. For
+    // modified rows, also surface what autogen would have done.
+    let tip = text;
     if (isModified && isScalar(payload.rows[idx])) {
       const def = predictValues(payload.rows[idx], {
-        mode: "Auto", value: "", lo: "", hi: "", skipAdj: false,
+        mode: "Auto", value: "", lo: "", hi: "", skipAdj: false, namedRef: "",
       });
-      td.title = `Autogen default: ${def.text}`;
-    } else {
-      td.title = "";
+      tip = `${text}\n\nAutogen default: ${def.text}`;
     }
+    td.title = tip;
   }
 
   const body = document.getElementById("rows-body");

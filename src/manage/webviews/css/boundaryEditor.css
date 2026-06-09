@@ -162,12 +162,46 @@ main {
   border-radius: 2px;
 }
 
+/* Definition textarea: single-line height by default (so a table of
+   many named ranges stays compact), expands when focused to show the
+   full multi-line bundle. The "▾" hint badge in the cell flags when
+   content is hidden so the user knows there's more. */
 textarea.named-def-input {
-  resize: vertical;
+  resize: none;
   line-height: 1.3;
   min-height: 22px;
+  max-height: 22px;
   white-space: pre;
-  overflow-y: hidden;
+  overflow: hidden;
+  cursor: text;
+  transition: max-height 0.12s ease;
+}
+
+textarea.named-def-input:focus {
+  max-height: 14em;
+  overflow-y: auto;
+}
+
+td.named-def {
+  position: relative;
+}
+
+td.named-def.has-more::after {
+  content: "▾ more";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-input-background);
+  padding: 0 4px;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+td.named-def.has-more:focus-within::after {
+  display: none;
 }
 
 .named-name-input.invalid,
@@ -441,8 +475,10 @@ td.generates-cell {
   font-size: 0.78rem;
   color: var(--vscode-descriptionForeground);
   max-width: 28ch;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: help;
 }
 
 td.generates-cell.modified {
