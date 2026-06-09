@@ -112,6 +112,33 @@ table.source-table td.codeline {
   white-space: pre;
 }
 
+.src-ident {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--vscode-textLink-foreground, #4080d0);
+  text-underline-offset: 2px;
+}
+
+.src-ident:hover {
+  color: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground, #4080d0));
+  text-decoration-style: solid;
+}
+
+tbody tr.flash td {
+  animation: bp-flash 1.2s ease-out;
+}
+
+@keyframes bp-flash {
+  0% {
+    background-color: var(--vscode-editor-findMatchHighlightBackground,
+      rgba(255, 200, 0, 0.5));
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

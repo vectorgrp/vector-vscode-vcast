@@ -20,12 +20,26 @@
   // (full path is already in the subtitle).
   srcFilenameEl.textContent = (payload.sourceFile || "").split("/").pop() || "";
 
+  // Build anchor → rowIndex map for click-to-jump. The anchor is the
+  // root C identifier extracted from a row's nodeStr — e.g. arr[*] and
+  // arr both anchor to "arr"; pt.x and pt.y both anchor to "pt". If
+  // multiple rows share an anchor (common for struct fields and array
+  // forms), the first row in payload order wins; click takes the user
+  // there and they can scroll to siblings nearby.
+  function anchorIdent(nodeStr) {
+    const m = (nodeStr || "").match(/^[A-Za-z_]\w*/);
+    return m ? m[0] : null;
+  }
+  const anchorToRowIndex = new Map();
+  payload.rows.forEach((row, idx) => {
+    const a = anchorIdent(row.nodeStr);
+    if (a && !anchorToRowIndex.has(a)) anchorToRowIndex.set(a, idx);
+  });
+
   const sourceText = typeof payload.sourceContent === "string"
     ? payload.sourceContent
     : "";
   const lines = sourceText.split(/\r?\n/);
-  // Drop a single trailing empty line introduced by terminal newline,
-  // but keep deliberate blank lines mid-file.
   if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
   lines.forEach((line, idx) => {
     const tr = document.createElement("tr");
@@ -34,11 +48,53 @@
     numTd.textContent = String(idx + 1);
     const codeTd = document.createElement("td");
     codeTd.className = "codeline";
-    codeTd.textContent = line;
+    renderCodeLine(codeTd, line);
     tr.appendChild(numTd);
     tr.appendChild(codeTd);
     srcBody.appendChild(tr);
   });
+
+  // Split a source line into identifier / non-identifier runs. Each
+  // identifier whose anchor matches a row becomes a clickable span.
+  function renderCodeLine(td, line) {
+    const tokenRe = /[A-Za-z_]\w*/g;
+    let last = 0;
+    let m;
+    while ((m = tokenRe.exec(line)) !== null) {
+      if (m.index > last) {
+        td.appendChild(document.createTextNode(line.slice(last, m.index)));
+      }
+      const tok = m[0];
+      if (anchorToRowIndex.has(tok)) {
+        const span = document.createElement("span");
+        span.className = "src-ident";
+        span.textContent = tok;
+        span.dataset.rowIndex = String(anchorToRowIndex.get(tok));
+        span.addEventListener("click", onIdentifierClick);
+        td.appendChild(span);
+      } else {
+        td.appendChild(document.createTextNode(tok));
+      }
+      last = m.index + tok.length;
+    }
+    if (last < line.length) {
+      td.appendChild(document.createTextNode(line.slice(last)));
+    }
+  }
+
+  function onIdentifierClick(ev) {
+    const idx = Number(ev.currentTarget.dataset.rowIndex);
+    if (Number.isNaN(idx)) return;
+    const targetRow = document.querySelector(
+      `#rows-body tr[data-row-index="${idx}"]`
+    );
+    if (!targetRow) return;
+    targetRow.scrollIntoView({ behavior: "smooth", block: "center" });
+    targetRow.classList.add("flash");
+    // Drop the flash class after the CSS animation completes (~1.2s)
+    // so a re-click can re-trigger it.
+    setTimeout(() => targetRow.classList.remove("flash"), 1300);
+  }
 
   // Per-row UI state, indexed by row position in payload.rows.
   // Each entry: { mode: 'Auto'|'Fixed'|'Range', value: '', lo: '', hi: '', skipAdj: false }
@@ -75,6 +131,7 @@
   const body = document.getElementById("rows-body");
   payload.rows.forEach((row, idx) => {
     const tr = document.createElement("tr");
+    tr.dataset.rowIndex = String(idx);
     if (!isScalar(row)) tr.classList.add("no-effect");
 
     appendText(tr, row.scope);
