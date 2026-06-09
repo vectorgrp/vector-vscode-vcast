@@ -160,6 +160,20 @@ export class BPModeManager {
           : [];
         await this.runStageTwo(state, overrides, namedRanges);
         panel.dispose();
+      } else if (msg.command === "saveDraft") {
+        // Persist without invoking pyatg. The webview keeps its current
+        // edits open; we just write overrides.json so the state
+        // survives a reload / close.
+        const overrides: BoundaryOverride[] = Array.isArray(msg.overrides)
+          ? msg.overrides
+          : [];
+        const namedRanges: NamedRange[] = Array.isArray(msg.namedRanges)
+          ? msg.namedRanges
+          : [];
+        savePersistedState(state.sheetDir, state.rows, overrides, namedRanges);
+        vectorMessage(
+          `[BP] Draft saved: ${overrides.length} override(s), ${namedRanges.length} named range(s).`
+        );
       } else if (msg.command === "cancel") {
         panel.dispose();
       }

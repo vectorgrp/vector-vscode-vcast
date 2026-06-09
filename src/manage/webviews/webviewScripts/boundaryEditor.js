@@ -1047,4 +1047,37 @@
   document.getElementById("btn-cancel").addEventListener("click", () => {
     vscode.postMessage({ command: "cancel" });
   });
+
+  // Save-draft: write overrides.json without running stage 2 or
+  // closing the panel. Lets the user park work-in-progress without
+  // committing to a pyatg run.
+  let toastTimer = null;
+  function showToast(text) {
+    const el = document.getElementById("footer-toast");
+    el.textContent = text;
+    el.classList.add("visible");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.classList.remove("visible");
+    }, 2000);
+  }
+  document.getElementById("btn-save-draft").addEventListener("click", () => {
+    const { overrides, badRowIndices } = collectOverrides();
+    if (badRowIndices.length > 0) {
+      const bad = badRowIndices
+        .map((i) => payload.rows[i].nodeStr)
+        .join(", ");
+      renderError(
+        `Cannot save draft: non-numeric value(s) in ${bad}. Fix the highlighted field(s) and try again.`
+      );
+      return;
+    }
+    renderError("");
+    vscode.postMessage({
+      command: "saveDraft",
+      overrides,
+      namedRanges: collectNamedRanges(),
+    });
+    showToast("Draft saved");
+  });
 })();

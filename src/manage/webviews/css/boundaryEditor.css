@@ -496,9 +496,22 @@ td.generates-cell.empty {
 footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
   padding: 10px 20px;
   border-top: 1px solid var(--vscode-panel-border, #444);
+}
+
+.footer-toast {
+  margin-right: auto;
+  font-size: 0.82rem;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.footer-toast.visible {
+  opacity: 1;
 }
 
 button {
