@@ -13,6 +13,33 @@
     payload.rows.length === 1 ? "" : "s"
   }`;
 
+  // ── Source pane ────────────────────────────────────────────────────
+  const srcFilenameEl = document.getElementById("source-filename");
+  const srcBody = document.getElementById("source-body");
+  // Strip the workspace prefix so the pane header is just the basename
+  // (full path is already in the subtitle).
+  srcFilenameEl.textContent = (payload.sourceFile || "").split("/").pop() || "";
+
+  const sourceText = typeof payload.sourceContent === "string"
+    ? payload.sourceContent
+    : "";
+  const lines = sourceText.split(/\r?\n/);
+  // Drop a single trailing empty line introduced by terminal newline,
+  // but keep deliberate blank lines mid-file.
+  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  lines.forEach((line, idx) => {
+    const tr = document.createElement("tr");
+    const numTd = document.createElement("td");
+    numTd.className = "lineno";
+    numTd.textContent = String(idx + 1);
+    const codeTd = document.createElement("td");
+    codeTd.className = "codeline";
+    codeTd.textContent = line;
+    tr.appendChild(numTd);
+    tr.appendChild(codeTd);
+    srcBody.appendChild(tr);
+  });
+
   // Per-row UI state, indexed by row position in payload.rows.
   // Each entry: { mode: 'Auto'|'Fixed'|'Range', value: '', lo: '', hi: '', skipAdj: false }
   // Pre-populate from any persisted overrides the extension passed in

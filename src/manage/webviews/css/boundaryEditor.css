@@ -38,28 +38,78 @@ header h1 {
 
 main {
   flex: 1 1 auto;
-  overflow: auto;
-  padding: 12px 20px;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(420px, 1.4fr);
+  gap: 0;
+  overflow: hidden;
 }
 
-.toolbar {
+.source-pane,
+.inputs-pane {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  gap: 12px;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
 }
 
-.toolbar .hint {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.8rem;
+.source-pane {
+  border-right: 1px solid var(--vscode-panel-border, #444);
 }
 
-.toolbar code {
-  background: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
-  padding: 1px 4px;
-  border-radius: 3px;
+.pane-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--vscode-panel-border, #444);
+  background: var(--vscode-editorGroupHeader-tabsBackground, transparent);
+  flex: 0 0 auto;
+}
+
+.pane-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.row-count-pill {
   font-size: 0.78rem;
+  color: var(--vscode-descriptionForeground);
+}
+
+.source-scroll,
+.inputs-scroll {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 6px 0 12px;
+}
+
+.inputs-scroll {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+table.source-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 0.85rem);
+  line-height: 1.4;
+}
+
+table.source-table td.lineno {
+  width: 1%;
+  text-align: right;
+  padding: 0 12px 0 14px;
+  color: var(--vscode-editorLineNumber-foreground, var(--vscode-descriptionForeground));
+  user-select: none;
+  white-space: nowrap;
+}
+
+table.source-table td.codeline {
+  padding: 0 12px 0 0;
+  white-space: pre;
 }
 
 table {

@@ -198,12 +198,23 @@ export class BPModeManager {
     );
 
     const template = fs.readFileSync(htmlPath, "utf8") as string;
+    // Embed the source so the webview can show it next to the inputs.
+    // Large files: not an immediate concern (moo.c is 10 lines), and
+    // the line-test feature uses the same pattern. Cap added later if
+    // needed.
+    let sourceContent = "";
+    try {
+      sourceContent = fs.readFileSync(state.sourceFile, "utf8") as string;
+    } catch (e) {
+      vectorMessage(`[BP] Could not read source ${state.sourceFile}: ${e}`);
+    }
     const payload = {
       sourceFile: state.sourceFile,
       enviroPath: state.enviroPath,
       sheetDir: state.sheetDir,
       rows: state.rows,
       savedOverrides: state.savedOverrides,
+      sourceContent,
     };
     return template
       .replace(/\$\{CSP_SOURCE\}/g, webview.cspSource)

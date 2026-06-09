@@ -15,29 +15,39 @@
       <p id="subtitle"></p>
     </header>
     <main>
-      <div class="toolbar">
-        <span id="row-count"></span>
-        <span class="hint">
-          Default: <code>Auto</code> (pyatg picks type-extreme values).
-          Switch to <code>Fixed</code> or <code>Range</code> per row to
-          override.
-        </span>
-      </div>
-      <table id="rows-table">
-        <thead>
-          <tr>
-            <th>Scope</th>
-            <th>Routine</th>
-            <th>Expression</th>
-            <th>Type</th>
-            <th>Annotation</th>
-            <th>Mode</th>
-            <th>Value</th>
-            <th title="Skip ±1 boundary adjustment for this input">Skip ±1</th>
-          </tr>
-        </thead>
-        <tbody id="rows-body"></tbody>
-      </table>
+      <section class="source-pane" aria-label="Source">
+        <div class="pane-header">
+          <span class="pane-title" id="source-filename"></span>
+        </div>
+        <div class="source-scroll">
+          <table class="source-table" id="source-table">
+            <tbody id="source-body"></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="inputs-pane" aria-label="Inputs">
+        <div class="pane-header">
+          <span class="pane-title">Inputs</span>
+          <span id="row-count" class="row-count-pill"></span>
+        </div>
+        <div class="inputs-scroll">
+          <table id="rows-table">
+            <thead>
+              <tr>
+                <th>Scope</th>
+                <th>Routine</th>
+                <th>Expression</th>
+                <th>Type</th>
+                <th>Annotation</th>
+                <th>Mode</th>
+                <th>Value</th>
+                <th title="Skip ±1 boundary adjustment for this input">Skip ±1</th>
+              </tr>
+            </thead>
+            <tbody id="rows-body"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
     <footer>
       <button id="btn-cancel" class="secondary" type="button">Cancel</button>
