@@ -717,17 +717,9 @@
     td.textContent = text;
     td.classList.toggle("modified", isModified);
     td.classList.toggle("empty", text === "(complex)" || text === "(incomplete)");
-    // The cell ellipsizes when narrow — always set a tooltip with the
-    // full predicted text so the user can hover to read it. For
-    // modified rows, also surface what autogen would have done.
-    let tip = text;
-    if (isModified && isScalar(payload.rows[idx])) {
-      const def = predictValues(payload.rows[idx], {
-        mode: "Auto", value: "", lo: "", hi: "", skipAdj: false, namedRef: "",
-      });
-      tip = `${text}\n\nAutogen default: ${def.text}`;
-    }
-    td.title = tip;
+    // The cell ellipsizes when narrow — set the tooltip to the full
+    // predicted text so the user can hover to read it.
+    td.title = text;
   }
 
   const body = document.getElementById("rows-body");
