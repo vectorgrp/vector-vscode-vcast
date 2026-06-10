@@ -1002,6 +1002,64 @@ function deriveNodeShape(row: BoundaryMappingRow): void {
   if (lastDot > 0) row.fieldOfNodeStr = ns.substring(0, lastDot);
 }
 
+// Phase-3 reader: prefer the structured JSON pyatg emits alongside
+// mapping.csv. Schema is documented in
+// atg/solvers/boundary/collector.py:dump_mapping_json — each entry
+// carries the same legacy fields as a mapping.csv row plus EDG-shaped
+// fields (kind / signedness / bits / arraySize / elementOfNodeStr /
+// fieldOfNodeStr). Returns null if the file is absent or unparseable;
+// callers fall back to parseBoundaryMappingCsv + deriveNodeShape().
+export function parseBoundaryMappingJson(
+  jsonPath: string
+): BoundaryMappingRow[] | null {
+  if (!fs.existsSync(jsonPath)) return null;
+  let parsed: any;
+  try {
+    parsed = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+  } catch {
+    return null;
+  }
+  if (!parsed || !Array.isArray(parsed.nodes)) return null;
+
+  const rows: BoundaryMappingRow[] = [];
+  for (const n of parsed.nodes) {
+    if (!n || typeof n.nodeStr !== "string") continue;
+    const kind: NodeKind =
+      n.kind === "scalar" ||
+      n.kind === "array" ||
+      n.kind === "pointer" ||
+      n.kind === "functionPointer"
+        ? n.kind
+        : "complex";
+    const row: BoundaryMappingRow = {
+      origFile: String(n.origFile || ""),
+      unit: String(n.unit || ""),
+      routine: String(n.routine || ""),
+      scope: String(n.scope || ""),
+      inputSortStr: String(n.inputSortStr || ""),
+      disabledType: String(n.disabledType || ""),
+      nodeStr: String(n.nodeStr || ""),
+      nodeType: String(n.nodeType || ""),
+      testValueLine: String(n.testValueLine || ""),
+      annotation: String(n.annotation || ""),
+      kind,
+    };
+    if (n.signedness === "S" || n.signedness === "U") {
+      row.signedness = n.signedness;
+    }
+    if (typeof n.bits === "number") row.bits = n.bits;
+    if (typeof n.arraySize === "number") row.arraySize = n.arraySize;
+    if (typeof n.elementOfNodeStr === "string" && n.elementOfNodeStr) {
+      row.elementOfNodeStr = n.elementOfNodeStr;
+    }
+    if (typeof n.fieldOfNodeStr === "string" && n.fieldOfNodeStr) {
+      row.fieldOfNodeStr = n.fieldOfNodeStr;
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
 export function parseBoundaryMappingCsv(
   mappingCsvPath: string
 ): BoundaryMappingRow[] {

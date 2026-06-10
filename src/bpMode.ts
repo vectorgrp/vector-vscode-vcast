@@ -19,6 +19,7 @@ import {
   getBoundaryStageTwoCommand,
   loadPersistedState,
   parseBoundaryMappingCsv,
+  parseBoundaryMappingJson,
   savePersistedState,
   writeManualInputsXlsx,
 } from "./vcastUtilities";
@@ -55,6 +56,7 @@ export class BPModeManager {
     if (fs.existsSync(staleBoundaries)) fs.unlinkSync(staleBoundaries);
     const sheetSeed = path.join(sheetDir, "sheet.xlsx");
     const mappingCsv = path.join(sheetDir, "mapping.csv");
+    const mappingJson = path.join(sheetDir, "mapping.json");
 
     // 3. Run stage 1: --generate-ranges-sheet. Note: atg always prints
     // "ERROR: ATG has not generated any tests" and exits 1 at the end of
@@ -69,17 +71,37 @@ export class BPModeManager {
       stage1.envVars,
       "Boundary Mode: generating inputs sheet"
     );
-    if (!fs.existsSync(mappingCsv)) {
+    // Either mapping.json (pyatg phase-3+) or mapping.csv (older) is
+    // an acceptable stage-1 success signal; the actual read happens
+    // below.
+    if (!fs.existsSync(mappingCsv) && !fs.existsSync(mappingJson)) {
       vscode.window.showErrorMessage(
-        `Boundary mode: stage 1 did not produce ${mappingCsv}. See the VectorCAST Test Explorer message pane for atg output.`
+        `Boundary mode: stage 1 did not produce ${mappingCsv} or ${mappingJson}. See the VectorCAST Test Explorer message pane for atg output.`
       );
       return;
     }
 
-    // 4. Parse mapping.csv and open the editor. Pre-populate from any
-    // previous run's saved overrides so small edits don't require
-    // re-entering every row.
-    const rows = parseBoundaryMappingCsv(mappingCsv);
+    // 4. Read the structured node data and open the editor.
+    // Prefer pyatg's mapping.json (carries EDG-shaped fields straight
+    // from NodeAnnotation); fall back to mapping.csv parsed by the
+    // TS-side adapter for older pyatg builds.
+    let rows = parseBoundaryMappingJson(mappingJson);
+    if (!rows) {
+      if (!fs.existsSync(mappingCsv)) {
+        vscode.window.showErrorMessage(
+          `Boundary mode: stage 1 did not produce ${mappingCsv} or ${mappingJson}. See the VectorCAST Test Explorer message pane.`
+        );
+        return;
+      }
+      rows = parseBoundaryMappingCsv(mappingCsv);
+      vectorMessage(
+        `[BP] mapping.json not present; falling back to mapping.csv + annotation adapter.`
+      );
+    } else {
+      vectorMessage(
+        `[BP] Loaded ${rows.length} node(s) from mapping.json.`
+      );
+    }
     if (rows.length === 0) {
       vscode.window.showInformationMessage(
         "Boundary mode: no controllable inputs found in this unit."
