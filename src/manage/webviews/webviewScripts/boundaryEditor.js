@@ -685,11 +685,12 @@
 
   renderNamedRanges();
 
-  // A row is "scalar-editable" if its annotation looks like enum:S:N or
-  // enum:U:N. Arrays, pointers, function pointers stay Auto-only in
-  // iteration 2.
+  // A row is "scalar-editable" if pyatg classified its EDG node as a
+  // scalar (enum:S:N / enum:U:N). The structured field comes from the
+  // TS-side adapter (deriveNodeShape) and will come straight from
+  // pyatg's mapping.json when that lands (Phase 3).
   function isScalar(row) {
-    return /^enum:[SU]:\d+/.test(row.annotation || "");
+    return row.kind === "scalar";
   }
 
   // Predict the test values pyatg will emit for one row, given its
@@ -702,13 +703,11 @@
   // Returns { text, isModified } — text is human-readable comma-joined,
   // isModified is true when the row diverges from autogen defaults.
   function predictValues(row, s) {
-    const annot = row.annotation || "";
-    const m = annot.match(/^enum:([SU]):(\d+)/);
-    if (!m || !isScalar(row)) {
+    if (!isScalar(row) || !row.signedness || !row.bits) {
       return { text: "(complex)", isModified: false };
     }
-    const sign = m[1];
-    const bits = Math.min(parseInt(m[2], 10), 32); // clamp to JS-safe
+    const sign = row.signedness;
+    const bits = Math.min(row.bits, 32); // clamp to JS-safe for now
     let typeMin, typeMax;
     if (sign === "U") {
       typeMin = 0;

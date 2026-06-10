@@ -879,6 +879,20 @@ export interface BoundaryCommand {
 // nodeStr is the user-facing expression (e.g. "x", "arr[*]"); nodeType is
 // its C type (e.g. "int", "samDeviceType*[4]"). inputSortStr is a coarser
 // classification (often duplicates scope, but not always — keep both).
+//
+// The trailing structured fields (kind, signedness, bits, ...) are
+// derived from `annotation` by deriveNodeShape() below. They give the
+// webview an EDG-shaped view of the row without it having to regex
+// the annotation string. When pyatg starts emitting a structured
+// mapping.json (Phase 3), these will come straight from the EDG node
+// and `annotation` becomes a diagnostic-only field.
+export type NodeKind =
+  | "scalar"
+  | "array"
+  | "pointer"
+  | "functionPointer"
+  | "complex";
+
 export interface BoundaryMappingRow {
   origFile: string;
   unit: string;
@@ -890,6 +904,14 @@ export interface BoundaryMappingRow {
   nodeType: string;
   testValueLine: string;
   annotation: string;
+
+  // Structured shape (derived from annotation; pyatg-direct later).
+  kind: NodeKind;
+  signedness?: "S" | "U";
+  bits?: number;
+  arraySize?: number;
+  elementOfNodeStr?: string;    // for arr[*] rows, parent array root nodeStr
+  fieldOfNodeStr?: string;      // for pt.x rows, parent struct nodeStr "pt"
 }
 
 function buildBoundaryEnvVars(): Record<string, string> {
@@ -926,6 +948,60 @@ export function getBoundaryStageTwoCommand(
   return { command, envVars };
 }
 
+// Populate a row's structured-shape fields from its annotation string.
+// pyatg's NodeAnnotation produces a `key:value;key:value` form (see
+// atg/solvers/boundary/support.py:NodeAnnotation); we parse it back
+// into typed fields the webview can consume directly. Once pyatg
+// emits a structured mapping.json (Phase 3) this function gets
+// replaced by a JSON deserialiser; the consumers stay the same.
+function deriveNodeShape(row: BoundaryMappingRow): void {
+  const annot = row.annotation || "";
+  let sawScalar = false;
+  let sawArray = false;
+  let sawFnPtr = false;
+  let sawPtr = false;
+  for (const part of annot.split(";")) {
+    if (!part) continue;
+    const colon = part.indexOf(":");
+    const key = colon >= 0 ? part.substring(0, colon) : part;
+    const value = colon >= 0 ? part.substring(colon + 1) : "";
+    if (key === "enum") {
+      // Format: "S:32" or "U:8" possibly followed by ":{...}" literals.
+      const tail = value.split(":");
+      if (tail.length >= 2) {
+        const sign = tail[0];
+        const bits = parseInt(tail[1], 10);
+        if (sign === "S" || sign === "U") row.signedness = sign;
+        if (!Number.isNaN(bits)) row.bits = bits;
+      }
+      sawScalar = true;
+    } else if (key === "arr") {
+      const n = parseInt(value, 10);
+      if (!Number.isNaN(n)) row.arraySize = n;
+      sawArray = true;
+    } else if (key === "ptr") {
+      sawPtr = true;
+    } else if (key === "fptr" || key === "func") {
+      sawFnPtr = true;
+    }
+  }
+
+  // Priority: array wins over scalar for the root row (nodeType has a
+  // pointer/array shape too); functionPointer beats plain pointer.
+  if (sawFnPtr) row.kind = "functionPointer";
+  else if (sawArray) row.kind = "array";
+  else if (sawScalar) row.kind = "scalar";
+  else if (sawPtr) row.kind = "pointer";
+  else row.kind = "complex";
+
+  // Structural relationships derived from nodeStr.
+  const ns = row.nodeStr || "";
+  const arrEltMatch = ns.match(/^(.+)\[\*\]$/);
+  if (arrEltMatch) row.elementOfNodeStr = arrEltMatch[1];
+  const lastDot = ns.lastIndexOf(".");
+  if (lastDot > 0) row.fieldOfNodeStr = ns.substring(0, lastDot);
+}
+
 export function parseBoundaryMappingCsv(
   mappingCsvPath: string
 ): BoundaryMappingRow[] {
@@ -937,7 +1013,7 @@ export function parseBoundaryMappingCsv(
     if (rawLine.length === 0) continue;
     const cols = rawLine.split(",");
     if (cols.length < 10) continue;
-    rows.push({
+    const row: BoundaryMappingRow = {
       origFile: cols[0],
       unit: cols[1],
       routine: cols[2],
@@ -948,7 +1024,10 @@ export function parseBoundaryMappingCsv(
       nodeType: cols[7],
       testValueLine: cols[8],
       annotation: cols.slice(9).join(","),
-    });
+      kind: "complex",
+    };
+    deriveNodeShape(row);
+    rows.push(row);
   }
   return rows;
 }
