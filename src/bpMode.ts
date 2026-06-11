@@ -1,9 +1,6 @@
-// Boundary-processor mode (pyatg #3285): orchestrates the two-stage atg
-// flow (--generate-ranges-sheet → user review → --from-ranges-sheet) for
-// a single source unit. Iteration 1 is read-only — the webview shows the
-// inputs that pyatg discovered and the "Generate" button writes a
-// default Boundaries.csv where every row is <AUTO_GENERATE>. The full
-// per-row editing UI lands in iteration 2 (see BP_INTEGRATION_PLAN.md).
+// Boundary editor for one source unit. Drives pyatg's two-stage flow:
+// stage 1 (--generate-ranges-sheet) → user edits → stage 2
+// (--from-ranges-sheet) → load .tst. See BP_INTEGRATION_PLAN.md.
 
 import * as vscode from "vscode";
 
@@ -11,14 +8,13 @@ import { vectorMessage, openMessagePane } from "./messagePane";
 import { executeATGCommandWithProgress } from "./vcastCommandRunner";
 import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
 import {
-  BoundaryMappingRow,
+  NodeData,
   BoundaryOverride,
   NamedRange,
   findEnviroForSourceFile,
   getBoundaryStageOneCommand,
   getBoundaryStageTwoCommand,
   loadPersistedState,
-  parseBoundaryMappingCsv,
   parseBoundaryMappingJson,
   savePersistedState,
   writeManualInputsXlsx,
@@ -43,11 +39,8 @@ export class BPModeManager {
       return;
     }
 
-    // 2. Set up the sheet directory inside the env directory. Wipe any
-    // stale Boundaries.csv from a previous manual-mode run — stage 1 will
-    // regenerate the 5-col autogen inputs.xlsx, and a leftover
-    // Boundaries.csv would flip pyatg into manual mode against
-    // mismatched input data.
+    // 2. Sheet dir + scrub stale Boundaries.csv (would otherwise flip
+    // pyatg into manual mode against this run's fresh autogen inputs).
     const sheetDir = path.join(path.dirname(enviroPath), ".bp-sheets");
     if (!fs.existsSync(sheetDir)) {
       fs.mkdirSync(sheetDir, { recursive: true });
@@ -55,13 +48,11 @@ export class BPModeManager {
     const staleBoundaries = path.join(sheetDir, "Boundaries.csv");
     if (fs.existsSync(staleBoundaries)) fs.unlinkSync(staleBoundaries);
     const sheetSeed = path.join(sheetDir, "sheet.xlsx");
-    const mappingCsv = path.join(sheetDir, "mapping.csv");
     const mappingJson = path.join(sheetDir, "mapping.json");
 
-    // 3. Run stage 1: --generate-ranges-sheet. Note: atg always prints
-    // "ERROR: ATG has not generated any tests" and exits 1 at the end of
-    // this mode because no tests are produced — only sheets. Treat
-    // mapping.csv existence as the real success criterion.
+    // 3. Stage 1. atg always exits 1 in --generate-ranges-sheet mode
+    // (no tests produced, only sheets); mapping.json existence is the
+    // real success signal.
     openMessagePane();
     vectorMessage(`[BP] Stage 1: generating ranges sheet for ${sourceFile}`);
     const stage1 = getBoundaryStageOneCommand(enviroPath, sheetSeed);
@@ -71,37 +62,17 @@ export class BPModeManager {
       stage1.envVars,
       "Boundary Mode: generating inputs sheet"
     );
-    // Either mapping.json (pyatg phase-3+) or mapping.csv (older) is
-    // an acceptable stage-1 success signal; the actual read happens
-    // below.
-    if (!fs.existsSync(mappingCsv) && !fs.existsSync(mappingJson)) {
+    // mapping.json is required from pyatg 3285_bp.
+    const rows = parseBoundaryMappingJson(mappingJson);
+    if (!rows) {
       vscode.window.showErrorMessage(
-        `Boundary mode: stage 1 did not produce ${mappingCsv} or ${mappingJson}. See the VectorCAST Test Explorer message pane for atg output.`
+        `Boundary mode: stage 1 did not produce ${mappingJson}. ` +
+          `pyatg must include the "Boundary: emit mapping.json" ` +
+          `commit (rdx1-pyatg branch 3285_bp_integration).`
       );
       return;
     }
-
-    // 4. Read the structured node data and open the editor.
-    // Prefer pyatg's mapping.json (carries EDG-shaped fields straight
-    // from NodeAnnotation); fall back to mapping.csv parsed by the
-    // TS-side adapter for older pyatg builds.
-    let rows = parseBoundaryMappingJson(mappingJson);
-    if (!rows) {
-      if (!fs.existsSync(mappingCsv)) {
-        vscode.window.showErrorMessage(
-          `Boundary mode: stage 1 did not produce ${mappingCsv} or ${mappingJson}. See the VectorCAST Test Explorer message pane.`
-        );
-        return;
-      }
-      rows = parseBoundaryMappingCsv(mappingCsv);
-      vectorMessage(
-        `[BP] mapping.json not present; falling back to mapping.csv + annotation adapter.`
-      );
-    } else {
-      vectorMessage(
-        `[BP] Loaded ${rows.length} node(s) from mapping.json.`
-      );
-    }
+    vectorMessage(`[BP] Loaded ${rows.length} node(s) from mapping.json.`);
     if (rows.length === 0) {
       vscode.window.showInformationMessage(
         "Boundary mode: no controllable inputs found in this unit."
@@ -148,7 +119,7 @@ export class BPModeManager {
       sourceFile: string;
       enviroPath: string;
       sheetDir: string;
-      rows: BoundaryMappingRow[];
+      rows: NodeData[];
       savedOverrides: BoundaryOverride[];
       savedNamedRanges: NamedRange[];
     }
@@ -183,9 +154,7 @@ export class BPModeManager {
         await this.runStageTwo(state, overrides, namedRanges);
         panel.dispose();
       } else if (msg.command === "saveDraft") {
-        // Persist without invoking pyatg. The webview keeps its current
-        // edits open; we just write overrides.json so the state
-        // survives a reload / close.
+        // Persist state without running stage 2; panel stays open.
         const overrides: BoundaryOverride[] = Array.isArray(msg.overrides)
           ? msg.overrides
           : [];
@@ -213,7 +182,7 @@ export class BPModeManager {
       sourceFile: string;
       enviroPath: string;
       sheetDir: string;
-      rows: BoundaryMappingRow[];
+      rows: NodeData[];
       savedOverrides: BoundaryOverride[];
       savedNamedRanges: NamedRange[];
     }
@@ -241,10 +210,7 @@ export class BPModeManager {
     );
 
     const template = fs.readFileSync(htmlPath, "utf8") as string;
-    // Embed the source so the webview can show it next to the inputs.
-    // Large files: not an immediate concern (moo.c is 10 lines), and
-    // the line-test feature uses the same pattern. Cap added later if
-    // needed.
+    // Embed the source — drives the syntax-highlighted left pane.
     let sourceContent = "";
     try {
       sourceContent = fs.readFileSync(state.sourceFile, "utf8") as string;
@@ -272,21 +238,18 @@ export class BPModeManager {
       sourceFile: string;
       enviroPath: string;
       sheetDir: string;
-      rows: BoundaryMappingRow[];
+      rows: NodeData[];
       savedOverrides: BoundaryOverride[];
       savedNamedRanges: NamedRange[];
     },
     overrides: BoundaryOverride[],
     namedRanges: NamedRange[]
   ): Promise<void> {
-    // Persist the user's choices so a re-run pre-populates the editor.
-    // Save unconditionally (including empty lists) so an explicit
-    // clear is captured.
+    // Save first so a stage-2 failure still preserves the user's work.
     savePersistedState(state.sheetDir, state.rows, overrides, namedRanges);
 
-    // Manual mode is needed if there are per-row overrides OR named
-    // ranges to define. Otherwise stay in autogen mode by removing
-    // any stale Boundaries.csv (its presence is what pyatg keys on).
+    // Manual mode iff there's anything for pyatg to override; the
+    // presence of Boundaries.csv is what flips it on its side.
     const boundariesPath = path.join(state.sheetDir, "Boundaries.csv");
     const wantsManual = overrides.length > 0 || namedRanges.length > 0;
     if (wantsManual) {
@@ -305,11 +268,8 @@ export class BPModeManager {
       vectorMessage("[BP] Autogen mode (no overrides).");
     }
 
-    // Run --from-ranges-sheet, producing the .tst. The .tst must be a
-    // sibling of the env directory because loadTestScriptIntoEnvironment
-    // resolves the env as path.dirname(scriptPath)/enviroName. Name it
-    // after the source file basename so it's recognisable in the file
-    // explorer (e.g. moo-boundary.tst).
+    // .tst must be a sibling of the env dir (loadTestScriptIntoEnvironment
+    // resolves the env as path.dirname(scriptPath)/enviroName).
     const baseName = path.basename(
       state.sourceFile,
       path.extname(state.sourceFile)

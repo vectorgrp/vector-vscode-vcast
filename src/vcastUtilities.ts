@@ -875,17 +875,9 @@ export interface BoundaryCommand {
   envVars: Record<string, string>;
 }
 
-// Column order matches atg/solvers/boundary/support.py:OutputRow.MAPPING_FIELDS.
-// nodeStr is the user-facing expression (e.g. "x", "arr[*]"); nodeType is
-// its C type (e.g. "int", "samDeviceType*[4]"). inputSortStr is a coarser
-// classification (often duplicates scope, but not always — keep both).
-//
-// The trailing structured fields (kind, signedness, bits, ...) are
-// derived from `annotation` by deriveNodeShape() below. They give the
-// webview an EDG-shaped view of the row without it having to regex
-// the annotation string. When pyatg starts emitting a structured
-// mapping.json (Phase 3), these will come straight from the EDG node
-// and `annotation` becomes a diagnostic-only field.
+// One controllable input, EDG-shaped. Produced by pyatg's mapping.json
+// (atg/solvers/boundary/collector.py:dump_mapping_json) and consumed by
+// the boundary editor webview.
 export type NodeKind =
   | "scalar"
   | "array"
@@ -893,7 +885,7 @@ export type NodeKind =
   | "functionPointer"
   | "complex";
 
-export interface BoundaryMappingRow {
+export interface NodeData {
   origFile: string;
   unit: string;
   routine: string;
@@ -903,15 +895,13 @@ export interface BoundaryMappingRow {
   nodeStr: string;
   nodeType: string;
   testValueLine: string;
-  annotation: string;
 
-  // Structured shape (derived from annotation; pyatg-direct later).
   kind: NodeKind;
   signedness?: "S" | "U";
   bits?: number;
   arraySize?: number;
-  elementOfNodeStr?: string;    // for arr[*] rows, parent array root nodeStr
-  fieldOfNodeStr?: string;      // for pt.x rows, parent struct nodeStr "pt"
+  elementOfNodeStr?: string;
+  fieldOfNodeStr?: string;
 }
 
 function buildBoundaryEnvVars(): Record<string, string> {
@@ -948,70 +938,12 @@ export function getBoundaryStageTwoCommand(
   return { command, envVars };
 }
 
-// Populate a row's structured-shape fields from its annotation string.
-// pyatg's NodeAnnotation produces a `key:value;key:value` form (see
-// atg/solvers/boundary/support.py:NodeAnnotation); we parse it back
-// into typed fields the webview can consume directly. Once pyatg
-// emits a structured mapping.json (Phase 3) this function gets
-// replaced by a JSON deserialiser; the consumers stay the same.
-function deriveNodeShape(row: BoundaryMappingRow): void {
-  const annot = row.annotation || "";
-  let sawScalar = false;
-  let sawArray = false;
-  let sawFnPtr = false;
-  let sawPtr = false;
-  for (const part of annot.split(";")) {
-    if (!part) continue;
-    const colon = part.indexOf(":");
-    const key = colon >= 0 ? part.substring(0, colon) : part;
-    const value = colon >= 0 ? part.substring(colon + 1) : "";
-    if (key === "enum") {
-      // Format: "S:32" or "U:8" possibly followed by ":{...}" literals.
-      const tail = value.split(":");
-      if (tail.length >= 2) {
-        const sign = tail[0];
-        const bits = parseInt(tail[1], 10);
-        if (sign === "S" || sign === "U") row.signedness = sign;
-        if (!Number.isNaN(bits)) row.bits = bits;
-      }
-      sawScalar = true;
-    } else if (key === "arr") {
-      const n = parseInt(value, 10);
-      if (!Number.isNaN(n)) row.arraySize = n;
-      sawArray = true;
-    } else if (key === "ptr") {
-      sawPtr = true;
-    } else if (key === "fptr" || key === "func") {
-      sawFnPtr = true;
-    }
-  }
-
-  // Priority: array wins over scalar for the root row (nodeType has a
-  // pointer/array shape too); functionPointer beats plain pointer.
-  if (sawFnPtr) row.kind = "functionPointer";
-  else if (sawArray) row.kind = "array";
-  else if (sawScalar) row.kind = "scalar";
-  else if (sawPtr) row.kind = "pointer";
-  else row.kind = "complex";
-
-  // Structural relationships derived from nodeStr.
-  const ns = row.nodeStr || "";
-  const arrEltMatch = ns.match(/^(.+)\[\*\]$/);
-  if (arrEltMatch) row.elementOfNodeStr = arrEltMatch[1];
-  const lastDot = ns.lastIndexOf(".");
-  if (lastDot > 0) row.fieldOfNodeStr = ns.substring(0, lastDot);
-}
-
-// Phase-3 reader: prefer the structured JSON pyatg emits alongside
-// mapping.csv. Schema is documented in
-// atg/solvers/boundary/collector.py:dump_mapping_json — each entry
-// carries the same legacy fields as a mapping.csv row plus EDG-shaped
-// fields (kind / signedness / bits / arraySize / elementOfNodeStr /
-// fieldOfNodeStr). Returns null if the file is absent or unparseable;
-// callers fall back to parseBoundaryMappingCsv + deriveNodeShape().
+// Read pyatg's mapping.json (schema: collector.py:dump_mapping_json).
+// Returns null on missing / unparseable file so the caller can surface
+// a clear error — mapping.json is required from pyatg's 3285_bp side.
 export function parseBoundaryMappingJson(
   jsonPath: string
-): BoundaryMappingRow[] | null {
+): NodeData[] | null {
   if (!fs.existsSync(jsonPath)) return null;
   let parsed: any;
   try {
@@ -1021,7 +953,7 @@ export function parseBoundaryMappingJson(
   }
   if (!parsed || !Array.isArray(parsed.nodes)) return null;
 
-  const rows: BoundaryMappingRow[] = [];
+  const rows: NodeData[] = [];
   for (const n of parsed.nodes) {
     if (!n || typeof n.nodeStr !== "string") continue;
     const kind: NodeKind =
@@ -1031,7 +963,7 @@ export function parseBoundaryMappingJson(
       n.kind === "functionPointer"
         ? n.kind
         : "complex";
-    const row: BoundaryMappingRow = {
+    const row: NodeData = {
       origFile: String(n.origFile || ""),
       unit: String(n.unit || ""),
       routine: String(n.routine || ""),
@@ -1041,7 +973,6 @@ export function parseBoundaryMappingJson(
       nodeStr: String(n.nodeStr || ""),
       nodeType: String(n.nodeType || ""),
       testValueLine: String(n.testValueLine || ""),
-      annotation: String(n.annotation || ""),
       kind,
     };
     if (n.signedness === "S" || n.signedness === "U") {
@@ -1060,42 +991,9 @@ export function parseBoundaryMappingJson(
   return rows;
 }
 
-export function parseBoundaryMappingCsv(
-  mappingCsvPath: string
-): BoundaryMappingRow[] {
-  // mapping.csv is 10 columns, no header, comma-separated, no embedded commas
-  // in production data — quote handling is intentionally simple.
-  const text = fs.readFileSync(mappingCsvPath, "utf8");
-  const rows: BoundaryMappingRow[] = [];
-  for (const rawLine of text.split(/\r?\n/)) {
-    if (rawLine.length === 0) continue;
-    const cols = rawLine.split(",");
-    if (cols.length < 10) continue;
-    const row: BoundaryMappingRow = {
-      origFile: cols[0],
-      unit: cols[1],
-      routine: cols[2],
-      scope: cols[3],
-      inputSortStr: cols[4],
-      disabledType: cols[5],
-      nodeStr: cols[6],
-      nodeType: cols[7],
-      testValueLine: cols[8],
-      annotation: cols.slice(9).join(","),
-      kind: "complex",
-    };
-    deriveNodeShape(row);
-    rows.push(row);
-  }
-  return rows;
-}
-
-// Iteration 1 ran in autogen mode (no Boundaries.csv).
-// Iteration 2's manual flow uses these helpers to write the
-// 8-column inputs.xlsx + a (deliberately empty) Boundaries.csv:
-// pyatg keys on Boundaries.csv presence to flip into manual mode,
-// then reads inputs.xlsx as 8-column CSV (it tries xlsx parsing first
-// and silently falls back to CSV — see boundary/gentst.py::process_xls).
+// pyatg flips into manual mode when Boundaries.csv exists in the sheet
+// dir; writeManualInputsXlsx (below) populates it from the editor's
+// per-row overrides and named ranges.
 
 export interface BoundaryOverride {
   rowIndex: number;
@@ -1209,7 +1107,7 @@ export interface PersistedState {
 
 export function loadPersistedState(
   sheetDir: string,
-  rows: BoundaryMappingRow[]
+  rows: NodeData[]
 ): PersistedState {
   const filePath = path.join(sheetDir, OVERRIDES_FILENAME);
   const empty: PersistedState = { overrides: [], namedRanges: [] };
@@ -1313,7 +1211,7 @@ function bundleStringToSubRanges(def: string): SubRange[] {
 
 export function savePersistedState(
   sheetDir: string,
-  rows: BoundaryMappingRow[],
+  rows: NodeData[],
   overrides: BoundaryOverride[],
   namedRanges: NamedRange[]
 ): void {
@@ -1344,17 +1242,17 @@ export function savePersistedState(
 // Back-compat shim for callers that still import the old names.
 export const loadPersistedOverrides = (
   sheetDir: string,
-  rows: BoundaryMappingRow[]
+  rows: NodeData[]
 ) => loadPersistedState(sheetDir, rows).overrides;
 export const savePersistedOverrides = (
   sheetDir: string,
-  rows: BoundaryMappingRow[],
+  rows: NodeData[],
   overrides: BoundaryOverride[]
 ) => savePersistedState(sheetDir, rows, overrides, []);
 
 export function writeManualInputsXlsx(
   sheetDir: string,
-  rows: BoundaryMappingRow[],
+  rows: NodeData[],
   overrides: BoundaryOverride[],
   namedRanges: NamedRange[] = []
 ): { inputsPath: string; boundariesPath: string } {
