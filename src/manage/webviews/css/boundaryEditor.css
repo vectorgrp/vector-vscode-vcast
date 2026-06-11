@@ -336,27 +336,6 @@ td.named-def.has-more:focus-within::after {
   cursor: default;
 }
 
-.details-toggle {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.78rem;
-  color: var(--vscode-descriptionForeground);
-  cursor: pointer;
-  user-select: none;
-}
-
-.details-toggle input[type="checkbox"] {
-  margin: 0;
-  cursor: pointer;
-}
-
-/* Hide annotation column unless the user opts in via the toggle. */
-table#rows-table:not(.show-details) th.col-annotation,
-table#rows-table:not(.show-details) td.col-annotation {
-  display: none;
-}
 
 .source-scroll,
 .inputs-scroll {
