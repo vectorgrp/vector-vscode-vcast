@@ -384,11 +384,16 @@ export async function writeRGWBundle(
  * the result back into the RGW. Wrapped in a cancellable progress
  * notification (same UX as code2reqs/reqs2tests).
  *
+ * With `onlyUntraced`, panreq leaves already-traced requirements untouched and
+ * only infers the incomplete ones. The caller must confirm panreq supports the
+ * flag first (see `panreqSupportsOnlyUntraced`).
+ *
  * Returns the freshly-read bundle on success, null if the user cancelled.
  */
 export async function inferTraceability(
   enviroPath: string,
-  gatewayPath: string
+  gatewayPath: string,
+  options: { onlyUntraced?: boolean } = {}
 ): Promise<RGWBundle | null> {
   const csvPath = readCsvSourcePath(gatewayPath);
   if (!csvPath) {
@@ -398,21 +403,26 @@ export async function inferTraceability(
   }
 
   const enviroName = path.basename(enviroPath);
+  const args = [
+    csvPath,
+    gatewayPath,
+    "--target-format",
+    "rgw",
+    "--infer-traceability",
+    "--target-env",
+    `${enviroPath}.env`,
+    "--json-events",
+  ];
+  if (options.onlyUntraced) args.push("--only-untraced");
+
   const result = await runReqs2xTool({
     exe: PANREQ_EXECUTABLE_PATH,
-    args: [
-      csvPath,
-      gatewayPath,
-      "--target-format",
-      "rgw",
-      "--infer-traceability",
-      "--target-env",
-      `${enviroPath}.env`,
-      "--json-events",
-    ],
+    args,
     llm: true,
     progress: {
-      title: `Inferring Traceability for ${enviroName}`,
+      title: options.onlyUntraced
+        ? `Inferring Traceability (untraced only) for ${enviroName}`
+        : `Inferring Traceability (all requirements) for ${enviroName}`,
       logPrefix: "panreq",
     },
   });

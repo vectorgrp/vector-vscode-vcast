@@ -92,10 +92,19 @@ export interface RunReqs2xToolOptions {
    * cancel kills the subprocess and the runner returns `{ cancelled: true }`.
    */
   progress?: { title: string; logPrefix: string };
+  /** Return captured stdout/stderr on the result. Ignored when `progress` is set. */
+  captureOutput?: boolean;
+  /** Resolve (with `exitCode`) instead of throwing on a non-zero exit. */
+  allowNonZeroExit?: boolean;
+  /** Kill and reject after this many ms. Non-progress path only. */
+  timeoutMs?: number;
 }
 
 export interface RunReqs2xToolResult {
   cancelled: boolean;
+  exitCode?: number | null;
+  stdout?: string;
+  stderr?: string;
 }
 
 /**
@@ -173,23 +182,40 @@ export async function runReqs2xTool(
   const proc = await startProc();
   let stdout = "";
   let stderr = "";
+  let exitCode: number | null = null;
 
   await new Promise<void>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (opts.timeoutMs) {
+      timer = setTimeout(() => {
+        proc.kill();
+        reject(new Error(`${opts.exe} timed out after ${opts.timeoutMs}ms`));
+      }, opts.timeoutMs);
+    }
     proc.stdout.on("data", (d) => {
       stdout += d.toString();
     });
     proc.stderr.on("data", (d) => {
       stderr += d.toString();
     });
-    proc.on("error", reject);
+    proc.on("error", (err) => {
+      if (timer) clearTimeout(timer);
+      reject(err);
+    });
     proc.on("close", (code) => {
+      if (timer) clearTimeout(timer);
+      exitCode = code;
       if (stdout.trim()) logCliOperation(`stdout: ${stdout.trim()}`);
       if (stderr.trim()) logCliOperation(`stderr: ${stderr.trim()}`);
       logCliOperation(`exit code: ${code}`);
-      if (code === 0) resolve();
+      if (code === 0 || opts.allowNonZeroExit) resolve();
       else reject(new Error(`${opts.exe} exited with code ${code}: ${stderr}`));
     });
   });
 
-  return { cancelled: false };
+  return {
+    cancelled: false,
+    exitCode,
+    ...(opts.captureOutput ? { stdout, stderr } : {}),
+  };
 }

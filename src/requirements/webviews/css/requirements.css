@@ -230,9 +230,8 @@ h2 {
   z-index: 100;
 }
 
-#save-btn,
-#infer-btn,
-#add-btn {
+/* Shared look for every filled toolbar button (add / infer / caret / save). */
+.toolbar-btn {
   padding: 8px 18px;
   font-size: 1em;
   background: var(--vscode-button-background, #0078d4);
@@ -242,9 +241,57 @@ h2 {
   cursor: pointer;
   font-family: inherit;
 }
-#save-btn[disabled],
-#infer-btn[disabled],
-#add-btn[disabled] {
+.toolbar-btn[disabled] {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Split button: main infer action + caret revealing alternatives. */
+.split-btn {
+  position: relative;
+  display: inline-flex;
+}
+.split-btn #infer-btn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* Caret reuses .toolbar-btn; only the joined-edge geometry differs. */
+.split-caret {
+  padding: 8px 10px;
+  border-left: 1px solid var(--vscode-button-separator, rgba(255, 255, 255, 0.4));
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.split-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  min-width: 100%;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background, #fff));
+  border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, #ddd));
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  z-index: 101;
+}
+.split-menu[hidden] {
+  display: none;
+}
+.infer-menu-item {
+  text-align: left;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground, #000));
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1em;
+}
+.infer-menu-item:hover {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground, #0078d4));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-button-foreground, #fff));
 }

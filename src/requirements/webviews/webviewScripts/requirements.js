@@ -17,8 +17,11 @@
 
 import {
   vscode,
+  state,
   saveBtn,
   inferBtn,
+  inferCaret,
+  inferMenu,
   addBtn,
   reqsBody,
   searchInput,
@@ -88,7 +91,91 @@ reqsBody.addEventListener("click", (e) => {
 
 if (addBtn) addBtn.addEventListener("click", appendPendingAdd);
 saveBtn.addEventListener("click", postSave);
-inferBtn.addEventListener("click", postInfer);
+
+// Default action: untraced-only when supported (split button), else full infer.
+inferBtn.addEventListener("click", () =>
+  postInfer(state.onlyUntracedSupported === true)
+);
+
+// Split-button caret + menu (present only when --only-untraced is supported),
+// wired to the WAI-ARIA menu-button keyboard pattern.
+const inferMenuItems = () =>
+  inferMenu ? [...inferMenu.querySelectorAll(".infer-menu-item")] : [];
+const isInferMenuOpen = () => !!inferMenu && !inferMenu.hidden;
+
+function openInferMenu(focusIndex = 0) {
+  if (!inferMenu || !inferCaret || inferCaret.disabled) return;
+  inferMenu.hidden = false;
+  inferCaret.setAttribute("aria-expanded", "true");
+  const items = inferMenuItems();
+  const target = focusIndex < 0 ? items[items.length - 1] : items[focusIndex];
+  if (target) target.focus();
+}
+function closeInferMenu(returnFocus = false) {
+  if (!inferMenu) return;
+  inferMenu.hidden = true;
+  if (inferCaret) {
+    inferCaret.setAttribute("aria-expanded", "false");
+    if (returnFocus) inferCaret.focus();
+  }
+}
+
+if (inferCaret && inferMenu) {
+  const inferGroup = document.getElementById("infer-group");
+
+  inferCaret.addEventListener("click", (e) => {
+    e.stopPropagation(); // don't let the document handler immediately re-close
+    if (inferCaret.disabled) return;
+    if (isInferMenuOpen()) closeInferMenu();
+    else openInferMenu();
+  });
+  inferCaret.addEventListener("keydown", (e) => {
+    if (inferCaret.disabled) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      openInferMenu(0);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      openInferMenu(-1);
+    }
+  });
+
+  inferMenu.addEventListener("click", (e) => {
+    const item = e.target.closest(".infer-menu-item");
+    if (!item) return;
+    closeInferMenu();
+    postInfer(item.dataset.onlyUntraced === "true");
+  });
+  inferMenu.addEventListener("keydown", (e) => {
+    const items = inferMenuItems();
+    if (!items.length) return;
+    const idx = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      items[(idx + 1) % items.length].focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      items[(idx - 1 + items.length) % items.length].focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      items[0].focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      items[items.length - 1].focus();
+    }
+  });
+
+  // Dismiss on outside click, Escape (returns focus to caret), or Tab-out.
+  document.addEventListener("click", () => closeInferMenu());
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isInferMenuOpen()) closeInferMenu(true);
+  });
+  if (inferGroup) {
+    inferGroup.addEventListener("focusout", (e) => {
+      if (!inferGroup.contains(e.relatedTarget)) closeInferMenu();
+    });
+  }
+}
 
 if (searchInput) searchInput.addEventListener("input", applyFilter);
 if (filterUnit) filterUnit.addEventListener("change", onUnitFilterChange);

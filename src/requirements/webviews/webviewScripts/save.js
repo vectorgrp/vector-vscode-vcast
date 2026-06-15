@@ -8,6 +8,7 @@ import {
   vscode,
   saveBtn,
   inferBtn,
+  inferCaret,
   addBtn,
   refreshButtonStates,
 } from "./state.js";
@@ -89,11 +90,12 @@ export function postSave() {
   });
 }
 
-export function postInfer() {
+export function postInfer(onlyUntraced) {
   inferBtn.disabled = true;
+  if (inferCaret) inferCaret.disabled = true;
   saveBtn.disabled = true;
   if (addBtn) addBtn.disabled = true;
-  vscode.postMessage({ type: "infer-traceability" });
+  vscode.postMessage({ type: "infer-traceability", onlyUntraced: !!onlyUntraced });
 }
 
 export function applyRefreshedBundle(msg) {

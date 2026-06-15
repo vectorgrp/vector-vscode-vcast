@@ -39,7 +39,8 @@ export function generateRequirementsHtml(
   webviewBaseDir: string,
   nonce: string,
   bundle: RGWBundle,
-  unitsToFunctions: Record<string, string[]> | null = null
+  unitsToFunctions: Record<string, string[]> | null = null,
+  onlyUntracedSupported = false
 ): string {
   const policy = editPolicyFor(bundle);
 
@@ -63,7 +64,20 @@ export function generateRequirementsHtml(
     requirements: bundle.requirements,
     traceability: bundle.traceability,
     unitsToFunctions,
+    onlyUntracedSupported,
   };
+
+  // Split button when --only-untraced is supported (default = untraced only,
+  // caret reveals "re-infer everything"); plain full-infer button otherwise.
+  const inferHtml = onlyUntracedSupported
+    ? `<div id="infer-group" class="split-btn">` +
+      `<button id="infer-btn" class="toolbar-btn" title="Use the configured LLM to infer the unit/function only for requirements missing one. Already-traced requirements are left unchanged.">✨ Infer traceability</button>` +
+      `<button id="infer-caret" class="toolbar-btn split-caret" title="More infer options" aria-haspopup="true" aria-expanded="false">▾</button>` +
+      `<div id="infer-menu" class="split-menu" role="menu" hidden>` +
+      `<button class="infer-menu-item" role="menuitem" tabindex="-1" data-only-untraced="true" title="Use the configured LLM to infer the unit/function only for requirements missing one. Already-traced requirements are left unchanged.">Infer untraced only</button>` +
+      `<button class="infer-menu-item" role="menuitem" tabindex="-1" data-only-untraced="false" title="Use the configured LLM to re-infer the unit/function for every requirement, overwriting any existing traceability.">Re-infer everything</button>` +
+      `</div></div>`
+    : `<button id="infer-btn" class="toolbar-btn" title="Use the configured LLM to infer the unit/function each requirement traces to.">✨ Infer traceability</button>`;
 
   const cspSource = webview.cspSource;
   return `<!DOCTYPE html>
@@ -78,7 +92,7 @@ export function generateRequirementsHtml(
 <h1>Requirements</h1>
 <div id="rgw-pill" title="${escapeHtml(bundle.gatewayPath)}">RGW: ${escapeHtml(bundle.gatewayPath)}</div>
 ${bannerHtml}
-<div id="save-toolbar">${policy.bodiesEditable ? `<button id="add-btn" title="Add a new requirement to this RGW.">+ Add requirement</button>` : ""}<button id="infer-btn" title="Use the configured LLM to infer the unit/function each requirement traces to.">✨ Infer traceability</button><button id="save-btn" disabled>Save changes</button></div>
+<div id="save-toolbar">${policy.bodiesEditable ? `<button id="add-btn" class="toolbar-btn" title="Add a new requirement to this RGW.">+ Add requirement</button>` : ""}${inferHtml}<button id="save-btn" class="toolbar-btn" disabled>Save changes</button></div>
 <div id="search-bar"><input id="search-input" type="search" placeholder="Search…" /><select id="filter-unit" title="Filter by unit"></select><select id="filter-function" title="Filter by function"></select><span id="search-count"></span></div>
 <div id="reqs-body"></div>
 <script nonce="${nonce}">window.__rgwState = ${serializeStateForScriptTag(initialState)};</script>

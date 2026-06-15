@@ -24,6 +24,10 @@ export function nextTempIdValue() {
 // this evaluates.
 export const saveBtn = document.getElementById("save-btn");
 export const inferBtn = document.getElementById("infer-btn");
+// inferCaret / inferMenu are null unless panreq supports --only-untraced
+// (the template only renders the split button then).
+export const inferCaret = document.getElementById("infer-caret");
+export const inferMenu = document.getElementById("infer-menu");
 // addBtn is null when bodies aren't editable (the template omits it).
 export const addBtn = document.getElementById("add-btn");
 export const reqsBody = document.getElementById("reqs-body");
@@ -54,6 +58,7 @@ export function refreshButtonStates() {
   if (addBtn) addBtn.disabled = false;
   // Don't clobber unsaved local edits with an inference.
   inferBtn.disabled = hasChanges;
+  if (inferCaret) inferCaret.disabled = hasChanges;
 }
 
 export function setDirty(reqId, scope, field, value) {

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { vcastInstallationDirectory } from "../vcastInstallation";
 import { exeFilename } from "../utilities";
 import { logCliError, logCliOperation } from "./requirementsLog";
+import { runReqs2xTool } from "./processRunner";
 
 const fs = require("fs");
 
@@ -98,5 +99,49 @@ export function setupReqs2XExecutablePaths(
     exeFilename("llm2check")
   ).fsPath;
 
+  // A different binary may have been resolved; drop the cached probe.
+  onlyUntracedSupport = undefined;
+
   return true;
+}
+
+let onlyUntracedSupport: boolean | undefined; // undefined until first probed
+let onlyUntracedProbe: Promise<boolean> | undefined;
+
+/**
+ * Probe (once, cached) whether the resolved `panreq` supports `--only-untraced`
+ * by scanning `panreq --help`. `panreq` ships with VectorCAST and is versioned
+ * independently of this extension, so an older one may predate the flag. Any
+ * failure resolves to `false` — callers then fall back to full inference rather
+ * than passing a flag the binary would reject.
+ */
+export async function panreqSupportsOnlyUntraced(): Promise<boolean> {
+  if (onlyUntracedSupport !== undefined) return onlyUntracedSupport;
+  if (onlyUntracedProbe) return onlyUntracedProbe;
+  if (!PANREQ_EXECUTABLE_PATH) return false;
+
+  onlyUntracedProbe = (async () => {
+    let supported = false;
+    try {
+      const result = await runReqs2xTool({
+        exe: PANREQ_EXECUTABLE_PATH,
+        args: ["--help"],
+        captureOutput: true,
+        allowNonZeroExit: true,
+        timeoutMs: 10000,
+      });
+      const help = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+      supported = help.includes("--only-untraced");
+    } catch (err) {
+      logCliError(`panreq capability probe failed: ${err}`);
+    }
+    onlyUntracedSupport = supported;
+    onlyUntracedProbe = undefined;
+    logCliOperation(
+      `panreq --only-untraced support: ${supported ? "yes" : "no"}`
+    );
+    return supported;
+  })();
+
+  return onlyUntracedProbe;
 }

@@ -143,6 +143,7 @@ import {
 } from "./requirements/rgwIo";
 import { generateRequirementsHtml } from "./requirements/webview/template";
 import type { FromWebview, ToWebview } from "./requirements/webview/messages";
+import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
 
 import {
   exportRequirements,
@@ -1498,13 +1499,17 @@ function configureExtension(context: vscode.ExtensionContext) {
           localResourceRoots: [vscode.Uri.file(webviewBaseDir)],
         }
       );
+      // Drives the split-button UI and gates the flag in the handler below.
+      const onlyUntracedSupported = await panreqSupportsOnlyUntraced();
+
       const nonce = getNonce();
       panel.webview.html = generateRequirementsHtml(
         panel.webview,
         webviewBaseDir,
         nonce,
         loaded,
-        unitsToFunctions
+        unitsToFunctions,
+        onlyUntracedSupported
       );
 
       let currentBundle: RGWBundle = loaded;
@@ -1564,7 +1569,8 @@ function configureExtension(context: vscode.ExtensionContext) {
             try {
               const refreshed = await inferTraceability(
                 enviroPath,
-                currentBundle.gatewayPath
+                currentBundle.gatewayPath,
+                { onlyUntraced: msg.onlyUntraced && onlyUntracedSupported }
               );
               if (!refreshed) {
                 // Cancelled by user — re-enable the webview buttons silently.

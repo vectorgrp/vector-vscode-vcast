@@ -21,6 +21,8 @@ export interface SaveMessage {
 
 export interface InferTraceabilityMessage {
   type: "infer-traceability";
+  /** Only re-infer requirements missing a unit/function. Set only when supported. */
+  onlyUntraced: boolean;
 }
 
 export interface OpenSourceMessage {
