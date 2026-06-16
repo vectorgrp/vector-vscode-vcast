@@ -830,26 +830,51 @@
     td.title = text;
   }
 
-  // Struct-field grouping: rows that share a fieldOfNodeStr are
-  // collapsed under one header row. Per-session state (resets on
-  // webview close); cheap to add persistence later if needed.
+  // Struct-field grouping with nesting. A group is any value that
+  // appears as a fieldOfNodeStr; groups whose name is a "X." prefix of
+  // another group (e.g. "box" vs "box.origin") wrap the longer one as
+  // a child. Collapsing a parent hides every descendant; descendants'
+  // own collapsed state is preserved so re-expanding restores it.
   const collapsedGroups = new Set();
   const insertedGroupHeaders = new Set();
-  function structGroupSizes() {
-    const sizes = new Map();
-    for (const r of payload.rows) {
-      if (!r.fieldOfNodeStr) continue;
-      sizes.set(r.fieldOfNodeStr, (sizes.get(r.fieldOfNodeStr) || 0) + 1);
+  const groupNames = [];
+  const groupSize = new Map();
+  for (const r of payload.rows) {
+    if (!r.fieldOfNodeStr) continue;
+    if (!groupSize.has(r.fieldOfNodeStr)) {
+      groupNames.push(r.fieldOfNodeStr);
+      groupSize.set(r.fieldOfNodeStr, 0);
     }
-    return sizes;
+    groupSize.set(r.fieldOfNodeStr, groupSize.get(r.fieldOfNodeStr) + 1);
   }
-  const groupSize = structGroupSizes();
+  function findParentGroup(name) {
+    let best = null;
+    for (const g of groupNames) {
+      if (g === name) continue;
+      if (name.startsWith(g + ".") && (!best || g.length > best.length)) {
+        best = g;
+      }
+    }
+    return best;
+  }
+  function ancestorChain(name) {
+    const out = [];
+    let cur = findParentGroup(name);
+    while (cur) { out.push(cur); cur = findParentGroup(cur); }
+    return out;
+  }
+  function depthOf(name) {
+    return ancestorChain(name).length;
+  }
+
   function ensureGroupHeader(parent) {
     if (insertedGroupHeaders.has(parent)) return;
     insertedGroupHeaders.add(parent);
+    const depth = depthOf(parent);
     const tr = document.createElement("tr");
     tr.className = "group-header";
     tr.dataset.groupName = parent;
+    tr.style.setProperty("--depth", String(depth));
     const td = document.createElement("td");
     td.colSpan = 8;
     const caret = document.createElement("span");
@@ -865,25 +890,43 @@
     td.appendChild(caret);
     td.appendChild(nameSpan);
     td.appendChild(countSpan);
-    td.addEventListener("click", () => toggleGroup(parent, caret));
+    td.addEventListener("click", () => toggleGroup(parent));
     tr.appendChild(td);
     body.appendChild(tr);
   }
-  function toggleGroup(parent, caretEl) {
-    const isOpen = !collapsedGroups.has(parent);
-    if (isOpen) {
-      collapsedGroups.add(parent);
-      caretEl.textContent = "▸";
-    } else {
-      collapsedGroups.delete(parent);
-      caretEl.textContent = "▾";
-    }
-    document
-      .querySelectorAll(
-        `tr.field-row[data-group-parent="${cssEscape(parent)}"]`
-      )
-      .forEach((tr) => tr.classList.toggle("hidden", isOpen));
+
+  function toggleGroup(parent) {
+    if (collapsedGroups.has(parent)) collapsedGroups.delete(parent);
+    else collapsedGroups.add(parent);
+    applyGroupVisibility();
   }
+
+  // Recompute visibility + caret state from the collapsedGroups set.
+  // Cheaper than tracking deltas and avoids drift when nested groups
+  // open and close in odd orders.
+  function applyGroupVisibility() {
+    // Group header: visible iff no strict ancestor is collapsed.
+    for (const g of groupNames) {
+      const hdr = document.querySelector(
+        `tr.group-header[data-group-name="${cssEscape(g)}"]`
+      );
+      if (!hdr) continue;
+      const ancestors = ancestorChain(g);
+      const hidden = ancestors.some((a) => collapsedGroups.has(a));
+      hdr.classList.toggle("hidden", hidden);
+      const caret = hdr.querySelector(".group-caret");
+      if (caret) caret.textContent = collapsedGroups.has(g) ? "▸" : "▾";
+    }
+    // Field row: visible iff no ancestor group (including its direct
+    // parent) is collapsed.
+    document.querySelectorAll("tr.field-row").forEach((tr) => {
+      const parent = tr.dataset.groupParent || "";
+      const ancestors = [parent, ...ancestorChain(parent)];
+      const hidden = ancestors.some((a) => collapsedGroups.has(a));
+      tr.classList.toggle("hidden", hidden);
+    });
+  }
+
   function cssEscape(s) {
     return s.replace(/[^\w-]/g, (c) => "\\" + c);
   }
@@ -897,6 +940,7 @@
     if (row.fieldOfNodeStr) {
       tr.classList.add("field-row");
       tr.dataset.groupParent = row.fieldOfNodeStr;
+      tr.style.setProperty("--depth", String(depthOf(row.fieldOfNodeStr) + 1));
     }
     tr.addEventListener("mouseenter", () => highlightForRow(idx));
     tr.addEventListener("mouseleave", () => unhighlightForRow(idx));
