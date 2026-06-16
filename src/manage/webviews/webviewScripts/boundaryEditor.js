@@ -830,11 +830,74 @@
     td.title = text;
   }
 
+  // Struct-field grouping: rows that share a fieldOfNodeStr are
+  // collapsed under one header row. Per-session state (resets on
+  // webview close); cheap to add persistence later if needed.
+  const collapsedGroups = new Set();
+  const insertedGroupHeaders = new Set();
+  function structGroupSizes() {
+    const sizes = new Map();
+    for (const r of payload.rows) {
+      if (!r.fieldOfNodeStr) continue;
+      sizes.set(r.fieldOfNodeStr, (sizes.get(r.fieldOfNodeStr) || 0) + 1);
+    }
+    return sizes;
+  }
+  const groupSize = structGroupSizes();
+  function ensureGroupHeader(parent) {
+    if (insertedGroupHeaders.has(parent)) return;
+    insertedGroupHeaders.add(parent);
+    const tr = document.createElement("tr");
+    tr.className = "group-header";
+    tr.dataset.groupName = parent;
+    const td = document.createElement("td");
+    td.colSpan = 8;
+    const caret = document.createElement("span");
+    caret.className = "group-caret";
+    caret.textContent = "▾";
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "group-name";
+    nameSpan.textContent = parent;
+    const countSpan = document.createElement("span");
+    countSpan.className = "group-count";
+    const n = groupSize.get(parent) || 0;
+    countSpan.textContent = `${n} field${n === 1 ? "" : "s"}`;
+    td.appendChild(caret);
+    td.appendChild(nameSpan);
+    td.appendChild(countSpan);
+    td.addEventListener("click", () => toggleGroup(parent, caret));
+    tr.appendChild(td);
+    body.appendChild(tr);
+  }
+  function toggleGroup(parent, caretEl) {
+    const isOpen = !collapsedGroups.has(parent);
+    if (isOpen) {
+      collapsedGroups.add(parent);
+      caretEl.textContent = "▸";
+    } else {
+      collapsedGroups.delete(parent);
+      caretEl.textContent = "▾";
+    }
+    document
+      .querySelectorAll(
+        `tr.field-row[data-group-parent="${cssEscape(parent)}"]`
+      )
+      .forEach((tr) => tr.classList.toggle("hidden", isOpen));
+  }
+  function cssEscape(s) {
+    return s.replace(/[^\w-]/g, (c) => "\\" + c);
+  }
+
   const body = document.getElementById("rows-body");
   payload.rows.forEach((row, idx) => {
+    if (row.fieldOfNodeStr) ensureGroupHeader(row.fieldOfNodeStr);
     const tr = document.createElement("tr");
     tr.dataset.rowIndex = String(idx);
     if (!isScalar(row)) tr.classList.add("no-effect");
+    if (row.fieldOfNodeStr) {
+      tr.classList.add("field-row");
+      tr.dataset.groupParent = row.fieldOfNodeStr;
+    }
     tr.addEventListener("mouseenter", () => highlightForRow(idx));
     tr.addEventListener("mouseleave", () => unhighlightForRow(idx));
 
