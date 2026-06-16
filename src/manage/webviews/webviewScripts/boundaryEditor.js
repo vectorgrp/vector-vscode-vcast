@@ -857,6 +857,13 @@
     }
     return best;
   }
+  // A nested subgroup counts as one of its parent's fields (in C
+  // terms: a struct-typed field). Bump the parent's count by 1 per
+  // immediate subgroup.
+  for (const g of groupNames) {
+    const p = findParentGroup(g);
+    if (p) groupSize.set(p, (groupSize.get(p) || 0) + 1);
+  }
   function ancestorChain(name) {
     const out = [];
     let cur = findParentGroup(name);
