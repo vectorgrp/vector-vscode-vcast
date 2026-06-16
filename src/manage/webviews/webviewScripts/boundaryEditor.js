@@ -774,6 +774,17 @@
       if (values.length === 0) {
         return { text: "(invalid sub-ranges)", isModified: true };
       }
+    } else if (s.mode === "Literal") {
+      // s.value carries the literal NAME; resolve to its integer.
+      if (!s.value) {
+        return { text: "(pick a literal)", isModified: false };
+      }
+      const lit = (row.enumLiterals || []).find((x) => x.name === s.value);
+      if (!lit) {
+        return { text: `(undefined: ${s.value})`, isModified: true };
+      }
+      const n = Number(lit.value);
+      values = s.skipAdj ? [n] : [n - 1, n, n + 1];
     }
     return { text: formatValueSet(values), isModified: true };
   }
@@ -960,7 +971,12 @@
     const modeTd = document.createElement("td");
     const sel = document.createElement("select");
     sel.className = "mode-select";
-    for (const opt of ["Auto", "Fixed", "Range", "Named"]) {
+    const modeOptions = ["Auto", "Fixed", "Range", "Named"];
+    // Enum-typed scalars get a "Literal" mode that picks by name.
+    if (isScalar(row) && Array.isArray(row.enumLiterals) && row.enumLiterals.length > 0) {
+      modeOptions.push("Literal");
+    }
+    for (const opt of modeOptions) {
       const o = document.createElement("option");
       o.value = opt;
       o.textContent = opt;
@@ -1090,6 +1106,28 @@
         refreshGenerates(idx);
       });
       td.appendChild(namedSel);
+    } else if (s.mode === "Literal") {
+      // Enum literal picker: select by name, submit the numeric value.
+      // s.value stores the literal NAME for display; we resolve to the
+      // integer at predict / submit time.
+      const litSel = document.createElement("select");
+      litSel.className = "mode-select";
+      const blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = "(pick literal)";
+      litSel.appendChild(blank);
+      for (const lit of row.enumLiterals || []) {
+        const o = document.createElement("option");
+        o.value = lit.name;
+        o.textContent = `${lit.name} = ${lit.value}`;
+        litSel.appendChild(o);
+      }
+      litSel.value = s.value || "";
+      litSel.addEventListener("change", () => {
+        s.value = litSel.value;
+        refreshGenerates(idx);
+      });
+      td.appendChild(litSel);
     }
   }
 
@@ -1208,6 +1246,14 @@
           return;
         }
         entry.namedRef = s.namedRef;
+      } else if (s.mode === "Literal") {
+        // Keep mode="Literal" + value=<literal name> across the wire so
+        // a Save draft / reload preserves the user's semantic choice.
+        // The TS-side writer resolves to pyatg's numeric form.
+        if (!s.value) return;
+        const lit = (row.enumLiterals || []).find((x) => x.name === s.value);
+        if (!lit) return;
+        // entry.value already carries the name (from state.value).
       }
       overrides.push(entry);
     });

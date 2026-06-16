@@ -1021,8 +1021,11 @@ export function parseBoundaryMappingJson(
 
 export interface BoundaryOverride {
   rowIndex: number;
-  mode: "Auto" | "Fixed" | "Range" | "Named";
+  mode: "Auto" | "Fixed" | "Range" | "Named" | "Literal";
   skipAdj: boolean;
+  // For mode "Fixed": the numeric value as a string.
+  // For mode "Literal": the literal NAME (e.g. "RED"); resolved to the
+  // numeric value at write time via the row's enumLiterals.
   value: string;
   lo: string;
   hi: string;
@@ -1071,10 +1074,18 @@ function namedRangeToDefinition(nr: NamedRange): string {
 // Translate a webview override into the boundary_type cell pyatg reads.
 // Named-mode rows reference a class defined in Boundaries.csv by bare
 // name; the other modes use inline values.
-function boundaryTypeForOverride(o: BoundaryOverride): string {
+function boundaryTypeForOverride(
+  o: BoundaryOverride,
+  row: NodeData
+): string {
   if (o.mode === "Fixed") return o.value;
   if (o.mode === "Range") return `[${o.lo}, ${o.hi}]`;
   if (o.mode === "Named") return o.namedRef || "<AUTO_GENERATE>";
+  if (o.mode === "Literal") {
+    // o.value holds the literal NAME; look up its integer on the row.
+    const lit = (row.enumLiterals || []).find((x) => x.name === o.value);
+    if (lit) return String(lit.value);
+  }
   return "<AUTO_GENERATE>";
 }
 
@@ -1099,7 +1110,7 @@ interface PersistedOverride {
   origFile: string;
   scope: string;
   nodeStr: string;
-  mode: "Auto" | "Fixed" | "Range" | "Named";
+  mode: "Auto" | "Fixed" | "Range" | "Named" | "Literal";
   skipAdj: boolean;
   value: string;
   lo: string;
@@ -1290,7 +1301,7 @@ export function writeManualInputsXlsx(
   for (const o of overrides) {
     const r = rows[o.rowIndex];
     if (!r) continue;
-    const boundaryType = boundaryTypeForOverride(o);
+    const boundaryType = boundaryTypeForOverride(o, r);
     // Convention from the manual-mode gold fixtures (e.g.
     // minus_one.c.gold.inputs.xlsx): "x" in the skip column means
     // "force ±1 adjustment off"; empty means "let pyatg decide".
