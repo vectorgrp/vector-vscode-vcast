@@ -593,6 +593,17 @@ td.typedef-cell {
   cursor: help;
 }
 
+/* Fptr candidate listing — informational, dotted-underline tooltip. */
+.fptr-candidates {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.78rem;
+  color: var(--vscode-descriptionForeground);
+  text-decoration: underline dotted;
+  text-decoration-color: var(--vscode-descriptionForeground);
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
 td.generates-cell.modified {
   color: var(--vscode-foreground);
   background: var(--vscode-diffEditor-insertedTextBackground,

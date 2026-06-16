@@ -1053,6 +1053,16 @@
     td.innerHTML = "";
     const s = state[idx];
     if (s.mode === "Auto" || !isScalar(row)) {
+      // Function-pointer rows: surface the candidate names from pyatg
+      // (informational; selection isn't wired to a pyatg override yet).
+      if (row.kind === "functionPointer" && Array.isArray(row.fptrCandidates) && row.fptrCandidates.length > 0) {
+        const span = document.createElement("span");
+        span.className = "fptr-candidates";
+        span.textContent = `candidates: ${row.fptrCandidates.join(", ")}`;
+        span.title = "pyatg will pick one of these candidate functions when generating tests for this pointer. (Override selection not yet wired through.)";
+        td.appendChild(span);
+        return;
+      }
       const span = document.createElement("span");
       span.className = "dash";
       span.textContent = "—";
