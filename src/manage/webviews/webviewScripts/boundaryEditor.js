@@ -955,7 +955,7 @@
     appendText(tr, row.scope);
     appendText(tr, row.routine);
     appendText(tr, row.nodeStr);
-    appendText(tr, row.nodeType);
+    appendTypeCell(tr, row);
 
     const modeTd = document.createElement("td");
     const sel = document.createElement("select");
@@ -1015,6 +1015,21 @@
     const td = document.createElement("td");
     if (cls) td.className = cls;
     td.textContent = text || "";
+    tr.appendChild(td);
+  }
+
+  // Type cell: show the typedef name (e.g. int8_t) when pyatg emitted
+  // one, fall back to the resolved primitive otherwise. Tooltip carries
+  // the primitive so the user can see what int8_t actually is.
+  function appendTypeCell(tr, row) {
+    const td = document.createElement("td");
+    if (row.typedef) {
+      td.textContent = row.typedef;
+      td.title = row.nodeType;
+      td.classList.add("typedef-cell");
+    } else {
+      td.textContent = row.nodeType || "";
+    }
     tr.appendChild(td);
   }
 

@@ -584,6 +584,15 @@ td.generates-cell {
   cursor: help;
 }
 
+/* Typedef cells: dotted underline hint that there's a tooltip with
+   the underlying primitive type. */
+td.typedef-cell {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--vscode-descriptionForeground);
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
 td.generates-cell.modified {
   color: var(--vscode-foreground);
   background: var(--vscode-diffEditor-insertedTextBackground,

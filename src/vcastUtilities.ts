@@ -902,6 +902,12 @@ export interface NodeData {
   arraySize?: number;
   elementOfNodeStr?: string;
   fieldOfNodeStr?: string;
+
+  // pyatg-emitted enrichments (see atg/solvers/boundary/collector.py).
+  // Optional and additive: omitted when not applicable to the node.
+  typedef?: string;
+  enumLiterals?: { name: string; value: number }[];
+  fptrCandidates?: string[];
 }
 
 function buildBoundaryEnvVars(): Record<string, string> {
@@ -985,6 +991,24 @@ export function parseBoundaryMappingJson(
     }
     if (typeof n.fieldOfNodeStr === "string" && n.fieldOfNodeStr) {
       row.fieldOfNodeStr = n.fieldOfNodeStr;
+    }
+    if (typeof n.typedef === "string" && n.typedef) {
+      row.typedef = n.typedef;
+    }
+    if (Array.isArray(n.enumLiterals) && n.enumLiterals.length > 0) {
+      const lits = [];
+      for (const e of n.enumLiterals) {
+        if (e && typeof e.name === "string" && typeof e.value === "number") {
+          lits.push({ name: e.name, value: e.value });
+        }
+      }
+      if (lits.length > 0) row.enumLiterals = lits;
+    }
+    if (Array.isArray(n.fptrCandidates) && n.fptrCandidates.length > 0) {
+      const cands = n.fptrCandidates.filter(
+        (c: unknown): c is string => typeof c === "string" && c.length > 0
+      );
+      if (cands.length > 0) row.fptrCandidates = cands;
     }
     rows.push(row);
   }
