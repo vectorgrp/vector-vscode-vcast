@@ -392,6 +392,8 @@
       value: String(s.value || ""),
       lo: String(s.lo || ""),
       hi: String(s.hi || ""),
+      lowInclusive: s.lowInclusive !== false,
+      highInclusive: s.highInclusive !== false,
     };
   }
   function stringDefinitionToSubRanges(def) {
@@ -403,10 +405,18 @@
       const eq = line.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/);
       if (eq) { subName = eq[1]; rest = eq[2].trim(); }
       const range = rest.match(
-        /^\[\s*(-?\d+|0x[0-9a-fA-F]+)\s*,\s*(-?\d+|0x[0-9a-fA-F]+)\s*\]$/
+        /^([\[(])\s*(-?\d+|0x[0-9a-fA-F]+)\s*,\s*(-?\d+|0x[0-9a-fA-F]+)\s*([\])])$/
       );
       if (range) {
-        out.push({ subName, mode: "Range", value: "", lo: range[1], hi: range[2] });
+        out.push({
+          subName,
+          mode: "Range",
+          value: "",
+          lo: range[2],
+          hi: range[3],
+          lowInclusive: range[1] === "[",
+          highInclusive: range[4] === "]",
+        });
       } else {
         out.push({ subName, mode: "Value", value: rest, lo: "", hi: "" });
       }
@@ -441,6 +451,30 @@
 
   // Mark a sub-range value/lo/hi input invalid when it doesn't parse
   // as a number. Empty is OK (mid-typing, or just the wrong column).
+  // Bracket toggle for a SubRange inside a named-range card. Behaves
+  // like makeBracketToggle (Inputs table) but writes to the sub-range
+  // object and re-renders the named-ranges list so collapsed summary
+  // / overlaps refresh.
+  function makeSubBracketToggle(sub, key, isLeft) {
+    if (sub[key] === undefined) sub[key] = true;
+    const span = document.createElement("span");
+    span.className = "bracket-toggle";
+    span.title = "Click to toggle inclusive (square) / exclusive (round).";
+    function render() {
+      const incl = !!sub[key];
+      span.textContent = incl
+        ? (isLeft ? "[" : "]")
+        : (isLeft ? "(" : ")");
+    }
+    render();
+    span.addEventListener("click", () => {
+      sub[key] = !sub[key];
+      render();
+      fireNamedChanged();
+    });
+    return span;
+  }
+
   function markSubInputValidity(inp) {
     const v = inp.value.trim();
     if (v === "") {
@@ -451,12 +485,14 @@
     inp.classList.toggle("invalid", !ok);
   }
 
-  // Parse "[lo, hi]" with integer / hex / signed endpoints. Returns
-  // null if the definition isn't a clean numeric range.
+  // Parse "[lo, hi]" / "(lo, hi)" / mixed with integer / hex / signed
+  // endpoints. Returns null if the definition isn't a clean numeric
+  // range. (Currently unused but kept for legacy text-bundle parsing
+  // shape.)
   function parseRangeBrackets(def) {
     const t = (def || "").trim();
     const m = t.match(
-      /^\[\s*(-?\d+|0x[0-9a-fA-F]+)\s*,\s*(-?\d+|0x[0-9a-fA-F]+)\s*\]$/
+      /^[\[(]\s*(-?\d+|0x[0-9a-fA-F]+)\s*,\s*(-?\d+|0x[0-9a-fA-F]+)\s*[\])]$/
     );
     if (!m) return null;
     const lo = parseValue(m[1]);
@@ -560,9 +596,16 @@
   function buildRangeSummary(nr) {
     const parts = [];
     for (const s of nr.subRanges || []) {
-      const body = s.mode === "Range"
-        ? (s.lo.trim() && s.hi.trim() ? `[${s.lo.trim()}, ${s.hi.trim()}]` : "")
-        : s.value.trim();
+      let body = "";
+      if (s.mode === "Range") {
+        if (s.lo.trim() && s.hi.trim()) {
+          const open = s.lowInclusive === false ? "(" : "[";
+          const close = s.highInclusive === false ? ")" : "]";
+          body = `${open}${s.lo.trim()}, ${s.hi.trim()}${close}`;
+        }
+      } else {
+        body = s.value.trim();
+      }
       if (!body) continue;
       parts.push(s.subName.trim() ? `${s.subName.trim()}=${body}` : body);
     }
@@ -712,6 +755,11 @@
     tr.appendChild(modeTd);
 
     const valTd = document.createElement("td");
+    // Bracket toggle precedes the lo input when in Range mode (skipped
+    // for Value mode since brackets don't apply to a single value).
+    if (sub.mode === "Range") {
+      valTd.appendChild(makeSubBracketToggle(sub, "lowInclusive", true));
+    }
     const valInp = document.createElement("input");
     valInp.className = "sub-val-input";
     valInp.placeholder = sub.mode === "Range" ? "lo" : "value";
@@ -739,6 +787,7 @@
       });
       markSubInputValidity(hiInp);
       hiTd.appendChild(hiInp);
+      hiTd.appendChild(makeSubBracketToggle(sub, "highInclusive", false));
       if (overlapKeys.has(`${rIdx}.${sIdx}`)) {
         const badge = document.createElement("span");
         badge.className = "named-warning";
@@ -895,8 +944,10 @@
           const lo = parseValue(sub.lo);
           const hi = parseValue(sub.hi);
           if (lo === null || hi === null) continue;
-          const lN = Number(lo);
-          const hN = Number(hi);
+          // Open ends shift inward by 1 — same shape as the per-row
+          // Range mode predictor.
+          const lN = Number(lo) + (sub.lowInclusive === false ? 1 : 0);
+          const hN = Number(hi) - (sub.highInclusive === false ? 1 : 0);
           if (s.skipAdj) values.push(lN, hN);
           else values.push(lN - 1, lN, lN + 1, hN - 1, hN, hN + 1);
         } else {
@@ -1462,7 +1513,15 @@
           const hi = (sub.hi || "").trim();
           if (lo === "" || hi === "") continue;
           if (parseValue(lo) === null || parseValue(hi) === null) continue;
-          subRanges.push({ subName, mode: "Range", value: "", lo, hi });
+          subRanges.push({
+            subName,
+            mode: "Range",
+            value: "",
+            lo,
+            hi,
+            lowInclusive: sub.lowInclusive !== false,
+            highInclusive: sub.highInclusive !== false,
+          });
         } else {
           const value = (sub.value || "").trim();
           if (value === "") continue;

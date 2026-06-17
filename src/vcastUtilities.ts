@@ -1057,7 +1057,9 @@ function csvField(value: string): string {
 function subRangeBare(s: SubRange): string {
   if (s.mode === "Range") {
     if (s.lo.trim() === "" || s.hi.trim() === "") return "";
-    return `[${s.lo.trim()}, ${s.hi.trim()}]`;
+    const open = s.lowInclusive === false ? "(" : "[";
+    const close = s.highInclusive === false ? ")" : "]";
+    return `${open}${s.lo.trim()}, ${s.hi.trim()}${close}`;
   }
   return s.value.trim();
 }
@@ -1139,6 +1141,10 @@ export interface SubRange {
   value: string;
   lo: string;
   hi: string;
+  // Range-mode endpoint inclusivity. Default true (closed) for both;
+  // open ends emit `(` / `)` in the boundary_type string.
+  lowInclusive?: boolean;
+  highInclusive?: boolean;
 }
 
 export interface NamedRange {
@@ -1225,6 +1231,8 @@ function normalizeSubRange(s: any): SubRange {
     value: String((s && s.value) || ""),
     lo: String((s && s.lo) || ""),
     hi: String((s && s.hi) || ""),
+    lowInclusive: s && s.lowInclusive !== false,
+    highInclusive: s && s.highInclusive !== false,
   };
 }
 
@@ -1245,10 +1253,18 @@ function bundleStringToSubRanges(def: string): SubRange[] {
       rest = eq[2].trim();
     }
     const range = rest.match(
-      /^\[\s*(-?\d+|0x[0-9a-fA-F]+)\s*,\s*(-?\d+|0x[0-9a-fA-F]+)\s*\]$/
+      /^([\[(])\s*(-?\d+|0x[0-9a-fA-F]+)\s*,\s*(-?\d+|0x[0-9a-fA-F]+)\s*([\])])$/
     );
     if (range) {
-      out.push({ subName, mode: "Range", value: "", lo: range[1], hi: range[2] });
+      out.push({
+        subName,
+        mode: "Range",
+        value: "",
+        lo: range[2],
+        hi: range[3],
+        lowInclusive: range[1] === "[",
+        highInclusive: range[4] === "]",
+      });
       continue;
     }
     // Single value fallback (keeps even malformed text so user can fix).
