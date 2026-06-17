@@ -1364,6 +1364,6 @@
       overrides,
       namedRanges: collectNamedRanges(),
     });
-    showToast("Draft saved");
+    showToast("Saved");
   });
 })();

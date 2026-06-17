@@ -52,16 +52,14 @@
           <table id="rows-table">
             <thead>
               <tr>
-                <th>Scope</th>
-                <th>Routine</th>
-                <th>Expression</th>
-                <th>Type</th>
-                <th>Mode</th>
-                <th>Value</th>
-                <th title="Skip ±1 boundary adjustment for this input">Skip ±1</th>
-                <th
-                  title="Predicted boundary values pyatg will emit."
-                >Generates</th>
+                <th title="Where pyatg sees this input: a routine name for parameters, 'global' for globals, 'stub' for stub returns.">Scope</th>
+                <th title="The routine that uses this input.">Routine</th>
+                <th title="The user-facing expression for the input — e.g. 'x', 'pt.y', 'arr[*]'. Click the matching identifier in the source pane to jump here.">Expression</th>
+                <th title="C type. Shows the typedef name (e.g. int8_t) when applicable, with the underlying primitive on hover.">Type</th>
+                <th title="Override mode. Auto = pyatg picks type-extreme values; Fixed = one value; Range = [lo, hi]; Named = a defined range; Literal = pick an enum literal.">Mode</th>
+                <th title="The override value(s) for the chosen mode.">Value</th>
+                <th title="Skip ±1 boundary adjustment for this input.">Skip ±1</th>
+                <th title="Predicted boundary values pyatg will emit.">Generates</th>
               </tr>
             </thead>
             <tbody id="rows-body"></tbody>
@@ -103,7 +101,7 @@
         class="secondary"
         type="button"
         title="Save current edits to .bp-sheets/overrides.json without generating tests"
-      >Save draft</button>
+      >Save</button>
       <button id="btn-generate" class="primary" type="button">
         Generate Tests
       </button>
