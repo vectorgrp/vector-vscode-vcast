@@ -343,6 +343,8 @@
     hi: "",
     skipAdj: false,
     namedRef: "",
+    lowInclusive: true,
+    highInclusive: true,
   }));
   if (Array.isArray(payload.savedOverrides)) {
     for (const o of payload.savedOverrides) {
@@ -355,6 +357,8 @@
         hi: o.hi || "",
         skipAdj: !!o.skipAdj,
         namedRef: o.namedRef || "",
+        lowInclusive: o.lowInclusive !== false,
+        highInclusive: o.highInclusive !== false,
       };
     }
   }
@@ -864,8 +868,10 @@
       if (lo === null || hi === null) {
         return { text: "(incomplete)", isModified: true };
       }
-      const lN = Number(lo);
-      const hN = Number(hi);
+      // pyatg shifts open ends inward by 1 (Range._strip_left_bracket
+      // / _strip_right_bracket); mirror that for the prediction.
+      const lN = Number(lo) + (s.lowInclusive === false ? 1 : 0);
+      const hN = Number(hi) - (s.highInclusive === false ? 1 : 0);
       values = s.skipAdj
         ? [lN, hN]
         : [lN - 1, lN, lN + 1, hN - 1, hN, hN + 1];
@@ -1218,6 +1224,7 @@
       inp.placeholder = "value";
       td.appendChild(inp);
     } else if (s.mode === "Range") {
+      const loBracket = makeBracketToggle(s, "lowInclusive", true, idx);
       const loInp = makeInput(s.lo || "", (v) => {
         s.lo = v;
         refreshGenerates(idx);
@@ -1230,9 +1237,12 @@
         refreshGenerates(idx);
       });
       hiInp.placeholder = "hi";
+      const hiBracket = makeBracketToggle(s, "highInclusive", false, idx);
+      td.appendChild(loBracket);
       td.appendChild(loInp);
       td.appendChild(sep);
       td.appendChild(hiInp);
+      td.appendChild(hiBracket);
     } else if (s.mode === "Named") {
       const namedSel = document.createElement("select");
       namedSel.className = "mode-select";
@@ -1280,6 +1290,29 @@
       });
       td.appendChild(litSel);
     }
+  }
+
+  // Bracket toggle. `[` / `]` for closed (inclusive), `(` / `)` for
+  // open (exclusive). pyatg's Range parser accepts both shapes (see
+  // gentst.py:_strip_left_bracket).
+  function makeBracketToggle(s, key, isLeft, idx) {
+    if (s[key] === undefined) s[key] = true;
+    const span = document.createElement("span");
+    span.className = "bracket-toggle";
+    span.title = "Click to toggle inclusive (square) / exclusive (round).";
+    function render() {
+      const incl = !!s[key];
+      span.textContent = incl
+        ? (isLeft ? "[" : "]")
+        : (isLeft ? "(" : ")");
+    }
+    render();
+    span.addEventListener("click", () => {
+      s[key] = !s[key];
+      render();
+      refreshGenerates(idx);
+    });
+    return span;
   }
 
   function makeInput(initial, onChange) {
@@ -1370,6 +1403,8 @@
         value: s.value.trim(),
         lo: s.lo.trim(),
         hi: s.hi.trim(),
+        lowInclusive: s.lowInclusive !== false,
+        highInclusive: s.highInclusive !== false,
       };
       if (s.mode === "Fixed") {
         if (entry.value === "") return;

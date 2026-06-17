@@ -702,6 +702,29 @@ td.typedef-cell {
   cursor: help;
 }
 
+/* Bracket toggle for Range mode: clickable [/( and ]/). */
+.bracket-toggle {
+  display: inline-block;
+  width: 1ch;
+  text-align: center;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.95rem;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  user-select: none;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.bracket-toggle:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.1));
+}
+
+body.read-mode .bracket-toggle {
+  pointer-events: none;
+  cursor: default;
+}
+
 /* Fptr candidate listing — informational, dotted-underline tooltip. */
 .fptr-candidates {
   font-family: var(--vscode-editor-font-family, monospace);

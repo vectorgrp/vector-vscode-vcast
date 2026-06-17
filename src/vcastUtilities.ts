@@ -1029,6 +1029,11 @@ export interface BoundaryOverride {
   value: string;
   lo: string;
   hi: string;
+  // For mode "Range": whether each end is inclusive. Defaults to true
+  // (closed) for compatibility with older persisted state. Emitted as
+  // `[` / `]` (closed) or `(` / `)` (open) in the boundary_type cell.
+  lowInclusive?: boolean;
+  highInclusive?: boolean;
   // When mode === "Named", the name of a defined NamedRange. Empty
   // string for the other modes.
   namedRef?: string;
@@ -1079,7 +1084,11 @@ function boundaryTypeForOverride(
   row: NodeData
 ): string {
   if (o.mode === "Fixed") return o.value;
-  if (o.mode === "Range") return `[${o.lo}, ${o.hi}]`;
+  if (o.mode === "Range") {
+    const open = o.lowInclusive === false ? "(" : "[";
+    const close = o.highInclusive === false ? ")" : "]";
+    return `${open}${o.lo}, ${o.hi}${close}`;
+  }
   if (o.mode === "Named") return o.namedRef || "<AUTO_GENERATE>";
   if (o.mode === "Literal") {
     // o.value holds the literal NAME; look up its integer on the row.
@@ -1115,6 +1124,8 @@ interface PersistedOverride {
   value: string;
   lo: string;
   hi: string;
+  lowInclusive?: boolean;
+  highInclusive?: boolean;
   namedRef?: string;
 }
 
@@ -1183,6 +1194,8 @@ export function loadPersistedState(
       value: entry.value || "",
       lo: entry.lo || "",
       hi: entry.hi || "",
+      lowInclusive: entry.lowInclusive !== false,
+      highInclusive: entry.highInclusive !== false,
       namedRef: entry.namedRef || "",
     });
   }
@@ -1263,6 +1276,8 @@ export function savePersistedState(
       value: o.value,
       lo: o.lo,
       hi: o.hi,
+      lowInclusive: o.lowInclusive !== false,
+      highInclusive: o.highInclusive !== false,
       namedRef: o.namedRef || "",
     });
   }
