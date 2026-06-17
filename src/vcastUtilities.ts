@@ -886,6 +886,14 @@ export type NodeKind =
   | "complex";
 
 export interface NodeData {
+  // Canonical handle for the underlying EDG node.
+  //   "<absPath>::<scope>::<nodeStr>"
+  // Single source of identity; persistence keys off this. Same string
+  // pyatg emits in mapping.json. Future: hand this back to pyatg to
+  // route the editor's user-supplied values through valgen as a fake
+  // solver.
+  nodeKey: string;
+
   origFile: string;
   unit: string;
   routine: string;
@@ -969,14 +977,25 @@ export function parseBoundaryMappingJson(
       n.kind === "functionPointer"
         ? n.kind
         : "complex";
+    const origFile = String(n.origFile || "");
+    const scope = String(n.scope || "");
+    const nodeStr = String(n.nodeStr || "");
+    // Trust pyatg's nodeKey if provided; otherwise reconstruct the
+    // composite from the legacy triple so old mapping.json files keep
+    // loading.
+    const nodeKey =
+      typeof n.nodeKey === "string" && n.nodeKey
+        ? n.nodeKey
+        : `${origFile}::${scope}::${nodeStr}`;
     const row: NodeData = {
-      origFile: String(n.origFile || ""),
+      nodeKey,
+      origFile,
       unit: String(n.unit || ""),
       routine: String(n.routine || ""),
-      scope: String(n.scope || ""),
+      scope,
       inputSortStr: String(n.inputSortStr || ""),
       disabledType: String(n.disabledType || ""),
-      nodeStr: String(n.nodeStr || ""),
+      nodeStr,
       nodeType: String(n.nodeType || ""),
       testValueLine: String(n.testValueLine || ""),
       kind,
@@ -1118,6 +1137,11 @@ function boundaryTypeForOverride(
 const OVERRIDES_FILENAME = "overrides.json";
 
 interface PersistedOverride {
+  // Primary identity: the same canonical string emitted in
+  // mapping.json's nodeKey. Older overrides.json files predate this
+  // and key on the (origFile, scope, nodeStr) triple; the loader
+  // accepts either shape.
+  nodeKey?: string;
   origFile: string;
   scope: string;
   nodeStr: string;
@@ -1182,16 +1206,30 @@ export function loadPersistedState(
   const rawNamed: NamedRange[] =
     parsed && Array.isArray(parsed.namedRanges) ? parsed.namedRanges : [];
 
+  // Primary lookup: nodeKey (canonical handle from pyatg). Fallback
+  // lookup: legacy triple (origFile, scope, nodeStr), for overrides.json
+  // files written before the nodeKey rollout.
   const indexByKey = new Map<string, number>();
+  const indexByLegacyTriple = new Map<string, number>();
   rows.forEach((r, idx) => {
-    indexByKey.set(`${r.origFile}\x00${r.scope}\x00${r.nodeStr}`, idx);
+    if (r.nodeKey) indexByKey.set(r.nodeKey, idx);
+    indexByLegacyTriple.set(
+      `${r.origFile}\x00${r.scope}\x00${r.nodeStr}`,
+      idx
+    );
   });
 
   const overrides: BoundaryOverride[] = [];
   for (const entry of rawOverrides) {
-    const idx = indexByKey.get(
-      `${entry.origFile}\x00${entry.scope}\x00${entry.nodeStr}`
-    );
+    let idx: number | undefined;
+    if (entry.nodeKey) {
+      idx = indexByKey.get(entry.nodeKey);
+    }
+    if (idx === undefined) {
+      idx = indexByLegacyTriple.get(
+        `${entry.origFile}\x00${entry.scope}\x00${entry.nodeStr}`
+      );
+    }
     if (idx === undefined) continue;
     overrides.push({
       rowIndex: idx,
@@ -1284,6 +1322,10 @@ export function savePersistedState(
     const r = rows[o.rowIndex];
     if (!r) continue;
     persistedOverrides.push({
+      // Primary identity. origFile/scope/nodeStr kept alongside for
+      // forensic readability and to let an older build of the
+      // extension still recognise the entry.
+      nodeKey: r.nodeKey,
       origFile: r.origFile,
       scope: r.scope,
       nodeStr: r.nodeStr,
