@@ -122,6 +122,28 @@
     }
   }
 
+  // Per-root variable colour. Hashes the root identifier into an HSL
+  // hue; saturation / lightness are theme-adjusted so the colour reads
+  // on both backgrounds. Returns "" for empty input so callers can
+  // skip styling.
+  function colourForRoot(rootName) {
+    if (!rootName) return "";
+    let h = 0;
+    for (let i = 0; i < rootName.length; i += 1) {
+      h = (h * 31 + rootName.charCodeAt(i)) >>> 0;
+    }
+    const hue = h % 360;
+    const isLight = document.body.classList.contains("vscode-light");
+    const sat = isLight ? 70 : 55;
+    const lig = isLight ? 35 : 70;
+    return `hsl(${hue}, ${sat}%, ${lig}%)`;
+  }
+
+  function rowRoot(row) {
+    const m = (row && row.nodeStr ? row.nodeStr : "").match(/^[A-Za-z_]\w*/);
+    return m ? m[0] : "";
+  }
+
   // Render an already-resolved clickable identifier span. Used by the
   // lexer when it has done its own longest-match lookup and just needs
   // to emit the result.
@@ -130,6 +152,9 @@
     span.className = "src-ident";
     span.textContent = text;
     span.dataset.rowIndex = String(rowIndex);
+    const r = payload.rows[rowIndex];
+    const colour = colourForRoot(rowRoot(r));
+    if (colour) span.style.color = colour;
     span.addEventListener("click", onIdentifierClick);
     td.appendChild(span);
   }
@@ -1050,7 +1075,7 @@
 
     appendText(tr, row.scope);
     appendText(tr, row.routine);
-    appendText(tr, row.nodeStr);
+    appendColouredExpression(tr, row);
     appendTypeCell(tr, row);
 
     const modeTd = document.createElement("td");
@@ -1116,6 +1141,17 @@
     const td = document.createElement("td");
     if (cls) td.className = cls;
     td.textContent = text || "";
+    tr.appendChild(td);
+  }
+
+  // Expression cell: text coloured by the row's root identifier so
+  // pt.x / pt.y share a colour distinct from box.* etc. Mirrors the
+  // tinting on the source pane's clickable identifiers.
+  function appendColouredExpression(tr, row) {
+    const td = document.createElement("td");
+    td.textContent = row.nodeStr || "";
+    const colour = colourForRoot(rowRoot(row));
+    if (colour) td.style.color = colour;
     tr.appendChild(td);
   }
 
