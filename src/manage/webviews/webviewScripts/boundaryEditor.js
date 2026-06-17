@@ -793,6 +793,26 @@
   document.getElementById("tab-inputs").addEventListener("click", () => switchTab("inputs"));
   document.getElementById("tab-named").addEventListener("click", () => switchTab("named"));
 
+  // Read / Edit view toggle. Read = compact, no edit controls;
+  // Generates revealed on row hover. Persisted via vscode.setState so
+  // it survives reload of the same webview.
+  const viewToggleBtn = document.getElementById("view-toggle");
+  const persistedUiState = (vscode.getState && vscode.getState()) || {};
+  function applyViewMode(read) {
+    document.body.classList.toggle("read-mode", read);
+    viewToggleBtn.textContent = read ? "Read view" : "Edit view";
+    viewToggleBtn.setAttribute("aria-pressed", read ? "true" : "false");
+  }
+  applyViewMode(!!persistedUiState.readMode);
+  viewToggleBtn.addEventListener("click", () => {
+    const next = !document.body.classList.contains("read-mode");
+    applyViewMode(next);
+    if (vscode.setState) {
+      vscode.setState({ ...persistedUiState, readMode: next });
+      persistedUiState.readMode = next;
+    }
+  });
+
   renderNamedRanges();
 
   // Scalar-editable rows are the ones with a Mode dropdown (everything

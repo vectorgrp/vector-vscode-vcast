@@ -120,6 +120,59 @@ main {
   opacity: 0.7;
 }
 
+/* View toggle at the right end of the tab bar — flips between Read
+   (compact / no edit controls) and Edit (full controls). */
+.view-toggle {
+  margin-left: auto;
+  margin-right: 12px;
+  background: transparent;
+  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border, #555));
+  border-radius: 3px;
+  color: var(--vscode-foreground);
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  cursor: pointer;
+  align-self: center;
+}
+
+.view-toggle:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.1));
+}
+
+/* Read-mode rules: applied via body.read-mode. */
+body.read-mode .mode-select,
+body.read-mode .sub-mode-select,
+body.read-mode .value-input,
+body.read-mode .sub-val-input,
+body.read-mode .named-name-input,
+body.read-mode textarea.named-def-input {
+  pointer-events: none;
+  background: transparent;
+  border-color: transparent;
+}
+
+/* Hide Skip column entirely in Read mode (per QoL #8). */
+body.read-mode #rows-table thead th:nth-child(7),
+body.read-mode #rows-table tbody tr:not(.group-header) td:nth-child(7) {
+  display: none;
+}
+
+/* Generates: hidden by default in Read mode; reveal on row hover. */
+body.read-mode #rows-table .generates-cell {
+  visibility: hidden;
+}
+body.read-mode #rows-table tbody tr:hover .generates-cell {
+  visibility: visible;
+}
+
+/* Hide structural-edit affordances in Read mode. */
+body.read-mode .named-add,
+body.read-mode .sub-add,
+body.read-mode .del-confirm,
+body.read-mode .card-caret {
+  display: none;
+}
+
 .tab-pane {
   display: none;
   flex: 1 1 auto;
