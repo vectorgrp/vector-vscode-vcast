@@ -8,6 +8,7 @@ import {
   CODE2REQS_EXECUTABLE_PATH,
   PANREQ_EXECUTABLE_PATH,
   REQS2TESTS_EXECUTABLE_PATH,
+  isReqs2checkAvailable,
   setupReqs2XExecutablePaths,
 } from "./requirementsExecutables";
 import { runReqs2xTool } from "./processRunner";
@@ -55,6 +56,11 @@ export function initializeReqs2X(context: vscode.ExtensionContext) {
     "setContext",
     "vectorcastTestExplorer.reqs2xFeatureEnabled",
     featureEnabled
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.reqs2checkAvailable",
+    featureEnabled && isReqs2checkAvailable()
   );
 }
 

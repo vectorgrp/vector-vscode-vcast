@@ -23,6 +23,8 @@ import {
   inferCaret,
   inferMenu,
   addBtn,
+  verifyBtn,
+  generateTestsBtn,
   reqsBody,
   searchInput,
   filterUnit,
@@ -91,6 +93,18 @@ reqsBody.addEventListener("click", (e) => {
 
 if (addBtn) addBtn.addEventListener("click", appendPendingAdd);
 saveBtn.addEventListener("click", postSave);
+
+if (verifyBtn) {
+  verifyBtn.addEventListener("click", () => {
+    vscode.postMessage({ type: "verify-against-code" });
+  });
+}
+
+if (generateTestsBtn) {
+  generateTestsBtn.addEventListener("click", () => {
+    vscode.postMessage({ type: "generate-tests" });
+  });
+}
 
 // Default action: untraced-only when supported (split button), else full infer.
 inferBtn.addEventListener("click", () =>

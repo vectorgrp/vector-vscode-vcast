@@ -4,6 +4,7 @@ import { makeEnviroNodeID } from "../testPane";
 import { testNodeCache } from "../testData";
 import { hasCompleteAndUsableRGW } from "./rgwIo";
 import { logCliOperation } from "./requirementsLog";
+import { ensureRgwWatcher } from "./rgwWatcher";
 
 const path = require("path");
 
@@ -111,12 +112,9 @@ export function setupRequirementsFileWatchers(
     void refreshAllRequirementsAvailability(reason);
   };
 
-  const rgwWatcher = vscode.workspace.createFileSystemWatcher(
-    "**/requirements_gateway/requirements.json"
-  );
+  const rgwWatcher = ensureRgwWatcher(context);
   rgwWatcher.onDidCreate(refresh("rgw create"), null, context.subscriptions);
   rgwWatcher.onDidDelete(refresh("rgw delete"), null, context.subscriptions);
-  context.subscriptions.push(rgwWatcher);
 
   const cfgWatcher = vscode.workspace.createFileSystemWatcher("**/CCAST_.CFG");
   cfgWatcher.onDidChange(refresh("ccast change"), null, context.subscriptions);

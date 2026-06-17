@@ -92,7 +92,11 @@ export interface RunReqs2xToolOptions {
    * cancel kills the subprocess and the runner returns `{ cancelled: true }`.
    */
   progress?: { title: string; logPrefix: string };
-  /** Return captured stdout/stderr on the result. Ignored when `progress` is set. */
+  /**
+   * Return captured stdout/stderr on the result. Works in both progress
+   * and non-progress modes; in progress mode chunks are still piped to
+   * the ProgressTracker in parallel.
+   */
   captureOutput?: boolean;
   /** Resolve (with `exitCode`) instead of throwing on a non-zero exit. */
   allowNonZeroExit?: boolean;
@@ -116,6 +120,9 @@ export interface RunReqs2xToolResult {
  * - Honors `llm` to decide between plain `spawn` and LLM-checked
  *   `spawnWithVcastEnv`.
  * - With `progress` set, drives the standard notification + cancel button.
+ * - With `captureOutput` set, returns the buffered stdout/stderr on the
+ *   result — works in both progress and non-progress modes (progress mode
+ *   still forwards chunks to the ProgressTracker in parallel).
  *
  * Resolves on success, throws on non-zero exit, or returns
  * `{ cancelled: true }` if the user cancelled a progress run.
@@ -146,6 +153,8 @@ export async function runReqs2xTool(
         const tracker = new ProgressTracker(progress, progressOpts.logPrefix);
 
         let cancelled = false;
+        let stdout = "";
+        let stderr = "";
         cancellationToken.onCancellationRequested(() => {
           cancelled = true;
           proc.kill();
@@ -154,10 +163,13 @@ export async function runReqs2xTool(
 
         await new Promise<void>((resolve, reject) => {
           proc.stdout.on("data", (d) => {
-            if (!cancelled) tracker.processOutput(d.toString());
+            const chunk = d.toString();
+            if (opts.captureOutput) stdout += chunk;
+            if (!cancelled) tracker.processOutput(chunk);
           });
           proc.stderr.on("data", (d) => {
             const errOut = d.toString();
+            if (opts.captureOutput) stderr += errOut;
             if (errOut.trim())
               logCliError(`${progressOpts.logPrefix}: ${errOut.trim()}`);
           });
@@ -173,7 +185,10 @@ export async function runReqs2xTool(
           });
         });
 
-        return { cancelled };
+        return {
+          cancelled,
+          ...(opts.captureOutput ? { stdout, stderr } : {}),
+        };
       }
     );
   }

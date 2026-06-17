@@ -40,7 +40,8 @@ export function generateRequirementsHtml(
   nonce: string,
   bundle: RGWBundle,
   unitsToFunctions: Record<string, string[]> | null = null,
-  onlyUntracedSupported = false
+  onlyUntracedSupported = false,
+  reqs2checkAvailable = false
 ): string {
   const policy = editPolicyFor(bundle);
 
@@ -92,7 +93,7 @@ export function generateRequirementsHtml(
 <h1>Requirements</h1>
 <div id="rgw-pill" title="${escapeHtml(bundle.gatewayPath)}">RGW: ${escapeHtml(bundle.gatewayPath)}</div>
 ${bannerHtml}
-<div id="save-toolbar">${policy.bodiesEditable ? `<button id="add-btn" class="toolbar-btn" title="Add a new requirement to this RGW.">+ Add requirement</button>` : ""}${inferHtml}<button id="save-btn" class="toolbar-btn" disabled>Save changes</button></div>
+<div id="save-toolbar">${policy.bodiesEditable ? `<button id="add-btn" class="toolbar-btn" title="Add a new requirement to this RGW.">+ Add requirement</button>` : ""}${inferHtml}<button id="generate-tests-btn" class="toolbar-btn" title="Use the configured LLM to generate VectorCAST tests for these requirements.">✨ Generate tests</button>${reqs2checkAvailable ? `<button id="verify-btn" class="toolbar-btn" title="Use the configured LLM to compare every requirement against the code, surfacing violations and undocumented behaviour in a verification report.">✨ Compare requirements against code</button>` : ""}<button id="save-btn" class="toolbar-btn" disabled>Save changes</button></div>
 <div id="search-bar"><input id="search-input" type="search" placeholder="Search…" /><select id="filter-unit" title="Filter by unit"></select><select id="filter-function" title="Filter by function"></select><span id="search-count"></span></div>
 <div id="reqs-body"></div>
 <script nonce="${nonce}">window.__rgwState = ${serializeStateForScriptTag(initialState)};</script>

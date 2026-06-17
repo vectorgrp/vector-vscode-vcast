@@ -316,6 +316,12 @@
         "enablement": "testId in vectorcastTestExplorer.vcastRequirementsAvailable"
       },
       {
+        "command": "vectorcastTestExplorer.checkRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Compare Requirements Against Code",
+        "enablement": "testId in vectorcastTestExplorer.vcastRequirementsAvailable"
+      },
+      {
         "command": "vectorcastTestExplorer.viewMCDCReport",
         "category": "VectorCAST Test Explorer",
         "title": "VectorCAST MC/DC Report"
@@ -887,6 +893,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.checkRequirements",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.insertBasisPathTestsFromEditor",
           "when": "never"
         },
@@ -1232,6 +1242,11 @@
         "command": "vectorcastTestExplorer.generateTestsFromRequirements",
         "group": "vcast@10",
         "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.checkRequirements",
+        "group": "vcast@10",
+        "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.reqs2checkAvailable"
       },
       {
         "command": "vectorcastTestExplorer.removeRequirements",

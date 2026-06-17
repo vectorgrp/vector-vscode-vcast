@@ -143,7 +143,10 @@ import {
 } from "./requirements/rgwIo";
 import { generateRequirementsHtml } from "./requirements/webview/template";
 import type { FromWebview, ToWebview } from "./requirements/webview/messages";
-import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
+import {
+  isReqs2checkAvailable,
+  panreqSupportsOnlyUntraced,
+} from "./requirements/requirementsExecutables";
 
 import {
   exportRequirements,
@@ -153,6 +156,12 @@ import {
   initializeReqs2X,
 } from "./requirements/requirementsOperations";
 import { maybeOfferLegacyMigration } from "./requirements/legacyMigration";
+import {
+  activateRequirementsChecking,
+  checkRequirements,
+  clearCheckResults,
+} from "./requirements/requirementsChecking";
+import { activateVerificationDecorations } from "./requirements/verificationDecorations";
 
 import {
   generateNewCodedTestFile,
@@ -482,6 +491,9 @@ async function activationLogic(context: vscode.ExtensionContext) {
 
   initializeReqs2X(context);
 
+  activateRequirementsChecking(context);
+  activateVerificationDecorations(context);
+
   // One-shot prompt: legacy reqs.xlsx / reqs.csv → RGW. Runs after
   // initializeReqs2X so the panreq executable path is resolved (no-op
   // otherwise). Fire and forget — we don't want migration to block the
@@ -667,6 +679,18 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(generateRequirementsTestsCommand);
+
+  let checkRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.checkRequirements",
+    async (args: any) => {
+      if (!args) return;
+      const testNode: testNodeType = getTestNode(args.id);
+      const enviroPath = testNode.enviroPath;
+      const filter = testNode.functionName || testNode.unitName || null;
+      await checkRequirements(enviroPath, filter);
+    }
+  );
+  context.subscriptions.push(checkRequirementsCommand);
 
   let importRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.importRequirements",
@@ -1501,6 +1525,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       );
       // Drives the split-button UI and gates the flag in the handler below.
       const onlyUntracedSupported = await panreqSupportsOnlyUntraced();
+      const reqs2checkAvailable = isReqs2checkAvailable();
 
       const nonce = getNonce();
       panel.webview.html = generateRequirementsHtml(
@@ -1509,7 +1534,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         nonce,
         loaded,
         unitsToFunctions,
-        onlyUntracedSupported
+        onlyUntracedSupported,
+        reqs2checkAvailable
       );
 
       let currentBundle: RGWBundle = loaded;
@@ -1596,6 +1622,10 @@ function configureExtension(context: vscode.ExtensionContext) {
               msg.function,
               panel.viewColumn
             );
+          } else if (msg?.type === "verify-against-code") {
+            await checkRequirements(enviroPath, null);
+          } else if (msg?.type === "generate-tests") {
+            await generateTestsFromRequirements(enviroPath, null);
           }
         },
         undefined,
@@ -1665,6 +1695,7 @@ function configureExtension(context: vscode.ExtensionContext) {
             }
           }
 
+          await clearCheckResults(enviroPath);
           await refreshAllExtensionData();
           updateRequirementsAvailability(enviroPath);
           vscode.window.showInformationMessage(

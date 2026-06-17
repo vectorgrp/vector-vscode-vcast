@@ -6,6 +6,7 @@ import { runReqs2xTool } from "./processRunner";
 
 const fs = require("fs");
 
+// Missing any of these disables the entire Reqs2X feature.
 const NECESSARY_REQS2X_EXECUTABLES = [
   "code2reqs",
   "reqs2tests",
@@ -13,11 +14,16 @@ const NECESSARY_REQS2X_EXECUTABLES = [
   "llm2check",
 ];
 
+// Resolved alongside the required set but absence does NOT disable the
+// feature; each has its own availability probe (e.g.
+// `isReqs2checkAvailable`) so the UI can hide just that surface.
+
 // Resolved at activation time via setupReqs2XExecutablePaths. Mutable
 // module-level state so the rest of the requirements modules can depend on
 // fixed names without each having to know how the binaries were located.
 export let CODE2REQS_EXECUTABLE_PATH: string = "";
 export let REQS2TESTS_EXECUTABLE_PATH: string = "";
+export let REQS2CHECK_EXECUTABLE_PATH: string = "";
 export let PANREQ_EXECUTABLE_PATH: string = "";
 export let LLM2CHECK_EXECUTABLE_PATH: string = "";
 
@@ -90,6 +96,10 @@ export function setupReqs2XExecutablePaths(
     baseUri,
     exeFilename("reqs2tests")
   ).fsPath;
+  REQS2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("reqs2check")
+  ).fsPath;
   PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
     exeFilename("panreq")
@@ -99,10 +109,24 @@ export function setupReqs2XExecutablePaths(
     exeFilename("llm2check")
   ).fsPath;
 
-  // A different binary may have been resolved; drop the cached probe.
+  // Different baseUri may have resolved; drop cached probes.
   onlyUntracedSupport = undefined;
+  reqs2checkAvailability = undefined;
 
   return true;
+}
+
+let reqs2checkAvailability: boolean | undefined;
+
+export function isReqs2checkAvailable(): boolean {
+  if (reqs2checkAvailability !== undefined) return reqs2checkAvailability;
+  reqs2checkAvailability = Boolean(
+    REQS2CHECK_EXECUTABLE_PATH && fs.existsSync(REQS2CHECK_EXECUTABLE_PATH)
+  );
+  logCliOperation(
+    `reqs2check availability: ${reqs2checkAvailability ? "yes" : "no"}`
+  );
+  return reqs2checkAvailability;
 }
 
 let onlyUntracedSupport: boolean | undefined; // undefined until first probed

@@ -33,10 +33,20 @@ export interface OpenSourceMessage {
   function: string | null;
 }
 
+export interface VerifyAgainstCodeMessage {
+  type: "verify-against-code";
+}
+
+export interface GenerateTestsMessage {
+  type: "generate-tests";
+}
+
 export type FromWebview =
   | SaveMessage
   | InferTraceabilityMessage
-  | OpenSourceMessage;
+  | OpenSourceMessage
+  | VerifyAgainstCodeMessage
+  | GenerateTestsMessage;
 
 // --------- Extension → Webview ---------------------------------------------
 

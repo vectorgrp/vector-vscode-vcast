@@ -30,6 +30,8 @@ export const inferCaret = document.getElementById("infer-caret");
 export const inferMenu = document.getElementById("infer-menu");
 // addBtn is null when bodies aren't editable (the template omits it).
 export const addBtn = document.getElementById("add-btn");
+export const verifyBtn = document.getElementById("verify-btn");
+export const generateTestsBtn = document.getElementById("generate-tests-btn");
 export const reqsBody = document.getElementById("reqs-body");
 export const searchInput = document.getElementById("search-input");
 export const searchCount = document.getElementById("search-count");
@@ -59,6 +61,9 @@ export function refreshButtonStates() {
   // Don't clobber unsaved local edits with an inference.
   inferBtn.disabled = hasChanges;
   if (inferCaret) inferCaret.disabled = hasChanges;
+  // Both read the requirements off disk — save first or the result is stale.
+  if (verifyBtn) verifyBtn.disabled = hasChanges;
+  if (generateTestsBtn) generateTestsBtn.disabled = hasChanges;
 }
 
 export function setDirty(reqId, scope, field, value) {
