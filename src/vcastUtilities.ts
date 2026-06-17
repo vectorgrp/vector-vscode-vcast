@@ -1367,3 +1367,24 @@ export function findEnviroForSourceFile(sourceFile: string): string[] {
   if (!fileEntry || !fileEntry.enviroList) return [];
   return Array.from(fileEntry.enviroList.keys() as Iterable<string>);
 }
+
+// Reverse: given an env path + unit name from the Testing pane, find
+// the source file that produced it. Walks the same coverage map as
+// findEnviroForSourceFile, matching by env presence in enviroList and
+// basename (without extension) against unitName. Returns null when
+// the workspace scan hasn't reached that env yet.
+export function findSourceFileForEnviroUnit(
+  enviroPath: string,
+  unitName: string
+): string | null {
+  const { getGlobalCoverageData } = require("./vcastTestInterface");
+  const map = getGlobalCoverageData() as Map<string, any> | undefined;
+  if (!map) return null;
+  for (const [filePath, fileEntry] of map.entries()) {
+    if (!fileEntry || !fileEntry.enviroList) continue;
+    if (!fileEntry.enviroList.has(enviroPath)) continue;
+    const base = path.basename(filePath, path.extname(filePath));
+    if (base === unitName) return filePath;
+  }
+  return null;
+}

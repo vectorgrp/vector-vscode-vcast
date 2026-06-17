@@ -158,6 +158,7 @@ import {
 import {
   addIncludePath,
   envIsEmbeddedInProject,
+  findSourceFileForEnviroUnit,
   getEnviroNameFromFile,
   getEnvironmentData,
   getLevelFromNodeId,
@@ -495,6 +496,8 @@ function configureExtension(context: vscode.ExtensionContext) {
 
   // Command: vectorcastTestExplorer.bpGenerateForUnit ////////////////////////
   // Boundary-processor entry point (pyatg #3285). See BP_INTEGRATION_PLAN.md.
+  // Invoked from the editor right-click (passes a Uri) OR fallback to
+  // the active editor's file.
   let bpGenerateForUnitCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.bpGenerateForUnit",
     async (uri?: vscode.Uri) => {
@@ -515,6 +518,33 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(bpGenerateForUnitCommand);
+
+  // Testing-pane entry point: resolves source file from a clicked
+  // test node (env + unit name) and hands off to BPModeManager.
+  let bpGenerateForTestNodeCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.bpGenerateForTestNode",
+    async (args: any) => {
+      if (!args || !args.id) {
+        vscode.window.showWarningMessage(
+          "Boundary mode: no test node in focus."
+        );
+        return;
+      }
+      const testNode: testNodeType = getTestNode(args.id);
+      const sourceFile = findSourceFileForEnviroUnit(
+        testNode.enviroPath,
+        testNode.unitName
+      );
+      if (!sourceFile) {
+        vscode.window.showErrorMessage(
+          `Boundary mode: could not locate source for unit "${testNode.unitName}" in env ${testNode.enviroPath}. Open the .c/.cpp file once so the workspace scan picks it up, then retry.`
+        );
+        return;
+      }
+      await bpModeManager.enter(sourceFile, context);
+    }
+  );
+  context.subscriptions.push(bpGenerateForTestNodeCommand);
 
   let generateRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.generateRequirements",

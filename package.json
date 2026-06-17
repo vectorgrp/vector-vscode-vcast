@@ -50,6 +50,11 @@
         "title": "Generate Boundary Tests for Unit"
       },
       {
+        "command": "vectorcastTestExplorer.bpGenerateForTestNode",
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate Boundary Tests"
+      },
+      {
         "command": "vectorcastTestExplorer.createNewProject",
         "title": "Create New Project"
       },
@@ -1200,6 +1205,11 @@
       },
       {
         "command": "vectorcastTestExplorer.insertATGTests",
+        "group": "vcast.testGeneration",
+        "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
+      },
+      {
+        "command": "vectorcastTestExplorer.bpGenerateForTestNode",
         "group": "vcast.testGeneration",
         "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
