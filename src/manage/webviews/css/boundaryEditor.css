@@ -311,6 +311,24 @@ td.named-def.has-more:focus-within::after {
   border-color: var(--vscode-button-border, var(--vscode-panel-border, #666));
 }
 
+/* Two-step delete wrapper: the ✕ stays put; ✓ appears alongside when
+   the user clicks once. Confirm tick is greened so it reads as "do
+   it" rather than "another close button". */
+.del-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.del-confirm .named-del-confirm {
+  color: var(--vscode-testing-iconPassed, #2c2);
+}
+
+.del-confirm .named-del-confirm:hover {
+  color: var(--vscode-testing-iconPassed, #2c2);
+  border-color: var(--vscode-testing-iconPassed, #2c2);
+}
+
 .named-empty-msg {
   margin: 6px 0 2px;
   font-size: 0.82rem;

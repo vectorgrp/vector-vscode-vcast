@@ -467,6 +467,49 @@
     return flagged;
   }
 
+  // Two-step delete: first click reveals a confirm tick next to the
+  // cross; user must move the mouse over and click the tick to commit.
+  // Mouse-leaving the wrapper cancels the pending state. Guards against
+  // accidental double-click deletions.
+  function makeConfirmDelete(opts) {
+    const wrap = document.createElement("span");
+    wrap.className = "del-confirm";
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "named-del" + (opts.extraClass ? " " + opts.extraClass : "");
+    x.textContent = "✕";
+    x.title = opts.title || "Delete";
+    const tick = document.createElement("button");
+    tick.type = "button";
+    tick.className = "named-del named-del-confirm";
+    tick.textContent = "✓";
+    tick.title = "Confirm delete";
+    tick.style.display = "none";
+
+    let pending = false;
+    const setPending = (v) => {
+      pending = v;
+      tick.style.display = v ? "" : "none";
+      x.title = v ? "Cancel" : (opts.title || "Delete");
+    };
+    x.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setPending(!pending);
+    });
+    tick.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setPending(false);
+      opts.onDelete();
+    });
+    wrap.addEventListener("mouseleave", () => {
+      if (pending) setPending(false);
+    });
+
+    wrap.appendChild(x);
+    wrap.appendChild(tick);
+    return wrap;
+  }
+
   function renderNamedRanges() {
     const list = document.getElementById("named-list");
     const empty = document.getElementById("named-empty");
@@ -512,17 +555,17 @@
     reflectNameValidity();
     head.appendChild(nameInp);
 
-    const delCard = document.createElement("button");
-    delCard.type = "button";
-    delCard.className = "named-del named-card-del";
-    delCard.textContent = "✕";
-    delCard.title = "Delete this named range";
-    delCard.addEventListener("click", () => {
-      namedRanges.splice(rIdx, 1);
-      renderNamedRanges();
-      fireNamedChanged();
-    });
-    head.appendChild(delCard);
+    head.appendChild(
+      makeConfirmDelete({
+        title: "Delete this named range",
+        extraClass: "named-card-del",
+        onDelete: () => {
+          namedRanges.splice(rIdx, 1);
+          renderNamedRanges();
+          fireNamedChanged();
+        },
+      })
+    );
     card.appendChild(head);
 
     // Sub-range table.
@@ -641,17 +684,16 @@
     tr.appendChild(hiTd);
 
     const actTd = document.createElement("td");
-    const del = document.createElement("button");
-    del.type = "button";
-    del.className = "named-del";
-    del.textContent = "✕";
-    del.title = "Delete this sub-range";
-    del.addEventListener("click", () => {
-      parentRange.subRanges.splice(sIdx, 1);
-      renderNamedRanges();
-      fireNamedChanged();
-    });
-    actTd.appendChild(del);
+    actTd.appendChild(
+      makeConfirmDelete({
+        title: "Delete this sub-range",
+        onDelete: () => {
+          parentRange.subRanges.splice(sIdx, 1);
+          renderNamedRanges();
+          fireNamedChanged();
+        },
+      })
+    );
     tr.appendChild(actTd);
     return tr;
   }
