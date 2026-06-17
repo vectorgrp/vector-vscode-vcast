@@ -178,6 +178,44 @@ main {
   margin-left: auto;
 }
 
+.named-card .card-caret {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--vscode-descriptionForeground);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  flex: 0 0 auto;
+}
+
+.named-card .card-caret:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.named-card.collapsed {
+  /* Collapsed cards take less vertical space; head margin is the only
+     real spend. */
+  padding-bottom: 8px;
+}
+
+.named-card.collapsed .named-card-head {
+  margin-bottom: 0;
+}
+
+.named-card-summary {
+  flex: 1 1 auto;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.82rem;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sub-table {
   width: 100%;
   border-collapse: collapse;

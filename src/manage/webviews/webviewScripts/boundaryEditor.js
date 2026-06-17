@@ -524,13 +524,48 @@
     empty.style.display = namedRanges.length === 0 ? "block" : "none";
   }
 
-  function buildRangeCard(nr, rIdx, overlapKeys) {
-    const card = document.createElement("div");
-    card.className = "named-card";
+  // Keyed by current name. Empty name -> never persisted (collapse
+  // makes no sense before naming).
+  const collapsedNamedCards = new Set();
 
-    // Head: name input + delete-whole-range button.
+  function buildRangeSummary(nr) {
+    const parts = [];
+    for (const s of nr.subRanges || []) {
+      const body = s.mode === "Range"
+        ? (s.lo.trim() && s.hi.trim() ? `[${s.lo.trim()}, ${s.hi.trim()}]` : "")
+        : s.value.trim();
+      if (!body) continue;
+      parts.push(s.subName.trim() ? `${s.subName.trim()}=${body}` : body);
+    }
+    return parts.join(", ") || "(empty)";
+  }
+
+  function buildRangeCard(nr, rIdx, overlapKeys) {
+    const isCollapsed =
+      nr.name.trim() !== "" && collapsedNamedCards.has(nr.name.trim());
+    const card = document.createElement("div");
+    card.className = "named-card" + (isCollapsed ? " collapsed" : "");
+
+    // Head: caret + name input + delete-whole-range button.
     const head = document.createElement("div");
     head.className = "named-card-head";
+
+    const caret = document.createElement("button");
+    caret.type = "button";
+    caret.className = "card-caret";
+    caret.textContent = isCollapsed ? "▸" : "▾";
+    caret.title = isCollapsed ? "Expand" : "Collapse";
+    caret.disabled = nr.name.trim() === "";
+    if (caret.disabled) caret.title = "Name this range to enable collapse";
+    caret.addEventListener("click", () => {
+      const key = nr.name.trim();
+      if (!key) return;
+      if (collapsedNamedCards.has(key)) collapsedNamedCards.delete(key);
+      else collapsedNamedCards.add(key);
+      renderNamedRanges();
+    });
+    head.appendChild(caret);
+
     const nameInp = document.createElement("input");
     nameInp.className = "named-name-input";
     nameInp.placeholder = "Range name (e.g. speed)";
@@ -555,6 +590,13 @@
     reflectNameValidity();
     head.appendChild(nameInp);
 
+    if (isCollapsed) {
+      const summary = document.createElement("span");
+      summary.className = "named-card-summary";
+      summary.textContent = buildRangeSummary(nr);
+      head.appendChild(summary);
+    }
+
     head.appendChild(
       makeConfirmDelete({
         title: "Delete this named range",
@@ -568,41 +610,42 @@
     );
     card.appendChild(head);
 
-    // Sub-range table.
-    const tbl = document.createElement("table");
-    tbl.className = "sub-table";
-    tbl.innerHTML =
-      "<thead><tr>" +
-        "<th>Sub-name (optional)</th>" +
-        "<th>Mode</th>" +
-        "<th>Value / Lo</th>" +
-        "<th>Hi</th>" +
-        "<th></th>" +
-      "</tr></thead>";
-    const tbody = document.createElement("tbody");
-    nr.subRanges.forEach((sub, sIdx) => {
-      tbody.appendChild(buildSubRow(nr, rIdx, sub, sIdx, overlapKeys));
-    });
-    tbl.appendChild(tbody);
-    card.appendChild(tbl);
-
-    // Add-sub-range button.
-    const addSub = document.createElement("button");
-    addSub.type = "button";
-    addSub.className = "secondary sub-add";
-    addSub.textContent = "+ Add sub-range";
-    addSub.addEventListener("click", () => {
-      nr.subRanges.push({
-        subName: "",
-        mode: "Range",
-        value: "",
-        lo: "",
-        hi: "",
+    // Sub-table + add button hidden in collapsed view.
+    if (!isCollapsed) {
+      const tbl = document.createElement("table");
+      tbl.className = "sub-table";
+      tbl.innerHTML =
+        "<thead><tr>" +
+          "<th>Sub-name (optional)</th>" +
+          "<th>Mode</th>" +
+          "<th>Value / Lo</th>" +
+          "<th>Hi</th>" +
+          "<th></th>" +
+        "</tr></thead>";
+      const tbody = document.createElement("tbody");
+      nr.subRanges.forEach((sub, sIdx) => {
+        tbody.appendChild(buildSubRow(nr, rIdx, sub, sIdx, overlapKeys));
       });
-      renderNamedRanges();
-      fireNamedChanged();
-    });
-    card.appendChild(addSub);
+      tbl.appendChild(tbody);
+      card.appendChild(tbl);
+
+      const addSub = document.createElement("button");
+      addSub.type = "button";
+      addSub.className = "secondary sub-add";
+      addSub.textContent = "+ Add sub-range";
+      addSub.addEventListener("click", () => {
+        nr.subRanges.push({
+          subName: "",
+          mode: "Range",
+          value: "",
+          lo: "",
+          hi: "",
+        });
+        renderNamedRanges();
+        fireNamedChanged();
+      });
+      card.appendChild(addSub);
+    }
     return card;
   }
 
