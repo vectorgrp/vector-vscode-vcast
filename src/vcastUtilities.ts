@@ -1128,13 +1128,51 @@ function boundaryTypeForOverride(
 //   - per-row overrides, keyed by (origFile, scope, nodeStr) so they
 //     survive row reordering when the source is edited;
 //   - named ranges, a flat array of { name, definition } that map onto
-//     pyatg's Boundaries.csv on stage 2.
+//     pyatg's stage-2 boundary class definitions.
 //
-// The file historically contained just the override array; the new
-// shape is { namedRanges, overrides }. The loader accepts both so old
+// The file historically contained just the override array; today it
+// holds { namedRanges, overrides }. The loader accepts both so old
 // .bp-sheets dirs continue to work.
+//
+// Named ranges are conceptually workspace-wide: a "fast = [30,120]"
+// definition is reusable from every unit. The editor keeps the
+// authoritative copy in a workspace-root file
+// (SHARED_NAMED_RANGES_FILENAME); when saving, that file is read first
+// and merged into the per-unit file as a self-contained snapshot so
+// pyatg's existing single-file loader keeps working unchanged.
 
 const OVERRIDES_FILENAME = "overrides.json";
+const SHARED_NAMED_RANGES_FILENAME = "vcast-boundary-shared.json";
+
+
+function _sharedNamedRangesPath(workspaceRoot: string | undefined): string | undefined {
+  if (!workspaceRoot) return undefined;
+  return path.join(workspaceRoot, SHARED_NAMED_RANGES_FILENAME);
+}
+
+
+export function loadSharedNamedRanges(workspaceRoot: string | undefined): NamedRange[] {
+  const p = _sharedNamedRangesPath(workspaceRoot);
+  if (!p || !fs.existsSync(p)) return [];
+  try {
+    const parsed = JSON.parse(fs.readFileSync(p, "utf8"));
+    const raw = Array.isArray(parsed?.namedRanges) ? parsed.namedRanges : [];
+    return _normaliseNamedRanges(raw);
+  } catch {
+    return [];
+  }
+}
+
+
+export function saveSharedNamedRanges(
+  workspaceRoot: string | undefined,
+  namedRanges: NamedRange[]
+): void {
+  const p = _sharedNamedRangesPath(workspaceRoot);
+  if (!p) return;
+  const payload = { namedRanges };
+  fs.writeFileSync(p, JSON.stringify(payload, null, 2) + "\n", "utf8");
+}
 
 interface PersistedOverride {
   // Primary identity: the same canonical string emitted in
@@ -1183,10 +1221,14 @@ export interface PersistedState {
 
 export function loadPersistedState(
   sheetDir: string,
-  rows: NodeData[]
+  rows: NodeData[],
+  workspaceRoot?: string
 ): PersistedState {
   const filePath = path.join(sheetDir, OVERRIDES_FILENAME);
-  const empty: PersistedState = { overrides: [], namedRanges: [] };
+  const empty: PersistedState = {
+    overrides: [],
+    namedRanges: loadSharedNamedRanges(workspaceRoot),
+  };
   if (!fs.existsSync(filePath)) return empty;
 
   let parsed: any;
@@ -1244,7 +1286,23 @@ export function loadPersistedState(
     });
   }
 
-  const namedRanges: NamedRange[] = rawNamed
+  // Workspace-shared named ranges take precedence over whatever the
+  // per-unit file snapshotted; the shared file is the source of truth.
+  // Per-unit-only entries are kept so anything authored before the
+  // shared file existed isn't silently dropped.
+  const perUnitRanges = _normaliseNamedRanges(rawNamed);
+  const sharedRanges = loadSharedNamedRanges(workspaceRoot);
+  const byName = new Map<string, NamedRange>();
+  for (const nr of perUnitRanges) byName.set(nr.name, nr);
+  for (const nr of sharedRanges) byName.set(nr.name, nr);
+  const namedRanges = Array.from(byName.values());
+
+  return { overrides, namedRanges };
+}
+
+
+function _normaliseNamedRanges(raw: any[]): NamedRange[] {
+  return raw
     .filter((nr: any) => nr && typeof nr.name === "string")
     .map((nr: any) => {
       // New structured form.
@@ -1258,8 +1316,6 @@ export function loadPersistedState(
       const subs = bundleStringToSubRanges(String(nr.definition || ""));
       return { name: String(nr.name), subRanges: subs };
     });
-
-  return { overrides, namedRanges };
 }
 
 function normalizeSubRange(s: any): SubRange {
@@ -1315,7 +1371,8 @@ export function savePersistedState(
   sheetDir: string,
   rows: NodeData[],
   overrides: BoundaryOverride[],
-  namedRanges: NamedRange[]
+  namedRanges: NamedRange[],
+  workspaceRoot?: string
 ): void {
   const persistedOverrides: PersistedOverride[] = [];
   for (const o of overrides) {
@@ -1339,6 +1396,10 @@ export function savePersistedState(
       namedRef: o.namedRef || "",
     });
   }
+  // Named ranges have a workspace-wide source of truth. Write them
+  // there first; the per-unit file gets a self-contained snapshot so
+  // pyatg's existing single-file loader keeps working unchanged.
+  saveSharedNamedRanges(workspaceRoot, namedRanges);
   const payload = {
     namedRanges,
     overrides: persistedOverrides,

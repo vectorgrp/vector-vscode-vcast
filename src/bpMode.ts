@@ -23,6 +23,19 @@ import {
 const fs = require("fs");
 const path = require("path");
 
+
+function _workspaceRootForFile(filePath: string): string | undefined {
+  // The workspace folder that contains the file we're operating on
+  // owns the shared named-ranges library. Falls back to the first
+  // workspace folder when the file is outside any folder (rare).
+  const uri = vscode.Uri.file(filePath);
+  const folder = vscode.workspace.getWorkspaceFolder(uri);
+  if (folder) return folder.uri.fsPath;
+  const folders = vscode.workspace.workspaceFolders || [];
+  return folders.length > 0 ? folders[0].uri.fsPath : undefined;
+}
+
+
 export class BPModeManager {
   private currentPanel: vscode.WebviewPanel | undefined = undefined;
 
@@ -49,6 +62,7 @@ export class BPModeManager {
     if (fs.existsSync(staleBoundaries)) fs.unlinkSync(staleBoundaries);
     const sheetSeed = path.join(sheetDir, "sheet.xlsx");
     const mappingJson = path.join(sheetDir, "mapping.json");
+    const workspaceRoot = _workspaceRootForFile(sourceFile);
 
     // 3. Stage 1. atg always exits 1 in --generate-ranges-sheet mode
     // (no tests produced, only sheets); mapping.json existence is the
@@ -79,11 +93,12 @@ export class BPModeManager {
       );
       return;
     }
-    const saved = loadPersistedState(sheetDir, rows);
+    const saved = loadPersistedState(sheetDir, rows, workspaceRoot);
     this.openReviewPanel(context, {
       sourceFile,
       enviroPath,
       sheetDir,
+      workspaceRoot,
       rows,
       savedOverrides: saved.overrides,
       savedNamedRanges: saved.namedRanges,
@@ -119,6 +134,7 @@ export class BPModeManager {
       sourceFile: string;
       enviroPath: string;
       sheetDir: string;
+      workspaceRoot: string | undefined;
       rows: NodeData[];
       savedOverrides: BoundaryOverride[];
       savedNamedRanges: NamedRange[];
@@ -161,7 +177,13 @@ export class BPModeManager {
         const namedRanges: NamedRange[] = Array.isArray(msg.namedRanges)
           ? msg.namedRanges
           : [];
-        savePersistedState(state.sheetDir, state.rows, overrides, namedRanges);
+        savePersistedState(
+          state.sheetDir,
+          state.rows,
+          overrides,
+          namedRanges,
+          state.workspaceRoot
+        );
         vectorMessage(
           `[BP] Draft saved: ${overrides.length} override(s), ${namedRanges.length} named range(s).`
         );
@@ -182,6 +204,7 @@ export class BPModeManager {
       sourceFile: string;
       enviroPath: string;
       sheetDir: string;
+      workspaceRoot: string | undefined;
       rows: NodeData[];
       savedOverrides: BoundaryOverride[];
       savedNamedRanges: NamedRange[];
@@ -238,6 +261,7 @@ export class BPModeManager {
       sourceFile: string;
       enviroPath: string;
       sheetDir: string;
+      workspaceRoot: string | undefined;
       rows: NodeData[];
       savedOverrides: BoundaryOverride[];
       savedNamedRanges: NamedRange[];
@@ -246,7 +270,13 @@ export class BPModeManager {
     namedRanges: NamedRange[]
   ): Promise<void> {
     // Save first so a stage-2 failure still preserves the user's work.
-    savePersistedState(state.sheetDir, state.rows, overrides, namedRanges);
+    savePersistedState(
+      state.sheetDir,
+      state.rows,
+      overrides,
+      namedRanges,
+      state.workspaceRoot
+    );
 
     // Manual mode iff there's anything for pyatg to override; the
     // presence of Boundaries.csv is what flips it on its side.
