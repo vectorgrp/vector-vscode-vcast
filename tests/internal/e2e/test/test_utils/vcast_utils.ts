@@ -17,6 +17,8 @@ import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
+import expectedAtgTests26 from "../atg_tests_26.json";
+import { getToolVersion } from "../../../../unit/getToolversion";
 
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 240_000;
@@ -556,12 +558,53 @@ export async function validateGeneratedTestScriptContent(
   );
   const tab = (await editorView.openEditor(tstFilename)) as TextEditor;
 
-  const fullGenTstScript = await tab.getText();
+  // Only compare TEST.* directive lines. The "-- ..." comment lines (unit /
+  // subprogram headers, path descriptions, note prose) are unreliable:
+  // - the "-- Unit:" header appears once per unit and scrolls out of the
+  //   editor viewport, and tab.getText() only returns rendered lines;
+  // - note wording was reworded in vc26.
+  // The TEST.* lines carry the real content and sit at the focused test case.
+  const onlyTestLines = (s: string) =>
+    s
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("TEST."));
+
+  const expectedTestDirectives = onlyTestLines(
+    Array.isArray(expectedTestCode)
+      ? expectedTestCode.join("\n")
+      : (expectedTestCode ?? "")
+  );
+
+  let genTestDirectives: string[] = [];
+  try {
+    await browser.waitUntil(
+      async () => {
+        genTestDirectives = onlyTestLines(await tab.getText());
+        return expectedTestDirectives.every((line) =>
+          genTestDirectives.includes(line)
+        );
+      },
+      { timeout: 15_000, interval: 300 }
+    );
+  } catch {
+    console.log(
+      "=== EXPECTED TEST.* (" + expectedTestDirectives.length + ") ==="
+    );
+    console.log(JSON.stringify(expectedTestDirectives, null, 2));
+    console.log("=== GENERATED TEST.* (" + genTestDirectives.length + ") ===");
+    console.log(JSON.stringify(genTestDirectives, null, 2));
+    console.log("=== MISSING ===");
+    for (const line of expectedTestDirectives) {
+      if (!genTestDirectives.includes(line))
+        console.log("MISSING >>> " + JSON.stringify(line));
+    }
+  }
 
   await editorView.closeAllEditors();
-  for (let line of expectedTestCode) {
-    line = line.trim();
-    expect(fullGenTstScript.includes(line)).toBe(true);
+
+  for (const line of expectedTestDirectives) {
+    expect(genTestDirectives.includes(line)).toBe(true);
   }
 }
 
@@ -936,7 +979,11 @@ export async function getAllExpectedTests(testGenMethodText: string) {
   if (testGenMethodText === testGenMethod.BasisPath) {
     return expectedBasisPathTests;
   }
-
+  // ATG output drifted in vc26 (reworded notes, dropped some TEST.VALUE lines)
+  const toolVersion = await getToolVersion();
+  if (toolVersion >= 26) {
+    return expectedAtgTests26;
+  }
   return expectedAtgTests;
 }
 

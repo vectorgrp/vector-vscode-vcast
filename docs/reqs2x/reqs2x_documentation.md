@@ -34,8 +34,7 @@ Remove any existing versions of the VectorCAST VS-Code extension.
 
 
 ### VS Code Extensions
-1.  Install the **Excel Viewer** extension (`GrapeCity.gc-excelviewer`) to view/edit Excel sheets directly in VS Code (optional). Alternatively, use MS Excel to view/edit Excel sheets.
-2.  Install the **VectorCAST Text Explorer** VS-Code extension from the Microsoft Marketplace.
+1.  Install the **VectorCAST Text Explorer** VS-Code extension from the Microsoft Marketplace.
 
 ### Configuration
 1.  Activate the extension: Press `Ctrl+Shift+P`, search for **Vectorcast Test Explorer**, and press `Enter`.
@@ -94,7 +93,7 @@ Remove any existing versions of the VectorCAST VS-Code extension.
 
 ## 2. Generating Tests from Requirements
 
-The demo release includes an Excel file with requirements and requirements-to-code traceability.
+The demo release ships with requirements including requirements-to-code traceability. To use them, import them into the environment which will set up a requirements gateway (RGW). The RGW is the single source of truth — the extension reads from and writes to it directly.
 
 ![Reqs2x demo requirements](./screenshots/VectorCAST_Reqs2x_demo_requirements.png)
 
@@ -102,13 +101,10 @@ The demo release includes an Excel file with requirements and requirements-to-co
 
 ### Initial Setup
 1.  Click the **Flask icon** (Test Explorer) on the left sidebar to show the environment tree.
-2.  Right-click `TUTORIAL_C` and select **VectorCAST -> Show Requirements**. The requirements webview will appear.
-3.  Right-click `TUTORIAL_C` and select **VectorCAST -> Populate RGW from Requirements**.
-    *   *Note: This creates a requirements gateway and populates it from the Excel sheet. Wait for the notification (approx. 3-5 seconds).*
-    *   If you do not have the requirements-to-code traceability for a function, Reqs2x will generate it automatically with your approval.
+2. Right-click `TUTORIAL_C` and select **VectorCAST -> Import Requirements**. Choose the file `reqs-TUTORIAL_C/reqs.xlsx`. This will load the requirements into the environment.
+2.  Right-click `TUTORIAL_C` and select **VectorCAST -> Show Requirements**. The requirements webview will appear, rendered directly from the RGW.
 ![Reqs2x demo show requirements](./screenshots/VectorCAST_Reqs2x_show_requirements.png)
 ![Reqs2x demo requirements webview](./screenshots/VectorCAST_Reqs2x_requirements_webview.png)
-![Reqs2x demo populate RGW](./screenshots/VectorCAST_Reqs2x_populate_rgw.png)
 
 ### Test Generation
 1.  Right-click `TUTORIAL_C` and select **VectorCAST -> Generate Tests from Requirements**.
@@ -143,12 +139,11 @@ The demo release includes an Excel file with requirements and requirements-to-co
 
 
 1.  **Modify requirement**:
-    *   Open `reqs.xlsx` using the Excel Viewer.
-    *   Find `FR27` (Add Included Dessert). 
+    *   Edit the requirement directly in the requirements gateway (RGW) in the Requirements view. Open it by selecting ``VectorCAST -> Show Requirements`.
+    *   Find `FR27` (Add Included Dessert).
     *   Change the free dessert for `steak, caesar salad and mixed drink` from `pie` to `cake`.
     *   Change the free dessert for `lobster, green salad and wine` from `cake` to `pie`.
-    *   Save (`Ctrl+S`) and close the tab.
-    *   Right-click `TUTORIAL_C` and select **VectorCAST -> Populate RGW from Requirements** to push the change to the requirements gateway. You will be prompted to accept replacing the old requirements gateway with the new one. 
+    *   Save the change. The extension always reads from the RGW, so no further sync step is required.
 
 2.  **Update tests**:
     *   In Test Explorer, find the `Add_Included_Dessert` node.

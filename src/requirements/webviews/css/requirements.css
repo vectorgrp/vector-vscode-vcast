@@ -1,0 +1,297 @@
+body {
+  font-family: -apple-system, Segoe UI, sans-serif;
+  margin: 20px;
+  padding-bottom: 80px;
+}
+
+h1 { margin-top: 0; }
+h2 {
+  margin-top: 24px;
+  border-bottom: 1px solid var(--vscode-panel-border, #ddd);
+  padding-bottom: 4px;
+}
+
+.banner {
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 18px;
+  font-size: 0.95em;
+}
+.banner-editable {
+  background: var(--vscode-inputValidation-infoBackground, #eef5ff);
+  border: 1px solid var(--vscode-inputValidation-infoBorder, #9cc);
+}
+.banner-readonly {
+  background: var(--vscode-inputValidation-warningBackground, #fff5e6);
+  border: 1px solid var(--vscode-inputValidation-warningBorder, #d89);
+}
+
+.req {
+  border: 1px solid var(--vscode-panel-border, #ddd);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin: 10px 0;
+  background: var(--vscode-editor-background, #fff);
+  position: relative;
+}
+.req--pending-added {
+  border-color: var(--vscode-inputValidation-infoBorder, #4ec9b0);
+  border-style: dashed;
+}
+.req--pending-removal {
+  opacity: 0.45;
+}
+.req--pending-removal .req-id,
+.req--pending-removal .field input,
+.req--pending-removal .field textarea,
+.req--pending-removal .field select {
+  text-decoration: line-through;
+}
+.req-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.req-remove-btn,
+.req-restore-btn {
+  background: transparent;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+  color: var(--vscode-inputValidation-errorBorder, #be1100);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  flex: none;
+}
+.req-remove-btn:hover,
+.req-restore-btn:hover {
+  background: var(--vscode-inputValidation-errorBorder, #be1100);
+  color: var(--vscode-editor-background, #fff);
+}
+.field input.invalid {
+  outline: 2px solid var(--vscode-inputValidation-errorBorder, #be1100);
+}
+.field-error {
+  font-size: 0.8em;
+  color: var(--vscode-inputValidation-errorBorder, #be1100);
+  margin-top: 2px;
+}
+.open-source-row {
+  margin-top: 6px;
+  text-align: right;
+}
+.open-source-btn {
+  background: transparent;
+  border: 1px solid var(--vscode-input-border, #ccc);
+  color: var(--vscode-foreground, #000);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 10px;
+  font-size: 0.85em;
+  font-family: inherit;
+}
+.open-source-btn:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryBackground, var(--vscode-editorWidget-background, #eee));
+}
+.open-source-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.req-id {
+  font-weight: 600;
+  color: var(--vscode-textLink-foreground, #2980b9);
+}
+.req-meta {
+  font-size: 0.8em;
+  color: var(--vscode-descriptionForeground, #888);
+}
+
+.field { margin-top: 8px; }
+.field label {
+  display: block;
+  font-size: 0.8em;
+  color: var(--vscode-descriptionForeground, #666);
+  margin-bottom: 2px;
+}
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--vscode-input-background, #fff);
+  color: var(--vscode-input-foreground, #000);
+  border: 1px solid var(--vscode-input-border, #ccc);
+  padding: 4px 6px;
+  font: inherit;
+}
+.field textarea {
+  resize: vertical;
+  min-height: 48px;
+}
+.field input:disabled,
+.field textarea:disabled,
+.field select:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+.trace-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dirty {
+  outline: 2px solid var(--vscode-inputValidation-infoBorder, #9cc);
+}
+
+#search-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--vscode-editor-background, #fff);
+  padding: 4px 0 6px;
+  margin-bottom: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.9em;
+}
+#search-input,
+#filter-unit,
+#filter-function {
+  background: var(--vscode-input-background, #fff);
+  color: var(--vscode-input-foreground, #000);
+  border: 1px solid var(--vscode-input-border, #ccc);
+  padding: 3px 8px;
+  font: inherit;
+  border-radius: 3px;
+}
+#search-input {
+  flex: 1;
+  min-width: 140px;
+}
+#search-input:focus,
+#filter-unit:focus,
+#filter-function:focus {
+  outline: 1px solid var(--vscode-focusBorder, #0078d4);
+}
+#filter-unit,
+#filter-function {
+  max-width: 180px;
+}
+#search-count {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground, #888);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.req--hidden,
+.h2--hidden {
+  display: none;
+}
+
+#rgw-pill {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  max-width: 50vw;
+  padding: 5px 12px;
+  font-size: 0.8em;
+  color: var(--vscode-descriptionForeground, #666);
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background, #f3f3f3));
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, #ddd));
+  border-radius: 999px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.85;
+  z-index: 100;
+}
+
+#save-toolbar {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background, #fff));
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, #ddd));
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  z-index: 100;
+}
+
+/* Shared look for every filled toolbar button (add / infer / caret / save). */
+.toolbar-btn {
+  padding: 8px 18px;
+  font-size: 1em;
+  background: var(--vscode-button-background, #0078d4);
+  color: var(--vscode-button-foreground, #fff);
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.toolbar-btn[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Split button: main infer action + caret revealing alternatives. */
+.split-btn {
+  position: relative;
+  display: inline-flex;
+}
+.split-btn #infer-btn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* Caret reuses .toolbar-btn; only the joined-edge geometry differs. */
+.split-caret {
+  padding: 8px 10px;
+  border-left: 1px solid var(--vscode-button-separator, rgba(255, 255, 255, 0.4));
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.split-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  min-width: 100%;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background, #fff));
+  border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, #ddd));
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  z-index: 101;
+}
+.split-menu[hidden] {
+  display: none;
+}
+.infer-menu-item {
+  text-align: left;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground, #000));
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1em;
+}
+.infer-menu-item:hover {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground, #0078d4));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-button-foreground, #fff));
+}
