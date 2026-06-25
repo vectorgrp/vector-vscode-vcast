@@ -57,6 +57,26 @@ export function findRelevantRequirementGateway(
 }
 
 /**
+ * Absolute path to the `requirements_gateway/` data subdirectory for
+ * `enviroPath`, or null if there's no configured gateway or it doesn't exist.
+ * findRelevantRequirementGateway returns the raw $(VAR) form, so expand it
+ * before using it as a filesystem path.
+ */
+export function resolveRequirementsGatewayInnerDir(
+  enviroPath: string
+): string | null {
+  const rawGatewayPath = findRelevantRequirementGateway(enviroPath);
+  if (rawGatewayPath == null) return null;
+
+  const gatewayPath = path.resolve(
+    path.dirname(enviroPath),
+    expandEnvVars(rawGatewayPath)
+  );
+  const innerDir = path.join(gatewayPath, RGW_INNER_DIR);
+  return fs.existsSync(innerDir) ? innerDir : null;
+}
+
+/**
  * Default on-disk location for a freshly created RGW. Used when the user
  * runs Generate Requirements on an environment that has no VCAST_REPOSITORY
  * configured yet.

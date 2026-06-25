@@ -45,7 +45,7 @@ function fillSelect(sel, label, items) {
 function collectUnits() {
   const units = new Set();
   const map = state.unitsToFunctions || {};
-  for (const u of Object.keys(map)) units.add(u);
+  for (const unit of Object.keys(map)) units.add(unit);
   for (const trace of Object.values(state.traceability)) {
     if (trace?.unit) units.add(trace.unit);
   }
@@ -64,12 +64,12 @@ function collectFunctions(selectedUnit) {
       if (trace?.function && !trace.unit) fns.add(trace.function);
     }
   } else if (selectedUnit) {
-    for (const f of map[selectedUnit] || []) fns.add(f);
+    for (const fn of map[selectedUnit] || []) fns.add(fn);
     for (const trace of Object.values(state.traceability)) {
       if (trace?.function && trace.unit === selectedUnit) fns.add(trace.function);
     }
   } else {
-    for (const u of Object.keys(map)) for (const f of map[u] || []) fns.add(f);
+    for (const unit of Object.keys(map)) for (const fn of map[unit] || []) fns.add(fn);
     for (const trace of Object.values(state.traceability)) {
       if (trace?.function) fns.add(trace.function);
     }

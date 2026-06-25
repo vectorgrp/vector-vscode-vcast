@@ -126,7 +126,7 @@ import {
 
 import {
   clearVcastRepositoryInConfig,
-  findRelevantRequirementGateway,
+  resolveRequirementsGatewayInnerDir,
 } from "./requirements/rgwPath";
 import {
   setupRequirementsFileWatchers,
@@ -141,8 +141,8 @@ import {
   RGWStaleWriteError,
   writeRGWBundle,
 } from "./requirements/rgwIo";
-import { generateRequirementsHtml } from "./requirements/webview/template";
-import type { FromWebview, ToWebview } from "./requirements/webview/messages";
+import { generateRequirementsHtml } from "./requirements/webviews/template";
+import type { FromWebview, ToWebview } from "./requirements/webviews/messages";
 import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
 
 import {
@@ -1438,7 +1438,8 @@ function configureExtension(context: vscode.ExtensionContext) {
     async (args: any) => {
       if (!args) return;
       const testNode: testNodeType = getTestNode(args.id);
-      const enviroPath = testNode.enviroPath;
+      const enviroPath = testNode?.enviroPath;
+      if (!enviroPath) return;
 
       let bundle: RGWBundle | null;
       try {
@@ -1610,7 +1611,8 @@ function configureExtension(context: vscode.ExtensionContext) {
     async (args: any) => {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
-        const enviroPath = testNode.enviroPath;
+        const enviroPath = testNode?.enviroPath;
+        if (!enviroPath) return;
 
         const message =
           "This will delete the requirements gateway and clear VCAST_REPOSITORY from CCAST_.CFG. This action cannot be undone.";
@@ -1630,10 +1632,13 @@ function configureExtension(context: vscode.ExtensionContext) {
             `reqs-${enviroNameWithoutExt}`
           );
 
-          const gatewayPath = findRelevantRequirementGateway(enviroPath);
-          if (gatewayPath && fs.existsSync(gatewayPath)) {
+          // Delete only the requirements_gateway data dir, not the gateway
+          // root, which VCAST_REPOSITORY may point anywhere.
+          const gatewayInnerDir =
+            resolveRequirementsGatewayInnerDir(enviroPath);
+          if (gatewayInnerDir) {
             try {
-              fs.rmSync(gatewayPath, { recursive: true, force: true });
+              fs.rmSync(gatewayInnerDir, { recursive: true, force: true });
             } catch (err) {
               vscode.window.showErrorMessage(
                 `Failed to remove requirements gateway: ${err}`

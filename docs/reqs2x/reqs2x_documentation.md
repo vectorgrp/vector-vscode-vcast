@@ -101,8 +101,8 @@ The demo release ships with requirements including requirements-to-code traceabi
 
 ### Initial Setup
 1.  Click the **Flask icon** (Test Explorer) on the left sidebar to show the environment tree.
-2. Right-click `TUTORIAL_C` and select **VectorCAST -> Import Requirements**. Choose the file `reqs-TUTORIAL_C/reqs.xlsx`. This will load the requirements into the environment.
-2.  Right-click `TUTORIAL_C` and select **VectorCAST -> Show Requirements**. The requirements webview will appear, rendered directly from the RGW.
+2.  Right-click `TUTORIAL_C` and select **VectorCAST -> Import Requirements**. Choose the file `reqs-TUTORIAL_C/reqs.xlsx`. This will load the requirements into the environment.
+3.  Right-click `TUTORIAL_C` and select **VectorCAST -> Show Requirements**. The requirements webview will appear, rendered directly from the RGW.
 ![Reqs2x demo show requirements](./screenshots/VectorCAST_Reqs2x_show_requirements.png)
 ![Reqs2x demo requirements webview](./screenshots/VectorCAST_Reqs2x_requirements_webview.png)
 

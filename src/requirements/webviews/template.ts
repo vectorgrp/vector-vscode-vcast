@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { editPolicyFor, type RGWBundle } from "../rgwIo";
 
 const path = require("path");
+const fs = require("fs");
 
 function escapeHtml(s: string): string {
   return s
@@ -27,10 +28,23 @@ function serializeStateForScriptTag(state: unknown): string {
 }
 
 /**
- * Build the full webview HTML. Loads CSS + JS from the `webviews/` media
- * folder via webview-relative URIs (a generated nonce gates `<script>`
- * execution). Initial state is injected as a `window.__rgwState` blob the
- * script picks up on load and renders into the empty `#reqs-body` via
+ * Replace every `{{key}}` placeholder in `html` with the matching value. Uses
+ * a replacer function so `$` sequences in values (paths, JSON) aren't
+ * interpreted as String.replace special patterns.
+ */
+function fillTemplate(html: string, values: Record<string, string>): string {
+  return html.replace(/{{\s*(\w+)\s*}}/g, (match, key) =>
+    Object.prototype.hasOwnProperty.call(values, key) ? values[key] : match
+  );
+}
+
+/**
+ * Build the full webview HTML. The static skeleton lives in
+ * `webviews/html/requirements.html` (loaded from disk, mirroring the layout
+ * under `manage/webviews`); this fills in its `{{...}}` placeholders. CSS + JS
+ * are referenced through webview-relative URIs (a generated nonce gates
+ * `<script>` execution). Initial state is injected as a `window.__rgwState`
+ * blob the script picks up on load and renders into the empty `#reqs-body` via
  * safe DOM APIs — there's no server-side card rendering anymore, so every
  * concrete element comes from one place (the JS).
  */
@@ -79,24 +93,24 @@ export function generateRequirementsHtml(
       `</div></div>`
     : `<button id="infer-btn" class="toolbar-btn" title="Use the configured LLM to infer the unit/function each requirement traces to.">✨ Infer traceability</button>`;
 
+  const addHtml = policy.bodiesEditable
+    ? `<button id="add-btn" class="toolbar-btn" title="Add a new requirement to this RGW.">+ Add requirement</button>`
+    : "";
+  const toolbarHtml = `${addHtml}${inferHtml}<button id="save-btn" class="toolbar-btn" disabled>Save changes</button>`;
+
   const cspSource = webview.cspSource;
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource}; script-src 'nonce-${nonce}' ${cspSource};">
-<title>Requirements</title>
-<link rel="stylesheet" href="${cssUri}">
-</head>
-<body>
-<h1>Requirements</h1>
-<div id="rgw-pill" title="${escapeHtml(bundle.gatewayPath)}">RGW: ${escapeHtml(bundle.gatewayPath)}</div>
-${bannerHtml}
-<div id="save-toolbar">${policy.bodiesEditable ? `<button id="add-btn" class="toolbar-btn" title="Add a new requirement to this RGW.">+ Add requirement</button>` : ""}${inferHtml}<button id="save-btn" class="toolbar-btn" disabled>Save changes</button></div>
-<div id="search-bar"><input id="search-input" type="search" placeholder="Search…" /><select id="filter-unit" title="Filter by unit"></select><select id="filter-function" title="Filter by function"></select><span id="search-count"></span></div>
-<div id="reqs-body"></div>
-<script nonce="${nonce}">window.__rgwState = ${serializeStateForScriptTag(initialState)};</script>
-<script nonce="${nonce}" type="module" src="${scriptUri}"></script>
-</body>
-</html>`;
+  const cspMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource}; script-src 'nonce-${nonce}' ${cspSource};">`;
+
+  const htmlPath = path.join(webviewBaseDir, "html", "requirements.html");
+  const template = fs.readFileSync(htmlPath, "utf8");
+
+  return fillTemplate(template.replace(/<head>/, `<head>${cspMeta}`), {
+    cssUri: cssUri.toString(),
+    scriptUri: scriptUri.toString(),
+    nonce,
+    gatewayPath: escapeHtml(bundle.gatewayPath),
+    banner: bannerHtml,
+    toolbar: toolbarHtml,
+    stateJson: serializeStateForScriptTag(initialState),
+  });
 }
