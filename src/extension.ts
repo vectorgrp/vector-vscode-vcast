@@ -152,7 +152,12 @@ import {
   importRequirements,
   initializeReqs2X,
 } from "./requirements/requirementsOperations";
-import { maybeOfferLegacyMigration } from "./requirements/legacyMigration";
+import {
+  maybeOfferLegacyMigration,
+  runLegacyMigrationCommand,
+  migrateLegacyRequirementsForEnv,
+  setupLegacyMigrationWatchers,
+} from "./requirements/legacyMigration";
 
 import {
   generateNewCodedTestFile,
@@ -479,6 +484,7 @@ async function activationLogic(context: vscode.ExtensionContext) {
     }
   }
   setupRequirementsFileWatchers(context);
+  setupLegacyMigrationWatchers(context);
 
   initializeReqs2X(context);
 
@@ -1680,6 +1686,23 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(removeRequirementsCommand);
+
+  let migrateLegacyRequirementsCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.migrateLegacyRequirements",
+    async (args: any) => {
+      // From the env right-click menu we migrate just that env; from the
+      // command palette (no args) we run the workspace-wide flow.
+      if (args?.id) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode?.enviroPath;
+        if (!enviroPath) return;
+        await migrateLegacyRequirementsForEnv(enviroPath);
+      } else {
+        await runLegacyMigrationCommand(context);
+      }
+    }
+  );
+  context.subscriptions.push(migrateLegacyRequirementsCommand);
 
   vscode.workspace.onDidChangeWorkspaceFolders(
     async (e) => {

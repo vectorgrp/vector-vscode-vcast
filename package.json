@@ -339,6 +339,11 @@
         "enablement": "testId not in vectorcastTestExplorer.vcastRequirementsAvailable"
       },
       {
+        "command": "vectorcastTestExplorer.migrateLegacyRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Migrate Legacy Requirements"
+      },
+      {
         "command": "vectorcastTestExplorer.exportRequirements",
         "category": "VectorCAST Test Explorer",
         "title": "Export Requirements",
@@ -951,6 +956,10 @@
           "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
         },
         {
+          "command": "vectorcastTestExplorer.migrateLegacyRequirements",
+          "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
+        },
+        {
           "command": "vectorcastTestExplorer.exportRequirements",
           "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
         },
@@ -1211,32 +1220,37 @@
       {
         "command": "vectorcastTestExplorer.generateRequirements",
         "group": "vcast@8",
-        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.importRequirements",
         "group": "vcast@8",
-        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
+      },
+      {
+        "command": "vectorcastTestExplorer.migrateLegacyRequirements",
+        "group": "vcast@8",
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastLegacyMigrationAvailable && vectorcastTestExplorer.reqs2xFeatureEnabled"
       },
       {
         "command": "vectorcastTestExplorer.showRequirements",
         "group": "vcast@9",
-        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.exportRequirements",
         "group": "vcast@9",
-        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.generateTestsFromRequirements",
         "group": "vcast@10",
-        "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled"
+        "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.removeRequirements",
         "group": "vcast@9",
-        "when": "testId =~ /^vcast:[^|]+$/ && vectorcastTestExplorer.reqs2xFeatureEnabled"
+        "when": "testId =~ /^vcast:[^|]+$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.viewResults",

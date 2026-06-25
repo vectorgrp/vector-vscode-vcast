@@ -27,6 +27,12 @@ const fs = require("fs");
 
 let reqs2XFeatureEnabled: boolean = false;
 
+// Authoritative "Reqs2X can actually run" flag: the feature is enabled in
+// settings AND all reqs2X executables were resolved on disk. Set by
+// initializeReqs2X and mirrored to the `reqs2xFeatureEnabled` context key (which
+// gates the menus); this exported copy lets extension code make the same check.
+export let reqs2xUsable = false;
+
 export function initializeReqs2X(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration(
     "vectorcastTestExplorer.reqs2x"
@@ -51,6 +57,7 @@ export function initializeReqs2X(context: vscode.ExtensionContext) {
     }
   }
 
+  reqs2xUsable = featureEnabled;
   vscode.commands.executeCommand(
     "setContext",
     "vectorcastTestExplorer.reqs2xFeatureEnabled",
