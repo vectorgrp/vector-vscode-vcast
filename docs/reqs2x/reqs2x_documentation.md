@@ -1,5 +1,14 @@
 # VectorCAST Reqs2x Documentation and Tutorial
 
+> **⚠️ Recently changed — requirements now live in the Requirements Gateway (RGW).**
+>
+> Requirements used to be stored as `reqs.xlsx` / `reqs.csv` files under `reqs-<env>/`. They now live in a **Requirements Gateway (RGW)** inside each environment, which is the single source of truth the extension reads from and writes to.
+>
+> **Have an existing environment with a legacy `reqs.xlsx` / `reqs.csv`?** When you open or build it, the other requirements actions are hidden and only **Migrate Legacy Requirements** is shown (the extension also offers it automatically). Run it from the environment's right-click menu — **VectorCAST → Migrate Legacy Requirements** — or from the Command Palette (**VectorCAST Test Explorer: Migrate Legacy Requirements**). It imports the legacy file into the RGW and renames the original to `reqs_migrated.*` as a backup; if an RGW already exists, you choose whether to overwrite it from the file or keep the existing gateway.
+>
+> The tutorial below covers the current happy path (a clean CSV import) — you only need migration for environments created before this change.
+
+![Migrating legacy requirements to the RGW](./screenshots/VectorCAST_Reqs2x_migrate_legacy_requirements.png)
 
 ## Overview
 
@@ -10,7 +19,7 @@ The **VectorCAST Reqs2x tools** provide LLM-powered capabilities for requirement
 - **Generate VectorCAST test cases from requirements** 
 
 
-All tools require a configured LLM provider to function. The tools support multiple LLM providers including Azure OpenAI, OpenAI, Anthropic, LiteLLM, Azure APIM, and OpenAI Access Token.  
+All tools require a configured LLM provider to function. The tools support multiple LLM providers including Azure OpenAI, OpenAI, Anthropic and LiteLLM.
 
 This manual demonstrates Reqs2x usage workflows from inside this VS-Code extension using the `TUTORIAL_C` demo environment. Before starting, ensure you have the necessary components ready.
 
@@ -30,7 +39,7 @@ Remove any existing versions of the VectorCAST VS-Code extension.
 
 #### If you are using VectorCAST 2026:
 1.  **License Setup**: Ensure your VectorCAST license is configured. Point `VECTORCAST_DIR` to your release.
-2.  **Open Project**: Create a new directory named `TUTORIAL_C` and copy the contents of `$VECTORCAST_DIR/tutorial/c` directory into it, then open it in VS-Code.
+2.  **Open Project**: Copy the `TUTORIAL_C` directory sitting directly next to this tutorial in the vscode-vector-vcast repository, then open it in VS-Code.
 
 
 ### VS Code Extensions
@@ -42,23 +51,22 @@ Remove any existing versions of the VectorCAST VS-Code extension.
 3.  Configure the following settings:
     *   **Vectorcast Test Explorer › Reqs2x: Installation Location**: 
     - If you are using a demo release, point this to the `autoreq-win/distribution/bin` folder you extracted earlier.
-    - If you are using VectorCAST 2026, point this to your VectorCAST release folder ($VECTORCAST_DIR)
+    - If you are using VectorCAST 2026, point this to your VectorCAST release folder ($VECTORCAST_DIR) or leave it blank (automatically uses Reqs2x directly from the VectorCAST release)
     *   **Vectorcast Test Explorer › Reqs2x: Provider**:
     Select the large language model provider you intend to use from the dropdown menu
-        * **Note**: Most providers support the `openai` API. This includes `Google`, `AWS Bedrock`, as well as open-source model-serving methods like `ollama`, `vLLM` and `SG-Lang`. Use [LiteLLM](https://github.com/BerriAI/litellm) for any provider not supporting `openai`/`openai_azure` API. 
-    *   For the provider you selected, fill in:
-        - **Vectorcast Test Explorer › Reqs2x > <YourProvider>: Base Url**
+        * **Note**: Most providers support the `openai` API. This includes `Google`, `AWS Bedrock`, as well as open-source model-serving methods like `ollama`, `vLLM` and `SG-Lang`. You can use [LiteLLM](https://github.com/BerriAI/litellm) for any provider not supporting `openai`/`openai_azure` API.
+    *   For the provider you selected, fill in its fields. The settings shown adapt to the chosen provider, so the exact fields vary. Taking **OpenAI** as the example, fill in:
+        - **Vectorcast Test Explorer › Reqs2x > Openai: Base Url**
         
-            This is your large language model endpoint.
-        - **Vectorcast Test Explorer › Reqs2x > <YourProvider>: Api Key** 
+            Your large language model endpoint. **Note**: for on-prem providers like `ollama` and `vLLM` this is the local endpoint.
+        - **Vectorcast Test Explorer › Reqs2x > Openai: Api Key** 
         
             The API key for your provider. **Note**: for on-prem providers like `ollama` and `vLLM` you can set this field to `none`.
-        
-        - **Vectorcast Test Explorer › Reqs2x > <YourProvider>: Model Name** 
+        - **Vectorcast Test Explorer › Reqs2x > Openai: Model Name** 
             
             Name of the large language model you will be using. For example: `gpt-4.1`, `gpt-4.1-mini`, `Qwen/Qwen3-30B-A3B-Instruct-2507` (from `Hugging Face`), `gpt-oss:20b` (from `ollama`) etc.
-        - **Vectorcast Test Explorer › Reqs2x > <YourProvider>: Deployment Name** 
-            Name of the large languge model deployment you intend to use - you may have multiple deployments of the same large language model.
+
+        Other providers expose the fields they need — for example **Azure** additionally requires a **Deployment** (the name of your model deployment) and an **API Version**, **Anthropic** takes just an API key and model name (no base URL), and **LiteLLM** is configured through provider environment variables instead of an API-key field.
 
     *   **Vectorcast Test Explorer › Reqs2x: Generation Language**
 
@@ -79,32 +87,42 @@ Remove any existing versions of the VectorCAST VS-Code extension.
     Tick this box if you are using `Reqs2x` for generating requirements from code and want to generate module-level requirements
     *   **Vectorcast Test Explorer › Reqs2x: Output Debug Info**:
     Tick this box to log more details during requirement/test generation. The logs can be found in the `OUTPUT` tab of the VS-Code bottom bar by selecting `VectorCAST Requirement Test Generation Operations` from the output channel dropdown menu in the lower-right corner.
-
-
-![VS Code LLM Provider Settings for Reqs2x](./screenshots/VectorCAST_Reqs2x_optional_settings.png)
+    *   **Vectorcast Test Explorer › Reqs2x: Retries** (default `2`):
+    Number of retries during test generation. **Note**: high values (over 3) can increase cost and processing time.
+    *   **Vectorcast Test Explorer › Reqs2x: Reorder** (enabled by default):
+    Reorder test cases written to the file. Disable for easier investigation of incremental results.
+    *   **Vectorcast Test Explorer › Reqs2x: No Test Examples**:
+    Tick this box to stop supplying additional test examples to the LLM during test generation.
+    *   **Vectorcast Test Explorer › Reqs2x: Function Definitions** (enabled by default):
+    Supply function definitions to the language model during test generation. Disable for blackbox-style testing.
+    *   **Vectorcast Test Explorer › Reqs2x: Enable UUT Stubbing** (enabled by default):
+    Enable stubbing of functions in the unit-under-test in the generated tests.
+    *   **Vectorcast Test Explorer › Reqs2x: Model Compatibility Mode**:
+    Tick this box to run the Reqs2x tools without structured outputs, enabling compatibility with more LLM providers.
 
 ### Environment Setup
 1.  In the Explorer view, right-click the `.CFG` file and select **Set as VectorCAST Configuration file**.
-2.  Ensure `ENVIRO.SEARCH_LIST` is set to `.` for code coverage.
-3.  Right-click `TUTORIAL_C.env` and select **Build VectorCAST environment**.
+2.  Right-click `TUTORIAL_C.env` and select **Build VectorCAST environment**.
 
 
 ---
 
 ## 2. Generating Tests from Requirements
 
-The demo release ships with requirements including requirements-to-code traceability. To use them, import them into the environment which will set up a requirements gateway (RGW). The RGW is the single source of truth — the extension reads from and writes to it directly.
+The demo environment ships with a requirements CSV (`requirements.csv`) that already includes requirements-to-code traceability. To use them, import the CSV into the environment, which sets up a requirements gateway (RGW). The RGW then becomes the single source of truth — the extension reads from and writes to it directly.
 
-![Reqs2x demo requirements](./screenshots/VectorCAST_Reqs2x_demo_requirements.png)
+![Reqs2x demo requirements CSV](./screenshots/VectorCAST_Reqs2x_demo_requirements.png)
 
 
 
 ### Initial Setup
 1.  Click the **Flask icon** (Test Explorer) on the left sidebar to show the environment tree.
-2.  Right-click `TUTORIAL_C` and select **VectorCAST -> Import Requirements**. Choose the file `reqs-TUTORIAL_C/reqs.xlsx`. This will load the requirements into the environment.
-3.  Right-click `TUTORIAL_C` and select **VectorCAST -> Show Requirements**. The requirements webview will appear, rendered directly from the RGW.
+2.  Right-click `TUTORIAL_C` and select **VectorCAST -> Import Requirements**. Choose the file `requirements.csv` (in the `TUTORIAL_C` folder). This loads the requirements into the environment and creates the RGW.
+3.  Right-click `TUTORIAL_C` and select **VectorCAST -> Show Requirements**. The requirements webview appears, rendered directly from the RGW. It's interactive: search and filter by unit/function, edit requirement text and traceability, infer missing traceability with the LLM, and save changes back to the RGW.
 ![Reqs2x demo show requirements](./screenshots/VectorCAST_Reqs2x_show_requirements.png)
 ![Reqs2x demo requirements webview](./screenshots/VectorCAST_Reqs2x_requirements_webview.png)
+
+> **Editable vs. read-only requirements.** Requirements are editable in the webview when they were imported from a non-RGW source (the CSV here) or generated by Reqs2x. The demo environment already has traceability (the unit and function each requirement describes), but for your own requirements, configuring and inferring traceability from the webview is very handy. If an environment's requirements come from a pre-existing RGW that points to an external management tool such as DOORS or Polarion, only the (local) traceability can be edited — the requirement text stays read-only.
 
 ### Test Generation
 1.  Right-click `TUTORIAL_C` and select **VectorCAST -> Generate Tests from Requirements**.
@@ -116,7 +134,7 @@ The demo release ships with requirements including requirements-to-code traceabi
 ### Reviewing Results
 1.  **Analyze Requirements**:
     *   Open the Requirements webview and place it side-by-side with `manager.c`.
-    *   Locate `FR27 Add Included Dessert`. Note that it describes **three distinct behaviors** 
+    *   Search for `FR27` in the search bar. Note that it describes **three distinct behaviors** 
         (2 order combinations that qualify for different free dessert and no dessert for any other order combination).
     *   The system decomposes this into atomic requirements and generates corresponding tests.
 2.  **Verify Tests**:
@@ -139,15 +157,15 @@ The demo release ships with requirements including requirements-to-code traceabi
 
 
 1.  **Modify requirement**:
-    *   Edit the requirement directly in the requirements gateway (RGW) in the Requirements view. Open it by selecting ``VectorCAST -> Show Requirements`.
+    *   Edit the requirement directly in the requirements gateway (RGW) in the Requirements view. Open it by selecting **VectorCAST -> Show Requirements**.
     *   Find `FR27` (Add Included Dessert).
     *   Change the free dessert for `steak, caesar salad and mixed drink` from `pie` to `cake`.
     *   Change the free dessert for `lobster, green salad and wine` from `cake` to `pie`.
-    *   Save the change. The extension always reads from the RGW, so no further sync step is required.
+    *   Click **Save changes** in the requirements webview toolbar to persist the edits. The extension always reads from the RGW, so no further sync step is required.
 
 2.  **Update tests**:
     *   In Test Explorer, find the `Add_Included_Dessert` node.
-    *   Right-click `Add_Included_Dessert` and select **VectorCAST -> DeleteTests**.
+    *   Right-click `Add_Included_Dessert` and select **VectorCAST -> Delete Tests**.
     *   Right-click `Add_Included_Dessert` again and select **VectorCAST -> Generate Tests from Requirements**.
         * This will generate tests only for the requirements related to `Add_Included_Dessert` function.
 
@@ -192,7 +210,7 @@ You can also generate requirements directly from existing code.
 2.  **Configuration (Optional)**:
     *   In Settings, enable **Vectorcast Test Explorer › Reqs2x: Generate High Level Requirements** if desired.
 
-![Reqs2x remove requirements](./screenshots/VectorCAST_Reqs2x_HLR_setting.png)
+![Reqs2x generate high-level requirements setting](./screenshots/VectorCAST_Reqs2x_HLR_setting.png)
 
 3.  **Generate**:
     *   Right-click `TUTORIAL_C` -> **VectorCAST -> Generate Requirements**.
@@ -207,6 +225,6 @@ You can also generate requirements directly from existing code.
 ![Reqs2x review module-level requirements](./screenshots/VectorCAST_Reqs2x_high_level_requirements.png)
 5.  **Generate Tests**:
     *   Right-click `TUTORIAL_C` -> **VectorCAST -> Generate Tests from Requirements**.
-    *   **Note**: We can observe that more tests get generated from generated requirements then from the original requirements (24 instead of 17). This is due to generated requirements being more fine-grained and exhaustively describing the implementation.
+    *   **Note**: We can observe that more tests get generated from generated requirements then from the original requirements. This is due to generated requirements being more fine-grained and exhaustively describing the implementation.
 
 ![Reqs2x generate tests from generated requirements](./screenshots/VectorCAST_Reqs2x_generate_tests_from_generated_reqs.png)
