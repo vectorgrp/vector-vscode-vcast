@@ -500,14 +500,19 @@ def getEnviroDataMultipleTimesUsingVPython(clicastPath, enviroPath):
     pathTovTestInterface = os.path.realpath(
         os.path.join(pathToThisScript, "..", "..", "..", "python", "vTestInterface.py")
     )
-    commandToRun = f"{vpythonCommand} {pathTovTestInterface} --mode=getEnviroData --path={enviroPath}"
+    commandToRun = [
+        vpythonCommand,
+        pathTovTestInterface,
+        "--mode=getEnviroData",
+        f"--path={enviroPath}",
+    ]
     startTime = time.time()
     alreadyChecked = False
     for i in range(numberOfGetEnviroDataCallsToMake):
         try:
             # debug print (f"  executing command: {commandToRun} ...")
             commandOutput = subprocess.check_output(
-                commandToRun, shell=True, stderr=subprocess.STDOUT
+                commandToRun, stderr=subprocess.STDOUT
             )
             # make sure we get valid data after the first call
             commandOutput = commandOutput.decode().split("ACTUAL-DATA")[1]
@@ -695,14 +700,12 @@ def buildEnvironment(clicastPath):
 
     try:
         with cd(ENVIRO_PATH):
-            commandToRun = f"{clicastPath} -lc enviro build DEMO1.env"
-            # note: shell=true, requires commandToRun to be a string
+            commandToRun = [clicastPath, "-lc", "enviro", "build", "DEMO1.env"]
             subprocess.run(
                 commandToRun,
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                shell=True,
             )
     except subprocess.CalledProcessError as error:
         print(f"Error building DEMO1 environment: {error.stdout}")

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Requirements</title>
@@ -10,7 +10,7 @@
 <div id="rgw-pill" title="{{gatewayPath}}">RGW: {{gatewayPath}}</div>
 {{banner}}
 <div id="save-toolbar">{{toolbar}}</div>
-<div id="search-bar"><input id="search-input" type="search" placeholder="Search…" /><select id="filter-unit" title="Filter by unit"></select><select id="filter-function" title="Filter by function"></select><span id="search-count"></span></div>
+<div id="search-bar"><input id="search-input" type="search" placeholder="Search…" aria-label="Search requirements" /><select id="filter-unit" title="Filter by unit" aria-label="Filter by unit"></select><select id="filter-function" title="Filter by function" aria-label="Filter by function"></select><span id="search-count"></span></div>
 <div id="reqs-body"></div>
 <script nonce="{{nonce}}">window.__rgwState = {{stateJson}};</script>
 <script nonce="{{nonce}}" type="module" src="{{scriptUri}}"></script>
