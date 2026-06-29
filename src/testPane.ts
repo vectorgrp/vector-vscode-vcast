@@ -737,7 +737,6 @@ async function loadEnviroData(
   enviroData: environmentNodeDataType,
   comingFromRefresh: boolean
 ): Promise<EnviroData | undefined> {
-  let buildDirDerivedFromVCEPath: string = "";
   let buildPathDir: string = enviroData.buildDirectory;
 
   if (comingFromRefresh) {
@@ -745,12 +744,17 @@ async function loadEnviroData(
     if (cachedWorkspaceEnvData) {
       const enviroList = cachedWorkspaceEnvData["enviro"];
       vectorMessage(`Processing environment data for: ${buildPathDir}`);
-      for (const envAPIData of enviroList) {
-        buildDirDerivedFromVCEPath = envAPIData.vcePath.split(".vce")[0];
-        if (buildDirDerivedFromVCEPath === buildPathDir) {
-          return envAPIData;
-        }
+      const matchedEnv = matchEnvDataToBuildDir(buildPathDir, enviroList);
+      if (matchedEnv) {
+        return matchedEnv;
       }
+      // We couldn't line the workspace VCE up with this build directory
+      // (e.g. a relocated/legacy Manage build directory). Rather than dropping
+      // the environment, fall back to querying it directly by build directory.
+      vectorMessage(
+        `Build directory ${buildPathDir} found, but it could not be matched to a VCE file in the workspace scan. Falling back to a direct query for this environment.`
+      );
+      return await getDataForEnvironmentFromAPI(buildPathDir);
     } else {
       // Fallback in case the cache is not build, but it should be
       return await getDataForEnvironmentFromAPI(buildPathDir);
@@ -759,11 +763,6 @@ async function loadEnviroData(
     // Individual environment fetch (e.g. adding new test scripts, coded tests, ...)
     return await getDataForEnvironmentFromAPI(buildPathDir);
   }
-  // We have a valid build directory, but we couldn't find a matching VCE file in the workspace data.
-  vectorMessage(
-    `Build directory ${buildPathDir} found, but no matching VCE file detected at the same level of it. Environment data may be incomplete.`
-  );
-  return undefined;
 }
 
 async function buildEnvDataCacheForCurrentDir() {
@@ -844,13 +843,63 @@ async function processSingleEnvData(
 
 export function findAndReturnEnvDataByBuildDir(buildDir: string) {
   if (cachedWorkspaceEnvData) {
-    const enviroList = cachedWorkspaceEnvData["enviro"];
-    for (const envAPIData of enviroList) {
-      if (path.dirname(envAPIData.vcePath) === path.dirname(buildDir)) {
-        return envAPIData;
-      }
-    }
+    return matchEnvDataToBuildDir(buildDir, cachedWorkspaceEnvData["enviro"]);
   }
+  return undefined;
+}
+
+/**
+ * Matches a managed-environment build directory against the workspace-wide VCE
+ * scan (`getWorkspaceEnviroData`).
+ *
+ * The build directory comes from Manage (`getProjectData`):
+ *   <build_directory>/<enviroName>
+ * while the VCE path comes from a filesystem scan of the workspace. These two
+ * do NOT always line up character-for-character: the build directory can be
+ * relocated, the path casing reported by Manage can differ from what is on
+ * disk (Windows is case-insensitive), and legacy projects pulled in from older
+ * VectorCAST versions can leave the VCE a directory level away from where the
+ * build directory points. The previous logic used an exact, case-sensitive
+ * compare (`vcePath.split(".vce")[0] === buildDir`) which silently dropped
+ * every environment when any of the above happened.
+ *
+ * We therefore match progressively, from strictest to loosest, all
+ * case-insensitively:
+ *   1. VCE-minus-extension equals the build directory (the common case).
+ *   2. Same enclosing directory AND same environment name.
+ *   3. Same environment name, when that name is unique in the workspace.
+ */
+export function matchEnvDataToBuildDir(
+  buildDir: string,
+  enviroList: EnviroData[]
+): EnviroData | undefined {
+  const norm = (p: string) => forceLowerCaseDriveLetter(p).toLowerCase();
+
+  const targetPath = norm(buildDir);
+  const targetDir = norm(path.dirname(buildDir));
+  const targetName = norm(path.basename(buildDir));
+
+  const vceName = (env: EnviroData) =>
+    norm(path.basename(env.vcePath, path.extname(env.vcePath)));
+
+  // 1. Exact match: the VCE sits at <buildDir>.vce
+  const exact = enviroList.find(
+    (env) => norm(env.vcePath.split(".vce")[0]) === targetPath
+  );
+  if (exact) return exact;
+
+  // 2. Same enclosing directory and same environment name
+  const sameDir = enviroList.find(
+    (env) =>
+      norm(path.dirname(env.vcePath)) === targetDir &&
+      vceName(env) === targetName
+  );
+  if (sameDir) return sameDir;
+
+  // 3. Unique environment-name match (handles relocated/legacy build dirs)
+  const byName = enviroList.filter((env) => vceName(env) === targetName);
+  if (byName.length === 1) return byName[0];
+
   return undefined;
 }
 
