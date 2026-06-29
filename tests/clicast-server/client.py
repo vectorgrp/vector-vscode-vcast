@@ -142,25 +142,37 @@ def compareJSON(left, right):
 
 def compareTestScriptFiles(expected, actual):
     """
-    This is used to compare two test scripts.
-    The first line in the scripts is the vcast version
-    so we need to ignore that line for the compare
+    Compare two test scripts, ignoring:
+      - the first line (the vcast version stamp), and
+      - TEST.SCRIPT_FEATURE: lines, which are release-level capability flags
+        that newer VectorCAST versions add/remove independent of test content.
+    On mismatch, print a unified diff so CI logs show exactly what changed.
     """
+    import difflib
 
-    with open(expected, "r") as f:
-        expectedData = f.readlines()
-        expectedData = "\n".join(expectedData[1:])
+    def normalize(path):
+        with open(path, "r") as f:
+            lines = f.readlines()[1:]  # drop version-stamp first line
+        # drop release-metadata feature flags
+        return [ln for ln in lines if not ln.startswith("TEST.SCRIPT_FEATURE:")]
 
-    with open(actual, "r") as f:
-        actualData = f.readlines()
-        actualData = "\n".join(actualData[1:])
+    expectedLines = normalize(expected)
+    actualLines = normalize(actual)
 
-    returnValue = expectedData == actualData
+    returnValue = expectedLines == actualLines
 
     if not returnValue:
         print(
-            f"-- Data miss-match - compare: {os.path.basename (expected)}  to: {os.path.basename(actual)} ..."
+            f"-- Data miss-match - compare: {os.path.basename(expected)}  to: {os.path.basename(actual)} ..."
         )
+        diff = difflib.unified_diff(
+            expectedLines,
+            actualLines,
+            fromfile=os.path.basename(expected),
+            tofile=os.path.basename(actual),
+            lineterm="",
+        )
+        print("".join(line if line.endswith("\n") else line + "\n" for line in diff))
 
     return returnValue
 
@@ -488,14 +500,19 @@ def getEnviroDataMultipleTimesUsingVPython(clicastPath, enviroPath):
     pathTovTestInterface = os.path.realpath(
         os.path.join(pathToThisScript, "..", "..", "..", "python", "vTestInterface.py")
     )
-    commandToRun = f"{vpythonCommand} {pathTovTestInterface} --mode=getEnviroData --path={enviroPath}"
+    commandToRun = [
+        vpythonCommand,
+        pathTovTestInterface,
+        "--mode=getEnviroData",
+        f"--path={enviroPath}",
+    ]
     startTime = time.time()
     alreadyChecked = False
     for i in range(numberOfGetEnviroDataCallsToMake):
         try:
             # debug print (f"  executing command: {commandToRun} ...")
             commandOutput = subprocess.check_output(
-                commandToRun, shell=True, stderr=subprocess.STDOUT
+                commandToRun, stderr=subprocess.STDOUT
             )
             # make sure we get valid data after the first call
             commandOutput = commandOutput.decode().split("ACTUAL-DATA")[1]
@@ -683,14 +700,12 @@ def buildEnvironment(clicastPath):
 
     try:
         with cd(ENVIRO_PATH):
-            commandToRun = f"{clicastPath} -lc enviro build DEMO1.env"
-            # note: shell=true, requires commandToRun to be a string
+            commandToRun = [clicastPath, "-lc", "enviro", "build", "DEMO1.env"]
             subprocess.run(
                 commandToRun,
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                shell=True,
             )
     except subprocess.CalledProcessError as error:
         print(f"Error building DEMO1 environment: {error.stdout}")
