@@ -247,11 +247,9 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions):
 
     # clicast "enviro build" refuses to build over an existing environment
     # directory, so the original must be moved aside first.  We rename it to
-    # <name>.BAK rather than deleting it (the old behaviour), so that a failed
-    # build can be rolled back without losing the environment - for example when
-    # ENVIRO.VCDB_FILENAME points at a missing database.  This mirrors what
-    # clicast "enviro re_build" does internally; on success the .BAK is left in
-    # place for the rebuildEnvironmentCallback (TypeScript) to remove.
+    # <name>.BAK, so that a failed build can be rolled back without losing the environment. On success the
+    # .BAK is left in place for the rebuildEnvironmentCallback (TypeScript) to
+    # remove.
     if os.path.isdir(bakName):
         shutil.rmtree(bakName)
     if os.path.exists(bakVceName):
