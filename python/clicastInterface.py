@@ -241,20 +241,58 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions):
     # if we are server mode, terminate any existing process
     closeEnvironmentConnection(enviroPath)
 
-    # Finally delete and re-build the environment using the updated script
-    # and load the existing tests -> which duplicates what enviro rebuild does.
-    with open(commandFileName, "w") as commandFile:
-        # Improvement needed: vcast bug: 100924
-        shutil.rmtree(enviroName)
-        # commandFile.write(f"-e{enviroName} enviro delete\n")
-        commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
-        commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
+    vceName = enviroName + ".vce"
+    bakName = enviroName + ".BAK"
+    bakVceName = enviroName + ".BAK.vce"
 
-    # there is no benefit to starting a new server process here (if we are server mode)
-    # so we call the command line version directly
+    # clicast "enviro build" refuses to build over an existing environment
+    # directory, so the original must be moved aside first.  We rename it to
+    # <name>.BAK, so that a failed build can be rolled back without losing the environment. On success the
+    # .BAK is left in place for the rebuildEnvironmentCallback (TypeScript) to
+    # remove.
+    if os.path.isdir(bakName):
+        shutil.rmtree(bakName)
+    if os.path.exists(bakVceName):
+        os.remove(bakVceName)
+    os.rename(enviroName, bakName)
+    if os.path.exists(vceName):
+        os.rename(vceName, bakVceName)
+
+    echoToStdout = not pythonUtilities.USE_SERVER
+
+    # Build the new environment from the updated script.
+    with open(commandFileName, "w") as commandFile:
+        commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
     returnCodeRebuild, commandOutputRebuild = runClicastScriptCommandLine(
-        commandFileName, echoToStdout=(not pythonUtilities.USE_SERVER)
+        commandFileName, echoToStdout=echoToStdout
     )
+
+    if returnCodeRebuild == 0:
+        # Build succeeded: load the existing tests back into the new environment.
+        with open(commandFileName, "w") as commandFile:
+            commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
+        returnCodeTests, commandOutputTests = runClicastScriptCommandLine(
+            commandFileName, echoToStdout=echoToStdout
+        )
+        commandOutputRebuild = f"{commandOutputRebuild}\n{commandOutputTests.rstrip()}"
+        returnCodeRebuild = returnCodeTests
+    else:
+        # Build failed: discard the partial build and restore the saved
+        # environment.  We must NOT run the test script against the restored
+        # environment, because its tests are still present and re-running the
+        # script would duplicate every test case.
+        if os.path.isdir(enviroName):
+            shutil.rmtree(enviroName)
+        if os.path.exists(vceName):
+            os.remove(vceName)
+        os.rename(bakName, enviroName)
+        if os.path.exists(bakVceName):
+            os.rename(bakVceName, vceName)
+        commandOutputRebuild = (
+            f"{commandOutputRebuild}\n"
+            f"Environment re-build failed; restored the previous environment "
+            f"'{enviroName}' from backup."
+        )
 
     os.remove(tempEnviroScript)
     os.remove(tempTestScript)
@@ -296,21 +334,6 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
     return returnCode, commandOutput
 
 
-def rebuildEnvironmentUsingClicastReBuild(enviroPath):
-    """
-    This does a "normal" rebuild environment, when there are no
-    edits to be made to the enviro script
-    """
-    with cd(os.path.dirname(enviroPath)):
-        enviroName = os.path.basename(enviroPath)
-        commandToRun = (
-            f"{pythonUtilities.globalClicastCommand} -lc -e{enviroName} enviro re_build"
-        )
-        returnCode, commandOutput = runClicastCommandWithEcho(commandToRun)
-
-    return returnCode, commandOutput
-
-
 # ----------------------------------------------------------------------------------------------------
 # Functional Interface to clicast
 # ----------------------------------------------------------------------------------------------------
@@ -319,13 +342,16 @@ def rebuildEnvironmentUsingClicastReBuild(enviroPath):
 def rebuildEnvironment(enviroPath, jsonOptions):
     """
     Note: rebuild environment cannot use server mode
-    since we are deleting and recreating the environment
+    since we are deleting and recreating the environment.
+
+    The current build settings (e.g. coverageKind) are always passed in as
+    jsonOptions, so the rebuild goes through the build-from-script path which
+    can incorporate those changes.  A plain "clicast enviro re_build" is not
+    used because it rebuilds from the environment's stored configuration and
+    would ignore the updated options.
     """
 
-    if jsonOptions:
-        return rebuildEnvironmentWithUpdates(enviroPath, jsonOptions)
-    else:
-        return rebuildEnvironmentUsingClicastReBuild(enviroPath)
+    return rebuildEnvironmentWithUpdates(enviroPath, jsonOptions)
 
 
 def executeTest(enviroPath, testIDObject):
