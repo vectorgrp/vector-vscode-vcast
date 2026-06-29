@@ -2,10 +2,17 @@ export const newestVCRelease = "2024sp5";
 
 /**
  * Returns all spec groups.
- * @param useVcast24 Boolean whether release 24 is used or not.
+ * @param useVcast24 Boolean whether release 24 or higher is used.
+ * @param useVcast25 Boolean whether release 25 or higher is used. Gates the
+ *                   requirements-related groups (requirements, manage,
+ *                   manage_server), which depend on reqs2x behaviour only
+ *                   available from VC25 onwards.
  * @returns Returns all spec groups.
  */
-export function getSpecGroups(useVcast24: boolean) {
+export function getSpecGroups(
+  useVcast24: boolean,
+  useVcast25: boolean = false
+) {
   const specGroups = {
     basic_user_interactions: {
       specs: [
@@ -112,19 +119,6 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
-    specGroups["requirements"] = {
-      specs: [
-        "./**/**/vcast_build_env_requirements.test.ts",
-        "./**/**/vcast_requirements_tests.test.ts",
-      ],
-      env: {
-        REQS2X_PCT_RELEASE: "True",
-        VCAST_USE_PYTHON: "True",
-        VCAST_REQS2X_LOG_LEVEL: "debug",
-      },
-      params: {},
-    };
-
     specGroups["unit_atg"] = {
       specs: [
         "./**/**/vcast_testgen_unit_atg.test.ts",
@@ -158,19 +152,6 @@ export function getSpecGroups(useVcast24: boolean) {
       env: { VCAST_USE_PYTHON: "True" },
       params: {},
     };
-    specGroups["manage"] = {
-      specs: [
-        "./**/**/vcast_manage.test.ts",
-        "./**/**/vcast_requirements_manage.test.ts",
-      ],
-      env: {
-        VCAST_USE_PYTHON: "True",
-        MANAGE_TEST: "True",
-        VCAST_REQS2X_LOG_LEVEL: "debug",
-      },
-      params: {},
-    };
-
     specGroups["basic_user_interactions_server"] = {
       specs: [
         "./**/**/vcast.build_env.test.ts",
@@ -283,15 +264,6 @@ export function getSpecGroups(useVcast24: boolean) {
       params: {},
     };
 
-    specGroups["manage_server"] = {
-      specs: [
-        "./**/**/vcast_manage.test.ts",
-        "./**/**/vcast_requirements_manage.test.ts",
-      ],
-      env: { MANAGE_TEST: "True", VCAST_REQS2X_LOG_LEVEL: "debug" },
-      params: {},
-    };
-
     specGroups["coded_tests_server"] = {
       specs: [
         "./**/**/vcast_coded_tests.test.ts",
@@ -321,16 +293,59 @@ export function getSpecGroups(useVcast24: boolean) {
     };
   }
 
+  // Requirements-related groups depend on reqs2x behaviour that is only
+  // available from VectorCAST 25 onwards, so gate them on useVcast25.
+  if (useVcast25) {
+    specGroups["requirements"] = {
+      specs: [
+        "./**/**/vcast_build_env_requirements.test.ts",
+        "./**/**/vcast_requirements_tests.test.ts",
+      ],
+      env: {
+        REQS2X_PCT_RELEASE: "True",
+        VCAST_USE_PYTHON: "True",
+        VCAST_REQS2X_LOG_LEVEL: "debug",
+      },
+      params: {},
+    };
+
+    specGroups["manage"] = {
+      specs: [
+        "./**/**/vcast_manage.test.ts",
+        "./**/**/vcast_requirements_manage.test.ts",
+      ],
+      env: {
+        VCAST_USE_PYTHON: "True",
+        MANAGE_TEST: "True",
+        VCAST_REQS2X_LOG_LEVEL: "debug",
+      },
+      params: {},
+    };
+
+    specGroups["manage_server"] = {
+      specs: [
+        "./**/**/vcast_manage.test.ts",
+        "./**/**/vcast_requirements_manage.test.ts",
+      ],
+      env: { MANAGE_TEST: "True", VCAST_REQS2X_LOG_LEVEL: "debug" },
+      params: {},
+    };
+  }
+
   return specGroups;
 }
 
 /**
  * Returns the spec groups including their env variables and handles group params.
- * @param useVcast24 Boolean whether release 24 is used or not.
+ * @param useVcast24 Boolean whether release 24 or higher is used.
+ * @param useVcast25 Boolean whether release 25 or higher is used.
  * @returns Spec groups with env variables.
  */
-export function getSpecsWithEnv(useVcast24: boolean) {
-  const specGroups = getSpecGroups(useVcast24);
+export function getSpecsWithEnv(
+  useVcast24: boolean,
+  useVcast25: boolean = false
+) {
+  const specGroups = getSpecGroups(useVcast24, useVcast25);
 
   for (const group of Object.keys(specGroups)) {
     const groupObject = specGroups[group];
@@ -349,16 +364,18 @@ export function getSpecsWithEnv(useVcast24: boolean) {
 
 /**
  * Returns the env variables for spec a group.
- * @param useVcast24 Boolean whether release 24 is used or not.
+ * @param useVcast24 Boolean whether release 24 or higher is used.
  * @param groupName Name of a spec group.
+ * @param useVcast25 Boolean whether release 25 or higher is used.
  * @returns Env var for a spec group.
  */
 export function getEnvVarsForGroup(
   useVcast24: boolean,
-  groupName: string
+  groupName: string,
+  useVcast25: boolean = false
 ): string {
   // Fetch spec groups with environment variables
-  const specGroups = getSpecsWithEnv(useVcast24);
+  const specGroups = getSpecsWithEnv(useVcast24, useVcast25);
 
   // Check if the specified group exists
   if (!specGroups[groupName] || !specGroups[groupName].env) {
@@ -379,12 +396,17 @@ export function getEnvVarsForGroup(
 
 /**
  * Get all specs or from a group (if contained in the params).
- * @param vcast24 Boolean whether release 24 is used or not.
+ * @param vcast24 Boolean whether release 24 or higher is used.
  * @param group Name of a spec group.
+ * @param vcast25 Boolean whether release 25 or higher is used.
  * @returns
  */
-export function getSpecs(vcast24: boolean, group: string = null) {
-  const specGroups = getSpecGroups(vcast24);
+export function getSpecs(
+  vcast24: boolean,
+  group: string = null,
+  vcast25: boolean = false
+) {
+  const specGroups = getSpecGroups(vcast24, vcast25);
 
   if (group != null) {
     // Check if the group exists and has a 'specs' key; otherwise, return an empty array
