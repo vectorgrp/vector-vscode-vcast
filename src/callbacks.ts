@@ -90,6 +90,16 @@ export async function rebuildEnvironmentCallback(
       // ignore errors
     }
     await updateDataForEnvironment(enviroPath);
+  } else {
+    // The rebuild failed. The Python side has already restored the previous
+    // environment from its backup, so no data is lost - but we still need to
+    // tell the user, rather than silently leaving the environment unchanged.
+    vectorMessage(
+      `Environment re-build failed for ${path.basename(
+        enviroPath
+      )}; the previous environment was restored. See the output above for details.`
+    );
+    openMessagePane();
   }
 }
 
