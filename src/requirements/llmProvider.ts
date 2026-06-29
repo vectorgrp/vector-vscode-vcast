@@ -201,6 +201,21 @@ export function gatherLLMProviderSettings(): LLMProviderSettingsResult {
   return { provider, env: baseEnv, missing };
 }
 
+function applyExtraModelParams(
+  config: vscode.WorkspaceConfiguration,
+  processEnv: Record<string, string | undefined>
+): void {
+  const tmpl = config.get<string>("extraModelParamsTemplate", "");
+  if (tmpl) processEnv.VCAST_REQS2X_EXTRA_MODEL_PARAMS_TEMPLATE = tmpl;
+  const json = config.get<string>("extraModelParamsJson", "");
+  if (json) processEnv.VCAST_REQS2X_EXTRA_MODEL_PARAMS_JSON = json;
+  const rTmpl = config.get<string>("reasoningExtraModelParamsTemplate", "");
+  if (rTmpl)
+    processEnv.VCAST_REQS2X_REASONING_EXTRA_MODEL_PARAMS_TEMPLATE = rTmpl;
+  const rJson = config.get<string>("reasoningExtraModelParamsJson", "");
+  if (rJson) processEnv.VCAST_REQS2X_REASONING_EXTRA_MODEL_PARAMS_JSON = rJson;
+}
+
 /**
  * Run llm2check to verify the configured provider is reachable. Used by both
  * the explicit "Test LLM Configuration" command and as a precondition before
@@ -320,6 +335,13 @@ export async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
 
   if (config.get<boolean>("modelCompatibilityMode", false)) {
     processEnv.VCAST_REQS2X_MODEL_COMPATIBILITY_MODE = "1";
+  }
+
+  applyExtraModelParams(config, processEnv);
+
+  const sourceFileEncoding = config.get<string>("sourceFileEncoding", "");
+  if (sourceFileEncoding) {
+    processEnv.VCAST_REQS2X_SOURCE_FILE_ENCODING = sourceFileEncoding;
   }
 
   return processEnv;
