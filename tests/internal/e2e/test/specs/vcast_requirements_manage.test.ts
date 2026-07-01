@@ -228,7 +228,7 @@ describe("vTypeCheck VS Code Extension", () => {
       async () =>
         (await (await bottomBar.openOutputView()).getText())
           .toString()
-          .includes("code2reqs completed successfully with code 0"),
+          .includes("code2reqs exit code: 0"),
       { timeout: 180_000 }
     );
   });

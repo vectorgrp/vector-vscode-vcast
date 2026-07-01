@@ -2,6 +2,15 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.32] - 2026-06-26
+
+### Added
+- Requirements are now stored in and edited directly from the Requirements Gateway (RGW), which is the single source of truth
+- New interactive Requirements view: browse, search and filter by unit/function, edit requirement text and traceability, infer missing traceability, add/remove requirements, and jump to source
+- Import and Export requirements in CSV, Excel, and JSON formats
+- One-time migration of legacy `reqs.xlsx` / `reqs.csv` files into the RGW
+- Option to infer traceability only for requirements that are missing it
+
 ## [1.0.31] - 2026-05-07
 
 ### Added
