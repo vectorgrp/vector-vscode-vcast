@@ -2,6 +2,11 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.33] - 2026-06-30
+
+### Added
+- Rollback for failed environment rebuilds
+
 ## [1.0.32] - 2026-06-26
 
 ### Added
