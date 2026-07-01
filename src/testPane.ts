@@ -857,17 +857,11 @@ export function findAndReturnEnvDataByBuildDir(buildDir: string) {
  * while the VCE path comes from a filesystem scan of the workspace. These two
  * do NOT always line up character-for-character: the build directory can be
  * relocated, the path casing reported by Manage can differ from what is on
- * disk (Windows is case-insensitive), and legacy projects pulled in from older
- * VectorCAST versions can leave the VCE a directory level away from where the
- * build directory points. The previous logic used an exact, case-sensitive
- * compare (`vcePath.split(".vce")[0] === buildDir`) which silently dropped
- * every environment when any of the above happened.
- *
+ * disk (Windows is case-insensitive).
  * We therefore match progressively, from strictest to loosest, all
  * case-insensitively:
  *   1. VCE-minus-extension equals the build directory (the common case).
  *   2. Same enclosing directory AND same environment name.
- *   3. Same environment name, when that name is unique in the workspace.
  */
 export function matchEnvDataToBuildDir(
   buildDir: string,
@@ -886,7 +880,9 @@ export function matchEnvDataToBuildDir(
   const exact = enviroList.find(
     (env) => norm(env.vcePath.split(".vce")[0]) === targetPath
   );
-  if (exact) return exact;
+  if (exact) {
+    return exact;
+  }
 
   // 2. Same enclosing directory and same environment name
   const sameDir = enviroList.find(
@@ -894,11 +890,9 @@ export function matchEnvDataToBuildDir(
       norm(path.dirname(env.vcePath)) === targetDir &&
       vceName(env) === targetName
   );
-  if (sameDir) return sameDir;
-
-  // 3. Unique environment-name match (handles relocated/legacy build dirs)
-  const byName = enviroList.filter((env) => vceName(env) === targetName);
-  if (byName.length === 1) return byName[0];
+  if (sameDir) {
+    return sameDir;
+  }
 
   return undefined;
 }
