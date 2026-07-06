@@ -60,6 +60,10 @@ set_specs_params() {
 
 
 cd $ROOT
+# wdio.conf.ts builds all test workspace paths (test/vcastTutorial, test/extension)
+# from INIT_CWD. npx used to set it implicitly; `pnpm exec` does not, so export it
+# explicitly (pnpm passes a pre-set INIT_CWD through untouched).
+export INIT_CWD="$ROOT"
 if [ ! -d "node_modules" ]; then
   pnpm install --frozen-lockfile
 fi
