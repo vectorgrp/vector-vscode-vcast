@@ -4,19 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  webdriver: 8.21.0
-  webdriverio: 8.21.0
-  '@wdio/config': 8.21.0
-  '@wdio/utils': 8.21.0
-  '@wdio/globals': 8.21.0
-  '@wdio/logger': 8.28.0
-  '@wdio/protocols': 8.20.4
-  '@wdio/repl': 8.10.1
-  '@wdio/types': 8.21.0
-  '@types/node': 20.8.10
-  prettier: 3.0.3
-
 importers:
 
   .:
@@ -83,13 +70,13 @@ importers:
         version: 3.0.7
       wdio-chromedriver-service:
         specifier: ^8.1.1
-        version: 8.1.1(@wdio/types@8.21.0)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5))
+        version: 8.1.1(@wdio/types@8.36.1)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5))
       wdio-devtools-service:
         specifier: ^0.1.6
         version: 0.1.6
       wdio-vscode-service:
         specifier: ^5.0.0
-        version: 5.2.1(@wdio/types@8.21.0)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5))
+        version: 5.2.1(@wdio/types@8.36.1)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5))
 
 packages:
 
@@ -416,6 +403,10 @@ packages:
     resolution: {integrity: sha512-bwNj64l7qwXHYYne/YFGCWAq95k0IzndNpzvIAq3UMKY1NDn0zGGZ/ticYYV2Vd85q6Dif6KT77Zl8Kbkv6qbA==}
     engines: {node: ^16.13 || >=18}
 
+  '@wdio/logger@8.16.17':
+    resolution: {integrity: sha512-zeQ41z3T+b4IsrriZZipayXxLNDuGsm7TdExaviNGojPVrIsQUCSd/FvlLHM32b7ZrMyInHenu/zx1cjAZO71g==}
+    engines: {node: ^16.13 || >=18}
+
   '@wdio/logger@8.28.0':
     resolution: {integrity: sha512-/s6zNCqwy1hoc+K4SJypis0Ud0dlJ+urOelJFO1x0G0rwDRWyFiUP6ijTaCcFxAm29jYEcEPWijl2xkVIHwOyA==}
     engines: {node: ^16.13 || >=18}
@@ -449,6 +440,10 @@ packages:
 
   '@wdio/types@8.21.0':
     resolution: {integrity: sha512-mZFOipmu541z0BXBW7mBAUjM4zZWhNnP/w321OSYx082Jy4d0UHMFXYWaOC98DIMBPahJu/yLX2WH5iCrazKSA==}
+    engines: {node: ^16.13 || >=18}
+
+  '@wdio/types@8.36.1':
+    resolution: {integrity: sha512-kKtyJbypasKo/VQuJ6dTQQwFtHE9qoygjoCZjrQCLGraRSjOEiqZHPR0497wbeCvcgHIYyImbmcylqZNGUE0CQ==}
     engines: {node: ^16.13 || >=18}
 
   '@wdio/utils@8.21.0':
@@ -1093,7 +1088,7 @@ packages:
     peerDependencies:
       eslint: '>=7.28.0'
       eslint-config-prettier: '*'
-      prettier: 3.0.3
+      prettier: '>=2.0.0'
     peerDependenciesMeta:
       eslint-config-prettier:
         optional: true
@@ -2739,7 +2734,7 @@ packages:
     peerDependencies:
       '@swc/core': '>=1.2.50'
       '@swc/wasm': '>=1.2.50'
-      '@types/node': 20.8.10
+      '@types/node': '*'
       typescript: '>=2.7'
     peerDependenciesMeta:
       '@swc/core':
@@ -2862,9 +2857,9 @@ packages:
     resolution: {integrity: sha512-pN3GiOkTIMnalfq4PJAHdX95pDp1orHnTY8W1fIbd6ok81ba97UjerTgS7lUDRUh1p0MAm35Ww0uc0/9wzB7SA==}
     engines: {node: ^16.13 || >=18}
     peerDependencies:
-      '@wdio/types': 8.21.0
+      '@wdio/types': ^7.0.0 || ^8.0.0-alpha.219
       chromedriver: '*'
-      webdriverio: 8.21.0
+      webdriverio: ^7.0.0 || ^8.0.0-alpha.219
     peerDependenciesMeta:
       '@wdio/types':
         optional: true
@@ -2879,7 +2874,7 @@ packages:
     engines: {node: ^16.13 || >=18}
     peerDependencies:
       chromedriver: latest
-      webdriverio: 8.21.0
+      webdriverio: ^8.0.0
     peerDependenciesMeta:
       webdriverio:
         optional: true
@@ -3383,7 +3378,7 @@ snapshots:
       '@types/node': 20.8.10
       '@wdio/config': 8.21.0
       '@wdio/globals': 8.21.0(typescript@4.9.5)
-      '@wdio/logger': 8.28.0
+      '@wdio/logger': 8.16.17
       '@wdio/protocols': 8.20.4
       '@wdio/types': 8.21.0
       '@wdio/utils': 8.21.0
@@ -3414,7 +3409,7 @@ snapshots:
 
   '@wdio/config@8.21.0':
     dependencies:
-      '@wdio/logger': 8.28.0
+      '@wdio/logger': 8.16.17
       '@wdio/types': 8.21.0
       '@wdio/utils': 8.21.0
       decamelize: 6.0.0
@@ -3440,14 +3435,14 @@ snapshots:
   '@wdio/junit-reporter@8.36.1':
     dependencies:
       '@wdio/reporter': 8.36.1
-      '@wdio/types': 8.21.0
+      '@wdio/types': 8.36.1
       json-stringify-safe: 5.0.1
       junit-report-builder: 3.2.1
 
   '@wdio/local-runner@8.21.0(typescript@4.9.5)':
     dependencies:
       '@types/node': 20.8.10
-      '@wdio/logger': 8.28.0
+      '@wdio/logger': 8.16.17
       '@wdio/repl': 8.10.1
       '@wdio/runner': 8.21.0(typescript@4.9.5)
       '@wdio/types': 8.21.0
@@ -3462,6 +3457,13 @@ snapshots:
       - typescript
       - utf-8-validate
 
+  '@wdio/logger@8.16.17':
+    dependencies:
+      chalk: 5.3.0
+      loglevel: 1.8.1
+      loglevel-plugin-prefix: 0.8.4
+      strip-ansi: 7.1.0
+
   '@wdio/logger@8.28.0':
     dependencies:
       chalk: 5.3.0
@@ -3473,7 +3475,7 @@ snapshots:
     dependencies:
       '@types/mocha': 10.0.3
       '@types/node': 20.8.10
-      '@wdio/logger': 8.28.0
+      '@wdio/logger': 8.16.17
       '@wdio/types': 8.21.0
       '@wdio/utils': 8.21.0
       mocha: 10.2.0
@@ -3489,7 +3491,7 @@ snapshots:
   '@wdio/reporter@8.21.0':
     dependencies:
       '@types/node': 20.8.10
-      '@wdio/logger': 8.28.0
+      '@wdio/logger': 8.16.17
       '@wdio/types': 8.21.0
       diff: 5.1.0
       object-inspect: 1.13.1
@@ -3498,7 +3500,7 @@ snapshots:
     dependencies:
       '@types/node': 20.8.10
       '@wdio/logger': 8.28.0
-      '@wdio/types': 8.21.0
+      '@wdio/types': 8.36.1
       diff: 5.1.0
       object-inspect: 1.13.1
 
@@ -3507,7 +3509,7 @@ snapshots:
       '@types/node': 20.8.10
       '@wdio/config': 8.21.0
       '@wdio/globals': 8.21.0(typescript@4.9.5)
-      '@wdio/logger': 8.28.0
+      '@wdio/logger': 8.16.17
       '@wdio/types': 8.21.0
       '@wdio/utils': 8.21.0
       deepmerge-ts: 5.1.0
@@ -3535,10 +3537,14 @@ snapshots:
     dependencies:
       '@types/node': 20.8.10
 
+  '@wdio/types@8.36.1':
+    dependencies:
+      '@types/node': 20.8.10
+
   '@wdio/utils@8.21.0':
     dependencies:
       '@puppeteer/browsers': 1.8.0
-      '@wdio/logger': 8.28.0
+      '@wdio/logger': 8.16.17
       '@wdio/types': 8.21.0
       decamelize: 6.0.0
       deepmerge-ts: 5.1.0
@@ -6068,7 +6074,7 @@ snapshots:
     dependencies:
       defaults: 1.0.4
 
-  wdio-chromedriver-service@8.1.1(@wdio/types@8.21.0)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5)):
+  wdio-chromedriver-service@8.1.1(@wdio/types@8.36.1)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5)):
     dependencies:
       '@wdio/logger': 8.28.0
       fs-extra: 11.1.1
@@ -6076,7 +6082,7 @@ snapshots:
       tcp-port-used: 1.0.2
       webdriverio: 8.21.0(typescript@4.9.5)
     optionalDependencies:
-      '@wdio/types': 8.21.0
+      '@wdio/types': 8.36.1
       chromedriver: 107.0.3
     transitivePeerDependencies:
       - supports-color
@@ -6090,7 +6096,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  wdio-vscode-service@5.2.1(@wdio/types@8.21.0)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5)):
+  wdio-vscode-service@5.2.1(@wdio/types@8.36.1)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5)):
     dependencies:
       '@fastify/cors': 8.4.1
       '@fastify/static': 6.12.0
@@ -6107,7 +6113,7 @@ snapshots:
       tmp-promise: 3.0.3
       undici: 5.27.2
       vscode-uri: 3.0.7
-      wdio-chromedriver-service: 8.1.1(@wdio/types@8.21.0)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5))
+      wdio-chromedriver-service: 8.1.1(@wdio/types@8.36.1)(chromedriver@107.0.3)(webdriverio@8.21.0(typescript@4.9.5))
       ws: 8.14.2
       yargs-parser: 21.1.1
     optionalDependencies:
@@ -6125,7 +6131,7 @@ snapshots:
       '@types/node': 20.8.10
       '@types/ws': 8.5.8
       '@wdio/config': 8.21.0
-      '@wdio/logger': 8.28.0
+      '@wdio/logger': 8.16.17
       '@wdio/protocols': 8.20.4
       '@wdio/types': 8.21.0
       '@wdio/utils': 8.21.0
@@ -6142,7 +6148,7 @@ snapshots:
     dependencies:
       '@types/node': 20.8.10
       '@wdio/config': 8.21.0
-      '@wdio/logger': 8.28.0
+      '@wdio/logger': 8.16.17
       '@wdio/protocols': 8.20.4
       '@wdio/repl': 8.10.1
       '@wdio/types': 8.21.0
