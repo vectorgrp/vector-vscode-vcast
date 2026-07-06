@@ -1,0 +1,18 @@
+# pnpm settings for the e2e test project. Since pnpm 10.16+ this file is also
+# pnpm's config file, which is why pnpm-only settings (minimumReleaseAge,
+# onlyBuiltDependencies) live here instead of in .npmrc.
+
+# Supply-chain hardening: refuse to install package versions that were published
+# less than 24h (1440 minutes) ago, to avoid pulling a freshly-compromised release
+# before it has been noticed and yanked.
+minimumReleaseAge: 1440
+
+# Hoist all dependencies to the root node_modules, like npm/yarn do, so that any
+# transitive packages the test specs import but don't declare keep resolving
+# (matching the layout these tests were written against).
+shamefullyHoist: true
+
+# Dependencies allowed to run install/build (lifecycle) scripts. pnpm blocks all
+# such scripts by default. Filled in after the first install reports what it skipped.
+onlyBuiltDependencies:
+  - chromedriver

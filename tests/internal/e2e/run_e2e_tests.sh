@@ -14,8 +14,8 @@ if [ ! -f "$SPEC_PATH" ]; then
   exit 1
 fi
 
-# Compile the specs file 
-npx tsc "$SPEC_PATH"
+# Compile the specs file
+pnpm exec tsc "$SPEC_PATH"
 
 # Path to the compiled JavaScript files
 JS_FILE="./test/specs_env_exporter.js"
@@ -61,7 +61,7 @@ set_specs_params() {
 
 cd $ROOT
 if [ ! -d "node_modules" ]; then
-  npm install
+  pnpm install --frozen-lockfile
 fi
 
 if [ "$GITHUB_ACTIONS" = "true" ] ; then
@@ -73,7 +73,7 @@ if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
         echo "Starting xvfb..."
         Xvfb :99 -screen 0 1920x1080x24 &
     fi
-    xvfb-run --server-num=99 --auto-servernum --server-args="-screen 0 1920x1080x24+32" npx wdio run test/wdio.conf.ts | tee output.txt
+    xvfb-run --server-num=99 --auto-servernum --server-args="-screen 0 1920x1080x24+32" pnpm exec wdio run test/wdio.conf.ts | tee output.txt
     if [ "$GITHUB_ACTIONS" = "true" ] ; then
       if [ -f output.txt ] ; then
         export LANG="C.UTF-8"
@@ -90,7 +90,7 @@ if [ "$GITHUB_ACTIONS" = "true" ] || [ "$TESTING_IN_CONTAINER" = "True" ] ; then
       fi
     fi
 else
-    npx wdio run test/wdio.conf.ts
+    pnpm exec wdio run test/wdio.conf.ts
     rm "$JS_FILE" 
     rm "$SPECS_CONFIG_FILE"
 fi

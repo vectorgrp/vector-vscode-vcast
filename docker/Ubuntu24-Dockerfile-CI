@@ -39,11 +39,13 @@ RUN sudo apt-get update && \
     npm set -g noproxy $NO_PROXY && \
     npm set -g proxy $HTTP_PROXY && \
     npm set -g https-proxy $HTTPS_PROXY && \
-    npm set -g registry http://registry.npmjs.org/ && \
+    npm set -g registry https://artifactory.vi.vector.int/artifactory/api/npm/gen-npmjs-npm-remote-vis-01/ && \
     npm i -g yo && \
     npm install -g typescript && \
     npm install -g esbuild && \
-    npm install -g tsx
+    npm install -g tsx && \
+    corepack enable && \
+    COREPACK_NPM_REGISTRY=https://artifactory.vi.vector.int/artifactory/api/npm/gen-npmjs-npm-remote-vis-01/ corepack prepare pnpm@10.34.4 --activate
 
 # python
 ARG PY_VERSION=3.8.18
