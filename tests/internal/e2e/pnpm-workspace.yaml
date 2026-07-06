@@ -12,6 +12,27 @@ minimumReleaseAge: 1440
 # (matching the layout these tests were written against).
 shamefullyHoist: true
 
+# Keep the wdio runtime stack at the exact versions the old package-lock.json
+# resolved (the lockfile was created via `pnpm import` from it). Without these,
+# pnpm's autoInstallPeers satisfies wdio-vscode-service's `webdriverio` peer
+# dependency with a freshly-resolved 8.46.x instead of reusing the 8.21.0 that
+# npm's hoisting shared, and the newer stack changes VS Code startup behavior
+# enough to break the e2e specs.
+overrides:
+  webdriver: 8.21.0
+  webdriverio: 8.21.0
+  "@wdio/config": 8.21.0
+  "@wdio/utils": 8.21.0
+  "@wdio/globals": 8.21.0
+  "@wdio/logger": 8.28.0
+  "@wdio/protocols": 8.20.4
+  "@wdio/repl": 8.10.1
+  "@wdio/types": 8.21.0
+  # Same story for these two auto-installed peers (ts-node's @types/node and
+  # eslint-plugin-prettier's prettier): keep the versions npm had resolved.
+  "@types/node": 20.8.10
+  prettier: 3.0.3
+
 # Dependencies allowed to run install/build (lifecycle) scripts. pnpm blocks all
 # such scripts by default. Filled in after the first install reports what it skipped.
 onlyBuiltDependencies:
