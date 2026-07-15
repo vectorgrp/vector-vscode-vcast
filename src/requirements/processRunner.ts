@@ -63,7 +63,7 @@ export class ProgressTracker {
       if (increment > 0 || stepChanged) {
         this.progress.report({
           message: step,
-          increment: increment > 0 ? increment : 0,
+          increment: Math.max(increment, 0),
         });
         if (increment > 0) this.lastProgress = newProgress;
         if (step !== undefined) this.lastStep = step;
