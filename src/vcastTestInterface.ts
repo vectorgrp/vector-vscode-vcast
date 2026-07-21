@@ -307,11 +307,17 @@ export function checksumMatchesEnvironment(
   return returnValue;
 }
 
-export function getListOfFilesWithCoverage(): string[] {
+// Files to mark with the "VC" badge in the explorer: every source file that
+// belongs to a VectorCAST environment (i.e. a unit under test), whether or not
+// it currently has covered lines of its own. This keeps a unit's own file
+// flagged consistently with the other files of the same environment - e.g. an
+// Ada parent body whose executable code lives in `separate` subunits, or any
+// unit whose environment has not been executed yet.
+export function getListOfFilesToDecorate(): string[] {
   let returnList: string[] = [];
 
   for (let [filePath, enviroData] of globalCoverageData.entries()) {
-    if (enviroData.hasCoverage && !returnList.includes(filePath))
+    if (enviroData.enviroList.size > 0 && !returnList.includes(filePath))
       returnList.push(filePath);
   }
   return returnList;
@@ -368,9 +374,11 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
       coverageData.partiallyCovered.length > 0;
     fileData.enviroList.set(enviroPath, coverageData);
 
-    // if we are displaying the file decoration in the explorer view
+    // if we are displaying the file decoration in the explorer view, flag any
+    // file that belongs to an environment (a unit under test), regardless of
+    // whether it has covered lines of its own - see getListOfFilesToDecorate.
     if (fileDecorator) {
-      if (fileData.hasCoverage)
+      if (fileData.enviroList.size > 0)
         fileDecorator.addCoverageDecorationToFile(filePath);
       else fileDecorator.removeCoverageDecorationFromFile(filePath);
     }
@@ -396,6 +404,8 @@ export function removeCoverageDataForEnviro(enviroPath: string) {
         coverageForFile.enviroList.delete(enviroPath);
         if (coverageForFile.enviroList.size == 0) {
           coverageForFile.hasCoverage = false;
+          // no environment references this file any more -> drop its VC badge
+          fileDecorator?.removeCoverageDecorationFromFile(filePath);
         }
       }
     }

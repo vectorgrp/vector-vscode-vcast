@@ -6,7 +6,7 @@ import {
 } from "vscode";
 import {
   getCoverageDataForFile,
-  getListOfFilesWithCoverage,
+  getListOfFilesToDecorate,
 } from "./vcastTestInterface";
 
 import { getRangeOption, isSupportedSourceFile } from "./utilities";
@@ -322,7 +322,7 @@ export async function toggleCoverageAction() {
   } else {
     coverageOn = true;
     if (fileDecorator)
-      fileDecorator.updateCoverageDecorations(getListOfFilesWithCoverage());
+      fileDecorator.updateCoverageDecorations(getListOfFilesToDecorate());
     await updateCOVdecorations();
   }
 }
