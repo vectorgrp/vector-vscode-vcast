@@ -294,17 +294,19 @@ def getUnitData(api):
         # display_path and is_instrumented are delegated through cover_data, so
         # they raise AttributeError whenever coverage has not been initialized
         # (cover_data is None), which is common for Ada environments and for
-        # any freshly built environment. We fall back to the plain path (the
-        # same attribute getCoverageData relies on) and treat a missing
-        # is_instrumented as "not instrumented".
+        # any freshly built environment. ONLY in that case do we fall back to
+        # the plain path (the attribute getCoverageData relies on).
+        #
+        # A display_path that is present but EMPTY is different: it marks an
+        # internal/hidden source object (harness and preprocessor temporaries,
+        # e.g. S0000008.cpp / vcast_preprocess.*.cpp). VectorCAST hides these by
+        # blanking display_path, so we must NOT resurrect them via .path - doing
+        # so would emit spurious units. Skip them, matching the historical
+        # behaviour of only emitting units whose display_path is non-empty.
         try:
             sourcePath = sourceObject.display_path
         except AttributeError:
-            sourcePath = None
-        if not sourcePath:
             sourcePath = getattr(sourceObject, "path", "") or ""
-        # Source objects with no usable path are placeholders; skip them - this
-        # matches the previous behaviour of only emitting units with a path.
         if not sourcePath:
             continue
         try:
