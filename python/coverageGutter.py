@@ -26,7 +26,13 @@ def getMCDCLineDic(sourceObject):
         mcdc_unit_line_dic[unit] = temp_line_coverage_dic
 
         # MCDC coverage is measured in terms of independence PAIRS, exactly as
-        # the per-line MCDC report shows ("Pairs satisfied: X of N").
+        # the per-line MCDC report shows ("Pairs satisfied: X of N"). MC/DC is
+        # NOT condition coverage: a decision where some conditions took both
+        # values but NO independence pair was completed has achieved 0% MC/DC and
+        # is uncovered, not partial. Partial means some-but-not-all pairs; fully
+        # covered means every pair. (max_num_conditions_with_covered_pair is
+        # cumulative across tests; num_conditions_with_covered_pair is not, and
+        # reads 0 even when covered - so we must use the max_ variant.)
         covered_pairs = mcdc.max_num_conditions_with_covered_pair
         total_pairs = mcdc.num_conditions
 

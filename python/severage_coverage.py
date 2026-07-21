@@ -220,9 +220,11 @@ def mcdc_state(decision, statement_covered):
     """Coverage state for an MC/DC decision line.
 
     MC/DC is measured in independence PAIRS (max_num_conditions_with_covered_pair
-    of num_conditions), matching the extension's gutter and the per-line report.
-    A decision whose statement never executed, or with no covered pair, is
-    uncovered; some-but-not-all pairs is partial; all pairs is covered.
+    of num_conditions), matching coverageGutter.getMCDCLineDic and the per-line
+    report. MC/DC is not condition coverage: a decision that never completed an
+    independence pair has achieved 0% MC/DC and is uncovered, even if some of its
+    conditions were exercised. Some-but-not-all pairs is partial; all pairs is
+    covered. A decision whose statement never executed is uncovered.
     """
     if statement_covered is False:
         return "uncovered"

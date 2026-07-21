@@ -325,11 +325,15 @@ describe("vTypeCheck VS Code Extension", () => {
       },
     ];
 
-    // Coverage checklist for MCDC
+    // Coverage checklist for MCDC.
+    // MC/DC is measured in independence pairs, not condition outcomes: line 28
+    // has some conditions exercised but 0 of its pairs satisfied (0% MC/DC), so
+    // it is uncovered, not partial. (Line 22 in the earlier test IS partial -
+    // it has some, but not all, pairs.)
     const mcdcGutterLines = [
       {
         "19": "cover-icon-with-mcdc",
-        "28": "partially-cover-icon-with-mcdc",
+        "28": "no-cover-icon-with-mcdc",
         "84": "no-cover-icon-with-mcdc",
       },
     ];
