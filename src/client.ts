@@ -62,7 +62,11 @@ export function activateLanguageServerClient(context: ExtensionContext) {
 
     // Options to control the language client
     // we register for .tst and c|cpp files, and do the right thing in the callback
-    // depending on the extension of the file
+    // depending on the extension of the file.
+    // Note: Ada environments are supported, but Ada source files are
+    // intentionally NOT in this selector. The c|cpp entries drive vmock /
+    // coded-mock features that do not apply to Ada. Ada relies only on the
+    // language-agnostic **/*.tst glob for test-script editing.
     let clientOptions: LanguageClientOptions = {
       documentSelector: [
         { scheme: "file", pattern: "**/*.tst" },

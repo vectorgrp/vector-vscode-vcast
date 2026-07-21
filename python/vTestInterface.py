@@ -24,6 +24,7 @@ import clicastInterface
 import pythonUtilities
 import tstUtilities
 import mcdcReport
+import severage_coverage
 
 from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
@@ -290,8 +291,27 @@ def getUnitData(api):
 
     sourceObjects = api.SourceFile.all()
     for sourceObject in sourceObjects:
-        sourcePath = sourceObject.display_path
-        if sourceObject.is_instrumented:
+        # display_path and is_instrumented are delegated through cover_data, so
+        # they raise AttributeError whenever coverage has not been initialized
+        # (cover_data is None), which is common for Ada environments and for
+        # any freshly built environment. We fall back to the plain path (the
+        # same attribute getCoverageData relies on) and treat a missing
+        # is_instrumented as "not instrumented".
+        try:
+            sourcePath = sourceObject.display_path
+        except AttributeError:
+            sourcePath = None
+        if not sourcePath:
+            sourcePath = getattr(sourceObject, "path", "") or ""
+        # Source objects with no usable path are placeholders; skip them - this
+        # matches the previous behaviour of only emitting units with a path.
+        if not sourcePath:
+            continue
+        try:
+            isInstrumented = sourceObject.is_instrumented
+        except AttributeError:
+            isInstrumented = False
+        if isInstrumented:
             covered, uncovered, partiallyCovered, checksum = getCoverageData(
                 sourceObject
             )
@@ -317,6 +337,75 @@ def getUnitData(api):
             unitInfo["partiallyCovered"] = ""
             unitList.append(unitInfo)
 
+    return unitList
+
+
+def getSubunitUnitData(api, enviroPath):
+    """
+    For Ada environments that use "separate" subunits, VectorCAST records
+    coverage against the merged listing and does not expose a mapping back to the
+    individual subunit source files. severage_coverage reconstructs that mapping
+    (by aligning the listing against the real files), so here we turn it into
+    normal unitData entries so the extension paints coverage on those files like
+    any other source file.
+
+    Returns [] for non-Ada environments or when there are no subunits.
+    """
+    # severage_coverage lists the environment directory to find the subunit
+    # copies. enviroPath is the env directory (getEnviroData) or the .vce file
+    # (workspace scan), so normalize to the directory.
+    if os.path.isdir(enviroPath):
+        envDir = enviroPath
+    elif enviroPath.lower().endswith(".vce"):
+        envDir = enviroPath[:-4]
+    else:
+        envDir = enviroPath
+    if not os.path.isdir(envDir):
+        return []
+
+    try:
+        results = severage_coverage.subunit_coverage(api, envDir)
+    except Exception:
+        return []
+
+    # The extension only shows coverage when the stored checksum matches the CRC
+    # of the file on disk, so compute the same pycksum value it uses.
+    try:
+        import pycksum
+    except Exception:
+        pycksum = None
+
+    unitList = []
+    for path, rows in results.items():
+        coveredString = ""
+        uncoveredString = ""
+        partiallyCoveredString = ""
+        for lineNumber in sorted(rows):
+            state = rows[lineNumber][1]
+            if state == "covered":
+                coveredString += f"{lineNumber},"
+            elif state == "partial":
+                partiallyCoveredString += f"{lineNumber},"
+            else:
+                uncoveredString += f"{lineNumber},"
+
+        checksum = 0
+        if pycksum is not None and os.path.isfile(path):
+            try:
+                checksum = pycksum.cksum(open(path, "rb"))
+            except Exception:
+                checksum = 0
+
+        unitList.append(
+            {
+                "path": path,
+                "functionList": [],
+                "cmcChecksum": checksum,
+                "covered": coveredString,
+                "uncovered": uncoveredString,
+                "partiallyCovered": partiallyCoveredString,
+            }
+        )
     return unitList
 
 
@@ -789,7 +878,10 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                 api = UnitTestApi(vce_path)
                 test_data = getTestDataVCAST(api, vce_path)
                 unit_data = getUnitData(api)
+                # Ada: add coverage for "separate" subunit source files.
+                unit_data.extend(getSubunitUnitData(api, vce_path))
                 mocking_support = getEnviroSupportsMock(api)
+                is_ada = bool(getattr(api.environment, "is_ada", False))
                 api.close()
 
                 enviro_list.append(
@@ -798,6 +890,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                         "testData": test_data,
                         "unitData": unit_data,
                         "mockingSupport": mocking_support,
+                        "isAda": is_ada,
                     }
                 )
 
@@ -822,8 +915,14 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         # the global list of testable functions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(api, pathToUse)
         topLevel["unitData"] = getUnitData(api)
+        # Ada: add coverage for "separate" subunit source files, mapped back
+        # from the merged listing onto the real files.
+        topLevel["unitData"].extend(getSubunitUnitData(api, pathToUse))
         topLevel["enviro"] = dict()
         topLevel["mockingSupport"] = getEnviroSupportsMock(api)
+        # Ada environments behave like C/C++ except for coded tests, which do
+        # not exist for Ada. The extension uses this flag to suppress those.
+        topLevel["isAda"] = bool(getattr(api.environment, "is_ada", False))
 
         api.close()
         returnObject = topLevel

@@ -104,12 +104,17 @@ def runClicastCommandWithEcho(commandToRun):
     process = subprocess.Popen(
         commandToRun.split(" "), stdout=subprocess.PIPE, text=True
     )
-    while process.poll() is None:
-        line = process.stdout.readline().rstrip()
+    # Iterate the pipe until EOF rather than looping on process.poll(): polling
+    # stops as soon as the process exits and drops any output still buffered in
+    # the pipe, which truncates the tail of large outputs (e.g. a rebuild that
+    # emits thousands of lines and then exits quickly).
+    for line in process.stdout:
+        line = line.rstrip()
         if len(line) > 0:
             stdoutString += line + "\n"
             print(line, flush=True)
 
+    process.wait()
     return process.returncode, stdoutString
 
 
@@ -168,15 +173,18 @@ def runClicastScriptUsingServer(enviroPath, commandFileName):
     return exitCode, returnText
 
 
-def runClicastScriptCommandLine(commandFileName, echoToStdout):
+def runClicastScriptCommandLine(commandFileName, echoToStdout, languageFlag="-lc"):
     """
     The caller should create a correctly formatted clicast script
-    and then call this with the name of that script
+    and then call this with the name of that script.
+
+    languageFlag sets the language for the "tools execute" session. It defaults
+    to "-lc" (C/C++), but must be "-l ada" for Ada environments.
     """
 
     # true at the end tells clicast to exit with the exit code of the first
     # command that fails.  If this is set to false, it always returns 0
-    commandToRun = f"{pythonUtilities.globalClicastCommand} -lc tools execute {commandFileName} true"
+    commandToRun = f"{pythonUtilities.globalClicastCommand} {languageFlag} tools execute {commandFileName} true"
 
     if echoToStdout:
         returnCode, stdoutString = runClicastCommandWithEcho(commandToRun)
@@ -201,13 +209,29 @@ tempEnviroScript = "rebuild.env"
 tempTestScript = "rebuild.tst"
 
 
-def updateScriptsAndRebuild(enviroPath, jsonOptions):
+def environmentIsAda(enviroPath):
+    """
+    Returns True if the environment is an Ada environment, using the
+    authoritative DataAPI is_ada flag. Falls back to False if the environment
+    cannot be opened.
+    """
+    try:
+        with UnitTestApi(enviroPath) as api:
+            return bool(getattr(api.environment, "is_ada", False))
+    except Exception:
+        return False
+
+
+def updateScriptsAndRebuild(enviroPath, jsonOptions, isAda=False):
     """
     This does the actual work of updating the scripts
     and invoking the build and load test script commands
     """
 
     enviroName = os.path.basename(enviroPath)
+
+    # Ada environments must be rebuilt with "-l ada"; C/C++ use "-lc".
+    languageFlag = "-l ada" if isAda else "-lc"
 
     # Read the enviro script into a list of strings
     with open(tempEnviroScript, "r") as enviroFile:
@@ -262,9 +286,9 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions):
 
     # Build the new environment from the updated script.
     with open(commandFileName, "w") as commandFile:
-        commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
+        commandFile.write(f"{languageFlag} enviro build {tempEnviroScript}\n")
     returnCodeRebuild, commandOutputRebuild = runClicastScriptCommandLine(
-        commandFileName, echoToStdout=echoToStdout
+        commandFileName, echoToStdout=echoToStdout, languageFlag=languageFlag
     )
 
     if returnCodeRebuild == 0:
@@ -272,7 +296,7 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions):
         with open(commandFileName, "w") as commandFile:
             commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
         returnCodeTests, commandOutputTests = runClicastScriptCommandLine(
-            commandFileName, echoToStdout=echoToStdout
+            commandFileName, echoToStdout=echoToStdout, languageFlag=languageFlag
         )
         commandOutputRebuild = f"{commandOutputRebuild}\n{commandOutputTests.rstrip()}"
         returnCodeRebuild = returnCodeTests
@@ -310,6 +334,11 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
     """
 
     with cd(os.path.dirname(enviroPath)):
+        # Determine the source language while the environment still exists, so
+        # that we can rebuild it with the correct clicast language flag (Ada
+        # vs C/C++).
+        isAda = environmentIsAda(enviroPath)
+
         # first we generate a .env and .tst for the existing environment
         # we do this using a clicast script
         enviroName = os.path.basename(enviroPath)
@@ -326,7 +355,7 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
         if returnCode == 0:
             # now we update the scripts and rebuild the environment
             returnCode, commandOutputRebuild = updateScriptsAndRebuild(
-                enviroPath, jsonOptions
+                enviroPath, jsonOptions, isAda
             )
             # concatenate the output from both commands for completeness
             commandOutput = f"{commandOutput}\n{commandOutputRebuild.rstrip()}"
@@ -359,11 +388,13 @@ def executeTest(enviroPath, testIDObject):
     # separate variable because in the future there will be additional parameters
     shouldQuoteParameters = not pythonUtilities.USE_SERVER
     standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
+    # Ada environments must be driven with "-l ada"; C/C++ use "-lc". Using the
+    # wrong language flag is inconsistent (and bites other clicast commands such
+    # as "enviro build" - see updateScriptsAndRebuild).
+    languageFlag = "-l ada" if environmentIsAda(enviroPath) else "-lc"
     # we cannot include the execute command in the command script that we use for
     # results because we need the return code from the execute command separately
-    commandToRun = (
-        f"{pythonUtilities.globalClicastCommand} -lc {standardArgs} execute run"
-    )
+    commandToRun = f"{pythonUtilities.globalClicastCommand} {languageFlag} {standardArgs} execute run"
     executeReturnCode, stdoutText = runClicastCommand(enviroPath, commandToRun)
 
     # currently clicast returns the same error code for a failed coded test compile or

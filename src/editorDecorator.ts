@@ -50,12 +50,23 @@ export async function updateCurrentActiveUnitMCDCLines() {
       } catch (error) {
         vectorMessage(`Error trying to parse MCDC coverage lines: ${error}`);
       }
-      // Update the current active unit MCDC lines
-      const mcdcLinesForUnit = mcdcUnitCoverageLines[unitName];
+      // Update the current active unit MCDC lines.
+      // VectorCAST reports Ada unit names in upper case (e.g. "MANAGER") while
+      // the source file is lower case ("manager.adb"), so the filename-derived
+      // unitName won't match the key exactly.
+      const unitKey =
+        unitName in mcdcUnitCoverageLines
+          ? unitName
+          : Object.keys(mcdcUnitCoverageLines).find(
+              (key) => key.toLowerCase() === unitName.toLowerCase()
+            );
+      const mcdcLinesForUnit = unitKey
+        ? mcdcUnitCoverageLines[unitKey]
+        : undefined;
       // Check if there are no MCDC lines for the unit --> for example when the env is build with only Statement coverage
       // and the user changes it to Statement+MCDC in the settings
       if (mcdcLinesForUnit) {
-        currentActiveUnitMCDCLines = mcdcUnitCoverageLines[unitName];
+        currentActiveUnitMCDCLines = mcdcLinesForUnit;
       } else {
         currentActiveUnitMCDCLines = [];
       }

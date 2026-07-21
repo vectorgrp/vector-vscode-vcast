@@ -32,7 +32,9 @@ import {
 
 import {
   forceLowerCaseDriveLetter,
+  isAdaSourceFile,
   normalizePath,
+  notifyAdaFeatureDisabled,
   openFileWithLineSelected,
   showSettings,
 } from "./utilities";
@@ -898,7 +900,8 @@ async function commonEnvironmentSetup(
 }
 
 // Improvement needed: get the language extensions automatically, don't hard-code
-const extensionsOfInterest = ["c", "cpp", "cc", "cxx"];
+// Note: "adb"/"ads" are Ada sources (the .adb body is normally the UUT).
+const extensionsOfInterest = ["c", "cpp", "cc", "cxx", "adb", "ads"];
 
 export async function newEnvironment(
   URIlist: Uri[],
@@ -909,6 +912,17 @@ export async function newEnvironment(
   // file in the list will be a C/C++ file but we need to filter
   // for the multi-select case.
   //
+
+  // Creating new Ada environments is disabled for now. If any selected file
+  // is an Ada source file, notify the user (popup + output log) and abort.
+  if (URIlist.some((uri) => isAdaSourceFile(uri.fsPath))) {
+    notifyAdaFeatureDisabled(
+      projectEnvParameters
+        ? "Adding an Ada environment to a project"
+        : "Creating an Ada environment"
+    );
+    return;
+  }
 
   let fileList: string[] = [];
   for (let index = 0; index < URIlist.length; index++) {

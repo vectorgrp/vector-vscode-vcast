@@ -283,6 +283,98 @@ export function normalizePath(path: string): string {
   return returnPath;
 }
 
+// Source file extensions the extension supports for VectorCAST environments.
+// Ada (.adb/.ads) is included, but note that Ada is not a built-in VS Code
+// language, so we key off the file extension rather than the editor languageId
+// (an unopened Ada file resolves to languageId "plaintext").
+export const supportedSourceExtensions = [
+  ".c",
+  ".cpp",
+  ".cc",
+  ".cxx",
+  ".adb",
+  ".ads",
+];
+
+export function isSupportedSourceFile(filePath: string): boolean {
+  return supportedSourceExtensions.includes(
+    path.extname(filePath).toLowerCase()
+  );
+}
+
+// Ada source file extensions. Ada support is currently partial: existing Ada
+// environments work (test tree, execution, coverage), but CREATING new Ada
+// environments/projects is disabled for now (see notifyAdaFeatureDisabled)
+// because parts of the toolchain (e.g. reqs2X / code2reqs) do not yet
+// support Ada.
+export const adaSourceExtensions = [".adb", ".ads"];
+
+export function isAdaSourceFile(filePath: string): boolean {
+  return adaSourceExtensions.includes(path.extname(filePath).toLowerCase());
+}
+
+/**
+ * Best-effort detection of an Ada environment from its .env file, before it is
+ * built (we cannot use the DataAPI is_ada flag until the env exists). We look
+ * for the GNAT compiler and/or a GNAT project (.gpr) parent library.
+ * @param envFilePath
+ * @returns
+ */
+export function enviroFileIsAda(envFilePath: string): boolean {
+  try {
+    const contents = fs.readFileSync(envFilePath, "utf8");
+    for (const rawLine of contents.split(/\r?\n/)) {
+      const line = rawLine.trim().toUpperCase();
+      if (line.startsWith("ENVIRO.COMPILER:")) {
+        if (line.split(":")[1]?.trim() === "GNAT") return true;
+      }
+      if (line.startsWith("ENVIRO.PARENT_LIB:") && line.endsWith(".GPR")) {
+        return true;
+      }
+    }
+  } catch {
+    // If we cannot read the file, do not block.
+  }
+  return false;
+}
+
+/**
+ * Compiler-agnostic detection of a BUILT Ada environment.
+ * We check the build working directory (the env directory's parent, where it is
+ * written) and the env directory itself, to be robust.
+ * @param enviroPath path to the built environment directory
+ * @returns true if the environment is Ada
+ */
+export function builtEnviroIsAda(enviroPath: string): boolean {
+  const adaHarnessConfig = "ADACAST_.CFG";
+  const candidates = [
+    path.join(path.dirname(enviroPath), adaHarnessConfig),
+    path.join(enviroPath, adaHarnessConfig),
+  ];
+  return candidates.some((candidate) => {
+    try {
+      return fs.existsSync(candidate);
+    } catch {
+      return false;
+    }
+  });
+}
+
+// Show a popup AND log to the output panel explaining that an Ada action is
+// currently disabled. Used to gate features that do not work for Ada yet (e.g.
+// creating new environments/projects, ATG test generation) while the rest of
+// the toolchain catches up.
+export function notifyAdaFeatureDisabled(action: string): void {
+  const message =
+    `${action} is currently disabled for Ada. Existing Ada environments ` +
+    `still work, but this action is not supported for Ada yet.`;
+  // Popup for the user ...
+  vscode.window.showErrorMessage(message);
+  // ... and a record in the output panel (warn does not trigger its own
+  // popup, so this does not double up with the showErrorMessage above).
+  vectorMessage(message, errorLevel.warn);
+}
+
 /**
  * this function returns a single line range DecorationOption
  * @param lineIndex line index to be used for the range

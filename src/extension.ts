@@ -73,7 +73,10 @@ import {
 import {
   addLaunchConfiguration,
   addSettingsFileFilter,
+  enviroFileIsAda,
   getEnvPathForFilePath,
+  isAdaSourceFile,
+  notifyAdaFeatureDisabled,
   showSettings,
   updateCoverageAndRebuildEnv,
   forceLowerCaseDriveLetter,
@@ -921,6 +924,11 @@ function configureExtension(context: vscode.ExtensionContext) {
       // arg is the URI of the .env file that was clicked
       if (arg) {
         const envFilepath = arg.fsPath;
+        // Building new Ada environments is disabled for now.
+        if (enviroFileIsAda(envFilepath)) {
+          notifyAdaFeatureDisabled("Building an Ada environment");
+          return;
+        }
         const buildDirectory = path.dirname(envFilepath);
         const enviroFilename = path.basename(envFilepath);
         const enviroName = getEnviroNameFromFile(envFilepath);
@@ -2173,6 +2181,12 @@ async function installPreActivationEventHandlers(
   const newEnviroInProjectVCASTCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.newEnviroInProjectVCAST",
     async (_args: vscode.Uri, argList: vscode.Uri[]) => {
+      // Creating new Ada environments in a project is disabled for now. Block
+      // before opening the webview so the user is not asked to fill it out.
+      if (argList?.some((uri) => isAdaSourceFile(uri.fsPath))) {
+        notifyAdaFeatureDisabled("Adding an Ada environment to a project");
+        return;
+      }
       const manageWebviewSrcDir = resolveWebviewBase(
         context,
         "manage",

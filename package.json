@@ -1035,7 +1035,7 @@
       "explorer/context": [
         {
           "command": "vectorcastTestExplorer.newEnviroVCAST",
-          "when": "resourceLangId == cpp || resourceLangId == c",
+          "when": "resourceLangId == cpp || resourceLangId == c || resourceExtname == .adb || resourceExtname == .ads",
           "group": "2_workspace"
         },
         {
@@ -1045,7 +1045,7 @@
         },
         {
           "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
-          "when": "(resourceLangId == cpp || resourceLangId == c) && vectorcastTestExplorer.globalProjectIsOpenedChecker",
+          "when": "(resourceLangId == cpp || resourceLangId == c || resourceExtname == .adb || resourceExtname == .ads) && vectorcastTestExplorer.globalProjectIsOpenedChecker",
           "group": "2_workspace"
         },
         {
