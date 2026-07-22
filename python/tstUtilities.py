@@ -426,7 +426,12 @@ def processSubprogramLines(api, pieces, triggerCharacter, unit):
         objectList = api.Unit.all()
         returnData.choiceList = getFunctionList(api, unit)
         returnData.choiceKind = choiceKindType.Function
-        returnData.choiceList.extend(["<<INIT>>", "<<COMPOUND>>", "coded_tests_driver"])
+        # <<INIT>> and <<COMPOUND>> are language-agnostic, but coded tests do
+        # not exist for Ada (VectorCAST never creates the coded_tests_driver
+        # pseudo-function), so don't offer it as a completion there.
+        returnData.choiceList.extend(["<<INIT>>", "<<COMPOUND>>"])
+        if not getattr(api.environment, "is_ada", False):
+            returnData.choiceList.append("coded_tests_driver")
     else:
         processStandardLines(api, pieces, triggerCharacter)
     return returnData
