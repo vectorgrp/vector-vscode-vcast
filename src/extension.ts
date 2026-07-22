@@ -344,9 +344,18 @@ function resolveSourceLocation(
 ): { uri: vscode.Uri; lineNumber: number } | null {
   const units = envData?.unitData;
   if (!Array.isArray(units)) return null;
+  // Ada unit names are upper-case and child units are dot-named (e.g.
+  // WAREHOUSE.ORDERS), while the source files on disk are lower-case and
+  // dash-named (warehouse-orders.adb). Compare case- and dot/dash-insensitively
+  // so the match works for Ada as well as C/C++ (whose names already match).
+  const normalizeUnit = (name: string) =>
+    name.toLowerCase().replace(/\./g, "-");
+  const target = normalizeUnit(unitName);
   const unitInfo = units.find((u: any) => {
     if (!u?.path) return false;
-    return path.basename(u.path, path.extname(u.path)) === unitName;
+    return (
+      normalizeUnit(path.basename(u.path, path.extname(u.path))) === target
+    );
   });
   if (!unitInfo) return null;
   let lineNumber = 0;

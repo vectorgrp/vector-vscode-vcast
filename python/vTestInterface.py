@@ -246,6 +246,15 @@ def getTestDataVCAST(api, enviroPath):
 
     # Now do normal tests
     for unit in api.Unit.all():
+        # Only show units under test. In C/C++ every unit that carries
+        # subprograms is already a UUT (non-UUT units have no testable
+        # functions), so this is a no-op there. Ada, however, exposes stubbed
+        # dependency units (e.g. DATABASE) as their own units WITH subprograms
+        # even though they are not under test - without this check they wrongly
+        # appear in the test tree. Default to True so ancient DataAPI versions
+        # (should is_uut ever be missing) keep the previous behaviour.
+        if not getattr(unit, "is_uut", True):
+            continue
         # we used to add these and throw them away in the typescript, now we don't add them
         if unit.name != "uut_prototype_stubs":
             unitNode = dict()
@@ -674,16 +683,65 @@ def getCodeBasedTestNames(filePath):
     return returnObject
 
 
+def _longestDottedPrefix(text, names):
+    """Return the longest name in `names` that is a dotted prefix of `text`
+    (i.e. name == text or text starts with name + "."), or None."""
+    best = None
+    for name in names:
+        if text == name or text.startswith(name + "."):
+            if best is None or len(name) > len(best):
+                best = name
+    return best
+
+
+def splitTestIDString(enviroPath, restOfString):
+    """Split "UNIT.FUNCTION.TEST" into (unitName, functionName, testName).
+
+    The "." delimiter is ambiguous for Ada: a child-unit name (WAREHOUSE.ORDERS)
+    and a nested-package subprogram name (PRICING.APPLY_DISCOUNT) both contain
+    dots, so a naive split assigns the wrong pieces (e.g. unit=WAREHOUSE,
+    subprogram=ORDERS -> "Subprogram 'ORDERS' is invalid"). We resolve the
+    boundaries against the environment's real unit and function names, taking the
+    longest match. Compound/Init tests use the sentinel unit "not-used".
+
+    Falls back to the historical naive split if the environment cannot be read
+    (behaviour is identical for C/C++, whose names contain no dots).
+    """
+    if restOfString.startswith("not-used."):
+        function, _, testName = restOfString[len("not-used.") :].partition(".")
+        return "not-used", function, testName
+
+    try:
+        with UnitTestApi(enviroPath) as api:
+            units = list(api.Unit.all())
+            unit = _longestDottedPrefix(restOfString, (u.name for u in units))
+            if unit is not None:
+                rest = restOfString[len(unit) + 1 :]
+                functionNames = [
+                    f.vcast_name for u in units if u.name == unit for f in u.functions
+                ]
+                function = _longestDottedPrefix(rest, functionNames)
+                if function is not None:
+                    return unit, function, rest[len(function) + 1 :]
+    except Exception:
+        pass
+
+    pieces = restOfString.split(".")
+    return pieces[0], pieces[1], ".".join(pieces[2:])
+
+
 class testID:
     def __init__(self, enviroPath, testIDString):
-        self.enviroName, restOfString = testIDString.split("|")
-        pieces = restOfString.split(".")
-        self.unitName = pieces[0]
-        self.functionName = pieces[1]
-        self.testName = ".".join(pieces[2:])
+        self.enviroName, restOfString = testIDString.split("|", 1)
+        self.unitName, self.functionName, self.testName = splitTestIDString(
+            enviroPath, restOfString
+        )
 
         # There can be all sort of odd characters in the test name
-        # because we use the parameterized name ... so create a hash
+        # because we use the parameterized name ... so create a hash.
+        # NOTE: joining the three parts back with "." reproduces restOfString
+        # regardless of where the unit/function boundaries fell, so the hash
+        # (and thus the report file name) is unchanged by the smarter split.
         temp = ".".join([self.unitName, self.functionName, self.testName])
         hashString = hashlib.md5(temp.encode("utf-8")).hexdigest()
         self.reportName = os.path.join(enviroPath, hashString) + ".html"

@@ -327,22 +327,26 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
 
 def isTestableFunction(functionNode):
 
-    # this is the modern way to make this check, available in vc24sp5+
-    if hasattr(functionNode, "is_testable"):
-        if functionNode.is_testable:
-            return True
-        else:
-            return False
-
-    # Otherwise we check using this hack ...
     # dataAPI had a bug that caused <<INIT>> to be in the function list
-    # this was fixed in vc24sp5, but we need this check for older enviros
+    # (fixed in vc24sp5, but keep the guard for older enviros).
     if functionNode.vcast_name == TAG_FOR_INIT:
         return False
-    elif functionNode.is_non_testable_stub:
-        return False
-    else:
-        return True
+
+    # We intentionally do NOT use functionNode.is_testable. That property is
+    # defined as `sourcefile_id and unit_id != 10`, and unit id 10 is a slot
+    # reserved for the C/C++ uut_prototype_stubs unit. In a multi-UUT Ada
+    # environment a real UUT can be assigned unit id 10, in which case
+    # is_testable wrongly reports every one of its subprograms as non-testable
+    # and the whole unit vanishes from the test tree (e.g. WAREHOUSE.INVENTORY).
+    #
+    # A subprogram is testable when it belongs to a source file and is not a
+    # non-testable stub; stub *units* are excluded via is_uut at the call sites.
+    # sourcefile_id / is_non_testable_stub exist on every supported VectorCAST
+    # version (verified back to 2021sp8). This is identical to is_testable for
+    # C/C++ (no id-10 collisions there) and only differs for the Ada case above.
+    return bool(getattr(functionNode, "sourcefile_id", None)) and (
+        not functionNode.is_non_testable_stub
+    )
 
 
 def getFunctionList(api, unitName):
