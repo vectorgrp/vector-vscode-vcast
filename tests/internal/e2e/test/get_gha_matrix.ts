@@ -17,12 +17,25 @@ function dumpGhaMatrix() {
   const versions: string[] = JSON.parse(versionsJson);
   let result: { version: string; group: string }[] = [];
 
+  // Determine the latest release in the matrix (compare by year, then sp
+  // number). Ada is only validated on the latest release, so the "ada" group is
+  // added for that version only.
+  const versionRank = (v: string): number => {
+    const match = /(\d{4})sp(\d+)/.exec(v);
+    return match ? Number(match[1]) * 1000 + Number(match[2]) : 0;
+  };
+  const latestVersion = versions.reduce(
+    (latest, v) => (versionRank(v) > versionRank(latest) ? v : latest),
+    versions[0]
+  );
+
   // build the matrix with filter if PRIORITIZE_SPEC_GROUP is defined
   versions.forEach((version) => {
     const year = Number(version.slice(0, 4));
     const is2024OrHigher = year >= 2024;
     const is2025OrHigher = year >= 2025;
-    const specs = getSpecGroups(is2024OrHigher, is2025OrHigher);
+    const isLatest = version === latestVersion;
+    const specs = getSpecGroups(is2024OrHigher, is2025OrHigher, isLatest);
 
     Object.keys(specs).forEach((group) => {
       // If prioritizedGroups is set, only include groups that contain one of the names in the list
