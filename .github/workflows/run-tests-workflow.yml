@@ -506,6 +506,23 @@ jobs:
         run: |
           echo "${{ secrets.E2E_ENV_BLOCK }}" >> $GITHUB_ENV
 
+      # Ada environments require a GNAT toolchain on PATH; VectorCAST does not
+      # bundle one (locally it uses the system gnat). The e2e container is
+      # Ubuntu 24.04, which ships gnat/gprbuild in apt. Install them for the Ada
+      # group only. If the container forbids apt, this step must be replaced by
+      # baking GNAT into the CI image.
+      - name: Install GNAT for the Ada e2e group
+        if: matrix.group == 'ada'
+        shell: bash
+        run: |
+          if command -v gnatls >/dev/null 2>&1; then
+            echo "GNAT already present: $(gnatls --version | head -n1)"
+          else
+            (apt-get update && apt-get install -y gnat gprbuild) \
+              || (sudo apt-get update && sudo apt-get install -y gnat gprbuild)
+            echo "Installed GNAT: $(gnatls --version | head -n1)"
+          fi
+
       - name: Run tests
         run: |
           ./tests/internal/e2e/run_e2e_tests.sh

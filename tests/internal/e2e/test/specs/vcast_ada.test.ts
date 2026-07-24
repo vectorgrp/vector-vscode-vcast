@@ -123,27 +123,51 @@ describe("vTypeCheck VS Code Extension", () => {
     await databaseAdb.openContextMenu();
     await (await $("aria/Create VectorCAST Environment")).click();
 
-    // Ada is GNAT-on-host only, so the extension asks for confirmation before
-    // creating - click "Continue" on that info notification.
-    const continueButton = await $("aria/Continue");
-    await continueButton.waitForExist({ timeout: TIMEOUT });
-    await continueButton.click();
+    // The extension shows notifications from "VectorCAST Test Explorer
+    // (Extension)". Helper: open the Notifications center and click a button
+    // (by aria label) inside that notification, if present. Mirrors the proven
+    // notification handling used by the C/C++ create-env spec.
+    const clickExtensionNotificationButton = async (
+      label: string,
+      timeoutMs: number
+    ): Promise<boolean> => {
+      try {
+        await (await $("aria/Notifications")).click();
+        const source = await $("aria/VectorCAST Test Explorer (Extension)");
+        await source.waitForExist({ timeout: timeoutMs });
+        const notification = await source.$("..");
+        const button = await notification.$(`aria/${label}`);
+        await button.waitForExist({ timeout: timeoutMs });
+        await button.click();
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    // Ada is GNAT-on-host only, so the extension asks for confirmation first -
+    // click "Continue". This notification is synchronous, so it appears almost
+    // immediately; use a short wait and fail fast (rather than the 240s build
+    // TIMEOUT) if it never shows. The most common reason it does not appear is a
+    // missing GNAT toolchain: VectorCAST does not bundle GNAT, so the CI image
+    // must provide gnat/gprbuild on PATH for Ada environments to build.
+    const confirmed = await clickExtensionNotificationButton("Continue", 30000);
+    if (!confirmed) {
+      const outputText = (
+        await (await bottomBar.openOutputView()).getText()
+      ).toString();
+      throw new Error(
+        "Ada 'Continue' confirmation did not appear - the extension likely " +
+          "reported that no GNAT toolchain was found on PATH. GNAT is a " +
+          "prerequisite for Ada environments (VectorCAST does not bundle it); " +
+          "install gnat/gprbuild in the test environment. Output was:\n" +
+          outputText
+      );
+    }
 
     // On first creation in a fresh workspace the extension also asks to create
-    // the unit-test directory ("... does not exist. Do you want to create ...").
-    // Click "Yes" if that notification appears (tolerate its absence).
-    try {
-      await (await $("aria/Notifications")).click();
-      const vcastNotificationSourceElement = await $(
-        "aria/VectorCAST Test Explorer (Extension)"
-      );
-      const vcastNotification = await vcastNotificationSourceElement.$("..");
-      const yesButton = await vcastNotification.$("aria/Yes");
-      await yesButton.waitForExist({ timeout: 10000 });
-      await yesButton.click();
-    } catch {
-      // directory already existed - no prompt shown
-    }
+    // the unit-test directory. Click "Yes" if that notification appears.
+    await clickExtensionNotificationButton("Yes", 15000);
 
     console.log("Waiting for the Ada environment to build");
     await browser.waitUntil(
