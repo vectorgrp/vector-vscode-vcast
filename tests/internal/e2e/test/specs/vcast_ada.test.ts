@@ -169,14 +169,45 @@ describe("vTypeCheck VS Code Extension", () => {
     // the unit-test directory. Click "Yes" if that notification appears.
     await clickExtensionNotificationButton("Yes", 15000);
 
+    // Wait for the build to finish. We wait for EITHER success or a failure
+    // marker so a broken build fails fast (with the output) instead of hanging
+    // for the full timeout with no diagnostics.
     console.log("Waiting for the Ada environment to build");
-    await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("Environment built Successfully"),
-      { timeout: TIMEOUT }
-    );
+    const readOutput = async () =>
+      (await (await bottomBar.openOutputView()).getText()).toString();
+    const failureMarkers = [
+      "Environment Creation Failed",
+      "Cannot Build Environment",
+      "No preprocessor command specified",
+      "cannot find the source file",
+      "Environment build failed",
+    ];
+    let buildOutput = "";
+    try {
+      await browser.waitUntil(
+        async () => {
+          buildOutput = await readOutput();
+          if (buildOutput.includes("Environment built Successfully")) {
+            return true;
+          }
+          if (failureMarkers.some((m) => buildOutput.includes(m))) {
+            throw new Error(
+              "Ada environment build reported a failure:\n" + buildOutput
+            );
+          }
+          return false;
+        },
+        { timeout: TIMEOUT, interval: 2000 }
+      );
+    } catch (error) {
+      // On timeout (or an explicit failure above) surface the full output so
+      // the failure is diagnosable from the CI log.
+      buildOutput = buildOutput || (await readOutput());
+      throw new Error(
+        `Ada environment did not build. Output was:\n${buildOutput}\n\n` +
+          `(original error: ${(error as Error).message})`
+      );
+    }
   });
 
   it("should show the Ada units under test in the test tree", async () => {
