@@ -124,15 +124,20 @@ describe("vTypeCheck VS Code Extension", () => {
     await (await $("aria/Create VectorCAST Environment")).click();
 
     // The extension shows notifications from "VectorCAST Test Explorer
-    // (Extension)". Helper: open the Notifications center and click a button
-    // (by aria label) inside that notification, if present. Mirrors the proven
-    // notification handling used by the C/C++ create-env spec.
+    // (Extension)". Open the Notifications center ONCE (clicking the
+    // "Notifications" bell toggles it, so re-opening it per-prompt would close
+    // it and the second prompt's button would never be clicked). Then click each
+    // expected button inside the notification, if present.
+    try {
+      await (await $("aria/Notifications")).click();
+    } catch {
+      // bell not present / already open
+    }
     const clickExtensionNotificationButton = async (
       label: string,
       timeoutMs: number
     ): Promise<boolean> => {
       try {
-        await (await $("aria/Notifications")).click();
         const source = await $("aria/VectorCAST Test Explorer (Extension)");
         await source.waitForExist({ timeout: timeoutMs });
         const notification = await source.$("..");
