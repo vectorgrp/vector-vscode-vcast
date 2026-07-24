@@ -509,11 +509,15 @@ jobs:
       # The Ada e2e group needs a GNAT toolchain on PATH; VectorCAST does not
       # bundle one and the container is non-root with no access to public apt
       # repos. So we install a RELOCATABLE GNAT the same way the pipeline already
-      # installs reqs2tests: download a tarball from a reachable URL (internal
-      # Artifactory), extract into $HOME (no root needed), and prepend its bin to
-      # PATH. Set GNAT_RELEASE_URL_LIN (e.g. in secrets.E2E_ENV_BLOCK) to a
-      # relocatable GNAT+gprbuild tarball. If unset, the step is a no-op and the
-      # Ada spec fails fast with a clear "GNAT not found" message.
+      # installs reqs2tests: download a tarball, extract into $HOME (no root
+      # needed), and prepend its bin to PATH. The build only needs the GNAT
+      # toolchain itself (gnat/gnatmake/gnatls/gnatchop + its bundled gcc); no
+      # separate gprbuild is required.
+      #
+      # By default we fetch a relocatable FSF GNAT build from GitHub (no hosting
+      # required). If GitHub is not reachable from the runner, set
+      # GNAT_RELEASE_URL_LIN (e.g. in secrets.E2E_ENV_BLOCK) to the same tarball
+      # re-hosted on the internal Artifactory.
       - name: Install GNAT for the Ada e2e group
         if: matrix.group == 'ada'
         shell: bash
@@ -522,17 +526,13 @@ jobs:
             echo "GNAT already present: $(gnatls --version | head -n1)"
             exit 0
           fi
-          if [ -z "${GNAT_RELEASE_URL_LIN:-}" ]; then
-            echo "GNAT_RELEASE_URL_LIN is not set; skipping GNAT install." \
-              "The Ada spec will report a missing GNAT toolchain."
-            exit 0
-          fi
+          GNAT_URL="${GNAT_RELEASE_URL_LIN:-https://github.com/alire-project/GNAT-FSF-builds/releases/download/gnat-14.2.0-1/gnat-x86_64-linux-14.2.0-1.tar.gz}"
           GNAT_HOME="$HOME/gnat"
           mkdir -p "$GNAT_HOME"
-          echo "Downloading GNAT from $GNAT_RELEASE_URL_LIN"
-          wget -q "$GNAT_RELEASE_URL_LIN" -O /tmp/gnat.tar.gz
-          # --strip-components=1 flattens a single top-level dir in the tarball;
-          # adjust if the tarball layout differs.
+          echo "Downloading GNAT from $GNAT_URL"
+          wget -q "$GNAT_URL" -O /tmp/gnat.tar.gz
+          # --strip-components=1 flattens the single top-level dir in the tarball
+          # (gnat-x86_64-linux-<ver>/) so bin/ lands directly under $GNAT_HOME.
           tar -xf /tmp/gnat.tar.gz -C "$GNAT_HOME" --strip-components=1
           rm -f /tmp/gnat.tar.gz
           echo "PATH=$GNAT_HOME/bin:$PATH" >> "$GITHUB_ENV"
