@@ -506,37 +506,52 @@ jobs:
         run: |
           echo "${{ secrets.E2E_ENV_BLOCK }}" >> $GITHUB_ENV
 
-      # The Ada e2e group needs a GNAT toolchain on PATH; VectorCAST does not
-      # bundle one and the container is non-root with no access to public apt
-      # repos. So we install a RELOCATABLE GNAT the same way the pipeline already
-      # installs reqs2tests: download a tarball, extract into $HOME (no root
-      # needed), and prepend its bin to PATH. The build only needs the GNAT
-      # toolchain itself (gnat/gnatmake/gnatls/gnatchop + its bundled gcc); no
-      # separate gprbuild is required.
+      # The Ada e2e group needs a GNAT toolchain AND gprbuild on PATH:
+      # VectorCAST's Ada harness link step runs `gnatmake -P<gpr>`, and modern
+      # gnatmake (GNAT 14+) delegates project files to gprbuild - so without
+      # gprbuild the link fails with "project files are no longer supported by
+      # gnatmake; use gprbuild instead". VectorCAST bundles neither, and the
+      # container is non-root with no access to public apt repos.
       #
-      # By default we fetch a relocatable FSF GNAT build from GitHub (no hosting
-      # required). If GitHub is not reachable from the runner, set
-      # GNAT_RELEASE_URL_LIN (e.g. in secrets.E2E_ENV_BLOCK) to the same tarball
-      # re-hosted on the internal Artifactory.
-      - name: Install GNAT for the Ada e2e group
+      # So we install RELOCATABLE FSF GNAT + gprbuild the same way the pipeline
+      # installs reqs2tests: download the tarballs, extract into $HOME (no root
+      # needed), and prepend their bins to PATH. Defaults point at the public
+      # GNAT-FSF-builds releases on GitHub (no hosting required); override
+      # GNAT_RELEASE_URL_LIN / GPRBUILD_RELEASE_URL_LIN (e.g. in
+      # secrets.E2E_ENV_BLOCK) to re-hosted tarballs if GitHub is unreachable.
+      - name: Install GNAT + gprbuild for the Ada e2e group
         if: matrix.group == 'ada'
         shell: bash
         run: |
+          install_tarball() {
+            local url="$1" dest="$2"
+            mkdir -p "$dest"
+            echo "Downloading $url"
+            wget -q "$url" -O /tmp/toolchain.tar.gz
+            # --strip-components=1 flattens the single top-level dir in the
+            # tarball so bin/ lands directly under $dest.
+            tar -xf /tmp/toolchain.tar.gz -C "$dest" --strip-components=1
+            rm -f /tmp/toolchain.tar.gz
+          }
+          GNAT_URL="${GNAT_RELEASE_URL_LIN:-https://github.com/alire-project/GNAT-FSF-builds/releases/download/gnat-14.2.0-1/gnat-x86_64-linux-14.2.0-1.tar.gz}"
+          GPRBUILD_URL="${GPRBUILD_RELEASE_URL_LIN:-https://github.com/alire-project/GNAT-FSF-builds/releases/download/gprbuild-25.0.0-1/gprbuild-x86_64-linux-25.0.0-1.tar.gz}"
+
           if command -v gnatls >/dev/null 2>&1; then
             echo "GNAT already present: $(gnatls --version | head -n1)"
-            exit 0
+          else
+            install_tarball "$GNAT_URL" "$HOME/gnat"
+            echo "PATH=$HOME/gnat/bin:$PATH" >> "$GITHUB_ENV"
+            export PATH="$HOME/gnat/bin:$PATH"
+            echo "Installed GNAT: $("$HOME/gnat/bin/gnatls" --version | head -n1)"
           fi
-          GNAT_URL="${GNAT_RELEASE_URL_LIN:-https://github.com/alire-project/GNAT-FSF-builds/releases/download/gnat-14.2.0-1/gnat-x86_64-linux-14.2.0-1.tar.gz}"
-          GNAT_HOME="$HOME/gnat"
-          mkdir -p "$GNAT_HOME"
-          echo "Downloading GNAT from $GNAT_URL"
-          wget -q "$GNAT_URL" -O /tmp/gnat.tar.gz
-          # --strip-components=1 flattens the single top-level dir in the tarball
-          # (gnat-x86_64-linux-<ver>/) so bin/ lands directly under $GNAT_HOME.
-          tar -xf /tmp/gnat.tar.gz -C "$GNAT_HOME" --strip-components=1
-          rm -f /tmp/gnat.tar.gz
-          echo "PATH=$GNAT_HOME/bin:$PATH" >> "$GITHUB_ENV"
-          echo "Installed GNAT: $("$GNAT_HOME/bin/gnatls" --version | head -n1)"
+
+          if command -v gprbuild >/dev/null 2>&1; then
+            echo "gprbuild already present: $(gprbuild --version | head -n1)"
+          else
+            install_tarball "$GPRBUILD_URL" "$HOME/gprbuild"
+            echo "PATH=$HOME/gprbuild/bin:$PATH" >> "$GITHUB_ENV"
+            echo "Installed gprbuild: $("$HOME/gprbuild/bin/gprbuild" --version | head -n1)"
+          fi
 
       - name: Run tests
         run: |
