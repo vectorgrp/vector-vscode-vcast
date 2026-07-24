@@ -25,7 +25,21 @@
     <label for="projectNameInput">Project Name:</label>
     <input type="text" id="projectNameInput" aria-label="Project Name Input" placeholder="Enter new project name…" />
 
-    <div class="options-section">
+    <label for="languageSelect">Language:</label>
+    <div class="single-input-container">
+      <select id="languageSelect" aria-label="Language">
+        <option value="c" selected>C / C++</option>
+        <option value="ada">Ada (GNAT, host)</option>
+      </select>
+    </div>
+
+    <p id="adaNote" style="display: none; font-size: 12px; color: #888;">
+      Only GNAT on the host is supported for Ada. The project gets a minimal
+      ADACAST_.CFG (COMPILATION_SYSTEM: GNAT, TARGET_VARIANT: HOST) as its
+      compiler.
+    </p>
+
+    <div class="options-section" id="compilerSelectionSection">
       <h3>Compiler Selection</h3>
 
       <!-- Only shown if defaultCFG is available -->

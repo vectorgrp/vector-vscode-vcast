@@ -48,13 +48,19 @@ def find_separate_sources(env_dir):
     """
     found = []
     seen = set()
+    base = os.path.realpath(env_dir)
     for name in sorted(os.listdir(env_dir)):
         if not name.lower().endswith((".adb", ".ads", ".ada", ".txt")):
             continue
+        # os.listdir returns bare entry names, but validate that the resolved
+        # path is still inside the environment directory before opening it, so a
+        # crafted env_dir or a symlinked entry cannot escape to an arbitrary
+        # file (path-injection hardening).
+        candidate = os.path.realpath(os.path.join(base, name))
+        if candidate != base and not candidate.startswith(base + os.sep):
+            continue
         try:
-            with open(
-                os.path.join(env_dir, name), encoding="utf-8", errors="replace"
-            ) as handle:
+            with open(candidate, encoding="utf-8", errors="replace") as handle:
                 for line in handle:
                     if not line.startswith(MARKER):
                         continue

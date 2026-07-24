@@ -73,10 +73,11 @@ import {
 import {
   addLaunchConfiguration,
   addSettingsFileFilter,
+  confirmAdaGnatCreation,
+  ensureAdaConfigurationFile,
   enviroFileIsAda,
   getEnvPathForFilePath,
   isAdaSourceFile,
-  notifyAdaFeatureDisabled,
   showSettings,
   updateCoverageAndRebuildEnv,
   forceLowerCaseDriveLetter,
@@ -929,23 +930,29 @@ function configureExtension(context: vscode.ExtensionContext) {
   // Command: vectorcastTestExplorer.buildEnviroFromEnv ////////////////////////////////////////////////////////
   let buildEnviroVCASTCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.buildEnviroFromEnv",
-    (arg: Uri) => {
+    async (arg: Uri) => {
       // arg is the URI of the .env file that was clicked
       if (arg) {
         const envFilepath = arg.fsPath;
-        // Building new Ada environments is disabled for now.
-        if (enviroFileIsAda(envFilepath)) {
-          notifyAdaFeatureDisabled("Building an Ada environment");
-          return;
-        }
         const buildDirectory = path.dirname(envFilepath);
         const enviroFilename = path.basename(envFilepath);
         const enviroName = getEnviroNameFromFile(envFilepath);
+        // Ada is supported for GNAT on the host only: confirm, then make sure a
+        // (GNAT) ADACAST_.CFG exists next to the .env before building.
+        const isAda = enviroFileIsAda(envFilepath);
+        if (isAda) {
+          const proceed = await confirmAdaGnatCreation(
+            "Build an Ada environment"
+          );
+          if (!proceed) return;
+          ensureAdaConfigurationFile(buildDirectory);
+        }
         if (enviroName) {
           if (!fs.existsSync(path.join(buildDirectory, enviroName))) {
             buildEnvironmentFromScript(
               buildDirectory,
-              enviroFilename.split(".")[0]
+              enviroFilename.split(".")[0],
+              isAda
             );
           } else {
             vscode.window.showErrorMessage(
@@ -2190,11 +2197,13 @@ async function installPreActivationEventHandlers(
   const newEnviroInProjectVCASTCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.newEnviroInProjectVCAST",
     async (_args: vscode.Uri, argList: vscode.Uri[]) => {
-      // Creating new Ada environments in a project is disabled for now. Block
-      // before opening the webview so the user is not asked to fill it out.
+      // Ada in a project is supported for GNAT on the host only. Confirm before
+      // opening the webview so the user is not asked to fill it out otherwise.
       if (argList?.some((uri) => isAdaSourceFile(uri.fsPath))) {
-        notifyAdaFeatureDisabled("Adding an Ada environment to a project");
-        return;
+        const proceed = await confirmAdaGnatCreation(
+          "Add an Ada environment to a project"
+        );
+        if (!proceed) return;
       }
       const manageWebviewSrcDir = resolveWebviewBase(
         context,
@@ -2384,6 +2393,7 @@ async function installPreActivationEventHandlers(
       );
 
       async function handleSubmit(message: {
+        language?: string;
         projectName?: string;
         compilerName?: string;
         targetDir?: string;
@@ -2393,6 +2403,7 @@ async function installPreActivationEventHandlers(
         useDefaultDB?: boolean;
       }) {
         const {
+          language,
           projectName,
           compilerName,
           targetDir,
@@ -2404,6 +2415,25 @@ async function installPreActivationEventHandlers(
 
         if (!projectName) {
           vscode.window.showErrorMessage("Project Name is required.");
+          return;
+        }
+
+        // Ada: there is no compiler template (clicast template is C/C++ only).
+        // We support GNAT on the host, so generate a minimal ADACAST_.CFG and
+        // create the project using it as the compiler (the same "existing CFG"
+        // path a C/C++ default CFG would take).
+        if (language === "ada") {
+          const proceed = await confirmAdaGnatCreation("Create an Ada project");
+          if (!proceed) return;
+          const adaBase = targetDir ?? workspaceRoot;
+          const adaProjectPath = path.join(adaBase, projectName);
+          ensureAdaConfigurationFile(adaBase);
+          await createNewProject(
+            adaProjectPath,
+            path.join(adaBase, "ADACAST_.CFG"),
+            true // usingDefaultCFG: treat the generated ADACAST_.CFG as the CFG
+          );
+          panel.dispose();
           return;
         }
 
@@ -2566,11 +2596,30 @@ async function installPreActivationEventHandlers(
               break;
             }
             case "submit": {
+              const language: string = msg.language === "ada" ? "ada" : "c";
               const compilerName: string | undefined = msg.compilerName?.trim();
               const targetDir: string = msg.targetDir || workspaceRoot;
               const enableCodedTests: boolean = !!msg.enableCodedTests;
               const defaultCFG: boolean = !!msg.defaultCFG;
               const useDefaultDB: boolean = !!msg.useDefaultDB;
+
+              // Ada: there is no compiler template (clicast template is C/C++
+              // only). We support GNAT on the host, and write the minimal
+              // ADACAST_.CFG directly; if launched from a project node, add it
+              // to the project like a C/C++ compiler config.
+              if (language === "ada") {
+                const proceed = await confirmAdaGnatCreation(
+                  "Create an Ada configuration file"
+                );
+                if (!proceed) return;
+                ensureAdaConfigurationFile(targetDir);
+                const createdCFGPath = path.join(targetDir, "ADACAST_.CFG");
+                if (projectPath) {
+                  await addCompilerToProject(projectPath, createdCFGPath);
+                }
+                panel.dispose();
+                break;
+              }
 
               if (!compilerName) {
                 vscode.window.showErrorMessage(

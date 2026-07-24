@@ -20,6 +20,25 @@ globalThis.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Language selector: C/C++ uses the compiler picker (CCAST_.CFG); Ada is
+  // GNAT-on-host only, so it hides the compiler picker and coded-tests option
+  // (the extension writes a minimal ADACAST_.CFG for it).
+  const languageSelect = document.getElementById("languageSelect");
+  const compilerSection = document.getElementById("compilerSection");
+  const adaNote = document.getElementById("adaNote");
+  const codedTestsRow = document.getElementById("codedTestsRow");
+
+  function applyLanguage() {
+    const isAda = languageSelect && languageSelect.value === "ada";
+    if (compilerSection) compilerSection.style.display = isAda ? "none" : "";
+    if (adaNote) adaNote.style.display = isAda ? "block" : "none";
+    if (codedTestsRow) codedTestsRow.style.display = isAda ? "none" : "flex";
+  }
+  if (languageSelect) {
+    languageSelect.addEventListener("change", applyLanguage);
+    applyLanguage();
+  }
+
   // Compiler autocomplete
   const compInput = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");
@@ -107,6 +126,7 @@ globalThis.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnSubmit").addEventListener("click", () => {
     vscode.postMessage({
       command: "submit",
+      language: languageSelect ? languageSelect.value : "c",
       targetDir,
       compilerName: (compInput.value || "").trim(),
       enableCodedTests: !!(codedCheckbox && codedCheckbox.checked),

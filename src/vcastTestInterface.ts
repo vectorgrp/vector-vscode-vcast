@@ -31,10 +31,13 @@ import {
 } from "./testPane";
 
 import {
+  adaUnitNameFromFile,
+  confirmAdaGnatCreation,
+  ensureAdaConfigurationFile,
+  generateAdaProjectFile,
   forceLowerCaseDriveLetter,
   isAdaSourceFile,
   normalizePath,
-  notifyAdaFeatureDisabled,
   openFileWithLineSelected,
   showSettings,
 } from "./utilities";
@@ -620,15 +623,10 @@ function createVcastEnvironmentScript(
   // This will take a list of files and create the enviroName.env
   // in the location pointed to by unitTestLocation
 
-  // compute the UUT and SEARCH_LIST lists
+  // compute the SEARCH_LIST (source dirs), shared by both languages
   // Improvement needed: Add source locations for include paths from cpp_properties
-  let uutList: string[] = [];
   let searchList: string[] = [];
-  for (let index = 0; index < fileList.length; index++) {
-    const filePath = fileList[index];
-    // must strip the extension ...
-    const uutName = path.basename(filePath).split(".")[0];
-    uutList.push(uutName);
+  for (const filePath of fileList) {
     const candidatePath = path.dirname(filePath);
     if (!searchList.includes(candidatePath)) {
       searchList.push(candidatePath);
@@ -640,34 +638,64 @@ function createVcastEnvironmentScript(
 
   // read the settings that affect enviro build
   let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
-
-  fs.writeFileSync(envFilePath, `ENVIRO.NEW\n`, { flag: "w" });
-  fs.writeFileSync(envFilePath, `ENVIRO.NAME: ${enviroName}\n`, { flag: "a+" });
-
   const coverageKind = settings.get("build.coverageKind", "None");
+
+  const isAda = fileList.some((filePath) => isAdaSourceFile(filePath));
+
+  const lines: string[] = ["ENVIRO.NEW", `ENVIRO.NAME: ${enviroName}`];
   if (coverageKind != "None") {
-    fs.writeFileSync(envFilePath, `ENVIRO.COVERAGE_TYPE: ${coverageKind}\n`, {
-      flag: "a+",
-    });
+    lines.push(`ENVIRO.COVERAGE_TYPE: ${coverageKind}`);
   }
 
-  fs.writeFileSync(envFilePath, "ENVIRO.WHITE_BOX: YES\n", { flag: "a+" });
-  fs.writeFileSync(envFilePath, "ENVIRO.STUB: ALL_BY_PROTOTYPE\n", {
-    flag: "a+",
-  });
+  if (isAda) {
+    // GNAT-on-host Ada environment: the compiler is GNAT, stub everything, and
+    // mark each selected unit as a UUT. Dash-named child units
+    // (warehouse-orders.adb) map to dotted VectorCAST unit names
+    // (WAREHOUSE.ORDERS). The env is built in a different directory than the
+    // sources, and ENVIRO.SEARCH_LIST is not sufficient for Ada, so we generate
+    // a GPR pointing at the source dirs and reference it via ENVIRO.PARENT_LIB
+    // (clicast builds the library from it - no separate gprbuild needed).
+    lines.push("ENVIRO.COMPILER: GNAT");
+    lines.push("ENVIRO.WHITE_BOX: YES");
+    lines.push("ENVIRO.STUB: ALL");
+    const adaSourceDirs = fileList
+      .filter((filePath) => isAdaSourceFile(filePath))
+      .map((filePath) => path.dirname(filePath))
+      .filter((dir, index, all) => all.indexOf(dir) === index);
+    // Write the GPR into the (first) source directory - a persistent location
+    // with the sources - and reference it by ABSOLUTE path. The env build
+    // directory is NOT usable: for a project the env is created in a temp folder
+    // that is deleted after import, and the env itself is built elsewhere
+    // (Test/build/<hash>/), so a GPR there (or a relative PARENT_LIB) would not
+    // resolve at build time. An absolute path in the source tree survives both.
+    const gprDir = adaSourceDirs[0] || unitTestLocation;
+    const gprFileName = generateAdaProjectFile(
+      gprDir,
+      enviroName,
+      adaSourceDirs
+    );
+    lines.push(`ENVIRO.PARENT_LIB: ${path.join(gprDir, gprFileName)}`);
+    const uutSet = new Set<string>();
+    for (const filePath of fileList) {
+      if (isAdaSourceFile(filePath)) uutSet.add(adaUnitNameFromFile(filePath));
+    }
+    uutSet.forEach((uut) => lines.push(`ENVIRO.UUT: ${uut}`));
+  } else {
+    // C/C++ (unchanged): whitebox, stub-by-prototype, one STUB_BY_FUNCTION per
+    // source file (compiler comes from the CCAST_.CFG).
+    lines.push("ENVIRO.WHITE_BOX: YES");
+    lines.push("ENVIRO.STUB: ALL_BY_PROTOTYPE");
+    searchList.forEach((item) => lines.push(`ENVIRO.SEARCH_LIST: ${item}`));
+    for (const filePath of fileList) {
+      lines.push(
+        `ENVIRO.STUB_BY_FUNCTION: ${path.basename(filePath).split(".")[0]}`
+      );
+    }
+  }
+  lines.push("ENVIRO.END");
 
-  searchList.forEach((item) =>
-    fs.writeFileSync(envFilePath, `ENVIRO.SEARCH_LIST: ${item}\n`, {
-      flag: "a+",
-    })
-  );
-  uutList.forEach((item) =>
-    fs.writeFileSync(envFilePath, `ENVIRO.STUB_BY_FUNCTION: ${item}\n`, {
-      flag: "a+",
-    })
-  );
-
-  fs.writeFileSync(envFilePath, "ENVIRO.END", { flag: "a+" });
+  // trailing content matches the previous writer (no newline after ENVIRO.END)
+  fs.writeFileSync(envFilePath, lines.join("\n"), { flag: "w" });
 }
 
 async function buildEnvironmentVCAST(
@@ -690,17 +718,28 @@ async function buildEnvironmentVCAST(
   );
 
   // It is important that this call be done before the creation of the .env
-  // Check that we have a valid configuration file, and create one if we don't
-  // This function will return True if there is a CFG when it is done.
+  // Check that we have a valid configuration file, and create one if we don't.
+  // For Ada we generate a minimal GNAT-on-host ADACAST_.CFG (coded tests don't
+  // exist for Ada, so setCodedTestOption is skipped there).
+  const isAda = fileList.some((filePath) => isAdaSourceFile(filePath));
   if (!shouldBuildEnviro) {
-    setCodedTestOption(unitTestLocation);
+    if (!isAda) setCodedTestOption(unitTestLocation);
     createVcastEnvironmentScript(unitTestLocation, enviroName, fileList);
-  } else if (initializeConfigurationFile(unitTestLocation)) {
-    setCodedTestOption(unitTestLocation);
+  } else {
+    let haveConfiguration: boolean;
+    if (isAda) {
+      ensureAdaConfigurationFile(unitTestLocation);
+      haveConfiguration = true;
+    } else {
+      haveConfiguration = initializeConfigurationFile(unitTestLocation);
+    }
+    if (haveConfiguration) {
+      if (!isAda) setCodedTestOption(unitTestLocation);
 
-    createVcastEnvironmentScript(unitTestLocation, enviroName, fileList);
+      createVcastEnvironmentScript(unitTestLocation, enviroName, fileList);
 
-    await buildEnvironmentFromScript(unitTestLocation, enviroName);
+      await buildEnvironmentFromScript(unitTestLocation, enviroName, isAda);
+    }
   }
 }
 
@@ -923,15 +962,32 @@ export async function newEnvironment(
   // for the multi-select case.
   //
 
-  // Creating new Ada environments is disabled for now. If any selected file
-  // is an Ada source file, notify the user (popup + output log) and abort.
-  if (URIlist.some((uri) => isAdaSourceFile(uri.fsPath))) {
-    notifyAdaFeatureDisabled(
-      projectEnvParameters
-        ? "Adding an Ada environment to a project"
-        : "Creating an Ada environment"
+  // A VectorCAST environment is single-language. Reject a selection that mixes
+  // Ada (.adb/.ads) with C/C++ sources rather than silently dropping one side.
+  const selectedSources = URIlist.map((uri) => uri.fsPath).filter((p) => {
+    const ext = p.split(".").pop();
+    return ext !== undefined && extensionsOfInterest.includes(ext);
+  });
+  const hasAdaSource = selectedSources.some((p) => isAdaSourceFile(p));
+  const hasCppSource = selectedSources.some((p) => !isAdaSourceFile(p));
+  if (hasAdaSource && hasCppSource) {
+    vscode.window.showErrorMessage(
+      "Cannot create an environment from a mix of Ada and C/C++ sources - " +
+        "select files of a single language."
     );
     return;
+  }
+
+  // Ada environment creation is supported for GNAT on the host only. If any
+  // selected file is Ada, confirm GNAT is available and that the user wants to
+  // proceed with the GNAT-only path before continuing.
+  if (hasAdaSource) {
+    const proceed = await confirmAdaGnatCreation(
+      projectEnvParameters
+        ? "Add an Ada environment to a project"
+        : "Create an Ada environment"
+    );
+    if (!proceed) return;
   }
 
   let fileList: string[] = [];

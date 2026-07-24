@@ -16,16 +16,31 @@
       <button id="btnBrowse" class="select-button">Browse…</button>
     </div>
 
-    <label for="compilerInput">Select Compiler:</label>
-    <div class="autocomplete">
-      <input type="text" id="compilerInput" aria-label="Compiler Name Input" placeholder="Type or click to select…" autocomplete="off" />
-      <ul id="suggestions" class="suggestions"></ul>
+    <label for="languageSelect">Language:</label>
+    <div class="single-input-container">
+      <select id="languageSelect" aria-label="Language">
+        <option value="c" selected>C / C++</option>
+        <option value="ada">Ada (GNAT, host)</option>
+      </select>
     </div>
+
+    <div id="compilerSection">
+      <label for="compilerInput">Select Compiler:</label>
+      <div class="autocomplete">
+        <input type="text" id="compilerInput" aria-label="Compiler Name Input" placeholder="Type or click to select…" autocomplete="off" />
+        <ul id="suggestions" class="suggestions"></ul>
+      </div>
+    </div>
+
+    <p id="adaNote" style="display: none; font-size: 12px; color: #888;">
+      Only GNAT on the host is supported for Ada. A minimal ADACAST_.CFG
+      (COMPILATION_SYSTEM: GNAT, TARGET_VARIANT: HOST) will be created.
+    </p>
 
     <div class="options-section">
       <h3>Additional Options:</h3>
 
-      <div class="option-row">
+      <div class="option-row" id="codedTestsRow">
         <label class="toggle-label" for="enableCodedTests">Enable Coded Tests</label>
         <label class="vscode-toggle" for="enableCodedTests">
           <span class="toggle-switch">

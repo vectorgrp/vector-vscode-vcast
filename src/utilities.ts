@@ -360,10 +360,124 @@ export function builtEnviroIsAda(enviroPath: string): boolean {
   });
 }
 
+// The Ada compiler/harness configuration file (analogous to CCAST_.CFG for
+// C/C++). For Ada environment creation we support GNAT on the host only; a
+// minimal ADACAST_.CFG with these two keys is enough for VectorCAST to build.
+const adaConfigFilename = "ADACAST_.CFG";
+
+// Derive the VectorCAST Ada UNIT name from a source file.
+//
+// Two dash-named-on-disk cases look identical by filename but are different
+// units:
+//   - a CHILD unit  (warehouse-orders.adb -> package WAREHOUSE.ORDERS) is its
+//     own unit; the name is the dash->dot, upper-cased base name.
+//   - a SEPARATE SUBUNIT (calculator-power.adb -> "separate (Calculator) ...")
+//     is NOT a unit of its own; it folds into its PARENT (CALCULATOR). Marking
+//     the subunit as a UUT makes VectorCAST fail ("cannot find the source file
+//     for CALCULATOR.POWER").
+//
+// We disambiguate by content: if the file has a `separate (Parent)` clause it is
+// a subunit and we return the parent unit; otherwise we use the file base name.
+// VectorCAST reports Ada unit names in upper case.
+const SEPARATE_CLAUSE = /^\s*separate\s*\(\s*([A-Za-z0-9_.]+)\s*\)/im;
+
+export function adaUnitNameFromFile(filePath: string): string {
+  try {
+    const contents = fs.readFileSync(filePath, "utf8");
+    const match = SEPARATE_CLAUSE.exec(contents);
+    if (match) return match[1].toUpperCase();
+  } catch {
+    // fall through to the file-name based derivation
+  }
+  const base = path.basename(filePath, path.extname(filePath));
+  return base.replace(/-/g, ".").toUpperCase();
+}
+
+// Best-effort check that a host GNAT toolchain is available on PATH. We only
+// support GNAT-on-host for Ada environment creation, and the build (which shells
+// out to the compiler via the CFG) needs gnat/gprbuild reachable.
+export function isGnatAvailable(): boolean {
+  const { execSync } = require("child_process");
+  for (const probe of ["gnatls --version", "gnat --version"]) {
+    try {
+      execSync(probe, { stdio: "ignore" });
+      return true;
+    } catch {
+      // try the next probe
+    }
+  }
+  return false;
+}
+
+// Ensure a minimal GNAT-on-host ADACAST_.CFG exists in the given directory.
+// Leaves an existing config untouched (the user may have a customized one).
+export function ensureAdaConfigurationFile(cwd: string): void {
+  const configPath = path.join(cwd, adaConfigFilename);
+  if (fs.existsSync(configPath)) {
+    vectorMessage(`Using the existing Ada configuration file: ${configPath}`);
+    return;
+  }
+  vectorMessage(`Creating a GNAT (host) Ada configuration file: ${configPath}`);
+  fs.writeFileSync(
+    configPath,
+    "COMPILATION_SYSTEM: GNAT\nTARGET_VARIANT: HOST\n"
+  );
+}
+
+// Generate a minimal GNAT project (.gpr) in `cwd` whose Source_Dirs point at
+// the given Ada source directories, and return its file name. Ada environments
+// are built in a different directory than the sources (e.g. unitTests/), and
+// ENVIRO.SEARCH_LIST is NOT enough for Ada - VectorCAST needs the units in an
+// Ada "library". Referencing this GPR via ENVIRO.PARENT_LIB lets clicast build
+// the library itself (no separate gprbuild step required). The project/file
+// name must be a valid Ada identifier, so the environment name is sanitized.
+export function generateAdaProjectFile(
+  cwd: string,
+  enviroName: string,
+  sourceDirs: string[]
+): string {
+  let base = enviroName.replace(/[^A-Za-z0-9_]/g, "_");
+  if (!/^[A-Za-z]/.test(base)) base = `vc_${base}`;
+  const gprFileName = `${base}.gpr`;
+  // GPR accepts forward slashes on all platforms; absolute dirs are fine.
+  const dirs = sourceDirs
+    .map((dir) => `"${dir.replace(/\\/g, "/")}"`)
+    .join(", ");
+  const contents =
+    `project ${base} is\n` +
+    `   for Source_Dirs use (${dirs});\n` +
+    `   for Object_Dir use "${base}_obj";\n` +
+    `end ${base};\n`;
+  fs.writeFileSync(path.join(cwd, gprFileName), contents);
+  return gprFileName;
+}
+
+// Confirm (modal) that the user wants to proceed with the GNAT-only Ada path,
+// and that GNAT is actually available. Returns true only if we should continue.
+// `action` is a short verb phrase, e.g. "Create an Ada environment".
+export async function confirmAdaGnatCreation(action: string): Promise<boolean> {
+  if (!isGnatAvailable()) {
+    const message =
+      `${action}: no GNAT toolchain was found on PATH. Only GNAT on the ` +
+      `host is supported for Ada; install GNAT / add it to PATH and retry.`;
+    vscode.window.showErrorMessage(message);
+    vectorMessage(message, errorLevel.warn);
+    return false;
+  }
+  // Non-modal info message; the user must click "Continue" to proceed
+  // (dismissing it aborts).
+  const answer = await vscode.window.showInformationMessage(
+    `${action}: only GNAT on the host is currently supported for Ada ` +
+      `environments. Do you wish to continue?`,
+    "Continue",
+    "Cancel"
+  );
+  return answer === "Continue";
+}
+
 // Show a popup AND log to the output panel explaining that an Ada action is
 // currently disabled. Used to gate features that do not work for Ada yet (e.g.
-// creating new environments/projects, ATG test generation) while the rest of
-// the toolchain catches up.
+// ATG test generation) while the rest of the toolchain catches up.
 export function notifyAdaFeatureDisabled(action: string): void {
   const message =
     `${action} is currently disabled for Ada. Existing Ada environments ` +

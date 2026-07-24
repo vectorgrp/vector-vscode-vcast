@@ -82,7 +82,8 @@ export function vcastLicenseOK(): boolean {
 // Build Environment - no server logic needed ----------------------------------------
 export async function buildEnvironmentFromScript(
   unitTestLocation: string,
-  enviroName: string
+  enviroName: string,
+  isAda: boolean = false
 ) {
   // this function is separate and exported because it's used when we
   // create environments from source files and from .env files
@@ -90,7 +91,14 @@ export async function buildEnvironmentFromScript(
   // this call runs clicast in the background
   const enviroPath = path.join(unitTestLocation, enviroName);
 
-  const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
+  // The outer language flag drives the build; an Ada env built with "-lc"
+  // fails ("No preprocessor command specified"), so use "-lada" for Ada.
+  const clicastArgs = [
+    isAda ? "-lada" : "-lc",
+    "env",
+    "build",
+    enviroName + ".env",
+  ];
   // This is long running commands so we open the message pane to give the user a sense of what is going on.
   openMessagePane();
   executeWithRealTimeEcho(
