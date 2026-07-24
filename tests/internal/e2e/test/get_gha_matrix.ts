@@ -34,10 +34,16 @@ function dumpGhaMatrix() {
     const year = Number(version.slice(0, 4));
     const is2024OrHigher = year >= 2024;
     const is2025OrHigher = year >= 2025;
-    const isLatest = version === latestVersion;
-    const specs = getSpecGroups(is2024OrHigher, is2025OrHigher, isLatest);
+    const specs = getSpecGroups(is2024OrHigher, is2025OrHigher);
 
     Object.keys(specs).forEach((group) => {
+      // The Ada spec is only validated on the latest release (the version the
+      // Ada integration targets), so skip it for every other version. The group
+      // is always defined in specs_config so the runner can resolve it, but it
+      // is dispatched to the matrix for the latest version only.
+      if (group === "ada" && version !== latestVersion) {
+        return;
+      }
       // If prioritizedGroups is set, only include groups that contain one of the names in the list
       if (
         prioritizedGroups.length === 0 ||

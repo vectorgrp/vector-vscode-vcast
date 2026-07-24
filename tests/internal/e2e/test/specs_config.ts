@@ -11,8 +11,7 @@ export const newestVCRelease = "2024sp5";
  */
 export function getSpecGroups(
   useVcast24: boolean,
-  useVcast25: boolean = false,
-  useLatest: boolean = false
+  useVcast25: boolean = false
 ) {
   const specGroups = {
     basic_user_interactions: {
@@ -333,21 +332,20 @@ export function getSpecGroups(
     };
   }
 
-  // Ada support is only validated on the latest VectorCAST release (the version
-  // the Ada integration targets), so this single end-to-end spec is gated to
-  // useLatest. It exercises the whole Ada flow - create env from Ada sources,
-  // build, test tree, run, coverage, .tst autocompletion, and the Ada
-  // restrictions (no coded tests / ATG) - in one file.
-  if (useLatest) {
-    specGroups["ada"] = {
-      specs: ["./**/**/vcast_ada.test.ts"],
-      env: {
-        WAIT_AFTER_TESTS_FINISHED: "True",
-        VCAST_USE_PYTHON: "True",
-      },
-      params: {},
-    };
-  }
+  // Ada end-to-end spec. The group is always defined here so the runner can
+  // resolve it (specs + env) when dispatched; it is get_gha_matrix.ts that
+  // limits WHICH versions actually run it - only the latest release, the one
+  // the Ada integration targets. It exercises the whole Ada flow in one file:
+  // create env from Ada sources, build, test tree, run, coverage, .tst
+  // autocompletion, and the Ada restrictions (no coded tests / ATG).
+  specGroups["ada"] = {
+    specs: ["./**/**/vcast_ada.test.ts"],
+    env: {
+      WAIT_AFTER_TESTS_FINISHED: "True",
+      VCAST_USE_PYTHON: "True",
+    },
+    params: {},
+  };
 
   return specGroups;
 }
@@ -360,10 +358,9 @@ export function getSpecGroups(
  */
 export function getSpecsWithEnv(
   useVcast24: boolean,
-  useVcast25: boolean = false,
-  useLatest: boolean = false
+  useVcast25: boolean = false
 ) {
-  const specGroups = getSpecGroups(useVcast24, useVcast25, useLatest);
+  const specGroups = getSpecGroups(useVcast24, useVcast25);
 
   for (const group of Object.keys(specGroups)) {
     const groupObject = specGroups[group];
@@ -390,11 +387,10 @@ export function getSpecsWithEnv(
 export function getEnvVarsForGroup(
   useVcast24: boolean,
   groupName: string,
-  useVcast25: boolean = false,
-  useLatest: boolean = false
+  useVcast25: boolean = false
 ): string {
   // Fetch spec groups with environment variables
-  const specGroups = getSpecsWithEnv(useVcast24, useVcast25, useLatest);
+  const specGroups = getSpecsWithEnv(useVcast24, useVcast25);
 
   // Check if the specified group exists
   if (!specGroups[groupName] || !specGroups[groupName].env) {
@@ -423,10 +419,9 @@ export function getEnvVarsForGroup(
 export function getSpecs(
   vcast24: boolean,
   group: string = null,
-  vcast25: boolean = false,
-  useLatest: boolean = false
+  vcast25: boolean = false
 ) {
-  const specGroups = getSpecGroups(vcast24, vcast25, useLatest);
+  const specGroups = getSpecGroups(vcast24, vcast25);
 
   if (group != null) {
     // Check if the group exists and has a 'specs' key; otherwise, return an empty array

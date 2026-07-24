@@ -7,9 +7,8 @@ let envVars: string;
 
 const useVcast24 = process.env.USE_VCAST_24 === "True";
 const useVcast25 = process.env.USE_VCAST_25 === "True";
-const useLatest = process.env.USE_VCAST_LATEST === "True";
 
-envVars = getEnvVarsForGroup(useVcast24, groupName, useVcast25, useLatest);
+envVars = getEnvVarsForGroup(useVcast24, groupName, useVcast25);
 
 if (envVars) {
   console.log(envVars);
