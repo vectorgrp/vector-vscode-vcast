@@ -115,7 +115,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     // Build the env with Statement+MCDC so we can exercise MCDC coverage and the
-    // MCDC report later, just like the C/C++ mcdc spec does.
+    // MCDC report later, just like the C/C++ mcdc spec does. Close the settings
+    // editor afterwards, otherwise the open settings tab leaves the following
+    // explorer interactions "not interactable".
     const settingsEditor = await workbench.openSettings();
     const coverageKindSetting = await settingsEditor.findSetting(
       "Coverage Kind",
@@ -123,6 +125,7 @@ describe("vTypeCheck VS Code Extension", () => {
       "Build"
     );
     await coverageKindSetting.setValue("Statement+MCDC");
+    await workbench.getEditorView().closeAllEditors();
 
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
@@ -488,6 +491,9 @@ describe("vTypeCheck VS Code Extension", () => {
         "Build"
       );
       await coverageKindSetting.setValue(coverage);
+      // Close the settings editor so the later testing-pane interactions are not
+      // blocked ("element not interactable").
+      await workbench.getEditorView().closeAllEditors();
 
       // Wait for the rebuild to announce the new coverage kind and complete.
       await browser.waitUntil(
