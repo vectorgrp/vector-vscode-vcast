@@ -506,22 +506,37 @@ jobs:
         run: |
           echo "${{ secrets.E2E_ENV_BLOCK }}" >> $GITHUB_ENV
 
-      # Ada environments require a GNAT toolchain on PATH; VectorCAST does not
-      # bundle one (locally it uses the system gnat). The e2e container is
-      # Ubuntu 24.04, which ships gnat/gprbuild in apt. Install them for the Ada
-      # group only. If the container forbids apt, this step must be replaced by
-      # baking GNAT into the CI image.
+      # The Ada e2e group needs a GNAT toolchain on PATH; VectorCAST does not
+      # bundle one and the container is non-root with no access to public apt
+      # repos. So we install a RELOCATABLE GNAT the same way the pipeline already
+      # installs reqs2tests: download a tarball from a reachable URL (internal
+      # Artifactory), extract into $HOME (no root needed), and prepend its bin to
+      # PATH. Set GNAT_RELEASE_URL_LIN (e.g. in secrets.E2E_ENV_BLOCK) to a
+      # relocatable GNAT+gprbuild tarball. If unset, the step is a no-op and the
+      # Ada spec fails fast with a clear "GNAT not found" message.
       - name: Install GNAT for the Ada e2e group
         if: matrix.group == 'ada'
         shell: bash
         run: |
           if command -v gnatls >/dev/null 2>&1; then
             echo "GNAT already present: $(gnatls --version | head -n1)"
-          else
-            (apt-get update && apt-get install -y gnat gprbuild) \
-              || (sudo apt-get update && sudo apt-get install -y gnat gprbuild)
-            echo "Installed GNAT: $(gnatls --version | head -n1)"
+            exit 0
           fi
+          if [ -z "${GNAT_RELEASE_URL_LIN:-}" ]; then
+            echo "GNAT_RELEASE_URL_LIN is not set; skipping GNAT install." \
+              "The Ada spec will report a missing GNAT toolchain."
+            exit 0
+          fi
+          GNAT_HOME="$HOME/gnat"
+          mkdir -p "$GNAT_HOME"
+          echo "Downloading GNAT from $GNAT_RELEASE_URL_LIN"
+          wget -q "$GNAT_RELEASE_URL_LIN" -O /tmp/gnat.tar.gz
+          # --strip-components=1 flattens a single top-level dir in the tarball;
+          # adjust if the tarball layout differs.
+          tar -xf /tmp/gnat.tar.gz -C "$GNAT_HOME" --strip-components=1
+          rm -f /tmp/gnat.tar.gz
+          echo "PATH=$GNAT_HOME/bin:$PATH" >> "$GITHUB_ENV"
+          echo "Installed GNAT: $("$GNAT_HOME/bin/gnatls" --version | head -n1)"
 
       - name: Run tests
         run: |
