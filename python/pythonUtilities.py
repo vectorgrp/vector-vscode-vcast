@@ -37,6 +37,29 @@ def removeClicastInstance(enviroPath):
         del clicastInstances[enviroPath]
 
 
+def environmentLanguageFlag(enviroPath):
+    """
+    Return the clicast language flag for an environment: "-l ada" for Ada
+    environments, "-lc" otherwise. The clicast server binds its language at
+    startup, so an Ada env's server MUST be started with "-l ada" - otherwise
+    test execution runs with C/C++ semantics and (for example) Ada array
+    parameters are not initialised correctly, making tests fail. Defaults to
+    "-lc" if the environment cannot be opened.
+    """
+    try:
+        # DataAPI is available in this process; open read-only just to read the
+        # authoritative is_ada flag. Kept here (not in clicastInterface) to avoid
+        # a circular import - clicastInterface imports pythonUtilities.
+        from vector.apps.DataAPI.unit_test_api import UnitTestApi
+
+        with UnitTestApi(enviroPath) as api:
+            if bool(getattr(api.environment, "is_ada", False)):
+                return "-l ada"
+    except Exception:
+        pass
+    return "-lc"
+
+
 def startNewClicastInstance(enviroPath):
     """
     This function will start a new clicast instance and check
@@ -44,7 +67,9 @@ def startNewClicastInstance(enviroPath):
     process object, if not we will return None
     """
 
-    commandArgs = [globalClicastCommand, "-lc", "tools", "server"]
+    # The server's language is fixed at startup, so pick it from the env.
+    languageFlag = environmentLanguageFlag(enviroPath)
+    commandArgs = [globalClicastCommand, *languageFlag.split(), "tools", "server"]
     CWD = os.path.dirname(enviroPath)
     processObject = subprocess.Popen(
         commandArgs,
