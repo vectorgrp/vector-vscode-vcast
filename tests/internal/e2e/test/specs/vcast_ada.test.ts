@@ -8,19 +8,29 @@
 // The Ada tutorial sources (manager.adb / database.adb / ...) are copied into
 // the workspace's "ada" folder by wdio.conf.ts. From them this spec exercises:
 //   - creating an Ada environment from source (GNAT-on-host confirm dialog),
+//     built with Statement+MCDC,
 //   - the environment building successfully,
 //   - the test tree showing the Ada units under test (MANAGER + DATABASE),
 //   - .tst autocompletion returning Ada subprograms but NOT coded_tests_driver
 //     (coded tests do not exist for Ada),
 //   - writing and running a test (results report),
-//   - coverage gutter decorations on the real Ada source file,
+//   - MCDC coverage gutters and the per-line MC/DC report on the Ada source,
+//   - rebuilding through every coverage kind (Branch, Statement+Branch, MCDC,
+//     Statement+MCDC) with per-kind gutter icons,
+//   - Reqs2X: generating requirements from the Ada env, generating tests from
+//     those requirements into a CLEAN env (so the generated tests are
+//     unambiguous), running them and validating coverage,
 // and documents the Ada capability matrix (what works vs. what is intentionally
 // unavailable for Ada: coded tests, ATG).
+//
+// GNAT + gprbuild must be on PATH (installed by the workflow's "Install GNAT"
+// step), and the reqs2tests distribution must be the Ada-capable build.
 import {
   type BottomBarPanel,
   type TextEditor,
   type Workbench,
   type TreeItem,
+  CustomTreeItem,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -34,6 +44,9 @@ import {
   openTestScriptFor,
   checkElementExistsInHTML,
   checkForGutterAndGenerateReport,
+  generateBasisPathTestForSubprogram,
+  deleteGeneratedTest,
+  deleteAllTestsForEnv,
   updateTestID,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
@@ -42,9 +55,6 @@ describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
   let editorView: any;
-  // The env created from manager.adb + database.adb; its name is derived from
-  // the source basenames exactly like the C/C++ flow (DATABASE-MANAGER).
-  const adaEnvName = "DATABASE-MANAGER";
 
   before(async () => {
     workbench = await browser.getWorkbench();
@@ -103,6 +113,16 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should create an Ada VectorCAST environment from manager.adb + database.adb", async () => {
     await updateTestID();
+
+    // Build the env with Statement+MCDC so we can exercise MCDC coverage and the
+    // MCDC report later, just like the C/C++ mcdc spec does.
+    const settingsEditor = await workbench.openSettings();
+    const coverageKindSetting = await settingsEditor.findSetting(
+      "Coverage Kind",
+      "Vectorcast Test Explorer",
+      "Build"
+    );
+    await coverageKindSetting.setValue("Statement+MCDC");
 
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
@@ -356,24 +376,380 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("VectorCAST Report", 1);
   });
 
-  it("should show coverage gutter decorations on manager.adb", async () => {
+  it("should show MCDC coverage gutters and generate the MC/DC report on manager.adb", async () => {
     await updateTestID();
 
-    // After running the test above, the real Ada source should carry coverage.
-    // A green (covered) gutter on the PLACE_ORDER body confirms coverage flows
-    // for Ada exactly as for C/C++. We look for a covered icon somewhere in the
-    // file; the exact line is validated inside the helper.
-    // Line 31 (TABLE_DATA.IS_OCCUPIED := true;) is the first executable
-    // statement of PLACE_ORDER, so it is covered once the test runs. The helper
-    // scrolls to the line and asserts the covered-icon gutter background. We
-    // only check the gutter (generateReport = false) - no MC/DC report, since
-    // this is a statement-coverage environment.
+    // Line 31 (TABLE_DATA.IS_OCCUPIED := true;) is PLACE_ORDER's first
+    // executable statement, covered by the test run above. It is a plain
+    // statement (not an MC/DC decision), and the -with-mcdc icon variants are
+    // only applied to MC/DC decision lines - so this line gets the PLAIN
+    // covered icon even in a Statement+MCDC environment.
+    // Signature: (line, unitFileName, icon, moveCursor, generateReport).
     await checkForGutterAndGenerateReport(
       31,
       "manager.adb",
       "cover-icon",
-      false,
+      true,
+      false
+    );
+
+    // Line 58 (if ORDER.ENTREE = STEAK and ...) IS an MC/DC decision. Its gutter
+    // shows the no-cover mcdc icon (its condition pairs are not satisfied), and
+    // right-clicking it -> "VectorCAST MC/DC Report" must produce the per-line
+    // MC/DC report for the Ada decision. Clear the output first: the execution
+    // report above also logged "Report file path is:", and we must wait for the
+    // NEW report, not match stale text.
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+    await checkForGutterAndGenerateReport(
+      58,
+      "manager.adb",
+      "no-cover-icon-with-mcdc",
+      true,
       true
     );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT }
+    );
+    const webview = (await workbench.getAllWebviews())[0];
+    await webview.open();
+    // The MC/DC report names the real Ada source, the decision, and its pair
+    // status (0 of 3 satisfied for this uncovered decision).
+    expect(await checkElementExistsInHTML("manager.adb")).toBe(true);
+    expect(await checkElementExistsInHTML("ORDER.ENTREE = STEAK")).toBe(true);
+    expect(await checkElementExistsInHTML("Pairs satisfied: 0 of 3")).toBe(
+      true
+    );
+    await webview.close();
+    await editorView.closeEditor("VectorCAST Report", 1);
+  });
+
+  it("should rebuild with each coverage kind and check Ada gutter icons", async () => {
+    await updateTestID();
+
+    // Rebuild the env through every coverage kind and verify the gutter icons on
+    // ADD_INCLUDED_DESSERT's decision (line 58 = "if ORDER.ENTREE = STEAK and
+    // ...", line 63 = the "elsif ... LOBSTER" branch, line 67 = the CAKE
+    // statement). Mirrors the C/C++ mcdc spec's coverage-kind loop. Expected
+    // icons were captured from a real build of each kind (basis-path tests for
+    // ADD_INCLUDED_DESSERT, with BASIS-PATH-002 deleted to force a partial).
+    //   - Branch / Statement+Branch use the plain icons (no MC/DC decisions
+    //     exist in branch environments).
+    //   - In MC/DC kinds, the "-with-mcdc" icons apply ONLY to MC/DC decision
+    //     lines (58/63); plain statement lines (62) keep the plain icons. The
+    //     auto basis-path tests do not satisfy any independence pair, so the
+    //     decisions read uncovered.
+    const coverageKindOutputMapper: Record<string, string> = {
+      Branch: "Branch",
+      "Statement+Branch": "Statement+Branch",
+      MCDC: "MC/DC",
+      "Statement+MCDC": "Statement+MC/DC",
+    };
+    const expectedGutters: Record<
+      string,
+      Array<{ line: number; icon: string }>
+    > = {
+      Branch: [
+        { line: 58, icon: "cover-icon" },
+        { line: 63, icon: "partially-cover-icon" },
+      ],
+      "Statement+Branch": [
+        { line: 58, icon: "cover-icon" },
+        { line: 63, icon: "partially-cover-icon" },
+        { line: 67, icon: "no-cover-icon" },
+      ],
+      MCDC: [
+        { line: 58, icon: "no-cover-icon-with-mcdc" },
+        { line: 63, icon: "no-cover-icon-with-mcdc" },
+      ],
+      "Statement+MCDC": [
+        { line: 62, icon: "cover-icon" },
+        { line: 58, icon: "no-cover-icon-with-mcdc" },
+      ],
+    };
+
+    for (const coverage of Object.keys(expectedGutters)) {
+      const outputView = await bottomBar.openOutputView();
+      await outputView.clearText();
+
+      const settingsEditor = await workbench.openSettings();
+      const coverageKindSetting = await settingsEditor.findSetting(
+        "Coverage Kind",
+        "Vectorcast Test Explorer",
+        "Build"
+      );
+      await coverageKindSetting.setValue(coverage);
+
+      // Wait for the rebuild to announce the new coverage kind and complete.
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes(
+              `Setting Up ${coverageKindOutputMapper[coverage]} Coverage`
+            ),
+        { timeout: TIMEOUT }
+      );
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Environment re-build complete"),
+        { timeout: TIMEOUT }
+      );
+
+      // Generate basis-path tests for the decision, then delete one so that a
+      // partially covered branch appears (3 basis paths are generated).
+      await generateBasisPathTestForSubprogram(
+        "MANAGER",
+        "ADD_INCLUDED_DESSERT"
+      );
+      await deleteGeneratedTest(
+        "MANAGER",
+        "ADD_INCLUDED_DESSERT",
+        "BASIS-PATH-002",
+        3
+      );
+
+      for (const { line, icon } of expectedGutters[coverage]) {
+        await checkForGutterAndGenerateReport(
+          line,
+          "manager.adb",
+          icon,
+          true,
+          false
+        );
+      }
+    }
+  });
+
+  it("should configure Reqs2X", async () => {
+    await updateTestID();
+
+    // Mirrors the requirements group's configuration steps: point at the
+    // reqs2tests distribution, enable the feature, then configure azure_openai.
+    let settingsEditor = await workbench.openSettings();
+    const resourcePathSetting = await settingsEditor.findSetting(
+      "Installation Location",
+      "Vectorcast Test Explorer › Reqs2x"
+    );
+    console.log(
+      `Setting Reqs2x installation location: ${process.env.REQS2TESTS_RESOURCES ?? "Failed to find Resources"}`
+    );
+    await resourcePathSetting.setValue(process.env.REQS2TESTS_RESOURCES ?? "");
+    await workbench.getEditorView().closeAllEditors();
+
+    settingsEditor = await workbench.openSettings();
+    const enabledSetting = await settingsEditor.findSetting(
+      "Enable Reqs2x Feature",
+      "Vectorcast Test Explorer › Reqs2x"
+    );
+    await enabledSetting.setValue(true);
+    await workbench.getEditorView().closeAllEditors();
+
+    settingsEditor = await workbench.openSettings();
+    const providerSetting = await settingsEditor.findSetting(
+      "Provider",
+      "Vectorcast Test Explorer › Reqs2x"
+    );
+    await providerSetting.setValue("azure_openai");
+    await workbench.getEditorView().closeAllEditors();
+
+    settingsEditor = await workbench.openSettings();
+    const apiKeySetting = await settingsEditor.findSetting(
+      "Api Key",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await apiKeySetting.setValue(
+      process.env.OPENAI_API_KEY ?? "Failed to find API Key"
+    );
+    await workbench.getEditorView().closeAllEditors();
+
+    settingsEditor = await workbench.openSettings();
+    const urlSetting = await settingsEditor.findSetting(
+      "Base Url",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await urlSetting.setValue(
+      process.env.AZURE_BASE_URL ?? "Failed to find Base URL"
+    );
+    await workbench.getEditorView().closeAllEditors();
+
+    settingsEditor = await workbench.openSettings();
+    const deploymentSetting = await settingsEditor.findSetting(
+      "Deployment",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await deploymentSetting.setValue("gpt-4.1-mini");
+    await workbench.getEditorView().closeAllEditors();
+
+    settingsEditor = await workbench.openSettings();
+    const modelSetting = await settingsEditor.findSetting(
+      "Model Name",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await modelSetting.setValue("gpt-4.1-mini");
+    await workbench.getEditorView().closeAllEditors();
+
+    settingsEditor = await workbench.openSettings();
+    const apiVersionSetting = await settingsEditor.findSetting(
+      "Api Version",
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+    await apiVersionSetting.setValue("2024-12-01-preview");
+    await workbench.getEditorView().closeAllEditors();
+  });
+
+  it("should generate requirements for the Ada environment", async () => {
+    await updateTestID();
+
+    const activityBar = workbench.getActivityBar();
+    const testingView = await activityBar.getViewControl("Testing");
+    await testingView?.openView();
+    const vcastTestingViewContent = await getViewContent("Testing");
+
+    await (await vcastTestingViewContent.elem).click();
+    const sections = await vcastTestingViewContent.getSections();
+    const testExplorerSection = sections[0];
+    const testEnvironments = await testExplorerSection.getVisibleItems();
+
+    // Go through the (only) env and click on Generate Requirements - mirrors
+    // the C/C++ requirements spec, but against the Ada environment.
+    for (const testEnvironment of testEnvironments) {
+      let testEnvironmentContextMenu;
+      try {
+        testEnvironmentContextMenu = await (
+          testEnvironment as CustomTreeItem
+        ).openContextMenu();
+      } catch {
+        console.log("Cannot open context menu, not an environment");
+        break;
+      }
+
+      if (testEnvironmentContextMenu != undefined) {
+        await testEnvironmentContextMenu.select("VectorCAST");
+        const generateButton = await $("aria/Generate Requirements");
+        if (generateButton == undefined) break;
+        await generateButton.click();
+
+        // code2reqs must handle the Ada environment and exit cleanly.
+        await browser.waitUntil(
+          async () =>
+            (await (await bottomBar.openOutputView()).getText())
+              .toString()
+              .includes("code2reqs exit code: 0"),
+          { timeout: 240_000 }
+        );
+        break;
+      }
+    }
+  });
+
+  it("should generate tests from requirements into a clean Ada environment and check coverage", async () => {
+    await updateTestID();
+
+    // Start from a CLEAN environment (no tests) so that the tests appearing
+    // afterwards are unambiguously the generated ones, and the coverage seen
+    // afterwards comes only from them.
+    await deleteAllTestsForEnv("DATABASE-MANAGER");
+
+    const vcastTestingViewContent = await getViewContent("Testing");
+    let manager: TreeItem;
+    for (const section of await vcastTestingViewContent.getSections()) {
+      manager = await findSubprogram("MANAGER", section);
+      if (manager) {
+        await manager.expand();
+        break;
+      }
+    }
+    if (!manager) throw new Error("Unit 'MANAGER' not found");
+
+    const placeOrder = await findSubprogramMethod(manager, "PLACE_ORDER");
+    if (!placeOrder) throw new Error("Subprogram 'PLACE_ORDER' not found");
+    if (!placeOrder.isExpanded()) {
+      await placeOrder.select();
+    }
+
+    // Clear the reqs channel so we only see output from THIS invocation.
+    const outputView = await bottomBar.openOutputView();
+    try {
+      await outputView.selectChannel(
+        "VectorCAST Requirement Test Generation Operations"
+      );
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
+    await outputView.clearText();
+
+    const contextMenu = await placeOrder.openContextMenu();
+    await contextMenu.select("VectorCAST");
+    const menuElement = await $("aria/Generate Tests from Requirements");
+    await menuElement.click();
+
+    // Wait for reqs2tests to finish (LLM-driven, so allow plenty of time).
+    await browser.waitUntil(
+      async () =>
+        (await (await bottomBar.openOutputView()).getText())
+          .toString()
+          .includes("reqs2tests exit code: 0"),
+      { timeout: 240_000 }
+    );
+
+    // The environment was clean, so any test under PLACE_ORDER now was
+    // generated from the requirements.
+    await browser.waitUntil(
+      async () => (await placeOrder.getChildren()).length > 0,
+      {
+        timeout: TIMEOUT,
+        timeoutMsg: "No generated requirement tests appeared under PLACE_ORDER",
+      }
+    );
+
+    // Run the generated tests and validate coverage: any PLACE_ORDER execution
+    // covers its entry statements. Generated test names/inputs vary (LLM), so
+    // require green gutters only on the always-executed lines and allow the
+    // input-dependent ones to differ - same approach as the C/C++
+    // requirements spec.
+    try {
+      await outputView.selectChannel("VectorCAST Test Explorer");
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
+    await (await (await placeOrder.getActionButton("Run Test")).elem).click();
+
+    const requiredGreenLines = new Set<number>([27, 31, 32, 33]);
+    const missingRequired: number[] = [];
+    for (let line = 27; line <= 33; line++) {
+      try {
+        await checkForGutterAndGenerateReport(
+          line,
+          "manager.adb",
+          "cover-icon",
+          true,
+          false
+        );
+        console.log(`Line ${line} has a green gutter`);
+      } catch {
+        if (requiredGreenLines.has(line)) {
+          missingRequired.push(line);
+        } else {
+          console.log(`Line ${line} has no green gutter (allowed)`);
+        }
+      }
+    }
+    if (missingRequired.length > 0) {
+      throw new Error(
+        `Missing required green gutters on lines: ${missingRequired.join(", ")}`
+      );
+    }
   });
 });

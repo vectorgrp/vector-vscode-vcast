@@ -343,6 +343,10 @@ export function getSpecGroups(
     env: {
       WAIT_AFTER_TESTS_FINISHED: "True",
       VCAST_USE_PYTHON: "True",
+      // The spec's reqs2x section mirrors the requirements group: PCT release
+      // storage (skips the RGW setup) and debug logs for diagnosability.
+      REQS2X_PCT_RELEASE: "True",
+      VCAST_REQS2X_LOG_LEVEL: "debug",
     },
     params: {},
   };
