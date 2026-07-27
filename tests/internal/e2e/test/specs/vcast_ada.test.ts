@@ -115,6 +115,42 @@ async function insertAndRunAdaBasisPaths(
   );
 }
 
+// Read the coverage gutter icon URL for a given line of a source file, so the
+// ACTUAL icon can be logged and compared (checkForGutterAndGenerateReport
+// asserts internally and never reveals what it actually saw). Mirrors that
+// helper's gutter lookup but returns the background-image URL instead of
+// asserting; returns a placeholder string when the line has no gutter icon.
+async function readAdaGutterIcon(
+  unitFileName: string,
+  line: number
+): Promise<string> {
+  const wb = await browser.getWorkbench();
+  const explorerView = await wb.getActivityBar().getViewControl("Explorer");
+  await explorerView?.openView();
+  const wsSection =
+    await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+  let fileItem = await wsSection.findItem(unitFileName);
+  if (!fileItem) {
+    const adaFolder = wsSection.findItem("ada");
+    await (await adaFolder).select();
+    fileItem = await wsSection.findItem(unitFileName);
+  }
+  const editorView = wb.getEditorView();
+  const openEditors = await editorView.getOpenEditorTitles();
+  if (!openEditors.includes(unitFileName) && fileItem) await fileItem.select();
+  const tab = (await editorView.openEditor(unitFileName)) as TextEditor;
+  await tab.moveCursor(line, 1);
+  try {
+    const lineNumberElement = await $(`.line-numbers=${line}`);
+    const parent = await lineNumberElement.parentElement();
+    const flaskElement = await parent.$(".cgmr.codicon");
+    const bg = await flaskElement.getCSSProperty("background-image");
+    return (bg && bg.value) || "(no background-image)";
+  } catch (e) {
+    return `(no gutter element: ${(e as Error).message})`;
+  }
+}
+
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
   let workbench: Workbench;
@@ -481,6 +517,13 @@ describe("vTypeCheck VS Code Extension", () => {
       ],
     };
 
+    // Collect every gutter mismatch across ALL coverage kinds and report them
+    // together at the end, so a single run logs the actual icon for every line
+    // (see the "[ada gutter]" logs) instead of failing on the first mismatch.
+    const gutterMismatches: string[] = [];
+    // Candidate decision/statement lines to inspect for each coverage kind.
+    const candidateLines = [58, 62, 63, 67];
+
     for (const coverage of Object.keys(expectedGutters)) {
       // Focus the Explorer view BEFORE touching Settings (mirrors the C/C++
       // mcdc spec). This is essential: if the Testing pane stays focused while
@@ -586,15 +629,37 @@ describe("vTypeCheck VS Code Extension", () => {
         3
       );
 
-      for (const { line, icon } of expectedGutters[coverage]) {
-        await checkForGutterAndGenerateReport(
-          line,
-          "manager.adb",
-          icon,
-          true,
-          false
+      // Log the ACTUAL gutter icon for each candidate line, and compare against
+      // the expectation for this coverage kind (if any). Do not throw here -
+      // collect mismatches so the run logs the full picture for all kinds.
+      const expectedForKind = new Map(
+        expectedGutters[coverage].map((g) => [g.line, g.icon])
+      );
+      for (const line of candidateLines) {
+        const actual = await readAdaGutterIcon("manager.adb", line);
+        const expectedIcon = expectedForKind.get(line);
+        const matches = expectedIcon
+          ? actual.includes(`/${expectedIcon}`)
+          : undefined;
+        console.log(
+          `[ada gutter] coverage=${coverage} line=${line} ` +
+            `expected=${expectedIcon ?? "(none)"} actual=${actual} ` +
+            `match=${matches === undefined ? "(not checked)" : matches}`
         );
+        if (expectedIcon && !actual.includes(`/${expectedIcon}`)) {
+          gutterMismatches.push(
+            `coverage=${coverage} line=${line}: expected "${expectedIcon}", actual="${actual}"`
+          );
+        }
       }
+    }
+
+    if (gutterMismatches.length > 0) {
+      throw new Error(
+        `Ada gutter icon mismatches (see the [ada gutter] logs above for the ` +
+          `actual icons of every candidate line/coverage kind):\n` +
+          gutterMismatches.join("\n")
+      );
     }
   });
 
