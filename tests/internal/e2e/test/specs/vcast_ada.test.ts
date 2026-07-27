@@ -76,11 +76,23 @@ async function insertAndRunAdaBasisPaths(
 
   const method = await findSubprogramMethod(unitNode, subprogram);
   if (!method) throw new Error(`Subprogram '${subprogram}' not found`);
-  if (!(await method.isExpanded())) await method.select();
 
   const outputView = await bottomBar.openOutputView();
   await outputView.clearText();
-  const contextMenu = await (method as CustomTreeItem).openContextMenu();
+
+  // Open the context menu on the subprogram, retrying if the VS Code tree hover
+  // tooltip ("<name> (Not yet run)") intercepts the right-click ("element click
+  // intercepted"). Pressing Escape dismisses any lingering hover between tries.
+  let contextMenu;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await browser.keys([Key.Escape]);
+      contextMenu = await (method as CustomTreeItem).openContextMenu();
+      break;
+    } catch (err) {
+      if (attempt === 3) throw err;
+    }
+  }
   await contextMenu.select("VectorCAST");
   await (await $("aria/Insert Basis Path Tests")).click();
   await browser.waitUntil(
@@ -492,10 +504,12 @@ describe("vTypeCheck VS Code Extension", () => {
         "Build"
       );
       await coverageKindSetting.setValue(coverage);
-      // NOTE: do NOT closeAllEditors here - the C/C++ mcdc spec leaves the
-      // settings editor open and the testing-pane interactions still work. An
-      // extra close after the search was part of what pushed focus/search text
-      // into the Test Explorer filter.
+      // Close the settings editor now that the value is set. This is safe for
+      // the Test Explorer filter because we focused Explorer BEFORE opening
+      // Settings (so the search text never reached the Testing filter), and it
+      // keeps the editor area clean so the settings tab does not overlap /
+      // interfere with the later tree and gutter interactions.
+      await workbench.getEditorView().closeAllEditors();
 
       // Wait for the rebuild to announce the new coverage kind.
       await browser.waitUntil(
