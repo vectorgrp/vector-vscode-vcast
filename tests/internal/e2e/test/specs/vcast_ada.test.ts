@@ -794,6 +794,28 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const activityBar = workbench.getActivityBar();
+
+    // code2reqs logs to its OWN output channel; select it before waiting for the
+    // completion marker (the C/C++ requirements spec does the same). Without
+    // this we watch the default "VectorCAST Test Explorer" channel, never see
+    // "code2reqs exit code: 0", and time out.
+    const outputView = await bottomBar.openOutputView();
+    try {
+      await browser.waitUntil(async () =>
+        (await outputView.getChannelNames())
+          .toString()
+          .includes("VectorCAST Requirement Test Generation Operations")
+      );
+      await outputView.selectChannel(
+        "VectorCAST Requirement Test Generation Operations"
+      );
+    } catch (err) {
+      console.warn(
+        "selectChannel failed, continuing anyway:",
+        (err as Error).message
+      );
+    }
+
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
     const vcastTestingViewContent = await getViewContent("Testing");
@@ -822,14 +844,36 @@ describe("vTypeCheck VS Code Extension", () => {
         if (generateButton == undefined) break;
         await generateButton.click();
 
-        // code2reqs must handle the Ada environment and exit cleanly.
-        await browser.waitUntil(
-          async () =>
-            (await (await bottomBar.openOutputView()).getText())
-              .toString()
-              .includes("code2reqs exit code: 0"),
-          { timeout: 240_000 }
-        );
+        // Wait for code2reqs to finish. Fail fast (dumping the reqs channel) if
+        // it exits non-zero, instead of hanging the whole timeout - the reqs2x
+        // LLM path (azure_openai) is the most likely thing to break in CI.
+        let reqsOutput = "";
+        try {
+          await browser.waitUntil(
+            async () => {
+              reqsOutput = (
+                await (await bottomBar.openOutputView()).getText()
+              ).toString();
+              if (reqsOutput.includes("code2reqs exit code: 0")) return true;
+              const nonZero = reqsOutput.match(/code2reqs exit code: (\d+)/);
+              if (nonZero && nonZero[1] !== "0") {
+                throw new Error(
+                  `code2reqs exited with code ${nonZero[1]}:\n${reqsOutput}`
+                );
+              }
+              return false;
+            },
+            { timeout: 240_000, interval: 3000 }
+          );
+        } catch (error) {
+          reqsOutput =
+            reqsOutput ||
+            (await (await bottomBar.openOutputView()).getText()).toString();
+          throw new Error(
+            `Generate Requirements (code2reqs) did not complete. Reqs output ` +
+              `was:\n${reqsOutput}\n\n(original error: ${(error as Error).message})`
+          );
+        }
         break;
       }
     }
