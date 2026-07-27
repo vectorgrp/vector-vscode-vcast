@@ -869,6 +869,47 @@ describe("vTypeCheck VS Code Extension", () => {
           reqsOutput =
             reqsOutput ||
             (await (await bottomBar.openOutputView()).getText()).toString();
+
+          // Log whatever the Requirements webview panel shows (if the extension
+          // opened one), so we can see whether ANY requirements were produced
+          // before the failure.
+          try {
+            const webviews = await workbench.getAllWebviews();
+            console.log(`[reqs panel] ${webviews.length} webview(s) open`);
+            for (let i = 0; i < webviews.length; i++) {
+              const wv = webviews[i];
+              await wv.open();
+              let bodyText = "";
+              try {
+                bodyText = (await (await $("body")).getText()).toString();
+              } catch {
+                bodyText = "(could not read body)";
+              }
+              let cardCount = 0;
+              try {
+                cardCount = await $$(".req[data-req-id]").length;
+              } catch {
+                /* not the requirements webview */
+              }
+              console.log(
+                `[reqs panel] webview[${i}] requirementCards=${cardCount} body:\n${bodyText}`
+              );
+              await wv.close();
+            }
+          } catch (panelErr) {
+            console.log(
+              `[reqs panel] could not read Requirements panel: ${(panelErr as Error).message}`
+            );
+          }
+
+          // Expand the bottom panel so the failure screenshot shows as much of
+          // the reqs output as possible.
+          try {
+            await bottomBar.maximize();
+          } catch {
+            /* maximize not available; ignore */
+          }
+
           throw new Error(
             `Generate Requirements (code2reqs) did not complete. Reqs output ` +
               `was:\n${reqsOutput}\n\n(original error: ${(error as Error).message})`
