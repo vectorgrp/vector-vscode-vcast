@@ -488,6 +488,21 @@ describe("vTypeCheck VS Code Extension", () => {
       // "-l ada", larger harness). Wait for the MANAGER unit to reappear in the
       // Testing pane before generating tests, otherwise the tree lookup below
       // races the refresh and fails with "Subprogram 'manager' not found".
+      // The extension DOES repopulate the env node after the rebuild (the
+      // "[updateTestsForEnvironment] processed env node" trace confirms it),
+      // but the settings-editor churn above leaves the Testing view unfocused,
+      // so the tree query races/misses it. Re-focus the Testing view and click
+      // its content (mirrors the requirements spec) before looking it up.
+      const testingActivity = await workbench
+        .getActivityBar()
+        .getViewControl("Testing");
+      await testingActivity?.openView();
+      try {
+        const testingContent = await getViewContent("Testing");
+        await (await testingContent.elem).click();
+      } catch {
+        // best-effort focus; the poll below tolerates a transient miss
+      }
       try {
         await browser.waitUntil(
           async () => {
