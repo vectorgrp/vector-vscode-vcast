@@ -222,6 +222,36 @@ def environmentIsAda(enviroPath):
         return False
 
 
+def adaParentLibOverride(enviroName):
+    """
+    On rebuild we regenerate the enviro script with "enviro script create".
+    For Ada environments VectorCAST re-emits ENVIRO.PARENT_LIB as a bare GPR
+    basename (relative to the current directory). But the GPR lives in the Ada
+    *source* directory, not the rebuild CWD (unitTests/), so a relative
+    reference does not resolve at build time and "enviro build" fails with
+    exit code 19.
+
+    The extension's original <enviroName>.env script still records the correct
+    ABSOLUTE PARENT_LIB it wrote at create time, so read it back and use that to
+    fix up the regenerated script. Returns the absolute PARENT_LIB value, or
+    None if it is unavailable (in which case the regenerated value is kept).
+    """
+    originalEnv = enviroName + ".env"
+    if not os.path.isfile(originalEnv):
+        return None
+    try:
+        with open(originalEnv, "r") as originalFile:
+            for line in originalFile:
+                if line.strip().startswith("ENVIRO.PARENT_LIB"):
+                    _, value = line.split(":", 1)
+                    value = value.strip()
+                    if os.path.isabs(value) and os.path.exists(value):
+                        return value
+    except Exception:
+        pass
+    return None
+
+
 def updateScriptsAndRebuild(enviroPath, jsonOptions, isAda=False):
     """
     This does the actual work of updating the scripts
@@ -232,6 +262,10 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions, isAda=False):
 
     # Ada environments must be rebuilt with "-l ada"; C/C++ use "-lc".
     languageFlag = "-l ada" if isAda else "-lc"
+
+    # For Ada, "enviro script create" loses the absolute PARENT_LIB (GPR) path;
+    # recover it from the original env script so the rebuild can find the GPR.
+    adaParentLib = adaParentLibOverride(enviroName) if isAda else None
 
     # Read the enviro script into a list of strings
     with open(tempEnviroScript, "r") as enviroFile:
@@ -254,8 +288,11 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions, isAda=False):
                 enviroCommand, enviroValue = line.split(":", 1)
                 enviroCommand = enviroCommand.strip()
                 enviroValue = enviroValue.strip()
+                # Ada: restore the absolute GPR path lost by "script create".
+                if adaParentLib and enviroCommand == "ENVIRO.PARENT_LIB":
+                    whatToWrite = f"ENVIRO.PARENT_LIB: {adaParentLib}\n"
                 # if so replace the existing value ...
-                if enviroCommand in jsonOptions:
+                elif enviroCommand in jsonOptions:
                     whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"
                     jsonOptions.pop(enviroCommand)
 
