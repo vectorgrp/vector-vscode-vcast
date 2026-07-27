@@ -114,19 +114,13 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should create an Ada VectorCAST environment from manager.adb + database.adb", async () => {
     await updateTestID();
 
-    // Build the env with Statement+MCDC so we can exercise MCDC coverage and the
-    // MCDC report later, just like the C/C++ mcdc spec does. Close the settings
-    // editor afterwards, otherwise the open settings tab leaves the following
-    // explorer interactions "not interactable".
-    const settingsEditor = await workbench.openSettings();
-    const coverageKindSetting = await settingsEditor.findSetting(
-      "Coverage Kind",
-      "Vectorcast Test Explorer",
-      "Build"
-    );
-    await coverageKindSetting.setValue("Statement+MCDC");
-    await workbench.getEditorView().closeAllEditors();
-
+    // Create with the DEFAULT coverage kind. Do NOT open the Settings editor
+    // here: the C/C++ specs only ever change Coverage Kind AFTER the env exists
+    // (and then rely on the auto-rebuild). Touching Settings before the env is
+    // created leaves the explorer/testing-pane interactions below "not
+    // interactable". Statement+MCDC is established later by the coverage-kind
+    // loop (proven setValue + auto-rebuild pattern), and the MCDC report test
+    // runs after that loop, so the env is Statement+MCDC when it needs to be.
     const activityBar = workbench.getActivityBar();
     const explorerView = await activityBar.getViewControl("Explorer");
     await explorerView?.openView();
@@ -379,63 +373,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("VectorCAST Report", 1);
   });
 
-  it("should show MCDC coverage gutters and generate the MC/DC report on manager.adb", async () => {
-    await updateTestID();
-
-    // Line 31 (TABLE_DATA.IS_OCCUPIED := true;) is PLACE_ORDER's first
-    // executable statement, covered by the test run above. It is a plain
-    // statement (not an MC/DC decision), and the -with-mcdc icon variants are
-    // only applied to MC/DC decision lines - so this line gets the PLAIN
-    // covered icon even in a Statement+MCDC environment.
-    // Signature: (line, unitFileName, icon, moveCursor, generateReport).
-    await checkForGutterAndGenerateReport(
-      31,
-      "manager.adb",
-      "cover-icon",
-      true,
-      false
-    );
-
-    // Line 58 (if ORDER.ENTREE = STEAK and ...) IS an MC/DC decision. Its gutter
-    // shows the no-cover mcdc icon (its condition pairs are not satisfied), and
-    // right-clicking it -> "VectorCAST MC/DC Report" must produce the per-line
-    // MC/DC report for the Ada decision. Clear the output first: the execution
-    // report above also logged "Report file path is:", and we must wait for the
-    // NEW report, not match stale text.
-    const outputView = await bottomBar.openOutputView();
-    await outputView.clearText();
-    await checkForGutterAndGenerateReport(
-      58,
-      "manager.adb",
-      "no-cover-icon-with-mcdc",
-      true,
-      true
-    );
-
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Report file path is:"),
-      { timeout: TIMEOUT }
-    );
-    await browser.waitUntil(
-      async () => (await workbench.getAllWebviews()).length > 0,
-      { timeout: TIMEOUT }
-    );
-    const webview = (await workbench.getAllWebviews())[0];
-    await webview.open();
-    // The MC/DC report names the real Ada source, the decision, and its pair
-    // status (0 of 3 satisfied for this uncovered decision).
-    expect(await checkElementExistsInHTML("manager.adb")).toBe(true);
-    expect(await checkElementExistsInHTML("ORDER.ENTREE = STEAK")).toBe(true);
-    expect(await checkElementExistsInHTML("Pairs satisfied: 0 of 3")).toBe(
-      true
-    );
-    await webview.close();
-    await editorView.closeEditor("VectorCAST Report", 1);
-  });
-
   it("should rebuild with each coverage kind and check Ada gutter icons", async () => {
     await updateTestID();
 
@@ -536,6 +473,56 @@ describe("vTypeCheck VS Code Extension", () => {
         );
       }
     }
+  });
+
+  it("should generate the MC/DC report for an Ada decision on manager.adb", async () => {
+    await updateTestID();
+
+    // Runs AFTER the coverage-kind loop, so the env is already Statement+MCDC
+    // and ADD_INCLUDED_DESSERT's basis-path tests are in place (BASIS-PATH-002
+    // deleted -> the decision reads uncovered). Line 58 (if ORDER.ENTREE = STEAK
+    // and ...) is that MC/DC decision. We do not re-check plain statement
+    // coverage of PLACE_ORDER here (validated by the run test earlier); a
+    // rebuild in the loop above would not have re-executed that test, so its
+    // gutter state is not asserted.
+    //
+    // Its gutter shows the no-cover mcdc icon (its condition pairs are not
+    // satisfied), and right-clicking it -> "VectorCAST MC/DC Report" must
+    // produce the per-line MC/DC report for the Ada decision. Clear the output
+    // first so we wait for the NEW report, not stale "Report file path is:".
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+    // Signature: (line, unitFileName, icon, moveCursor, generateReport).
+    await checkForGutterAndGenerateReport(
+      58,
+      "manager.adb",
+      "no-cover-icon-with-mcdc",
+      true,
+      true
+    );
+
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Report file path is:"),
+      { timeout: TIMEOUT }
+    );
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: TIMEOUT }
+    );
+    const webview = (await workbench.getAllWebviews())[0];
+    await webview.open();
+    // The MC/DC report names the real Ada source, the decision, and its pair
+    // status (0 of 3 satisfied for this uncovered decision).
+    expect(await checkElementExistsInHTML("manager.adb")).toBe(true);
+    expect(await checkElementExistsInHTML("ORDER.ENTREE = STEAK")).toBe(true);
+    expect(await checkElementExistsInHTML("Pairs satisfied: 0 of 3")).toBe(
+      true
+    );
+    await webview.close();
+    await editorView.closeEditor("VectorCAST Report", 1);
   });
 
   it("should configure Reqs2X", async () => {
