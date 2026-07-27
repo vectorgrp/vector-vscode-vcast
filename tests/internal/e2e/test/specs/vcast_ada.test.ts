@@ -482,6 +482,30 @@ describe("vTypeCheck VS Code Extension", () => {
         );
       }
 
+      // "Environment re-build complete" is logged BEFORE the extension
+      // repopulates the test pane (updateDataForEnvironment runs afterwards),
+      // and the Ada refresh lags the message (data-server restart with
+      // "-l ada", larger harness). Wait for the MANAGER unit to reappear in the
+      // Testing pane before generating tests, otherwise the tree lookup below
+      // races the refresh and fails with "Subprogram 'manager' not found".
+      await browser.waitUntil(
+        async () => {
+          try {
+            const content = await getViewContent("Testing");
+            for (const section of await content.getSections()) {
+              if (await findSubprogram("MANAGER", section)) return true;
+            }
+          } catch {
+            // tree is mid-refresh; keep polling
+          }
+          return false;
+        },
+        {
+          timeout: TIMEOUT,
+          timeoutMsg: `MANAGER unit did not reappear in the Testing pane after rebuilding to ${coverage} coverage`,
+        }
+      );
+
       // Generate basis-path tests for the decision, then delete one so that a
       // partially covered branch appears (3 basis paths are generated).
       await generateBasisPathTestForSubprogram(
