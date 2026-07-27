@@ -44,12 +44,64 @@ import {
   openTestScriptFor,
   checkElementExistsInHTML,
   checkForGutterAndGenerateReport,
-  generateBasisPathTestForSubprogram,
   deleteGeneratedTest,
   deleteAllTestsForEnv,
   updateTestID,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
+
+// Ada-aware "Insert Basis Path Tests" + run. The shared
+// insertBasisPathTestFor() hard-waits for "BASIS-PATH-004" (the C/C++
+// Manager::AddIncludedDessert has 4 basis paths); the Ada subprogram has 3, so
+// that wait would hang for the full timeout. Here we insert the basis-path
+// tests, then run them and wait on the post-run data refresh
+// ("Processing environment data for:"), which is independent of how many basis
+// paths the subprogram happens to have.
+async function insertAndRunAdaBasisPaths(
+  bottomBar: BottomBarPanel,
+  unit: string,
+  subprogram: string
+): Promise<void> {
+  const content = await getViewContent("Testing");
+  let unitNode: TreeItem | undefined;
+  for (const section of await content.getSections()) {
+    unitNode = await findSubprogram(unit, section);
+    if (unitNode) {
+      if (!(await unitNode.isExpanded())) await unitNode.expand();
+      break;
+    }
+  }
+  if (!unitNode)
+    throw new Error(`Unit '${unit}' not found in the Testing pane`);
+
+  const method = await findSubprogramMethod(unitNode, subprogram);
+  if (!method) throw new Error(`Subprogram '${subprogram}' not found`);
+  if (!(await method.isExpanded())) await method.select();
+
+  const outputView = await bottomBar.openOutputView();
+  await outputView.clearText();
+  const contextMenu = await (method as CustomTreeItem).openContextMenu();
+  await contextMenu.select("VectorCAST");
+  await (await $("aria/Insert Basis Path Tests")).click();
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+
+  // Run the generated basis-path tests so their coverage shows in the gutters.
+  await outputView.clearText();
+  await (await (await method.getActionButton("Run Test")).elem).click();
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for:"),
+    { timeout: TIMEOUT }
+  );
+}
 
 describe("vTypeCheck VS Code Extension", () => {
   let bottomBar: BottomBarPanel;
@@ -496,16 +548,23 @@ describe("vTypeCheck VS Code Extension", () => {
       }
 
       // The extension repopulates the test pane after the rebuild (confirmed
-      // via the updateTestsForEnvironment trace). generateBasisPathTestForSubprogram
-      // re-activates the Testing view via getViewContent, so the env/units are
-      // found directly - exactly as the C/C++ mcdc spec does.
-
-      // Generate basis-path tests for the decision, then delete one so that a
-      // partially covered branch appears (3 basis paths are generated).
-      await generateBasisPathTestForSubprogram(
+      // via the updateTestsForEnvironment trace); getViewContent re-activates
+      // the Testing view, so the env/units are found directly.
+      //
+      // NOTE: we do NOT use the shared generateBasisPathTestForSubprogram /
+      // insertBasisPathTestFor helpers here - they hard-wait for
+      // "BASIS-PATH-004", which only exists for the C/C++
+      // Manager::AddIncludedDessert (4 basis paths). The Ada
+      // MANAGER.ADD_INCLUDED_DESSERT has 3 basis paths, so insertAndRunAdaBasisPaths
+      // waits on a count-independent completion signal instead.
+      await insertAndRunAdaBasisPaths(
+        bottomBar,
         "MANAGER",
         "ADD_INCLUDED_DESSERT"
       );
+
+      // Delete one basis-path test so that a partially covered branch appears
+      // (3 basis paths are generated for the Ada subprogram).
       await deleteGeneratedTest(
         "MANAGER",
         "ADD_INCLUDED_DESSERT",
