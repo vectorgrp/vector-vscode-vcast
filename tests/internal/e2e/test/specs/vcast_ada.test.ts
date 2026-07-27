@@ -418,6 +418,18 @@ describe("vTypeCheck VS Code Extension", () => {
     };
 
     for (const coverage of Object.keys(expectedGutters)) {
+      // Focus the Explorer view BEFORE touching Settings (mirrors the C/C++
+      // mcdc spec). This is essential: if the Testing pane stays focused while
+      // we search Settings, the settings-search text ("Coverage Kind") leaks
+      // into the Test Explorer's filter box and hides the whole tree, so the
+      // env/units appear to vanish after the rebuild. Switching to Explorer
+      // first, then re-activating Testing via getViewContent later, keeps the
+      // Test Explorer filter clean.
+      const explorerView = await workbench
+        .getActivityBar()
+        .getViewControl("Explorer");
+      await explorerView?.openView();
+
       const outputView = await bottomBar.openOutputView();
       await outputView.clearText();
 
@@ -428,9 +440,10 @@ describe("vTypeCheck VS Code Extension", () => {
         "Build"
       );
       await coverageKindSetting.setValue(coverage);
-      // Close the settings editor so the later testing-pane interactions are not
-      // blocked ("element not interactable").
-      await workbench.getEditorView().closeAllEditors();
+      // NOTE: do NOT closeAllEditors here - the C/C++ mcdc spec leaves the
+      // settings editor open and the testing-pane interactions still work. An
+      // extra close after the search was part of what pushed focus/search text
+      // into the Test Explorer filter.
 
       // Wait for the rebuild to announce the new coverage kind.
       await browser.waitUntil(
@@ -482,53 +495,10 @@ describe("vTypeCheck VS Code Extension", () => {
         );
       }
 
-      // "Environment re-build complete" is logged BEFORE the extension
-      // repopulates the test pane (updateDataForEnvironment runs afterwards),
-      // and the Ada refresh lags the message (data-server restart with
-      // "-l ada", larger harness). Wait for the MANAGER unit to reappear in the
-      // Testing pane before generating tests, otherwise the tree lookup below
-      // races the refresh and fails with "Subprogram 'manager' not found".
-      // The extension DOES repopulate the env node after the rebuild (the
-      // "[updateTestsForEnvironment] processed env node" trace confirms it),
-      // but the settings-editor churn above leaves the Testing view unfocused,
-      // so the tree query races/misses it. Re-focus the Testing view and click
-      // its content (mirrors the requirements spec) before looking it up.
-      const testingActivity = await workbench
-        .getActivityBar()
-        .getViewControl("Testing");
-      await testingActivity?.openView();
-      try {
-        const testingContent = await getViewContent("Testing");
-        await (await testingContent.elem).click();
-      } catch {
-        // best-effort focus; the poll below tolerates a transient miss
-      }
-      try {
-        await browser.waitUntil(
-          async () => {
-            try {
-              const content = await getViewContent("Testing");
-              for (const section of await content.getSections()) {
-                if (await findSubprogram("MANAGER", section)) return true;
-              }
-            } catch {
-              // tree is mid-refresh; keep polling
-            }
-            return false;
-          },
-          { timeout: TIMEOUT, interval: 3000 }
-        );
-      } catch {
-        // Dump the extension output so the [updateTestsForEnvironment]
-        // diagnostics (empty data vs processing exception) are visible in CI.
-        const paneText = (
-          await (await bottomBar.openOutputView()).getText()
-        ).toString();
-        throw new Error(
-          `MANAGER unit did not reappear in the Testing pane after rebuilding ` +
-            `to ${coverage} coverage. Extension output was:\n${paneText}`
-        );
-      }
+      // The extension repopulates the test pane after the rebuild (confirmed
+      // via the updateTestsForEnvironment trace). generateBasisPathTestForSubprogram
+      // re-activates the Testing view via getViewContent, so the env/units are
+      // found directly - exactly as the C/C++ mcdc spec does.
 
       // Generate basis-path tests for the decision, then delete one so that a
       // partially covered branch appears (3 basis paths are generated).
