@@ -32,6 +32,7 @@ import {
 
 import {
   adaUnitNameFromFile,
+  builtEnviroIsAda,
   confirmAdaGnatCreation,
   ensureAdaConfigurationFile,
   generateAdaProjectFile,
@@ -1100,7 +1101,16 @@ function createScriptTemplate(testNode: testNodeType): string {
   scriptTemplateLines.push("TEST.END_NOTES:");
   if (testNode.functionName == "<<COMPOUND>>") {
     scriptTemplateLines.push("TEST.SLOT");
-  } else {
+  } else if (!builtEnviroIsAda(testNode.enviroPath)) {
+    // C/C++: a bare TEST.VALUE placeholder is tolerated on import. For Ada an
+    // empty TEST.VALUE imports as "Unknown unit name <>" (Command Ignored),
+    // which VectorCAST records as a TEST.IMPORT_FAILURES block on the test.
+    // That block (and the empty value line) then re-fail on the next rebuild's
+    // "test script create" -> "test script run" round-trip, which makes the
+    // whole environment rebuild report failure. The empty value is ignored on
+    // import anyway, so omitting it yields an identical executable test with no
+    // import failure - Ada tests start with no value line and the user adds
+    // values via the 'vcast-test snippet / LSE features.
     scriptTemplateLines.push("TEST.VALUE");
   }
   scriptTemplateLines.push("TEST.END");
