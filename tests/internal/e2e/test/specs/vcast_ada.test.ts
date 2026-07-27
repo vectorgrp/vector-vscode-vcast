@@ -432,7 +432,7 @@ describe("vTypeCheck VS Code Extension", () => {
       // blocked ("element not interactable").
       await workbench.getEditorView().closeAllEditors();
 
-      // Wait for the rebuild to announce the new coverage kind and complete.
+      // Wait for the rebuild to announce the new coverage kind.
       await browser.waitUntil(
         async () =>
           (await outputView.getText())
@@ -442,13 +442,45 @@ describe("vTypeCheck VS Code Extension", () => {
             ),
         { timeout: TIMEOUT }
       );
-      await browser.waitUntil(
-        async () =>
-          (await outputView.getText())
-            .toString()
-            .includes("Environment re-build complete"),
-        { timeout: TIMEOUT }
-      );
+      // Wait for the rebuild to COMPLETE, but fail fast (dumping the full
+      // output) the moment it reports a failure - otherwise a broken Ada
+      // rebuild just hangs for the whole 240s with no diagnostics. The Ada
+      // rebuild round-trips the env through "enviro script create" + "enviro
+      // build" + "test script run", any of which can fail (e.g. a lost GPR
+      // PARENT_LIB path, or a test that no longer applies), so surface the
+      // actual clicast output here.
+      const rebuildFailureMarkers = [
+        "Environment re-build failed",
+        "Environment Creation Failed",
+        "Aborting due to failed command",
+        "ERROR: Could not find unit",
+        "does not exist in the Repository",
+      ];
+      let rebuildOutput = "";
+      try {
+        await browser.waitUntil(
+          async () => {
+            rebuildOutput = (await outputView.getText()).toString();
+            if (rebuildOutput.includes("Environment re-build complete")) {
+              return true;
+            }
+            if (rebuildFailureMarkers.some((m) => rebuildOutput.includes(m))) {
+              throw new Error(
+                `Ada rebuild to ${coverage} coverage FAILED:\n${rebuildOutput}`
+              );
+            }
+            return false;
+          },
+          { timeout: TIMEOUT, interval: 2000 }
+        );
+      } catch (error) {
+        rebuildOutput =
+          rebuildOutput || (await outputView.getText()).toString();
+        throw new Error(
+          `Ada rebuild to ${coverage} coverage did not complete. Output was:\n` +
+            `${rebuildOutput}\n\n(original error: ${(error as Error).message})`
+        );
+      }
 
       // Generate basis-path tests for the decision, then delete one so that a
       // partially covered branch appears (3 basis paths are generated).

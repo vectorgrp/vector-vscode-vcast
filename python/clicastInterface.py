@@ -238,6 +238,10 @@ def adaParentLibOverride(enviroName):
     """
     originalEnv = enviroName + ".env"
     if not os.path.isfile(originalEnv):
+        print(
+            f"  [ada rebuild] original env script '{originalEnv}' not found in "
+            f"'{os.getcwd()}'; cannot restore absolute PARENT_LIB"
+        )
         return None
     try:
         with open(originalEnv, "r") as originalFile:
@@ -245,10 +249,26 @@ def adaParentLibOverride(enviroName):
                 if line.strip().startswith("ENVIRO.PARENT_LIB"):
                     _, value = line.split(":", 1)
                     value = value.strip()
-                    if os.path.isabs(value) and os.path.exists(value):
-                        return value
-    except Exception:
-        pass
+                    if not os.path.isabs(value):
+                        print(
+                            f"  [ada rebuild] original PARENT_LIB is not absolute "
+                            f"('{value}'); keeping regenerated value"
+                        )
+                        return None
+                    if not os.path.exists(value):
+                        # Use it anyway - the exists check has bitten us before
+                        # (e.g. path resolves differently in CI); a wrong path
+                        # just reproduces the original failure, it does not make
+                        # things worse.
+                        print(
+                            f"  [ada rebuild] WARNING: original PARENT_LIB "
+                            f"'{value}' does not exist on disk; using it anyway"
+                        )
+                    return value
+    except Exception as error:
+        print(
+            f"  [ada rebuild] could not read PARENT_LIB from '{originalEnv}': {error}"
+        )
     return None
 
 
@@ -266,6 +286,14 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions, isAda=False):
     # For Ada, "enviro script create" loses the absolute PARENT_LIB (GPR) path;
     # recover it from the original env script so the rebuild can find the GPR.
     adaParentLib = adaParentLibOverride(enviroName) if isAda else None
+    if isAda:
+        if adaParentLib:
+            print(f"  [ada rebuild] using PARENT_LIB: {adaParentLib}")
+        else:
+            print(
+                "  [ada rebuild] no absolute PARENT_LIB override; using the "
+                "value produced by 'enviro script create'"
+            )
 
     # Read the enviro script into a list of strings
     with open(tempEnviroScript, "r") as enviroFile:
