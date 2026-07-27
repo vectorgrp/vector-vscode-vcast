@@ -723,9 +723,34 @@ export async function updateTestsForEnvironment(
   // In case we are refreshing the extension, we do not want to call the API n times (n=|envs|)
   // Instead we get the entire env data at once and save us time.
   jsonData = await loadEnviroData(enviroData, comingFromRefresh);
-  if (!jsonData) return;
+  if (!jsonData) {
+    vectorMessage(
+      `[updateTestsForEnvironment] no data returned for ${enviroData.buildDirectory}; ` +
+        `test-pane node NOT updated`
+    );
+    return;
+  }
 
-  await processSingleEnvData(parentNode, enviroData, jsonData);
+  // Diagnostic: a rebuild (e.g. a coverage-kind change) refreshes the pane
+  // through this path; if the node fails to reappear, this trace pinpoints
+  // whether the data was empty or processing threw.
+  vectorMessage(
+    `[updateTestsForEnvironment] loaded data for ${enviroData.buildDirectory}: ` +
+      `${(jsonData.testData || []).length} test unit(s)`
+  );
+  try {
+    await processSingleEnvData(parentNode, enviroData, jsonData);
+    vectorMessage(
+      `[updateTestsForEnvironment] processed env node for ${enviroData.buildDirectory}`
+    );
+  } catch (error) {
+    vectorMessage(
+      `[updateTestsForEnvironment] FAILED to process env node for ` +
+        `${enviroData.buildDirectory}: ${(error as Error).message}\n` +
+        `${(error as Error).stack}`
+    );
+    throw error;
+  }
 }
 
 /**
