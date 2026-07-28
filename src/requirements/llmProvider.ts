@@ -111,6 +111,26 @@ export function gatherLLMProviderSettings(): LLMProviderSettingsResult {
       config.get<string>("reqs2x.anthropic.reasoningModelName"),
       "VCAST_REQS2X_REASONING_ANTHROPIC_MODEL_NAME"
     );
+  } else if (provider === "nele") {
+    need(
+      config.get<string>("reqs2x.nele.apiKey"),
+      "nele.ai API Key",
+      "VCAST_REQS2X_NELE_API_KEY"
+    );
+    need(
+      config.get<string>("reqs2x.nele.baseUrl"),
+      "nele.ai Base URL",
+      "VCAST_REQS2X_NELE_BASE_URL"
+    );
+    need(
+      config.get<string>("reqs2x.nele.modelName"),
+      "nele.ai Model Name",
+      "VCAST_REQS2X_NELE_MODEL_NAME"
+    );
+    optional(
+      config.get<string>("reqs2x.nele.reasoningModelName"),
+      "VCAST_REQS2X_REASONING_NELE_MODEL_NAME"
+    );
   } else if (provider === "litellm") {
     need(
       config.get<string>("reqs2x.litellm.modelName"),

@@ -95,8 +95,6 @@ export async function generateRequirements(enviroPath: string) {
     "generateHighLevelRequirements",
     false
   );
-  const reorder = config.get<boolean>("reorder", true);
-
   const args = [
     "-e",
     envPath,
@@ -106,7 +104,6 @@ export async function generateRequirements(enviroPath: string) {
     ...(generateHighLevelRequirements
       ? ["--generate-high-level-requirements"]
       : []),
-    ...(reorder ? [] : ["--no-reorder"]),
   ];
 
   try {
@@ -176,7 +173,6 @@ export async function generateTestsFromRequirements(
     true
   );
   const noTestExamples = config.get<boolean>("noTestExamples", false);
-  const reorder = config.get<boolean>("reorder", true);
   const funcDefs = config.get<boolean>("functionDefinitions", true);
   const allowUUTStubs = config.get<boolean>("enableUutStubbing", true);
   const batched = config.get<boolean>("batched", true);
@@ -201,7 +197,6 @@ export async function generateTestsFromRequirements(
     batched ? "--batched" : "--no-batched",
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
     ...(noTestExamples ? ["--no-test-examples"] : []),
-    ...(reorder ? [] : ["--no-reorder"]),
     ...(funcDefs ? [] : ["--no-func-defs"]),
     ...(allowUUTStubs ? [] : ["--no-allow-uut-stubs"]),
     "--allow-partial",

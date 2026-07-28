@@ -509,12 +509,6 @@
             "default": true,
             "description": "Generate tests in batches (multiple requirements per LLM call). Disable for one-request-per-requirement (slower, simpler retries)."
           },
-          "vectorcastTestExplorer.reqs2x.reorder": {
-            "type": "boolean",
-            "order": 8,
-            "default": true,
-            "description": "Reorder test cases exported to file (disable for easier investigation of incremental results)"
-          },
           "vectorcastTestExplorer.reqs2x.noTestExamples": {
             "type": "boolean",
             "order": 9,
@@ -561,8 +555,8 @@
             "type": "string",
             "order": 15,
             "default": "openai",
-            "enum": ["openai", "azure_openai", "anthropic", "litellm", "azure_apim", "openai_at"],
-            "enumDescriptions": ["OpenAI", "Azure OpenAI", "Anthropic", "LiteLLM", "Azure APIM (Advanced)", "OpenAI Access Token (Advanced)"],
+            "enum": ["openai", "azure_openai", "anthropic", "litellm", "nele", "azure_apim", "openai_at"],
+            "enumDescriptions": ["OpenAI", "Azure OpenAI", "Anthropic", "LiteLLM", "nele.ai", "Azure APIM (Advanced)", "OpenAI Access Token (Advanced)"],
             "description": "Language model provider for automatic requirements and test generation using Reqs2X"
           },
           "vectorcastTestExplorer.reqs2x.openai.apiKey": {
@@ -667,75 +661,99 @@
             "default": "",
             "description": "Environment variables to set when running LiteLLM, e.g., OPENAI_API_KEY=xxxx. Multiple variables can be separated by commas, e.g., OPENAI_API_KEY=xxxx,ANOTHER_ENV_VAR=yyyy. For a list of variables to set for a specific LiteLLM-compatible provider, see https://docs.litellm.ai/docs/providers."
           },
-          "vectorcastTestExplorer.reqs2x.azureApim.subscriptionKey": {
+          "vectorcastTestExplorer.reqs2x.nele.apiKey": {
             "type": "string",
             "order": 33,
+            "default": "",
+            "description": "nele.ai API key (sent as a bearer token)"
+          },
+          "vectorcastTestExplorer.reqs2x.nele.baseUrl": {
+            "type": "string",
+            "order": 34,
+            "default": "",
+            "description": "nele.ai gateway base URL, e.g., https://api.aieva.io/api/v1"
+          },
+          "vectorcastTestExplorer.reqs2x.nele.modelName": {
+            "type": "string",
+            "order": 35,
+            "default": "",
+            "description": "nele.ai model name, e.g., azure-gpt-4.1"
+          },
+          "vectorcastTestExplorer.reqs2x.nele.reasoningModelName": {
+            "type": "string",
+            "order": 36,
+            "default": "",
+            "description": "Optional nele.ai reasoning model name used for specialized reasoning subtasks."
+          },
+          "vectorcastTestExplorer.reqs2x.azureApim.subscriptionKey": {
+            "type": "string",
+            "order": 37,
             "default": "",
             "description": "[Advanced] Azure APIM subscription key (sent as the Ocp-Apim-Subscription-Key header)"
           },
           "vectorcastTestExplorer.reqs2x.azureApim.baseUrl": {
             "type": "string",
-            "order": 34,
+            "order": 38,
             "default": "",
             "description": "[Advanced] Azure APIM gateway base URL, e.g., https://some-domain.azure-api.net/v1"
           },
           "vectorcastTestExplorer.reqs2x.azureApim.modelName": {
             "type": "string",
-            "order": 35,
+            "order": 39,
             "default": "",
             "description": "[Advanced] Model name for the APIM-proxied LLM, e.g., gpt-4.1"
           },
           "vectorcastTestExplorer.reqs2x.azureApim.apiKey": {
             "type": "string",
-            "order": 36,
+            "order": 40,
             "default": "",
             "description": "[Advanced] Optional downstream Azure OpenAI API key (forwarded when the APIM policy requires it)"
           },
           "vectorcastTestExplorer.reqs2x.azureApim.reasoningModelName": {
             "type": "string",
-            "order": 37,
+            "order": 41,
             "default": "",
             "description": "[Advanced] Optional reasoning model name used for specialized reasoning subtasks (Azure APIM)."
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.modelName": {
             "type": "string",
-            "order": 38,
+            "order": 42,
             "default": "",
             "description": "[Advanced] OpenAI Access Token model name"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.modelUrl": {
             "type": "string",
-            "order": 39,
+            "order": 43,
             "default": "",
             "description": "[Advanced] OpenAI Access Token model URL"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.authUrl": {
             "type": "string",
-            "order": 40,
+            "order": 44,
             "default": "",
             "description": "[Advanced] OpenAI Access Token authentication URL"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.appKey": {
             "type": "string",
-            "order": 41,
+            "order": 45,
             "default": "",
             "description": "[Advanced] OpenAI Access Token application key"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.appSecret": {
             "type": "string",
-            "order": 42,
+            "order": 46,
             "default": "",
             "description": "[Advanced] OpenAI Access Token application secret"
           },
           "vectorcastTestExplorer.reqs2x.openaiAt.reasoningModelName": {
             "type": "string",
-            "order": 43,
+            "order": 47,
             "default": "",
             "description": "[Advanced] Optional reasoning model name used for specialized reasoning subtasks (OpenAI Access Token)."
           },
           "vectorcastTestExplorer.reqs2x.extraModelParamsTemplate": {
             "type": "string",
-            "order": 44,
+            "order": 48,
             "default": "",
             "enum": ["", "vllm-thinking-off", "gemini-reasoning-minimal", "gpt5-reasoning-minimal"],
             "enumDescriptions": [
@@ -748,14 +766,14 @@
           },
           "vectorcastTestExplorer.reqs2x.extraModelParamsJson": {
             "type": "string",
-            "order": 45,
+            "order": 49,
             "default": "",
             "editPresentation": "multilineText",
             "description": "[Advanced] Custom JSON blob deep-merged on top of the template (or used standalone), e.g., {\"temperature\": 0.6, \"max_tokens\": 16000}. Passed straight to the SDK — invalid keys fail at request time."
           },
           "vectorcastTestExplorer.reqs2x.reasoningExtraModelParamsTemplate": {
             "type": "string",
-            "order": 46,
+            "order": 50,
             "default": "",
             "enum": ["", "vllm-thinking-off", "gemini-reasoning-minimal", "gpt5-reasoning-minimal"],
             "enumDescriptions": [
@@ -768,7 +786,7 @@
           },
           "vectorcastTestExplorer.reqs2x.reasoningExtraModelParamsJson": {
             "type": "string",
-            "order": 47,
+            "order": 51,
             "default": "",
             "editPresentation": "multilineText",
             "description": "[Advanced] Custom JSON for the reasoning role. Same semantics as extraModelParamsJson."
