@@ -3,11 +3,14 @@ import { showSettings } from "../utilities";
 import { refreshAllExtensionData } from "../testPane";
 import { loadTestScriptIntoEnvironment } from "../vcastAdapter";
 import { updateRequirementsAvailability } from "./availability";
-import { logCliError } from "./requirementsLog";
+import { logCliError, logCliOperation } from "./requirementsLog";
 import {
   CODE2REQS_EXECUTABLE_PATH,
   PANREQ_EXECUTABLE_PATH,
+  RECENT_REQS2TESTS_FLAGS,
   REQS2TESTS_EXECUTABLE_PATH,
+  reqs2testsSupportsDelta,
+  reqs2xSupportedFlags,
   setupReqs2XExecutablePaths,
 } from "./requirementsExecutables";
 import { runReqs2xTool } from "./processRunner";
@@ -62,6 +65,18 @@ export function initializeReqs2X(context: vscode.ExtensionContext) {
     "setContext",
     "vectorcastTestExplorer.reqs2xFeatureEnabled",
     featureEnabled
+  );
+  void publishDeltaSupportContext(featureEnabled);
+}
+
+// Hides the delta menu item when the installed reqs2tests predates --only-delta.
+// Not awaited, so the item stays hidden until the probe answers.
+async function publishDeltaSupportContext(featureEnabled: boolean) {
+  const supported = featureEnabled && (await reqs2testsSupportsDelta());
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.reqs2xSupportsDelta",
+    supported
   );
 }
 
@@ -135,7 +150,8 @@ export async function generateRequirements(enviroPath: string) {
 
 export async function generateTestsFromRequirements(
   enviroPath: string,
-  unitOrFunctionName: string | null
+  unitOrFunctionName: string | null,
+  options: { onlyDelta?: boolean } = {}
 ) {
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
@@ -172,10 +188,23 @@ export async function generateTestsFromRequirements(
     "decomposeRequirements",
     true
   );
-  const noTestExamples = config.get<boolean>("noTestExamples", false);
   const funcDefs = config.get<boolean>("functionDefinitions", true);
   const allowUUTStubs = config.get<boolean>("enableUutStubbing", true);
   const batched = config.get<boolean>("batched", true);
+  const fastMode = config.get<boolean>("fastMode", false);
+  const deduplicate = config.get<boolean>("deduplicateTests", true);
+  const allowPartial = config.get<boolean>("allowPartialTests", true);
+  const exampleSources = config.get<string[]>("testExampleSources", [
+    "environment",
+    "generated",
+  ]);
+
+  // Clamped because settings.json can be hand-edited past the schema minimum.
+  // Deprecated noTestExamples still wins while explicitly enabled.
+  const batchSize = Math.max(1, config.get<number>("batchSize", 4));
+  const maxTestExamples = config.get<boolean>("noTestExamples", false)
+    ? 0
+    : Math.max(0, config.get<number>("maxTestExamples", 3));
 
   const retries = config.get<number>("retries", 2);
   if (retries < 1) {
@@ -183,6 +212,25 @@ export async function generateTestsFromRequirements(
       "Retries must be greater than or equal to 1. Please check your settings."
     );
     return;
+  }
+
+  // --incremental-export is deliberately unused: we import one .tst at the end,
+  // and it force-disables deduplication. Same for code2reqs.
+  const supported = await reqs2xSupportedFlags(
+    REQS2TESTS_EXECUTABLE_PATH,
+    RECENT_REQS2TESTS_FLAGS
+  );
+
+  const exampleArgs: string[] = [];
+  if (maxTestExamples === 0) {
+    exampleArgs.push("--no-test-examples");
+  } else {
+    if (supported.has("--max-test-examples")) {
+      exampleArgs.push("--max-test-examples", maxTestExamples.toString());
+    }
+    if (exampleSources.length > 0 && supported.has("--test-examples-sources")) {
+      exampleArgs.push("--test-examples-sources", ...exampleSources);
+    }
   }
 
   const args = [
@@ -195,14 +243,26 @@ export async function generateTestsFromRequirements(
     "--retries",
     retries.toString(),
     batched ? "--batched" : "--no-batched",
+    ...(batched ? ["--batch-size", batchSize.toString()] : []),
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
-    ...(noTestExamples ? ["--no-test-examples"] : []),
     ...(funcDefs ? [] : ["--no-func-defs"]),
     ...(allowUUTStubs ? [] : ["--no-allow-uut-stubs"]),
-    "--allow-partial",
+    allowPartial ? "--allow-partial" : "--no-allow-partial",
+    ...(deduplicate ? [] : ["--no-deduplicate"]),
+    ...(fastMode && supported.has("--fast") ? ["--fast"] : []),
+    ...(options.onlyDelta ? ["--only-delta"] : []),
+    ...exampleArgs,
     "--json-events",
     "--requirement-keys",
   ];
+
+  // A delta run with nothing to do writes no tests, so a leftover .tst from an
+  // earlier run would otherwise be re-imported as fresh output.
+  try {
+    fs.rmSync(tstPath, { force: true });
+  } catch (err) {
+    logCliError(`Could not remove stale ${tstPath}: ${err}`);
+  }
 
   try {
     const { cancelled } = await runReqs2xTool({
@@ -210,16 +270,28 @@ export async function generateTestsFromRequirements(
       args,
       llm: true,
       progress: {
-        title: `Generating Requirement Tests for ${envName.split(".")[0]}`,
+        title: options.onlyDelta
+          ? `Generating Requirement Tests (untested or changed) for ${envName.split(".")[0]}`
+          : `Generating Requirement Tests for ${envName.split(".")[0]}`,
         logPrefix: "reqs2tests",
       },
     });
     if (cancelled) return;
 
+    if (!fs.existsSync(tstPath)) {
+      // reqs2tests reports the reason itself via an `info` event.
+      logCliOperation(
+        `reqs2tests wrote no test script to ${tstPath}; nothing to import`
+      );
+      return;
+    }
+
     await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
     await refreshAllExtensionData();
     vscode.window.showInformationMessage(
-      "Successfully generated tests for the requirements!"
+      options.onlyDelta
+        ? "Generated tests for untested and changed requirements. Tests written earlier for the changed requirements are kept — review and remove any that no longer apply."
+        : "Successfully generated tests for the requirements!"
     );
   } catch (err) {
     const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
