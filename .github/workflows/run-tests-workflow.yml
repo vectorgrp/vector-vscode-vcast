@@ -23,7 +23,7 @@ on:
       r2t-release-branch:
         description: 'Release branch to be used for the bundle'
         required: false
-        default: "demo_release"
+        default: "main"
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
