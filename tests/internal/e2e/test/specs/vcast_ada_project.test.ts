@@ -259,16 +259,47 @@ describe("vTypeCheck VS Code Extension - Ada Project", () => {
     const webview = (await workbench.getAllWebviews())[0];
     await webview.open();
     await (await $("aria/Import OK")).click();
-    await webview.close();
+    // Exit the webview iframe context so the output/notification reads below
+    // target the main frame. The extension disposes the panel itself once
+    // newEnvironment completes, so close() may race that - best-effort.
+    try {
+      await webview.close();
+    } catch {
+      // panel already disposed by the extension; ignore
+    }
 
-    // Wait for the env to be created in the project.
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes(`Creating environment '${ENV_NAME}`),
-      { timeout: TIMEOUT }
-    );
+    // Wait for the env to be created in the project, failing fast (with the
+    // output) on a reported failure instead of hanging the whole timeout.
+    const failureMarkers = [
+      "Environment Creation Failed",
+      "Cannot Build Environment",
+      "cannot find the source file",
+      "Environment build failed",
+    ];
+    let createOutput = "";
+    try {
+      await browser.waitUntil(
+        async () => {
+          createOutput = (await outputView.getText()).toString();
+          if (createOutput.includes(`Creating environment '${ENV_NAME}`)) {
+            return true;
+          }
+          if (failureMarkers.some((m) => createOutput.includes(m))) {
+            throw new Error(
+              "Ada env-in-project creation reported a failure:\n" + createOutput
+            );
+          }
+          return false;
+        },
+        { timeout: TIMEOUT, interval: 2000 }
+      );
+    } catch (error) {
+      createOutput = createOutput || (await outputView.getText()).toString();
+      throw new Error(
+        `Ada env-in-project creation did not start. Output was:\n${createOutput}\n\n` +
+          `(original error: ${(error as Error).message})`
+      );
+    }
 
     // The env node should appear in the project tree.
     await browser.waitUntil(

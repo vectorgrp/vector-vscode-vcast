@@ -982,12 +982,12 @@ export async function newEnvironment(
   // Ada environment creation is supported for GNAT on the host only. If any
   // selected file is Ada, confirm GNAT is available and that the user wants to
   // proceed with the GNAT-only path before continuing.
-  if (hasAdaSource) {
-    const proceed = await confirmAdaGnatCreation(
-      projectEnvParameters
-        ? "Add an Ada environment to a project"
-        : "Create an Ada environment"
-    );
+  //
+  // For the project case (projectEnvParameters set) the command handler
+  // (newEnviroInProjectVCAST) has ALREADY shown this confirmation before opening
+  // the import webview, so we must NOT prompt again here
+  if (hasAdaSource && !projectEnvParameters) {
+    const proceed = await confirmAdaGnatCreation("Create an Ada environment");
     if (!proceed) return;
   }
 
