@@ -2131,8 +2131,29 @@ export async function insertAndRunAdaBasisPaths(
   );
 
   // Run the generated basis-path tests so their coverage shows in the gutters.
+  //
+  // IMPORTANT: re-find the method node AFTER inserting. Inserting basis-path
+  // tests turns a previously test-less subprogram node (a leaf) into a parent
+  // with children, which invalidates the `method` handle captured before the
+  // insert - clicking "Run Test" on that stale handle runs nothing, so no
+  // coverage appears (seen on the first coverage kind of the project spec). Re-
+  // resolving the node against the refreshed tree makes "Run Test" target the
+  // node that actually has the new tests.
   await outputView.clearText();
-  await (await (await method.getActionButton("Run Test")).elem).click();
+  let methodToRun = method;
+  const refreshed = await getViewContent("Testing");
+  for (const section of await refreshed.getSections()) {
+    const u = await findSubprogram(unit, section);
+    if (u) {
+      if (!(await u.isExpanded())) await u.expand();
+      const m = await findSubprogramMethod(u, subprogram);
+      if (m) {
+        methodToRun = m;
+        break;
+      }
+    }
+  }
+  await (await (await methodToRun.getActionButton("Run Test")).elem).click();
   await browser.waitUntil(
     async () =>
       (await outputView.getText())
