@@ -351,6 +351,19 @@ export function getSpecGroups(
     params: {},
   };
 
+  // Ada-in-a-managed-project end-to-end spec. Same "latest release only" gating
+  // as the "ada" group (see get_gha_matrix.ts). It creates the project + the
+  // Ada environment inside it from scratch, then runs the same checks (tree,
+  // run, coverage kinds, MC/DC report) against the project environment.
+  specGroups["ada_project"] = {
+    specs: ["./**/**/vcast_ada_project.test.ts"],
+    env: {
+      WAIT_AFTER_TESTS_FINISHED: "True",
+      VCAST_USE_PYTHON: "True",
+    },
+    params: {},
+  };
+
   return specGroups;
 }
 
