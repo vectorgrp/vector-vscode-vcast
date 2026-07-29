@@ -590,8 +590,27 @@ describe("vTypeCheck VS Code Extension - Ada Project", () => {
         expectedGutters[coverage].map((g) => [g.line, g.icon])
       );
       for (const line of candidateLines) {
-        const actual = await readAdaGutterIcon("manager.adb", line);
         const expectedIcon = expectedForKind.get(line);
+        let actual = "";
+        if (expectedIcon) {
+          // Project environments apply/refresh coverage more slowly than free
+          // envs after a rebuild+run (especially on the FIRST coverage kind), so
+          // the gutter can briefly read as uncovered. Poll the gutter until it
+          // shows the expected icon (bounded) before deciding it is a mismatch.
+          try {
+            await browser.waitUntil(
+              async () => {
+                actual = await readAdaGutterIcon("manager.adb", line);
+                return actual.includes(`/${expectedIcon}`);
+              },
+              { timeout: 60_000, interval: 3000 }
+            );
+          } catch {
+            // stays a mismatch; `actual` holds the last-read icon
+          }
+        } else {
+          actual = await readAdaGutterIcon("manager.adb", line);
+        }
         const matches = expectedIcon
           ? actual.includes(`/${expectedIcon}`)
           : undefined;
