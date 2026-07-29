@@ -151,7 +151,8 @@ async function reqs2xSupportsFlag(
 
 /**
  * Filter `flags` down to those the binary accepts. One probe covers all of
- * them, since the help output is cached per binary.
+ * them, since the help output is cached per binary. Reporting what is missing is
+ * left to callers, which know whether the user actually asked for it.
  */
 export async function reqs2xSupportedFlags(
   exe: string,
@@ -159,14 +160,7 @@ export async function reqs2xSupportedFlags(
 ): Promise<Set<string>> {
   if (!exe) return new Set();
   const help = await reqs2xHelpText(exe);
-  const supported = new Set(flags.filter((flag) => help.includes(flag)));
-  const missing = flags.filter((flag) => !supported.has(flag));
-  if (missing.length > 0) {
-    logCliOperation(
-      `reqs2x: ${exe} does not support ${missing.join(", ")}; omitting`
-    );
-  }
-  return supported;
+  return new Set(flags.filter((flag) => help.includes(flag)));
 }
 
 // Recent enough that the installed Reqs2X may not have them, so they get probed

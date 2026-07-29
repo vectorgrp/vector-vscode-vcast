@@ -148,6 +148,11 @@ export async function generateRequirements(enviroPath: string) {
   }
 }
 
+// Mirror of the defaults declared in package.json. Needed beyond config.get's
+// fallback so we can tell an untouched setting from one the user chose.
+const DEFAULT_MAX_TEST_EXAMPLES = 3;
+const DEFAULT_TEST_EXAMPLE_SOURCES = ["environment", "generated"];
+
 export async function generateTestsFromRequirements(
   enviroPath: string,
   unitOrFunctionName: string | null,
@@ -194,17 +199,20 @@ export async function generateTestsFromRequirements(
   const fastMode = config.get<boolean>("fastMode", false);
   const deduplicate = config.get<boolean>("deduplicateTests", true);
   const allowPartial = config.get<boolean>("allowPartialTests", true);
-  const exampleSources = config.get<string[]>("testExampleSources", [
-    "environment",
-    "generated",
-  ]);
+  const exampleSources = config.get<string[]>(
+    "testExampleSources",
+    DEFAULT_TEST_EXAMPLE_SOURCES
+  );
 
   // Clamped because settings.json can be hand-edited past the schema minimum.
   // Deprecated noTestExamples still wins while explicitly enabled.
   const batchSize = Math.max(1, config.get<number>("batchSize", 4));
   const maxTestExamples = config.get<boolean>("noTestExamples", false)
     ? 0
-    : Math.max(0, config.get<number>("maxTestExamples", 3));
+    : Math.max(
+        0,
+        config.get<number>("maxTestExamples", DEFAULT_MAX_TEST_EXAMPLES)
+      );
 
   const retries = config.get<number>("retries", 2);
   if (retries < 1) {
@@ -220,6 +228,35 @@ export async function generateTestsFromRequirements(
     REQS2TESTS_EXECUTABLE_PATH,
     RECENT_REQS2TESTS_FLAGS
   );
+
+  // Settings whose flag this Reqs2X lacks are dropped rather than passed, which
+  // would fail the run. Only mention the ones actually asked for: on an
+  // untouched default nothing is lost, because the CLI default matches.
+  const ignored: string[] = [];
+  if (fastMode && !supported.has("--fast")) {
+    ignored.push("fast mode");
+  }
+  if (maxTestExamples > 0) {
+    if (
+      maxTestExamples !== DEFAULT_MAX_TEST_EXAMPLES &&
+      !supported.has("--max-test-examples")
+    ) {
+      ignored.push("maximum test examples");
+    }
+    const sourcesMatchDefault =
+      exampleSources.length === DEFAULT_TEST_EXAMPLE_SOURCES.length &&
+      exampleSources.every((s, i) => s === DEFAULT_TEST_EXAMPLE_SOURCES[i]);
+    // An empty list is never passed either way, so it is not "ignored".
+    const customSources = exampleSources.length > 0 && !sourcesMatchDefault;
+    if (customSources && !supported.has("--test-examples-sources")) {
+      ignored.push("test example sources");
+    }
+  }
+  if (ignored.length > 0) {
+    const message = `The installed Reqs2X does not support these settings, which were ignored: ${ignored.join(", ")}.`;
+    vscode.window.showWarningMessage(message);
+    logCliOperation(`reqs2tests: ${message}`);
+  }
 
   const exampleArgs: string[] = [];
   if (maxTestExamples === 0) {
