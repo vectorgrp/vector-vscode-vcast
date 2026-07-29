@@ -3,7 +3,6 @@ import { normalizePath } from "../utilities";
 import { makeEnviroNodeID } from "../testPane";
 import { testNodeCache } from "../testData";
 import { hasCompleteAndUsableRGW } from "./rgwIo";
-import { logCliOperation } from "./requirementsLog";
 
 const path = require("path");
 
@@ -76,13 +75,8 @@ export function updateRequirementsAvailability(enviroPath: string) {
  * etc.) don't tell us which env was affected, and the eval is cheap enough
  * (a few `fs.existsSync` per env) to just do everything.
  */
-async function refreshAllRequirementsAvailability(
-  reason: string
-): Promise<void> {
+async function refreshAllRequirementsAvailability(): Promise<void> {
   const envFiles = await vscode.workspace.findFiles("**/*.env");
-  logCliOperation(
-    `availability: refresh (${reason}); ${envFiles.length} env(s) found`
-  );
   for (const uri of envFiles) {
     const envDir = path.dirname(uri.fsPath);
     const envName = path.basename(uri.fsPath, ".env");
@@ -107,21 +101,21 @@ async function refreshAllRequirementsAvailability(
 export function setupRequirementsFileWatchers(
   context: vscode.ExtensionContext
 ): void {
-  const refresh = (reason: string) => () => {
-    void refreshAllRequirementsAvailability(reason);
+  const refresh = () => {
+    void refreshAllRequirementsAvailability();
   };
 
   const rgwWatcher = vscode.workspace.createFileSystemWatcher(
     "**/requirements_gateway/requirements.json"
   );
-  rgwWatcher.onDidCreate(refresh("rgw create"), null, context.subscriptions);
-  rgwWatcher.onDidDelete(refresh("rgw delete"), null, context.subscriptions);
+  rgwWatcher.onDidCreate(refresh, null, context.subscriptions);
+  rgwWatcher.onDidDelete(refresh, null, context.subscriptions);
   context.subscriptions.push(rgwWatcher);
 
   const cfgWatcher = vscode.workspace.createFileSystemWatcher("**/CCAST_.CFG");
-  cfgWatcher.onDidChange(refresh("ccast change"), null, context.subscriptions);
-  cfgWatcher.onDidCreate(refresh("ccast create"), null, context.subscriptions);
-  cfgWatcher.onDidDelete(refresh("ccast delete"), null, context.subscriptions);
+  cfgWatcher.onDidChange(refresh, null, context.subscriptions);
+  cfgWatcher.onDidCreate(refresh, null, context.subscriptions);
+  cfgWatcher.onDidDelete(refresh, null, context.subscriptions);
   context.subscriptions.push(cfgWatcher);
 
   // Fallback: VS Code regains focus. Cheap and catches the bulk-delete case
@@ -129,7 +123,7 @@ export function setupRequirementsFileWatchers(
   context.subscriptions.push(
     vscode.window.onDidChangeWindowState((state) => {
       if (state.focused) {
-        void refreshAllRequirementsAvailability("window focused");
+        void refreshAllRequirementsAvailability();
       }
     })
   );
