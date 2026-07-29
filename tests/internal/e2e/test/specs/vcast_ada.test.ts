@@ -614,14 +614,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await editorView.closeEditor("VectorCAST Report", 1);
   });
 
-  // NOTE: The Reqs2X tests below are DISABLED for now (it.skip). Reqs2X for Ada
-  // is blocked upstream: CI pulls the stock "autoreq-linux" distribution, whose
-  // code2reqs cannot index Ada environments (fails at "Indexing codebase" with
-  // "Translation unit file not found"). The Ada-capable "autoreq-linux-with-ada"
-  // distribution indexes Ada envs fine (verified locally on sp1 + sp3), so once
-  // CI is pointed at that distribution (e.g. via R2T_RELEASE_URL_LIN) these can
-  // be re-enabled by changing it.skip back to it.
-  it.skip("should configure Reqs2X", async () => {
+  // NOTE: The Reqs2X tests below require the Ada-capable reqs2tests
+  // distribution ("autoreq-linux-with-ada"). The stock "autoreq-linux"
+  // distribution's code2reqs cannot index Ada environments (it fails at
+  // "Indexing codebase" with "Translation unit file not found"); the with-ada
+  // distribution indexes Ada envs fine (verified locally on sp1 + sp3). CI must
+  // therefore point at the with-ada distribution (e.g. via R2T_RELEASE_URL_LIN)
+  // for these to pass.
+  it("should configure Reqs2X", async () => {
     await updateTestID();
 
     // Mirrors the requirements group's configuration steps: point at the
@@ -698,7 +698,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await workbench.getEditorView().closeAllEditors();
   });
 
-  it.skip("should generate requirements for the Ada environment", async () => {
+  it("should generate requirements for the Ada environment", async () => {
     await updateTestID();
 
     const activityBar = workbench.getActivityBar();
@@ -828,7 +828,7 @@ describe("vTypeCheck VS Code Extension", () => {
     }
   });
 
-  it.skip("should generate tests from requirements into a clean Ada environment and check coverage", async () => {
+  it("should generate tests from requirements into a clean Ada environment and check coverage", async () => {
     await updateTestID();
 
     // Start from a CLEAN environment (no tests) so that the tests appearing
