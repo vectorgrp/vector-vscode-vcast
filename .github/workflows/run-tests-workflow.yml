@@ -519,8 +519,8 @@ jobs:
       # GNAT-FSF-builds releases on GitHub (no hosting required); override
       # GNAT_RELEASE_URL_LIN / GPRBUILD_RELEASE_URL_LIN (e.g. in
       # secrets.E2E_ENV_BLOCK) to re-hosted tarballs if GitHub is unreachable.
-      - name: Install GNAT + gprbuild for the Ada e2e group
-        if: matrix.group == 'ada'
+      - name: Install GNAT + gprbuild for the Ada e2e groups
+        if: matrix.group == 'ada' || matrix.group == 'ada_project'
         shell: bash
         run: |
           install_tarball() {
