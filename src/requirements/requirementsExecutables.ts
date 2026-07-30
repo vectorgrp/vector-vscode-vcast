@@ -141,10 +141,7 @@ function reqs2xHelpText(exe: string): Promise<string> {
  * `false` when unknown, so callers degrade instead of passing something the
  * binary rejects.
  */
-async function reqs2xSupportsFlag(
-  exe: string,
-  flag: string
-): Promise<boolean> {
+async function reqs2xSupportsFlag(exe: string, flag: string): Promise<boolean> {
   if (!exe) return false;
   return (await reqs2xHelpText(exe)).includes(flag);
 }
