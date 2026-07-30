@@ -390,18 +390,27 @@ jobs:
       
       - name: Pull latest reqs2tests release
         shell: bash
+        env:
+          # The Ada groups need the Ada-capable ("with-ada") reqs2tests build,
+          # which bundles libadalang; the stock build cannot index Ada envs
+          # (code2reqs fails with "libadalang is not available in this build").
+          # R2T_WITH_ADA tells the download script to fetch the linux with-ada
+          # artifact and save it as autoreq-linux.tar.gz, so the extraction below
+          # is unchanged. It is linux-only (the Ada e2e is linux), so the win
+          # tarball is not required in that mode.
+          R2T_WITH_ADA: ${{ (matrix.group == 'ada' || matrix.group == 'ada_project') && 'true' || '' }}
         run: |
           python3 ./ci/get_most_recent_reqs2tests_distribution.py
           if [ ! -f "autoreq-linux.tar.gz" ]; then
             echo "Error: autoreq-linux.tar.gz not found."
             exit 1
           fi
-          if [ ! -f "autoreq-win.tar.gz" ]; then
+          if [ -z "$R2T_WITH_ADA" ] && [ ! -f "autoreq-win.tar.gz" ]; then
             echo "Error: autoreq-win.tar.gz not found."
             exit 1
           fi
 
-          # extract linux distribution
+          # extract linux distribution (the with-ada build for the Ada groups)
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz
           mv distribution /tmp/linux_distribution
 

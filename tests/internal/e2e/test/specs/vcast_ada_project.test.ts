@@ -75,19 +75,61 @@ async function clickExtensionNotificationButton(
   }
 }
 
-// Expand the project tree down to (and including) the env node, so the unit
-// children (MANAGER / DATABASE) become visible rows that findSubprogram can
-// locate. Called at the start of every unit-level test because a rebuild can
-// collapse/refresh the tree.
-async function expandProjectToEnv(): Promise<TreeItem> {
-  const envNode = await findTreeNodeAtLevel(ENV_LEVEL, ENV_NAME);
-  if (!envNode) {
-    throw new Error(
-      `Env node "${ENV_NAME}" not found at level ${ENV_LEVEL} in the project tree`
-    );
+// Expand the project tree (project -> compiler -> testsuite -> ENV) so the env
+// node and its unit children (MANAGER / DATABASE) become visible rows that
+// findSubprogram can locate. Called at the start of every unit-level test
+// because a rebuild can collapse/refresh the tree.
+//
+// This is NAME-based and depth-agnostic on purpose: a fixed-level lookup
+// (findTreeNodeAtLevel(3, ...)) breaks once the env auto-expands to show its
+// units (which shifts the effective depth), even though the env is right there.
+// Best-effort: if the env is already visible we expand it and return; otherwise
+// we expand the currently-visible containers a level at a time until it appears.
+// Never throws - findSubprogram surfaces a clear error if the unit is truly
+// absent.
+async function expandProjectToEnv(): Promise<void> {
+  const content = await getViewContent("Testing");
+  for (let pass = 0; pass < 8; pass++) {
+    let expandedSomething = false;
+    for (const section of await content.getSections()) {
+      if (!(await section.isExpanded())) await section.expand();
+      const items = await section.getVisibleItems();
+
+      // If the env node is already visible, make sure it is expanded and stop.
+      for (const item of items) {
+        let text = "";
+        try {
+          text = (await (await (item as CustomTreeItem).elem).getText()).trim();
+        } catch {
+          continue;
+        }
+        if (text === ENV_NAME) {
+          if (!(await item.isExpanded())) {
+            try {
+              await item.expand();
+            } catch {
+              /* ignore */
+            }
+          }
+          return;
+        }
+      }
+
+      // Env not visible yet: expand the collapsed containers to reveal the next
+      // level, then loop and look again.
+      for (const item of items) {
+        if (!(await item.isExpanded())) {
+          try {
+            await item.expand();
+            expandedSomething = true;
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    }
+    if (!expandedSomething) return;
   }
-  if (!(await envNode.isExpanded())) await envNode.expand();
-  return envNode;
 }
 
 // Locate a unit (e.g. MANAGER) inside the project tree. Ensures the env node is
