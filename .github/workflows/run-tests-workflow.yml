@@ -442,9 +442,13 @@ jobs:
             ls -laR "$REQS_PATH"
           fi
 
-          # extract windows distribution for other uses (kept in /tmp)
-          tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
-          mv distribution /tmp/win_distribution
+          # extract windows distribution for other uses (kept in /tmp).
+          # Skipped in with-ada mode: that build is linux-only (the Ada e2e is
+          # linux), so no autoreq-win.tar.gz was fetched.
+          if [ -z "$R2T_WITH_ADA" ]; then
+            tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
+            mv distribution /tmp/win_distribution
+          fi
 
           TARGET_DIR="$GITHUB_WORKSPACE/tests/internal/e2e/test"
           echo "Listing all files and directories under: $TARGET_DIR"
