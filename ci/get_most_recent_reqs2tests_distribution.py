@@ -2,11 +2,17 @@ import os
 import json
 import logging
 import platform
+import re
 import tempfile
 from pathlib import Path
 from datetime import datetime
 
 DISTRIBUTION_NAMES = ("autoreq-linux.tar.gz", "autoreq-win.tar.gz")
+
+# Distribution folders are named "<timestamp>-<sha>-<run id>". Match the
+# timestamp prefix rather than splitting on "-": what follows the timestamp
+# varies, and current folders carry a trailing run id.
+TIMESTAMP_PREFIX = re.compile(r"^/?(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})")
 
 
 def download_file(url, filename=None):
@@ -40,7 +46,10 @@ if all(os.path.exists(f) for f in DISTRIBUTION_NAMES):
 
 
 BASE_URL = "https://artifactory.vi.vector.int/artifactory"
-BRANCH = os.getenv("R2T_RELEASE_BRANCH", "demo_release")
+# Reqs2X distributions are published from main. Demo releases are published
+# separately and are not fetched here; pass R2T_RELEASE_URL_LIN/WIN to test a
+# specific build.
+BRANCH = os.getenv("R2T_RELEASE_BRANCH", "main")
 logging.info(f"Using R2T_RELEASE_BRANCH: {BRANCH}")
 PATH = f"rds-build-packages-generic-dev/code2reqs2tests/distributions/{BRANCH}"
 API_STORAGE_URL = f"{BASE_URL}/api/storage/{PATH}"
@@ -52,8 +61,11 @@ with tempfile.TemporaryDirectory() as tmpdirname:
         data = json.load(f)
 
     def parse_date(uri):
+        match = TIMESTAMP_PREFIX.match(uri)
+        if not match:
+            return None
         try:
-            return datetime.fromisoformat(uri.rsplit("-", 1)[0][1:])
+            return datetime.fromisoformat(match.group(1))
         except ValueError:
             return None
 
