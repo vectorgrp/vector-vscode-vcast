@@ -869,60 +869,90 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    // Wait for reqs2tests (LLM-driven) to finish. Primary, channel-independent
-    // signal: the env was cleaned first, so any test now appearing under
-    // PLACE_ORDER was generated from the requirements. We also read the reqs
-    // output channel best-effort to fail fast on a non-zero exit, but don't
-    // depend on selecting it (unreliable across VS Code builds).
+    // Wait for reqs2tests (LLM-driven) to COMPLETE, using the real completion
+    // marker ("reqs2tests exit code: 0") rather than "a test node appeared".
+    // reqs2tests imports its generated .tst at the end and refreshes the tree;
+    // starting Run Test before it finishes collides with the still-busy
+    // environment and stalls until the mocha test timeout. selectOutputChannel
+    // makes the reqs channel readable so this marker is reliable.
     let genOutput = "";
     await browser.waitUntil(
       async () => {
-        if ((await placeOrder.getChildren()).length > 0) return true;
         await selectOutputChannel(
           "VectorCAST Requirement Test Generation Operations"
         );
         genOutput = (await outputView.getText()).toString();
-        const nonZero = genOutput.match(/reqs2tests exit code: (\d+)/);
-        if (nonZero && nonZero[1] !== "0") {
+        const match = genOutput.match(/reqs2tests exit code: (\d+)/);
+        if (!match) return false;
+        if (match[1] !== "0") {
           throw new Error(
-            `reqs2tests exited with code ${nonZero[1]}:\n${genOutput}`
+            `reqs2tests exited with code ${match[1]}:\n${genOutput}`
           );
+        }
+        return true;
+      },
+      {
+        timeout: 900_000,
+        interval: 5000,
+        timeoutMsg: `reqs2tests did not complete in time. Output:\n${genOutput}`,
+      }
+    );
+
+    // The .tst import refreshes the tree, invalidating the pre-generate
+    // placeOrder handle. Re-find it (and wait for the generated tests to be
+    // imported) so Run Test targets the node that actually holds them.
+    let placeOrderFresh: TreeItem | undefined;
+    await browser.waitUntil(
+      async () => {
+        const vc = await getViewContent("Testing");
+        for (const section of await vc.getSections()) {
+          const mgr = await findSubprogram("MANAGER", section);
+          if (!mgr) continue;
+          const po = await findSubprogramMethod(mgr, "PLACE_ORDER");
+          if (po && (await po.getChildren()).length > 0) {
+            placeOrderFresh = po;
+            return true;
+          }
         }
         return false;
       },
       {
-        timeout: 240_000,
-        interval: 3000,
+        timeout: TIMEOUT,
         timeoutMsg: "No generated requirement tests appeared under PLACE_ORDER",
       }
     );
 
-    // Run the generated tests and validate coverage: any PLACE_ORDER execution
-    // covers its entry statements. Generated test names/inputs vary (LLM), so
-    // require green gutters only on the always-executed lines and allow the
-    // input-dependent ones to differ - same approach as the C/C++
-    // requirements spec.
+    // Run the generated tests and wait for the run to finish before checking
+    // coverage, so the gutters reflect this execution.
     await selectOutputChannel("VectorCAST Test Explorer");
-    await (await (await placeOrder.getActionButton("Run Test")).elem).click();
+    await outputView.clearText();
+    await (
+      await (
+        await placeOrderFresh!.getActionButton("Run Test")
+      ).elem
+    ).click();
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Processing environment data for:"),
+      { timeout: TIMEOUT }
+    );
 
-    const requiredGreenLines = new Set<number>([27, 31, 32, 33]);
+    // Validate coverage with the Ada-aware gutter reader (it opens manager.adb
+    // from the ada/ folder; checkForGutterAndGenerateReport assumes a cpp/
+    // layout and would fail to locate the file). Any PLACE_ORDER execution
+    // covers its entry statements, so require green ("/cover-icon", which also
+    // matches the "-with-mcdc" green variant but not partial/no-cover) only on
+    // the always-executed lines and allow the input-dependent ones to differ.
+    const requiredGreenLines = [27, 31, 32, 33];
     const missingRequired: number[] = [];
     for (let line = 27; line <= 33; line++) {
-      try {
-        await checkForGutterAndGenerateReport(
-          line,
-          "manager.adb",
-          "cover-icon",
-          true,
-          false
-        );
-        console.log(`Line ${line} has a green gutter`);
-      } catch {
-        if (requiredGreenLines.has(line)) {
-          missingRequired.push(line);
-        } else {
-          console.log(`Line ${line} has no green gutter (allowed)`);
-        }
+      const url = await readAdaGutterIcon("manager.adb", line);
+      const isGreen = url.includes("/cover-icon");
+      console.log(`[reqs gutter] line=${line} green=${isGreen} url=${url}`);
+      if (!isGreen && requiredGreenLines.includes(line)) {
+        missingRequired.push(line);
       }
     }
     if (missingRequired.length > 0) {
