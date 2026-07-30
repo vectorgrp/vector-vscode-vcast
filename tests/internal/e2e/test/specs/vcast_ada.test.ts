@@ -1,30 +1,4 @@
 // Test/specs/vcast_ada.test.ts
-//
-// End-to-end coverage for ADA environment support, in a single spec. Ada is
-// only validated on the latest VectorCAST release (see the "ada" group in
-// specs_config.ts, gated on useLatest), because the Ada integration targets the
-// newest release.
-//
-// The Ada tutorial sources (manager.adb / database.adb / ...) are copied into
-// the workspace's "ada" folder by wdio.conf.ts. From them this spec exercises:
-//   - creating an Ada environment from source (GNAT-on-host confirm dialog),
-//     built with Statement+MCDC,
-//   - the environment building successfully,
-//   - the test tree showing the Ada units under test (MANAGER + DATABASE),
-//   - .tst autocompletion returning Ada subprograms but NOT coded_tests_driver
-//     (coded tests do not exist for Ada),
-//   - writing and running a test (results report),
-//   - MCDC coverage gutters and the per-line MC/DC report on the Ada source,
-//   - rebuilding through every coverage kind (Branch, Statement+Branch, MCDC,
-//     Statement+MCDC) with per-kind gutter icons,
-//   - Reqs2X: generating requirements from the Ada env, generating tests from
-//     those requirements into a CLEAN env (so the generated tests are
-//     unambiguous), running them and validating coverage,
-// and documents the Ada capability matrix (what works vs. what is intentionally
-// unavailable for Ada: coded tests, ATG).
-//
-// GNAT + gprbuild must be on PATH (installed by the workflow's "Install GNAT"
-// step), and the reqs2tests distribution must be the Ada-capable build.
 import {
   type BottomBarPanel,
   type TextEditor,
@@ -696,6 +670,17 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await apiVersionSetting.setValue("2024-12-01-preview");
     await workbench.getEditorView().closeAllEditors();
+
+    // Keep the LLM-driven test generation as short as CI can tolerate: one
+    // retry round instead of the default two. reqs2tests runtime is dominated by
+    // per-requirement LLM calls (with retries), and the generate-tests test sits
+    // right at the mocha per-test timeout - halving the retry rounds buys margin.
+    // Set it directly (the settings UI label is version-sensitive).
+    await browser.executeWorkbench((vscode) =>
+      vscode.workspace
+        .getConfiguration("vectorcastTestExplorer.reqs2x")
+        .update("retries", 1, true)
+    );
   });
 
   it("should generate requirements for the Ada environment", async () => {
@@ -835,10 +820,19 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should generate tests from requirements into a clean Ada environment and check coverage", async () => {
     await updateTestID();
 
+    // Stage timing so a slow/hanging run shows exactly where the time goes
+    // (this test sits near the mocha per-test timeout).
+    const t0 = Date.now();
+    const stamp = (msg: string) =>
+      console.log(
+        `[reqs2tests] +${((Date.now() - t0) / 1000).toFixed(0)}s ${msg}`
+      );
+
     // Start from a CLEAN environment (no tests) so that the tests appearing
     // afterwards are unambiguously the generated ones, and the coverage seen
     // afterwards comes only from them.
     await deleteAllTestsForEnv("DATABASE-MANAGER");
+    stamp("env cleaned");
 
     const vcastTestingViewContent = await getViewContent("Testing");
     let manager: TreeItem;
@@ -856,6 +850,7 @@ describe("vTypeCheck VS Code Extension", () => {
     if (!placeOrder.isExpanded()) {
       await placeOrder.select();
     }
+    stamp("PLACE_ORDER located");
 
     // Clear the reqs channel so we only see output from THIS invocation.
     const outputView = await bottomBar.openOutputView();
@@ -868,6 +863,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await contextMenu.select("VectorCAST");
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
+    stamp("Generate Tests clicked");
 
     // Wait for reqs2tests (LLM-driven) to COMPLETE, using the real completion
     // marker ("reqs2tests exit code: 0") rather than "a test node appeared".
@@ -897,30 +893,47 @@ describe("vTypeCheck VS Code Extension", () => {
         timeoutMsg: `reqs2tests did not complete in time. Output:\n${genOutput}`,
       }
     );
+    stamp("reqs2tests exit code 0");
 
     // The .tst import refreshes the tree, invalidating the pre-generate
-    // placeOrder handle. Re-find it (and wait for the generated tests to be
-    // imported) so Run Test targets the node that actually holds them.
+    // placeOrder handle. Re-find it by scanning the visible rows for a
+    // PLACE_ORDER node that now has children (the imported tests). This uses a
+    // direct label scan rather than findSubprogram/findSubprogramMethod, which
+    // expand-walk the whole tree each iteration and are the likeliest thing to
+    // burn wall-clock here.
     let placeOrderFresh: TreeItem | undefined;
     await browser.waitUntil(
       async () => {
         const vc = await getViewContent("Testing");
         for (const section of await vc.getSections()) {
-          const mgr = await findSubprogram("MANAGER", section);
-          if (!mgr) continue;
-          const po = await findSubprogramMethod(mgr, "PLACE_ORDER");
-          if (po && (await po.getChildren()).length > 0) {
-            placeOrderFresh = po;
-            return true;
+          if (!(await section.isExpanded())) await section.expand();
+          for (const item of await section.getVisibleItems()) {
+            let text = "";
+            try {
+              text = (
+                await (await (item as CustomTreeItem).elem).getText()
+              ).trim();
+            } catch {
+              continue;
+            }
+            if (text !== "PLACE_ORDER") continue;
+            const po = item as TreeItem;
+            if (!(await po.isExpanded())) await po.expand();
+            if ((await po.getChildren()).length > 0) {
+              placeOrderFresh = po;
+              return true;
+            }
           }
         }
         return false;
       },
       {
         timeout: TIMEOUT,
+        interval: 2000,
         timeoutMsg: "No generated requirement tests appeared under PLACE_ORDER",
       }
     );
+    stamp("generated tests imported under PLACE_ORDER");
 
     // Run the generated tests and wait for the run to finish before checking
     // coverage, so the gutters reflect this execution.
@@ -938,6 +951,7 @@ describe("vTypeCheck VS Code Extension", () => {
           .includes("Processing environment data for:"),
       { timeout: TIMEOUT }
     );
+    stamp("generated tests run");
 
     // Validate coverage with the Ada-aware gutter reader (it opens manager.adb
     // from the ada/ folder; checkForGutterAndGenerateReport assumes a cpp/

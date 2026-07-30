@@ -1,27 +1,4 @@
 // Test/specs/vcast_ada_project.test.ts
-//
-// End-to-end coverage for ADA support inside a managed VectorCAST PROJECT
-// (.vcm), as opposed to the free-standing environment exercised by
-// vcast_ada.test.ts. Ada is only validated on the latest VectorCAST release
-// (see the "ada_project" group in specs_config.ts).
-//
-// This spec creates EVERYTHING itself:
-//   - a new Ada project (createNewProject webview, language = Ada -> GNAT-on-host
-//     ADACAST_.CFG compiler),
-//   - an Ada environment INSIDE that project, built from manager.adb +
-//     database.adb ("Create VectorCAST Environment in Project"),
-//   - then runs the SAME checks as the free-env spec against the project env:
-//     test tree (MANAGER + DATABASE), no coded tests, create+run a test, the
-//     coverage-kind loop with per-kind gutter icons, and the MC/DC report.
-//
-// Project trees are deeper than free envs
-// (AdaProject.vcm -> GNAT -> TestSuite -> DATABASE-MANAGER -> units), so
-// expandProjectToEnv() expands down to the env node before the unit-level
-// lookups (findSubprogram walks the visible rows, so the env node must be
-// visible for its unit children to be found).
-//
-// GNAT + gprbuild must be on PATH (installed by the workflow's "Install GNAT"
-// step).
 import {
   type BottomBarPanel,
   type TextEditor,
@@ -135,8 +112,11 @@ async function expandProjectToEnv(): Promise<void> {
 // children) and is prone to stale-handle/re-render races in the deep project
 // tree (symptom: MANAGER plainly visible in the tree yet returned undefined).
 async function findUnitInProject(unit: string): Promise<TreeItem | undefined> {
+  let logged = 0;
   const scan = async (): Promise<TreeItem | undefined> => {
     const content = await getViewContent("Testing");
+    const seen: string[] = [];
+    let hit: TreeItem | undefined;
     for (const section of await content.getSections()) {
       if (!(await section.isExpanded())) await section.expand();
       for (const item of await section.getVisibleItems()) {
@@ -146,20 +126,39 @@ async function findUnitInProject(unit: string): Promise<TreeItem | undefined> {
         } catch {
           continue;
         }
-        if (text === unit) return item as TreeItem;
+        seen.push(text);
+        if (text === unit && !hit) hit = item as TreeItem;
       }
     }
-    return undefined;
+    // Log the first couple of scans so a failure shows exactly what row labels
+    // were visible (e.g. a status suffix that broke the exact match).
+    if (logged < 2) {
+      console.log(
+        `[project tree] looking for '${unit}', visible rows: ${JSON.stringify(seen)}`
+      );
+      logged++;
+    }
+    return hit;
   };
 
-  // Scan the current tree first, then expand the project down to the env and
-  // retry; a couple of passes absorb a mid-render tree.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const found = await scan();
-    if (found) return found;
-    await expandProjectToEnv();
+  // Poll (re-expanding the project to the env each miss) until the unit row
+  // settles into view. The env auto-expands after a build, but that render can
+  // lag; a few fast passes are not enough (flaky), so wait up to TIMEOUT.
+  let found: TreeItem | undefined;
+  try {
+    await browser.waitUntil(
+      async () => {
+        found = await scan();
+        if (found) return true;
+        await expandProjectToEnv();
+        return false;
+      },
+      { timeout: TIMEOUT, interval: 2000 }
+    );
+  } catch {
+    // fall through - caller asserts on undefined with a clearer message
   }
-  return undefined;
+  return found;
 }
 
 describe("vTypeCheck VS Code Extension - Ada Project", () => {
