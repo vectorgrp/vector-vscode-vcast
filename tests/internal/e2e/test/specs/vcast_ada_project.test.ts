@@ -75,27 +75,23 @@ async function clickExtensionNotificationButton(
   }
 }
 
-// Expand the project tree (project -> compiler -> testsuite -> ENV) so the env
-// node and its unit children (MANAGER / DATABASE) become visible rows that
-// findSubprogram can locate. Called at the start of every unit-level test
-// because a rebuild can collapse/refresh the tree.
+// Best-effort expansion of the project tree so the env node (and its unit
+// children) become visible for findSubprogram. Only used as a FALLBACK: after a
+// build/rebuild the env is usually already auto-expanded, in which case
+// findUnitInProject finds the unit directly without touching the tree.
 //
-// This is NAME-based and depth-agnostic on purpose: a fixed-level lookup
-// (findTreeNodeAtLevel(3, ...)) breaks once the env auto-expands to show its
-// units (which shifts the effective depth), even though the env is right there.
-// Best-effort: if the env is already visible we expand it and return; otherwise
-// we expand the currently-visible containers a level at a time until it appears.
-// Never throws - findSubprogram surfaces a clear error if the unit is truly
-// absent.
+// Expand-only (never selects, so it never opens a source file) and matches the
+// env label with startsWith (the node may carry a status suffix). Expands the
+// currently-visible collapsed rows a level per pass until the env row appears;
+// bounded and never throws.
 async function expandProjectToEnv(): Promise<void> {
   const content = await getViewContent("Testing");
   for (let pass = 0; pass < 8; pass++) {
     let expandedSomething = false;
+    let envVisible = false;
     for (const section of await content.getSections()) {
       if (!(await section.isExpanded())) await section.expand();
       const items = await section.getVisibleItems();
-
-      // If the env node is already visible, make sure it is expanded and stop.
       for (const item of items) {
         let text = "";
         try {
@@ -103,7 +99,7 @@ async function expandProjectToEnv(): Promise<void> {
         } catch {
           continue;
         }
-        if (text === ENV_NAME) {
+        if (text.startsWith(ENV_NAME)) {
           if (!(await item.isExpanded())) {
             try {
               await item.expand();
@@ -111,12 +107,11 @@ async function expandProjectToEnv(): Promise<void> {
               /* ignore */
             }
           }
-          return;
+          envVisible = true;
         }
       }
-
-      // Env not visible yet: expand the collapsed containers to reveal the next
-      // level, then loop and look again.
+      if (envVisible) continue;
+      // Env not visible yet: expand collapsed rows to reveal the next level.
       for (const item of items) {
         if (!(await item.isExpanded())) {
           try {
@@ -128,20 +123,28 @@ async function expandProjectToEnv(): Promise<void> {
         }
       }
     }
-    if (!expandedSomething) return;
+    if (envVisible || !expandedSomething) return;
   }
 }
 
-// Locate a unit (e.g. MANAGER) inside the project tree. Ensures the env node is
-// expanded first, then walks the visible rows for the unit.
+// Locate a unit (e.g. MANAGER) inside the project tree. Tries the current tree
+// first (the env is usually already expanded after a build/rebuild); only if
+// that fails does it expand the project down to the env and retry.
 async function findUnitInProject(unit: string): Promise<TreeItem | undefined> {
+  const search = async (): Promise<TreeItem | undefined> => {
+    const content = await getViewContent("Testing");
+    for (const section of await content.getSections()) {
+      const found = await findSubprogram(unit, section);
+      if (found) return found;
+    }
+    return undefined;
+  };
+
+  const first = await search();
+  if (first) return first;
+
   await expandProjectToEnv();
-  const content = await getViewContent("Testing");
-  for (const section of await content.getSections()) {
-    const found = await findSubprogram(unit, section);
-    if (found) return found;
-  }
-  return undefined;
+  return search();
 }
 
 describe("vTypeCheck VS Code Extension - Ada Project", () => {
