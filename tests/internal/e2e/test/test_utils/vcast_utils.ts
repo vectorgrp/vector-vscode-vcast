@@ -2087,7 +2087,8 @@ export async function waitForEnvSuffix(
 export async function insertAndRunAdaBasisPaths(
   bottomBar: BottomBarPanel,
   unit: string,
-  subprogram: string
+  subprogram: string,
+  reFindMethodBeforeRun = false
 ): Promise<void> {
   const content = await getViewContent("Testing");
   let unitNode: TreeItem | undefined;
@@ -2132,7 +2133,31 @@ export async function insertAndRunAdaBasisPaths(
 
   // Run the generated basis-path tests so their coverage shows in the gutters.
   await outputView.clearText();
-  await (await (await method.getActionButton("Run Test")).elem).click();
+
+  // In deep project trees, "Insert Basis Path Tests" turns the leaf subprogram
+  // node into a parent (it now has basis-path children), which invalidates the
+  // pre-insert `method` handle. Clicking Run Test on the stale handle runs
+  // nothing, so no coverage appears (symptom: "Coverage: 1/48" on the first
+  // iteration). Re-resolve the node so Run Test targets the one that actually
+  // holds the new tests. Free (non-project) envs keep the handle valid, so this
+  // re-find is opt-in to avoid perturbing their already-passing flow.
+  let methodToRun = method;
+  if (reFindMethodBeforeRun) {
+    const refreshed = await getViewContent("Testing");
+    for (const section of await refreshed.getSections()) {
+      const u = await findSubprogram(unit, section);
+      if (u) {
+        if (!(await u.isExpanded())) await u.expand();
+        const m = await findSubprogramMethod(u, subprogram);
+        if (m) {
+          methodToRun = m;
+          break;
+        }
+      }
+    }
+  }
+
+  await (await (await methodToRun.getActionButton("Run Test")).elem).click();
   await browser.waitUntil(
     async () =>
       (await outputView.getText())

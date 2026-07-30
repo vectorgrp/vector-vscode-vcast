@@ -100,9 +100,10 @@ async function expandProjectToEnv(): Promise<void> {
           continue;
         }
         if (text.startsWith(ENV_NAME)) {
-          if (!(await item.isExpanded())) {
+          const envItem = item as TreeItem;
+          if (!(await envItem.isExpanded())) {
             try {
-              await item.expand();
+              await envItem.expand();
             } catch {
               /* ignore */
             }
@@ -113,9 +114,10 @@ async function expandProjectToEnv(): Promise<void> {
       if (envVisible) continue;
       // Env not visible yet: expand collapsed rows to reveal the next level.
       for (const item of items) {
-        if (!(await item.isExpanded())) {
+        const row = item as TreeItem;
+        if (!(await row.isExpanded())) {
           try {
-            await item.expand();
+            await row.expand();
             expandedSomething = true;
           } catch {
             /* ignore */
@@ -620,7 +622,8 @@ describe("vTypeCheck VS Code Extension - Ada Project", () => {
       await insertAndRunAdaBasisPaths(
         bottomBar,
         "MANAGER",
-        "ADD_INCLUDED_DESSERT"
+        "ADD_INCLUDED_DESSERT",
+        /* reFindMethodBeforeRun */ true
       );
 
       await expandProjectToEnv();

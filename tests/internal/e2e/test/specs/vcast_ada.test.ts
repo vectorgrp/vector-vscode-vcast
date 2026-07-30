@@ -702,26 +702,17 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const activityBar = workbench.getActivityBar();
 
-    // code2reqs logs to its OWN output channel; select it before waiting for the
-    // completion marker (the C/C++ requirements spec does the same). Without
-    // this we watch the default "VectorCAST Test Explorer" channel, never see
-    // "code2reqs exit code: 0", and time out.
+    // code2reqs logs to its OWN output channel ("VectorCAST Requirement Test
+    // Generation Operations"). Selecting that channel is unreliable across VS
+    // Code builds (wdio's selectChannel hunts for a channel dropdown that isn't
+    // always present), so we don't depend on it for completion detection - we
+    // watch the Requirements webview instead (see below). We still open the
+    // output view here so the run's log is visible/captured.
     const outputView = await bottomBar.openOutputView();
-    try {
-      await browser.waitUntil(async () =>
-        (await outputView.getChannelNames())
-          .toString()
-          .includes("VectorCAST Requirement Test Generation Operations")
-      );
-      await outputView.selectChannel(
-        "VectorCAST Requirement Test Generation Operations"
-      );
-    } catch (err) {
-      console.warn(
-        "selectChannel failed, continuing anyway:",
-        (err as Error).message
-      );
-    }
+
+    // Make sure no stale webview is open, so a freshly-opened Requirements
+    // panel is an unambiguous success signal for the wait below.
+    await workbench.getEditorView().closeAllEditors();
 
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
@@ -751,16 +742,29 @@ describe("vTypeCheck VS Code Extension", () => {
         if (generateButton == undefined) break;
         await generateButton.click();
 
-        // Wait for code2reqs to finish. Fail fast (dumping the reqs channel) if
-        // it exits non-zero, instead of hanging the whole timeout - the reqs2x
-        // LLM path (azure_openai) is the most likely thing to break in CI.
+        // Wait for code2reqs to finish. On success the extension opens the
+        // Requirements webview (showRequirements) - that's our primary,
+        // channel-independent success signal. We ALSO read the reqs output
+        // channel best-effort (selecting it may fail on some VS Code builds) so
+        // we can fail fast on a non-zero code2reqs exit instead of hanging the
+        // whole timeout - the reqs2x LLM path (azure_openai) is the most likely
+        // thing to break in CI.
         let reqsOutput = "";
         try {
           await browser.waitUntil(
             async () => {
-              reqsOutput = (
-                await (await bottomBar.openOutputView()).getText()
-              ).toString();
+              // Primary signal: the Requirements panel opened => success.
+              if ((await workbench.getAllWebviews()).length > 0) return true;
+
+              // Secondary: read the reqs channel if it can be selected.
+              try {
+                await outputView.selectChannel(
+                  "VectorCAST Requirement Test Generation Operations"
+                );
+              } catch {
+                /* channel dropdown absent on this build; rely on the webview */
+              }
+              reqsOutput = (await outputView.getText()).toString();
               if (reqsOutput.includes("code2reqs exit code: 0")) return true;
               const nonZero = reqsOutput.match(/code2reqs exit code: (\d+)/);
               if (nonZero && nonZero[1] !== "0") {
@@ -868,21 +872,34 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    // Wait for reqs2tests to finish (LLM-driven, so allow plenty of time).
+    // Wait for reqs2tests (LLM-driven) to finish. Primary, channel-independent
+    // signal: the env was cleaned first, so any test now appearing under
+    // PLACE_ORDER was generated from the requirements. We also read the reqs
+    // output channel best-effort to fail fast on a non-zero exit, but don't
+    // depend on selecting it (unreliable across VS Code builds).
+    let genOutput = "";
     await browser.waitUntil(
-      async () =>
-        (await (await bottomBar.openOutputView()).getText())
-          .toString()
-          .includes("reqs2tests exit code: 0"),
-      { timeout: 240_000 }
-    );
-
-    // The environment was clean, so any test under PLACE_ORDER now was
-    // generated from the requirements.
-    await browser.waitUntil(
-      async () => (await placeOrder.getChildren()).length > 0,
+      async () => {
+        if ((await placeOrder.getChildren()).length > 0) return true;
+        try {
+          await outputView.selectChannel(
+            "VectorCAST Requirement Test Generation Operations"
+          );
+        } catch {
+          /* channel dropdown absent on this build; rely on the tree signal */
+        }
+        genOutput = (await outputView.getText()).toString();
+        const nonZero = genOutput.match(/reqs2tests exit code: (\d+)/);
+        if (nonZero && nonZero[1] !== "0") {
+          throw new Error(
+            `reqs2tests exited with code ${nonZero[1]}:\n${genOutput}`
+          );
+        }
+        return false;
+      },
       {
-        timeout: TIMEOUT,
+        timeout: 240_000,
+        interval: 3000,
         timeoutMsg: "No generated requirement tests appeared under PLACE_ORDER",
       }
     );
