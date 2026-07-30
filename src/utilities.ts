@@ -360,9 +360,6 @@ export function builtEnviroIsAda(enviroPath: string): boolean {
   });
 }
 
-// The Ada compiler/harness configuration file (analogous to CCAST_.CFG for
-// C/C++). For Ada environment creation we support GNAT on the host only; a
-// minimal ADACAST_.CFG with these two keys is enough for VectorCAST to build.
 const adaConfigFilename = "ADACAST_.CFG";
 
 // Derive the VectorCAST Ada UNIT name from a source file.
@@ -427,7 +424,7 @@ export function ensureAdaConfigurationFile(cwd: string): void {
 // Generate a minimal GNAT project (.gpr) in `cwd` whose Source_Dirs point at
 // the given Ada source directories, and return its file name. Ada environments
 // are built in a different directory than the sources (e.g. unitTests/), and
-// ENVIRO.SEARCH_LIST is NOT enough for Ada - VectorCAST needs the units in an
+// ENVIRO.SEARCH_LIST is NOT enough for Ada. VectorCAST needs the units in an
 // Ada "library". Referencing this GPR via ENVIRO.PARENT_LIB lets clicast build
 // the library itself (no separate gprbuild step required). The project/file
 // name must be a valid Ada identifier, so the environment name is sanitized.

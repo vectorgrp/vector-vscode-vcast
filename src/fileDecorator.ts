@@ -4,9 +4,6 @@ import { Uri } from "vscode";
 import { getListOfFilesToDecorate } from "./vcastTestInterface";
 
 // this class allows us to add decorations to the file explorer
-// we use this to indicate which files are VectorCAST units (part of an
-// environment) - independent of whether the file currently has covered lines,
-// so a unit's own file is flagged consistently with the rest of its environment
 
 function decorateExplorerOn(): boolean {
   let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");

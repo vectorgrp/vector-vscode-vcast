@@ -724,9 +724,8 @@ export async function updateTestsForEnvironment(
   // Instead we get the entire env data at once and save us time.
   jsonData = await loadEnviroData(enviroData, comingFromRefresh);
   if (!jsonData) {
-    // No data came back - the environment node cannot be (re)built. Log it so
-    // this does not fail silently (previously a bare `return` left the test
-    // pane stale with no explanation).
+    // No data came back. The environment node cannot be (re)built. Log it so
+    // this does not fail silently.
     vectorMessage(
       `No environment data returned for ${enviroData.buildDirectory}; ` +
         `the test pane was not updated.`

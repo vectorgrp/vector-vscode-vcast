@@ -311,12 +311,6 @@ export function checksumMatchesEnvironment(
   return returnValue;
 }
 
-// Files to mark with the "VC" badge in the explorer: every source file that
-// belongs to a VectorCAST environment (i.e. a unit under test), whether or not
-// it currently has covered lines of its own. This keeps a unit's own file
-// flagged consistently with the other files of the same environment - e.g. an
-// Ada parent body whose executable code lives in `separate` subunits, or any
-// unit whose environment has not been executed yet.
 export function getListOfFilesToDecorate(): string[] {
   let returnList: string[] = [];
 
@@ -950,7 +944,6 @@ async function commonEnvironmentSetup(
 }
 
 // Improvement needed: get the language extensions automatically, don't hard-code
-// Note: "adb"/"ads" are Ada sources (the .adb body is normally the UUT).
 const extensionsOfInterest = ["c", "cpp", "cc", "cxx", "adb", "ads"];
 
 export async function newEnvironment(
@@ -1109,7 +1102,7 @@ function createScriptTemplate(testNode: testNodeType): string {
     // "test script create" -> "test script run" round-trip, which makes the
     // whole environment rebuild report failure. The empty value is ignored on
     // import anyway, so omitting it yields an identical executable test with no
-    // import failure - Ada tests start with no value line and the user adds
+    // import failure. Ada tests start with no value line and the user adds
     // values via the 'vcast-test snippet / LSE features.
     scriptTemplateLines.push("TEST.VALUE");
   }

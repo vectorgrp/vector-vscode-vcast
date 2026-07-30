@@ -55,11 +55,6 @@ async function clickExtensionNotificationButton(
 // children) become visible for findSubprogram. Only used as a FALLBACK: after a
 // build/rebuild the env is usually already auto-expanded, in which case
 // findUnitInProject finds the unit directly without touching the tree.
-//
-// Expand-only (never selects, so it never opens a source file) and matches the
-// env label with startsWith (the node may carry a status suffix). Expands the
-// currently-visible collapsed rows a level per pass until the env row appears;
-// bounded and never throws.
 async function expandProjectToEnv(): Promise<void> {
   const content = await getViewContent("Testing");
   for (let pass = 0; pass < 8; pass++) {
@@ -106,11 +101,7 @@ async function expandProjectToEnv(): Promise<void> {
 }
 
 // Locate a unit (e.g. MANAGER) inside the project tree. The env auto-expands
-// after a build/rebuild, so the unit rows are usually already visible - we
-// match a visible row by its exact label rather than using findSubprogram,
-// which expands every visible item mid-iteration (checking each node's
-// children) and is prone to stale-handle/re-render races in the deep project
-// tree (symptom: MANAGER plainly visible in the tree yet returned undefined).
+// after a build/rebuild, so the unit rows are usually already visible
 async function findUnitInProject(unit: string): Promise<TreeItem | undefined> {
   let logged = 0;
   const scan = async (): Promise<TreeItem | undefined> => {

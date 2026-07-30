@@ -483,13 +483,6 @@ describe("vTypeCheck VS Code Extension", () => {
       // The extension repopulates the test pane after the rebuild (confirmed
       // via the updateTestsForEnvironment trace); getViewContent re-activates
       // the Testing view, so the env/units are found directly.
-      //
-      // NOTE: we do NOT use the shared generateBasisPathTestForSubprogram /
-      // insertBasisPathTestFor helpers here - they hard-wait for
-      // "BASIS-PATH-004", which only exists for the C/C++
-      // Manager::AddIncludedDessert (4 basis paths). The Ada
-      // MANAGER.ADD_INCLUDED_DESSERT has 3 basis paths, so insertAndRunAdaBasisPaths
-      // waits on a count-independent completion signal instead.
       await insertAndRunAdaBasisPaths(
         bottomBar,
         "MANAGER",
@@ -687,13 +680,6 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
 
     const activityBar = workbench.getActivityBar();
-
-    // code2reqs logs to its OWN output channel ("VectorCAST Requirement Test
-    // Generation Operations"). Selecting that channel is unreliable across VS
-    // Code builds (wdio's selectChannel hunts for a channel dropdown that isn't
-    // always present), so we don't depend on it for completion detection - we
-    // watch the Requirements webview instead (see below). We still open the
-    // output view here so the run's log is visible/captured.
     const outputView = await bottomBar.openOutputView();
 
     // Make sure no stale webview is open, so a freshly-opened Requirements
@@ -729,12 +715,7 @@ describe("vTypeCheck VS Code Extension", () => {
         await generateButton.click();
 
         // Wait for code2reqs to finish. On success the extension opens the
-        // Requirements webview (showRequirements) - that's our primary,
-        // channel-independent success signal. We ALSO read the reqs output
-        // channel so we can fail fast on a non-zero code2reqs exit instead of
-        // hanging the whole timeout - the reqs2x LLM path (azure_openai) is the
-        // most likely thing to break in CI. selectOutputChannel switches the
-        // channel reliably (wdio's selectChannel can't, see its helper doc).
+        // Requirements webview (showRequirements)
         let reqsOutput = "";
         try {
           await browser.waitUntil(
@@ -865,12 +846,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await menuElement.click();
     stamp("Generate Tests clicked");
 
-    // Wait for reqs2tests (LLM-driven) to COMPLETE, using the real completion
-    // marker ("reqs2tests exit code: 0") rather than "a test node appeared".
-    // reqs2tests imports its generated .tst at the end and refreshes the tree;
-    // starting Run Test before it finishes collides with the still-busy
-    // environment and stalls until the mocha test timeout. selectOutputChannel
-    // makes the reqs channel readable so this marker is reliable.
+    // Wait for reqs2tests to complete
     let genOutput = "";
     await browser.waitUntil(
       async () => {
@@ -897,10 +873,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // The .tst import refreshes the tree, invalidating the pre-generate
     // placeOrder handle. Re-find it by scanning the visible rows for a
-    // PLACE_ORDER node that now has children (the imported tests). This uses a
-    // direct label scan rather than findSubprogram/findSubprogramMethod, which
-    // expand-walk the whole tree each iteration and are the likeliest thing to
-    // burn wall-clock here.
+    // PLACE_ORDER node that now has children (the imported tests).
     let placeOrderFresh: TreeItem | undefined;
     await browser.waitUntil(
       async () => {

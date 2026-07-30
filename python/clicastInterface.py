@@ -106,8 +106,7 @@ def runClicastCommandWithEcho(commandToRun):
     )
     # Iterate the pipe until EOF rather than looping on process.poll(): polling
     # stops as soon as the process exits and drops any output still buffered in
-    # the pipe, which truncates the tail of large outputs (e.g. a rebuild that
-    # emits thousands of lines and then exits quickly).
+    # the pipe.
     for line in process.stdout:
         line = line.rstrip()
         if len(line) > 0:
@@ -211,9 +210,7 @@ tempTestScript = "rebuild.tst"
 
 def environmentIsAda(enviroPath):
     """
-    Returns True if the environment is an Ada environment, using the
-    authoritative DataAPI is_ada flag. Falls back to False if the environment
-    cannot be opened.
+    Returns true if the environment is an Ada env based on the is_ada flag.
     """
     try:
         with UnitTestApi(enviroPath) as api:
@@ -231,7 +228,7 @@ def adaParentLibOverride(enviroName):
     reference does not resolve at build time and "enviro build" fails with
     exit code 19.
 
-    The extension's original <enviroName>.env script still records the correct
+    The extension's original <envName>.env script still records the correct
     ABSOLUTE PARENT_LIB it wrote at create time, so read it back and use that to
     fix up the regenerated script. Returns the absolute PARENT_LIB value, or
     None if it is unavailable (in which case the regenerated value is kept).
@@ -256,8 +253,8 @@ def adaParentLibOverride(enviroName):
                         )
                         return None
                     if not os.path.exists(value):
-                        # Use it anyway - the exists check has bitten us before
-                        # (e.g. path resolves differently in CI); a wrong path
+                        # Use it anyway. The exists check has bitten us before
+                        # (path resolves differently in CI). A wrong path
                         # just reproduces the original failure, it does not make
                         # things worse.
                         print(
@@ -453,9 +450,7 @@ def executeTest(enviroPath, testIDObject):
     # separate variable because in the future there will be additional parameters
     shouldQuoteParameters = not pythonUtilities.USE_SERVER
     standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
-    # Ada environments must be driven with "-l ada"; C/C++ use "-lc". Using the
-    # wrong language flag is inconsistent (and bites other clicast commands such
-    # as "enviro build" - see updateScriptsAndRebuild).
+    # Ada environments must be driven with "-l ada"; C/C++ use "-lc".
     languageFlag = "-l ada" if environmentIsAda(enviroPath) else "-lc"
     # we cannot include the execute command in the command script that we use for
     # results because we need the return code from the execute command separately

@@ -338,12 +338,7 @@ def isTestableFunction(functionNode):
     # environment a real UUT can be assigned unit id 10, in which case
     # is_testable wrongly reports every one of its subprograms as non-testable
     # and the whole unit vanishes from the test tree (e.g. WAREHOUSE.INVENTORY).
-    #
-    # A subprogram is testable when it belongs to a source file and is not a
-    # non-testable stub; stub *units* are excluded via is_uut at the call sites.
-    # sourcefile_id / is_non_testable_stub exist on every supported VectorCAST
-    # version (verified back to 2021sp8). This is identical to is_testable for
-    # C/C++ (no id-10 collisions there) and only differs for the Ada case above.
+    # Rework if that issue is fixed in the DataAPI.
     return bool(getattr(functionNode, "sourcefile_id", None)) and (
         not functionNode.is_non_testable_stub
     )

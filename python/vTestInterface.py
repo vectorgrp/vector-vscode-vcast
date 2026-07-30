@@ -250,7 +250,7 @@ def getTestDataVCAST(api, enviroPath):
         # subprograms is already a UUT (non-UUT units have no testable
         # functions), so this is a no-op there. Ada, however, exposes stubbed
         # dependency units (e.g. DATABASE) as their own units WITH subprograms
-        # even though they are not under test - without this check they wrongly
+        # even though they are not under test. So without this check they wrongly
         # appear in the test tree. Default to True so ancient DataAPI versions
         # (should is_uut ever be missing) keep the previous behaviour.
         if not getattr(unit, "is_uut", True):
@@ -304,14 +304,7 @@ def getUnitData(api):
         # they raise AttributeError whenever coverage has not been initialized
         # (cover_data is None), which is common for Ada environments and for
         # any freshly built environment. ONLY in that case do we fall back to
-        # the plain path (the attribute getCoverageData relies on).
-        #
-        # A display_path that is present but EMPTY is different: it marks an
-        # internal/hidden source object (harness and preprocessor temporaries,
-        # e.g. S0000008.cpp / vcast_preprocess.*.cpp). VectorCAST hides these by
-        # blanking display_path, so we must NOT resurrect them via .path - doing
-        # so would emit spurious units. Skip them, matching the historical
-        # behaviour of only emitting units whose display_path is non-empty.
+        # the plain path.
         try:
             sourcePath = sourceObject.display_path
         except AttributeError:

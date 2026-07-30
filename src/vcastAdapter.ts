@@ -244,8 +244,6 @@ export function setCodedTestOption(unitTestLocation: string) {
   //
   // Note: no special handling is needed for Ada environments. Ada does not
   // support coded tests, so VectorCAST never creates a coded_tests_driver
-  // (the tree node and its menus therefore never appear), and setting this
-  // option on an Ada environment is a harmless no-op.
 
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   if (settings.get("build.enableCodedTesting", false)) {

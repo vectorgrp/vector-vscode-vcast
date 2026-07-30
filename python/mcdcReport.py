@@ -82,9 +82,12 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
     # Open-up the unit test API
     with UnitTestApi(env) as api:
         # A subunit file's base name is not a
-        # unit, and its line numbers are the real-file ones. If the filter does
+        # unit, and its line numbers are the real file ones. If the filter does
         # not name a real unit, resolve it (and the clicked real line) back to
         # the merged unit + listing line that the report engine understands.
+        # VectorCAST reports Ada unit names in upper case while
+        # the extension derives the unit name from the lower-case source file
+        # ("manager.adb" vs "MANAGER"), so match case-insensitively rather than exact-name.
         if not any(u.name.lower() == unit_filter.lower() for u in api.Unit.all()):
             for entry in severage_coverage.mcdc_decision_map(api, env):
                 base = os.path.splitext(os.path.basename(entry["real_path"]))[0]
@@ -97,9 +100,6 @@ def generate_mcdc_report(env, unit_filter, line_filter, output):
                     break
 
         # Find and check for our unit.
-        # VectorCAST reports Ada unit names in upper case (e.g. "MANAGER") while
-        # the extension derives the unit name from the lower-case source file
-        # ("manager.adb"), so match case-insensitively rather than exact-name.
         unit_found = False
         for unit in api.Unit.all():
             if unit.name.lower() != unit_filter.lower():

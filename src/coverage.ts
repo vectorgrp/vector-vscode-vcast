@@ -176,9 +176,8 @@ export async function updateCOVdecorations() {
 
   let activeEditor = vscode.window.activeTextEditor;
 
-  // We gate on the file extension rather than the editor languageId so that
-  // Ada source files (.adb/.ads) are decorated too. Ada is not a built-in
-  // VS Code language, so its files would otherwise report languageId "plaintext".
+  // Ada is not A VSCode supproted language. So we need to gate on file extension because
+  // otherwise activeEditor.document.languageId would return "Plaintext".
   if (activeEditor && isSupportedSourceFile(activeEditor.document.uri.fsPath)) {
     const filePath = url.fileURLToPath(activeEditor.document.uri.toString());
 
