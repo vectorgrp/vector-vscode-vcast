@@ -1705,9 +1705,34 @@ export async function rebuildEnvironmentFromTestingPane(envName: string) {
   }
 }
 
-export async function selectOutputChannel(channelName: string) {
-  const dropdown = await $("select.monaco-select-box");
-  await dropdown.selectByVisibleText(channelName);
+// Select an Output-panel channel by name reliably across VS Code builds, and
+// gracefully (returns false instead of throwing when the channel isn't present
+// yet, so it's safe to call inside a waitUntil poll loop). wdio-vscode-service's
+// OutputView.selectChannel targets `select[title="Tasks"]`, whose `title` is
+// actually the CURRENTLY selected channel - it only matches while "Tasks" is
+// active, and silently fails once another channel is showing. We instead find
+// the output channel <select> by matching an option's text/value (unique to the
+// channel picker) and switch it directly, dispatching the "change" event VS
+// Code's SelectBox listens for. Returns true if the channel was found+selected.
+export async function selectOutputChannel(
+  channelName: string
+): Promise<boolean> {
+  return (await browser.execute((name: string) => {
+    const selects = Array.from(
+      document.querySelectorAll("select")
+    ) as HTMLSelectElement[];
+    for (const sel of selects) {
+      const opt = Array.from(sel.options).find(
+        (o) => o.value === name || o.textContent === name
+      );
+      if (opt) {
+        sel.value = opt.value;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      }
+    }
+    return false;
+  }, channelName)) as boolean;
 }
 
 /**

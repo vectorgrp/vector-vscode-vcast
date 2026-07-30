@@ -49,6 +49,7 @@ import {
   updateTestID,
   insertAndRunAdaBasisPaths,
   readAdaGutterIcon,
+  selectOutputChannel,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -745,10 +746,10 @@ describe("vTypeCheck VS Code Extension", () => {
         // Wait for code2reqs to finish. On success the extension opens the
         // Requirements webview (showRequirements) - that's our primary,
         // channel-independent success signal. We ALSO read the reqs output
-        // channel best-effort (selecting it may fail on some VS Code builds) so
-        // we can fail fast on a non-zero code2reqs exit instead of hanging the
-        // whole timeout - the reqs2x LLM path (azure_openai) is the most likely
-        // thing to break in CI.
+        // channel so we can fail fast on a non-zero code2reqs exit instead of
+        // hanging the whole timeout - the reqs2x LLM path (azure_openai) is the
+        // most likely thing to break in CI. selectOutputChannel switches the
+        // channel reliably (wdio's selectChannel can't, see its helper doc).
         let reqsOutput = "";
         try {
           await browser.waitUntil(
@@ -756,14 +757,10 @@ describe("vTypeCheck VS Code Extension", () => {
               // Primary signal: the Requirements panel opened => success.
               if ((await workbench.getAllWebviews()).length > 0) return true;
 
-              // Secondary: read the reqs channel if it can be selected.
-              try {
-                await outputView.selectChannel(
-                  "VectorCAST Requirement Test Generation Operations"
-                );
-              } catch {
-                /* channel dropdown absent on this build; rely on the webview */
-              }
+              // Secondary: read the reqs channel to catch a non-zero exit.
+              await selectOutputChannel(
+                "VectorCAST Requirement Test Generation Operations"
+              );
               reqsOutput = (await outputView.getText()).toString();
               if (reqsOutput.includes("code2reqs exit code: 0")) return true;
               const nonZero = reqsOutput.match(/code2reqs exit code: (\d+)/);
@@ -777,9 +774,13 @@ describe("vTypeCheck VS Code Extension", () => {
             { timeout: 240_000, interval: 3000 }
           );
         } catch (error) {
+          // Make sure the dump shows the reqs channel, not whatever was active.
+          await selectOutputChannel(
+            "VectorCAST Requirement Test Generation Operations"
+          );
           reqsOutput =
-            reqsOutput ||
-            (await (await bottomBar.openOutputView()).getText()).toString();
+            (await (await bottomBar.openOutputView()).getText()).toString() ||
+            reqsOutput;
 
           // Log whatever the Requirements webview panel shows (if the extension
           // opened one), so we can see whether ANY requirements were produced
@@ -858,13 +859,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     // Clear the reqs channel so we only see output from THIS invocation.
     const outputView = await bottomBar.openOutputView();
-    try {
-      await outputView.selectChannel(
-        "VectorCAST Requirement Test Generation Operations"
-      );
-    } catch (err) {
-      console.warn("selectChannel failed, continuing anyway:", err.message);
-    }
+    await selectOutputChannel(
+      "VectorCAST Requirement Test Generation Operations"
+    );
     await outputView.clearText();
 
     const contextMenu = await placeOrder.openContextMenu();
@@ -881,13 +878,9 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.waitUntil(
       async () => {
         if ((await placeOrder.getChildren()).length > 0) return true;
-        try {
-          await outputView.selectChannel(
-            "VectorCAST Requirement Test Generation Operations"
-          );
-        } catch {
-          /* channel dropdown absent on this build; rely on the tree signal */
-        }
+        await selectOutputChannel(
+          "VectorCAST Requirement Test Generation Operations"
+        );
         genOutput = (await outputView.getText()).toString();
         const nonZero = genOutput.match(/reqs2tests exit code: (\d+)/);
         if (nonZero && nonZero[1] !== "0") {
@@ -909,11 +902,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // require green gutters only on the always-executed lines and allow the
     // input-dependent ones to differ - same approach as the C/C++
     // requirements spec.
-    try {
-      await outputView.selectChannel("VectorCAST Test Explorer");
-    } catch (err) {
-      console.warn("selectChannel failed, continuing anyway:", err.message);
-    }
+    await selectOutputChannel("VectorCAST Test Explorer");
     await (await (await placeOrder.getActionButton("Run Test")).elem).click();
 
     const requiredGreenLines = new Set<number>([27, 31, 32, 33]);

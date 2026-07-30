@@ -35,7 +35,6 @@ import {
   executeCtrlClickOn,
   expandWorkspaceFolderSectionInExplorer,
   getViewContent,
-  findSubprogram,
   findSubprogramMethod,
   findTreeNodeAtLevel,
   executeContextMenuAction,
@@ -129,24 +128,38 @@ async function expandProjectToEnv(): Promise<void> {
   }
 }
 
-// Locate a unit (e.g. MANAGER) inside the project tree. Tries the current tree
-// first (the env is usually already expanded after a build/rebuild); only if
-// that fails does it expand the project down to the env and retry.
+// Locate a unit (e.g. MANAGER) inside the project tree. The env auto-expands
+// after a build/rebuild, so the unit rows are usually already visible - we
+// match a visible row by its exact label rather than using findSubprogram,
+// which expands every visible item mid-iteration (checking each node's
+// children) and is prone to stale-handle/re-render races in the deep project
+// tree (symptom: MANAGER plainly visible in the tree yet returned undefined).
 async function findUnitInProject(unit: string): Promise<TreeItem | undefined> {
-  const search = async (): Promise<TreeItem | undefined> => {
+  const scan = async (): Promise<TreeItem | undefined> => {
     const content = await getViewContent("Testing");
     for (const section of await content.getSections()) {
-      const found = await findSubprogram(unit, section);
-      if (found) return found;
+      if (!(await section.isExpanded())) await section.expand();
+      for (const item of await section.getVisibleItems()) {
+        let text = "";
+        try {
+          text = (await (await (item as CustomTreeItem).elem).getText()).trim();
+        } catch {
+          continue;
+        }
+        if (text === unit) return item as TreeItem;
+      }
     }
     return undefined;
   };
 
-  const first = await search();
-  if (first) return first;
-
-  await expandProjectToEnv();
-  return search();
+  // Scan the current tree first, then expand the project down to the env and
+  // retry; a couple of passes absorb a mid-render tree.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const found = await scan();
+    if (found) return found;
+    await expandProjectToEnv();
+  }
+  return undefined;
 }
 
 describe("vTypeCheck VS Code Extension - Ada Project", () => {
