@@ -821,22 +821,51 @@ describe("vTypeCheck VS Code Extension", () => {
     await deleteAllTestsForEnv("DATABASE-MANAGER");
     stamp("env cleaned");
 
-    const vcastTestingViewContent = await getViewContent("Testing");
-    let manager: TreeItem;
-    for (const section of await vcastTestingViewContent.getSections()) {
-      manager = await findSubprogram("MANAGER", section);
-      if (manager) {
-        await manager.expand();
-        break;
+    // Locate PLACE_ORDER robustly. After deleteAllTestsForEnv the tree
+    // re-renders, and the shared findSubprogram/findSubprogramMethod helpers
+    // (which expand-walk every row and use a buggy no-await isExpanded) race
+    // that refresh and can hang before we ever reach reqs2tests. Instead, poll
+    // the visible rows for PLACE_ORDER, expanding the MANAGER unit as needed,
+    // until it settles into view.
+    let placeOrder: TreeItem | undefined;
+    await browser.waitUntil(
+      async () => {
+        const vc = await getViewContent("Testing");
+        for (const section of await vc.getSections()) {
+          if (!(await section.isExpanded())) await section.expand();
+          for (const item of await section.getVisibleItems()) {
+            let text = "";
+            try {
+              text = (
+                await (await (item as CustomTreeItem).elem).getText()
+              ).trim();
+            } catch {
+              continue;
+            }
+            if (text === "PLACE_ORDER") {
+              placeOrder = item as TreeItem;
+              return true;
+            }
+            if (text === "MANAGER") {
+              const unit = item as TreeItem;
+              if (!(await unit.isExpanded())) {
+                try {
+                  await unit.expand();
+                } catch {
+                  /* best-effort */
+                }
+              }
+            }
+          }
+        }
+        return false;
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 2000,
+        timeoutMsg: "PLACE_ORDER did not appear in the Testing pane",
       }
-    }
-    if (!manager) throw new Error("Unit 'MANAGER' not found");
-
-    const placeOrder = await findSubprogramMethod(manager, "PLACE_ORDER");
-    if (!placeOrder) throw new Error("Subprogram 'PLACE_ORDER' not found");
-    if (!placeOrder.isExpanded()) {
-      await placeOrder.select();
-    }
+    );
     stamp("PLACE_ORDER located");
 
     // Clear the reqs channel so we only see output from THIS invocation.
