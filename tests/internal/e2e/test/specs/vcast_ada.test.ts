@@ -798,7 +798,13 @@ describe("vTypeCheck VS Code Extension", () => {
     }
   });
 
-  it("should generate tests from requirements into a clean Ada environment and check coverage", async () => {
+  it("should generate tests from requirements into a clean Ada environment and check coverage", async function () {
+    // reqs2tests is a real LLM (azure_openai) call, and its duration in CI is
+    // highly variable - sometimes ~2 min, sometimes 20+ min when the endpoint
+    // is slow/throttled. Give this one test a 40-min ceiling (vs the default
+    // 20-min mochaOpts.timeout) so a slow-but-working run isn't flagged red.
+    // Uses a regular function (not an arrow) so `this.timeout` is available.
+    this.timeout(2_400_000);
     await updateTestID();
 
     // Stage timing so a slow/hanging run shows exactly where the time goes
@@ -864,7 +870,11 @@ describe("vTypeCheck VS Code Extension", () => {
         return true;
       },
       {
-        timeout: 900_000,
+        // 30 min - must stay below the 40-min per-test ceiling set above so a
+        // genuine reqs2tests stall fails here (with output) rather than as an
+        // opaque mocha timeout, while still leaving room for the run + gutter
+        // stages that follow.
+        timeout: 1_800_000,
         interval: 5000,
         timeoutMsg: `reqs2tests did not complete in time. Output:\n${genOutput}`,
       }
