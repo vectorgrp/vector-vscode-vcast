@@ -2190,6 +2190,29 @@ export async function insertAndRunAdaBasisPaths(
         .includes("Processing environment data for:"),
     { timeout: TIMEOUT }
   );
+
+  // The post-run data refresh can leave the subprogram node COLLAPSED. The
+  // subsequent deleteGeneratedTest -> getTestHandle only waits 10s for the
+  // method to report exactly N children, and a collapsed node reports ZERO
+  // children in VS Code's virtualized tree - so the delete flakes
+  // ("BASIS-PATH-002 not found"). Re-find the subprogram fresh and leave both
+  // it and the method EXPANDED so the generated tests are materialized before
+  // the delete step reads them.
+  const settled = await getViewContent("Testing");
+  for (const section of await settled.getSections()) {
+    const u = await findSubprogram(unit, section);
+    if (!u) continue;
+    if (!(await u.isExpanded())) await u.expand();
+    const m = await findSubprogramMethod(u, subprogram);
+    if (m) {
+      try {
+        if (!(await m.isExpanded())) await m.expand();
+      } catch {
+        /* best-effort - deleteGeneratedTest re-finds it anyway */
+      }
+    }
+    break;
+  }
 }
 
 // Read the coverage gutter icon URL for a given line of a source file, so the
