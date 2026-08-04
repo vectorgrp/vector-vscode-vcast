@@ -10,6 +10,7 @@ import { spawnWithVcastEnv } from "./llmProvider";
  */
 export class ProgressTracker {
   private lastProgress = 0.0;
+  private lastStep: string | undefined;
 
   constructor(
     private progress: vscode.Progress<{ message?: string; increment?: number }>,
@@ -53,9 +54,19 @@ export class ProgressTracker {
       if (newProgress === undefined) return;
 
       const increment = (newProgress - this.lastProgress) * 100;
-      if (increment > 0) {
-        this.progress.report({ message: step, increment });
-        this.lastProgress = newProgress;
+      // Reqs2X emits a progress event at the start of each phase with the new
+      // step label but no advance (increment 0). Report on a label change too,
+      // otherwise the notification stays frozen on the previous phase's name
+      // during long, non-advancing steps (e.g. waiting for the first model
+      // response while tests are already being generated).
+      const stepChanged = step !== undefined && step !== this.lastStep;
+      if (increment > 0 || stepChanged) {
+        this.progress.report({
+          message: step,
+          increment: Math.max(increment, 0),
+        });
+        if (increment > 0) this.lastProgress = newProgress;
+        if (step !== undefined) this.lastStep = step;
         logCliOperation(
           `${this.logPrefix} Progress: ${(newProgress * 100).toFixed(2)}% - ${step ?? ""}`
         );
