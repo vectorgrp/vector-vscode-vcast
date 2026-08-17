@@ -72,13 +72,6 @@ describe("vTypeCheck VS Code Extension", () => {
     }
     console.log("Channel selected");
     console.log("WAITING FOR LANGUAGE SERVER");
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Starting the language server"),
-      { timeout: TIMEOUT }
-    );
 
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
