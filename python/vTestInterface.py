@@ -244,16 +244,18 @@ def getTestDataVCAST(api, enviroPath):
         initNode["tests"].append(testInfo)
     testList.append(initNode)
 
+    # Ada exposes stubbed dependency units (e.g. DATABASE) as their own units
+    # WITH subprograms even though they are not under test, so without a filter
+    # they wrongly appear in the test tree. We only apply the is_uut filter for
+    # Ada: C/C++ historically showed every unit, and applying this filter there
+    # could hide a C/C++ unit that legitimately reports is_uut == False (a
+    # behaviour change/regression). Default is_uut to True so a missing attribute
+    # never drops a unit.
+    isAda = bool(getattr(api.environment, "is_ada", False))
+
     # Now do normal tests
     for unit in api.Unit.all():
-        # Only show units under test. In C/C++ every unit that carries
-        # subprograms is already a UUT (non-UUT units have no testable
-        # functions), so this is a no-op there. Ada, however, exposes stubbed
-        # dependency units (e.g. DATABASE) as their own units WITH subprograms
-        # even though they are not under test. So without this check they wrongly
-        # appear in the test tree. Default to True so ancient DataAPI versions
-        # (should is_uut ever be missing) keep the previous behaviour.
-        if not getattr(unit, "is_uut", True):
+        if isAda and not getattr(unit, "is_uut", True):
             continue
         # we used to add these and throw them away in the typescript, now we don't add them
         if unit.name != "uut_prototype_stubs":

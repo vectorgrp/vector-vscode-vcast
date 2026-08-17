@@ -51,14 +51,18 @@ export async function updateCurrentActiveUnitMCDCLines() {
         vectorMessage(`Error trying to parse MCDC coverage lines: ${error}`);
       }
       // Update the current active unit MCDC lines.
-      // VectorCAST reports Ada unit names in upper case (e.g. "MANAGER") while
-      // the source file is lower case ("manager.adb"), so the filename-derived
-      // unitName won't match the key exactly.
+      // VectorCAST reports Ada unit names in upper case and DOTTED (e.g.
+      // "WAREHOUSE.ORDERS") while the source filename is lower case and DASHED
+      // ("warehouse-orders.adb"), so the filename-derived unitName won't match
+      // the key exactly. Normalize both (lower-case + dot->dash) before matching,
+      // mirroring resolveSourceLocation in extension.ts.
+      const normalizeUnit = (name: string) =>
+        name.toLowerCase().replace(/\./g, "-");
       const unitKey =
         unitName in mcdcUnitCoverageLines
           ? unitName
           : Object.keys(mcdcUnitCoverageLines).find(
-              (key) => key.toLowerCase() === unitName.toLowerCase()
+              (key) => normalizeUnit(key) === normalizeUnit(unitName)
             );
       const mcdcLinesForUnit = unitKey
         ? mcdcUnitCoverageLines[unitKey]

@@ -208,15 +208,27 @@ tempEnviroScript = "rebuild.env"
 tempTestScript = "rebuild.tst"
 
 
+# is-Ada is a fixed property of a built environment (its language never changes
+# on rebuild), so we cache it per environment path. Opening the DataAPI is
+# expensive, and environmentIsAda is called on every executeTest; without this
+# cache, running a large test suite paid a fresh API open per test.
+_environmentIsAdaCache = {}
+
+
 def environmentIsAda(enviroPath):
     """
     Returns true if the environment is an Ada env based on the is_ada flag.
     """
+    key = os.path.normpath(enviroPath)
+    if key in _environmentIsAdaCache:
+        return _environmentIsAdaCache[key]
     try:
         with UnitTestApi(enviroPath) as api:
-            return bool(getattr(api.environment, "is_ada", False))
+            result = bool(getattr(api.environment, "is_ada", False))
     except Exception:
-        return False
+        result = False
+    _environmentIsAdaCache[key] = result
+    return result
 
 
 def adaParentLibOverride(enviroName):
@@ -277,8 +289,11 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions, isAda=False):
 
     enviroName = os.path.basename(enviroPath)
 
-    # Ada environments must be rebuilt with "-l ada"; C/C++ use "-lc".
-    languageFlag = "-l ada" if isAda else "-lc"
+    # Ada environments must be rebuilt with the Ada language flag; C/C++ use
+    # "-lc". Use the single-token "-lada" (matching vcastAdapter and executeTest):
+    # this flag is written into a "tools execute" command file / server command
+    # stream, where a two-token "-l ada" could shift the following args.
+    languageFlag = "-lada" if isAda else "-lc"
 
     # For Ada, "enviro script create" loses the absolute PARENT_LIB (GPR) path;
     # recover it from the original env script so the rebuild can find the GPR.
@@ -450,8 +465,11 @@ def executeTest(enviroPath, testIDObject):
     # separate variable because in the future there will be additional parameters
     shouldQuoteParameters = not pythonUtilities.USE_SERVER
     standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
-    # Ada environments must be driven with "-l ada"; C/C++ use "-lc".
-    languageFlag = "-l ada" if environmentIsAda(enviroPath) else "-lc"
+    # Ada environments must be driven with the Ada language flag; C/C++ use "-lc".
+    # Use the single-token form "-lada" (not "-l ada"): in server mode this
+    # command string is tokenised and piped to the already-language-bound clicast
+    # instance, and a two-token "-l ada" could shift the following -e/-u args.
+    languageFlag = "-lada" if environmentIsAda(enviroPath) else "-lc"
     # we cannot include the execute command in the command script that we use for
     # results because we need the return code from the execute command separately
     commandToRun = f"{pythonUtilities.globalClicastCommand} {languageFlag} {standardArgs} execute run"
