@@ -375,10 +375,10 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
     // if we are displaying the file decoration in the explorer view, flag any
     // file that belongs to an environment (a unit under test), regardless of
     // whether it has covered lines of its own - see getListOfFilesToDecorate.
+    // The set() above guarantees enviroList is non-empty here, so the file is
+    // always flagged.
     if (fileDecorator) {
-      if (fileData.enviroList.size > 0)
-        fileDecorator.addCoverageDecorationToFile(filePath);
-      else fileDecorator.removeCoverageDecorationFromFile(filePath);
+      fileDecorator.addCoverageDecorationToFile(filePath);
     }
 
     // update the testable function icons for this file
@@ -669,7 +669,11 @@ function createVcastEnvironmentScript(
       enviroName,
       adaSourceDirs
     );
-    lines.push(`ENVIRO.PARENT_LIB: ${path.join(gprDir, gprFileName)}`);
+    // Forward slashes so the path resolves at clicast build time on Windows too
+    // (matching the GPR's own forward-slashed Source_Dirs).
+    lines.push(
+      `ENVIRO.PARENT_LIB: ${path.join(gprDir, gprFileName).replace(/\\/g, "/")}`
+    );
     const uutSet = new Set<string>();
     for (const filePath of fileList) {
       if (isAdaSourceFile(filePath)) uutSet.add(adaUnitNameFromFile(filePath));
@@ -959,7 +963,7 @@ export async function newEnvironment(
   // A VectorCAST environment is single-language. Reject a selection that mixes
   // Ada (.adb/.ads) with C/C++ sources rather than silently dropping one side.
   const selectedSources = URIlist.map((uri) => uri.fsPath).filter((p) => {
-    const ext = p.split(".").pop();
+    const ext = p.split(".").pop()?.toLowerCase();
     return ext !== undefined && extensionsOfInterest.includes(ext);
   });
   const hasAdaSource = selectedSources.some((p) => isAdaSourceFile(p));
@@ -987,7 +991,7 @@ export async function newEnvironment(
   let fileList: string[] = [];
   for (let index = 0; index < URIlist.length; index++) {
     const filePath = URIlist[index].fsPath;
-    const fileExtension = filePath.split(".").pop();
+    const fileExtension = filePath.split(".").pop()?.toLowerCase();
     if (fileExtension && extensionsOfInterest.includes(fileExtension)) {
       fileList.push(filePath);
     }

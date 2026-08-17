@@ -416,11 +416,17 @@ export function adaUnitNameFromFile(filePath: string): string {
 // support GNAT-on-host for Ada environment creation, and the build (which shells
 // out to the compiler via the CFG) needs gnat/gprbuild reachable.
 export function isGnatAvailable(): boolean {
-  const { execSync } = require("child_process");
-  for (const probe of ["gnatls --version", "gnat --version"]) {
+  const { spawnSync } = require("child_process");
+  // spawnSync with a timeout (not execSync) so a hung/slow gnat cannot block the
+  // extension host indefinitely; no shell, so the fixed args carry no injection
+  // risk either.
+  for (const probe of ["gnatls", "gnat"]) {
     try {
-      execSync(probe, { stdio: "ignore" });
-      return true;
+      const result = spawnSync(probe, ["--version"], {
+        stdio: "ignore",
+        timeout: 5000,
+      });
+      if (!result.error && result.status === 0) return true;
     } catch {
       // try the next probe
     }

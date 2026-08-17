@@ -65,6 +65,11 @@ def find_separate_sources(env_dir):
                     if not line.startswith(MARKER):
                         continue
                     original = line[len(MARKER) :].strip()
+                    # A relative marker path is relative to the environment
+                    # directory, not the process CWD; resolving it against CWD
+                    # would silently drop the subunit (isfile check fails).
+                    if not os.path.isabs(original):
+                        original = os.path.join(env_dir, original)
                     real = os.path.realpath(original)
                     if real not in seen and os.path.isfile(real):
                         seen.add(real)
@@ -121,11 +126,19 @@ def segment_lis(lis_text):
     return segments
 
 
-def align_segment(lis_text, segment, path):
+def align_segment(lis_text, segment, path, file_cache=None):
     """Map a single segment's LIS lines onto one file. Returns (mapping, score)."""
     start, end = segment
     lis_norm = [normalize(lis_text[n]) for n in range(start, end + 1)]
-    file_norm = [normalize(line) for line in read_lines(path)]
+    # Reading + normalizing the whole source file is done once per file per
+    # align() call (a file is otherwise re-read for every segment it is a
+    # candidate for).
+    if file_cache is not None and path in file_cache:
+        file_norm = file_cache[path]
+    else:
+        file_norm = [normalize(line) for line in read_lines(path)]
+        if file_cache is not None:
+            file_cache[path] = file_norm
 
     matcher = difflib.SequenceMatcher(None, lis_norm, file_norm, autojunk=False)
     mapping, score = {}, 0
@@ -145,6 +158,8 @@ def align(lis_text, parent, subunits):
     """
     mapping, warnings = {}, []
     pool = list(subunits)
+    # Normalized-source cache shared across every segment in this alignment.
+    file_cache = {}
 
     for segment in segment_lis(lis_text):
         is_parent = segment[0] == 1 and not SEPARATE_RE.match(lis_text[1])
@@ -156,7 +171,10 @@ def align(lis_text, parent, subunits):
             warnings.append("no source found for listing lines %d-%d" % segment)
             continue
 
-        scored = [(align_segment(lis_text, segment, path), path) for path in candidates]
+        scored = [
+            (align_segment(lis_text, segment, path, file_cache), path)
+            for path in candidates
+        ]
         # Break score ties on the path so two subunits that align equally well
         # to a segment always resolve to the same one, run to run.
         (best, score), path = max(scored, key=lambda item: (item[0][1], item[1]))
@@ -189,7 +207,12 @@ def decision_real_line(decision, lis_text, line_by_index, mapping, file_cache):
     (e.g. two identical `if A and B then`) resolves to the right occurrence
     rather than always the first from the top.
     """
-    physical = line_by_index.get(tuple(decision.lis_index))
+    # lis_index can be None (non-instrumented/synthetic decision); tuple(None)
+    # would raise TypeError.
+    idx = decision.lis_index
+    if idx is None:
+        return None
+    physical = line_by_index.get(tuple(idx))
     if physical is None:
         return None
 
@@ -332,7 +355,9 @@ def subunit_coverage(api, env_dir, include_all=False):
 
     do_statements, do_branch, do_mcdc, branch_only = coverage_flags(api)
 
-    subunits = find_separate_sources(env_dir)
+    # A set gives O(1) membership for the per-statement/-decision "is this a
+    # subunit?" checks below (was a linear list scan).
+    subunits = set(find_separate_sources(env_dir))
     # No "separate" subunits -> nothing to remap; skip the listing alignment.
     if not subunits:
         return {}
@@ -341,8 +366,11 @@ def subunit_coverage(api, env_dir, include_all=False):
     for unit in api.Unit.filter(is_uut=True):
         try:
             unit.load_coverage()
-        except Exception:
-            pass
+        except Exception as err:
+            print(
+                "warning: %s: could not load coverage: %s" % (unit.name, err),
+                file=sys.stderr,
+            )
         parent = unit.sourcefile.path if unit.sourcefile else None
         if not parent or not os.path.isfile(parent):
             continue
@@ -366,7 +394,13 @@ def subunit_coverage(api, env_dir, include_all=False):
         if do_statements:
             for function in unit.all_functions:
                 for statement in function.statements:
-                    target = keep(line_by_index.get(tuple(statement.lis_index)))
+                    # lis_index can be None (non-instrumented/synthetic entry);
+                    # tuple(None) would raise TypeError.
+                    idx = statement.lis_index
+                    if idx is None:
+                        continue
+                    key = tuple(idx)
+                    target = keep(line_by_index.get(key))
                     if target is None:
                         continue
                     path, number = target
@@ -375,7 +409,7 @@ def subunit_coverage(api, env_dir, include_all=False):
                         function.name,
                         "covered" if covered else "uncovered",
                         statement.max_hit_count,
-                        lis_text[line_by_index[tuple(statement.lis_index)]].strip(),
+                        lis_text[line_by_index[key]].strip(),
                     )
 
         # Pass 2: overlay MC/DC. A decision's pair coverage lives on the
@@ -488,7 +522,7 @@ def mcdc_decision_map(api, env_dir):
     if not os.path.isdir(env_dir) and env_dir.lower().endswith(".vce"):
         env_dir = env_dir[:-4]
 
-    subunits = find_separate_sources(env_dir)
+    subunits = set(find_separate_sources(env_dir))
     if not subunits:
         return []
 
@@ -496,8 +530,11 @@ def mcdc_decision_map(api, env_dir):
     for unit in api.Unit.filter(is_uut=True):
         try:
             unit.load_coverage()
-        except Exception:
-            pass
+        except Exception as err:
+            print(
+                "warning: %s: could not load coverage: %s" % (unit.name, err),
+                file=sys.stderr,
+            )
         sf = unit.sourcefile
         if not sf or not sf.cover_data or not sf.path or not os.path.isfile(sf.path):
             continue

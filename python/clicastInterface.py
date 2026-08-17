@@ -331,6 +331,10 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions, isAda=False):
                 # Ada: restore the absolute GPR path lost by "script create".
                 if adaParentLib and enviroCommand == "ENVIRO.PARENT_LIB":
                     whatToWrite = f"ENVIRO.PARENT_LIB: {adaParentLib}\n"
+                    # Consume any user-supplied PARENT_LIB so it is not ALSO
+                    # re-emitted before ENVIRO.END (which produced a duplicate
+                    # line). The recovered absolute GPR path intentionally wins.
+                    jsonOptions.pop("ENVIRO.PARENT_LIB", None)
                 # if so replace the existing value ...
                 elif enviroCommand in jsonOptions:
                     whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"

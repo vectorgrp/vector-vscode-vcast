@@ -48,7 +48,12 @@ if os.getenv("R2T_RELEASE_URL_LIN"):
         f"Using R2T_RELEASE_URL_LIN: {os.getenv('R2T_RELEASE_URL_LIN')} for Linux"
     )
     url = os.getenv("R2T_RELEASE_URL_LIN").rstrip("/")
-    download_file(url)
+    # Save under the local filename the existence check below looks for. In
+    # with-ada mode that is the stock "autoreq-linux.tar.gz" even though the
+    # override URL points at a "-with-ada" tarball; without this the override
+    # would download to the wrong name and be ignored (falling through to
+    # Artifactory).
+    download_file(url, "autoreq-linux.tar.gz")
 if os.getenv("R2T_RELEASE_URL_WIN"):
     logging.info(
         f"Using R2T_RELEASE_URL_WIN: {os.getenv('R2T_RELEASE_URL_WIN')} for Windows"

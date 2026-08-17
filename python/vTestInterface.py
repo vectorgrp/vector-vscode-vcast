@@ -398,7 +398,8 @@ def getSubunitUnitData(api, enviroPath):
         checksum = 0
         if pycksum is not None and os.path.isfile(path):
             try:
-                checksum = pycksum.cksum(open(path, "rb"))
+                with open(path, "rb") as checksumFile:
+                    checksum = pycksum.cksum(checksumFile)
             except Exception:
                 checksum = 0
 

@@ -536,6 +536,10 @@ jobs:
         if: matrix.group == 'ada' || matrix.group == 'ada_project'
         shell: bash
         run: |
+          # Fail the step on any command/download/extract error (and on unset
+          # vars / broken pipes) so a transient failure here surfaces clearly
+          # instead of passing and then failing later with "gnatmake not found".
+          set -euo pipefail
           install_tarball() {
             local url="$1" dest="$2"
             mkdir -p "$dest"
@@ -563,8 +567,14 @@ jobs:
           else
             install_tarball "$GPRBUILD_URL" "$HOME/gprbuild"
             echo "PATH=$HOME/gprbuild/bin:$PATH" >> "$GITHUB_ENV"
+            export PATH="$HOME/gprbuild/bin:$PATH"
             echo "Installed gprbuild: $("$HOME/gprbuild/bin/gprbuild" --version | head -n1)"
           fi
+
+          # Hard-fail if either tool is not actually resolvable, so the "Run
+          # tests" step never starts against a half-installed toolchain.
+          command -v gnatls >/dev/null || { echo "gnatls not on PATH after install" >&2; exit 1; }
+          command -v gprbuild >/dev/null || { echo "gprbuild not on PATH after install" >&2; exit 1; }
 
       - name: Run tests
         run: |
