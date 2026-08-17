@@ -340,24 +340,36 @@ export function enviroFileIsAda(envFilePath: string): boolean {
 
 /**
  * Compiler-agnostic detection of a BUILT Ada environment.
- * We check the build working directory (the env directory's parent, where it is
- * written) and the env directory itself, to be robust.
+ *
+ * This must be decided PER ENVIRONMENT, never per directory. Looking for
+ * ADACAST_.CFG in path.dirname(enviroPath) produces a false positive for any
+ * C/C++ environment that happened to sit alongside an Ada environment (a
+ * mixed-language source directory, or a shared/absolute unitTestLocation). That
+ * misdetection silently disabled ATG and dropped TEST.VALUE from the C/C++
+ * environment's generated test scripts.
+ *
  * @param enviroPath path to the built environment directory
  * @returns true if the environment is Ada
  */
 export function builtEnviroIsAda(enviroPath: string): boolean {
-  const adaHarnessConfig = "ADACAST_.CFG";
-  const candidates = [
-    path.join(path.dirname(enviroPath), adaHarnessConfig),
-    path.join(enviroPath, adaHarnessConfig),
+  const enviroName = path.basename(enviroPath);
+
+  // Per-environment .env scripts (unique filename -> no cross-env leak).
+  // enviroFileIsAda returns false when the file cannot be read.
+  const envScriptCandidates = [
+    path.join(path.dirname(enviroPath), `${enviroName}.env`),
+    path.join(enviroPath, `${enviroName}.env`),
   ];
-  return candidates.some((candidate) => {
-    try {
-      return fs.existsSync(candidate);
-    } catch {
-      return false;
-    }
-  });
+  if (envScriptCandidates.some((envFile) => enviroFileIsAda(envFile))) {
+    return true;
+  }
+
+  // Fallback: an ADACAST_.CFG INSIDE the environment directory (still per-env).
+  try {
+    return fs.existsSync(path.join(enviroPath, "ADACAST_.CFG"));
+  } catch {
+    return false;
+  }
 }
 
 const adaConfigFilename = "ADACAST_.CFG";

@@ -101,6 +101,12 @@ def segment_lis(lis_text):
     listing carries blank lines where instrumentation regions were stripped, so
     a segment is longer than the file it came from, by a varying amount.
     """
+    if not lis_text:
+        # No coverage listing rows (e.g. a built-but-unexecuted unit, or a unit
+        # with no instrumented lines). There is nothing to segment; return an
+        # empty list so callers (align -> subunit_coverage / mcdc_decision_map)
+        # produce an empty mapping instead of crashing on max({}).
+        return []
     total = max(lis_text)
     boundaries = [n for n in sorted(lis_text) if SEPARATE_RE.match(lis_text[n])]
     if not boundaries:
