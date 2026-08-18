@@ -3,11 +3,14 @@ import { showSettings } from "../utilities";
 import { refreshAllExtensionData } from "../testPane";
 import { loadTestScriptIntoEnvironment } from "../vcastAdapter";
 import { updateRequirementsAvailability } from "./availability";
-import { logCliError } from "./requirementsLog";
+import { logCliError, logCliOperation } from "./requirementsLog";
 import {
   CODE2REQS_EXECUTABLE_PATH,
   PANREQ_EXECUTABLE_PATH,
+  RECENT_REQS2TESTS_FLAGS,
   REQS2TESTS_EXECUTABLE_PATH,
+  reqs2testsSupportsDelta,
+  reqs2xSupportedFlags,
   setupReqs2XExecutablePaths,
 } from "./requirementsExecutables";
 import { runReqs2xTool } from "./processRunner";
@@ -63,6 +66,18 @@ export function initializeReqs2X(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.reqs2xFeatureEnabled",
     featureEnabled
   );
+  void publishDeltaSupportContext(featureEnabled);
+}
+
+// Hides the delta menu item when the installed reqs2tests predates --only-delta.
+// Not awaited, so the item stays hidden until the probe answers.
+async function publishDeltaSupportContext(featureEnabled: boolean) {
+  const supported = featureEnabled && (await reqs2testsSupportsDelta());
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.reqs2xSupportsDelta",
+    supported
+  );
 }
 
 export async function generateRequirements(enviroPath: string) {
@@ -95,8 +110,6 @@ export async function generateRequirements(enviroPath: string) {
     "generateHighLevelRequirements",
     false
   );
-  const reorder = config.get<boolean>("reorder", true);
-
   const args = [
     "-e",
     envPath,
@@ -106,7 +119,6 @@ export async function generateRequirements(enviroPath: string) {
     ...(generateHighLevelRequirements
       ? ["--generate-high-level-requirements"]
       : []),
-    ...(reorder ? [] : ["--no-reorder"]),
   ];
 
   try {
@@ -136,9 +148,15 @@ export async function generateRequirements(enviroPath: string) {
   }
 }
 
+// Mirror of the defaults declared in package.json. Needed beyond config.get's
+// fallback so we can tell an untouched setting from one the user chose.
+const DEFAULT_MAX_TEST_EXAMPLES = 3;
+const DEFAULT_TEST_EXAMPLE_SOURCES = ["environment", "generated"];
+
 export async function generateTestsFromRequirements(
   enviroPath: string,
-  unitOrFunctionName: string | null
+  unitOrFunctionName: string | null,
+  options: { onlyDelta?: boolean } = {}
 ) {
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
@@ -175,11 +193,26 @@ export async function generateTestsFromRequirements(
     "decomposeRequirements",
     true
   );
-  const noTestExamples = config.get<boolean>("noTestExamples", false);
-  const reorder = config.get<boolean>("reorder", true);
   const funcDefs = config.get<boolean>("functionDefinitions", true);
   const allowUUTStubs = config.get<boolean>("enableUutStubbing", true);
   const batched = config.get<boolean>("batched", true);
+  const fastMode = config.get<boolean>("fastMode", false);
+  const deduplicate = config.get<boolean>("deduplicateTests", true);
+  const allowPartial = config.get<boolean>("allowPartialTests", true);
+  const exampleSources = config.get<string[]>(
+    "testExampleSources",
+    DEFAULT_TEST_EXAMPLE_SOURCES
+  );
+
+  // Clamped because settings.json can be hand-edited past the schema minimum.
+  // Deprecated noTestExamples still wins while explicitly enabled.
+  const batchSize = Math.max(1, config.get<number>("batchSize", 4));
+  const maxTestExamples = config.get<boolean>("noTestExamples", false)
+    ? 0
+    : Math.max(
+        0,
+        config.get<number>("maxTestExamples", DEFAULT_MAX_TEST_EXAMPLES)
+      );
 
   const retries = config.get<number>("retries", 2);
   if (retries < 1) {
@@ -187,6 +220,54 @@ export async function generateTestsFromRequirements(
       "Retries must be greater than or equal to 1. Please check your settings."
     );
     return;
+  }
+
+  // --incremental-export is deliberately unused: we import one .tst at the end,
+  // and it force-disables deduplication. Same for code2reqs.
+  const supported = await reqs2xSupportedFlags(
+    REQS2TESTS_EXECUTABLE_PATH,
+    RECENT_REQS2TESTS_FLAGS
+  );
+
+  // Settings whose flag this Reqs2X lacks are dropped rather than passed, which
+  // would fail the run. Only mention the ones actually asked for: on an
+  // untouched default nothing is lost, because the CLI default matches.
+  const ignored: string[] = [];
+  if (fastMode && !supported.has("--fast")) {
+    ignored.push("fast mode");
+  }
+  if (maxTestExamples > 0) {
+    if (
+      maxTestExamples !== DEFAULT_MAX_TEST_EXAMPLES &&
+      !supported.has("--max-test-examples")
+    ) {
+      ignored.push("maximum test examples");
+    }
+    const sourcesMatchDefault =
+      exampleSources.length === DEFAULT_TEST_EXAMPLE_SOURCES.length &&
+      exampleSources.every((s, i) => s === DEFAULT_TEST_EXAMPLE_SOURCES[i]);
+    // An empty list is never passed either way, so it is not "ignored".
+    const customSources = exampleSources.length > 0 && !sourcesMatchDefault;
+    if (customSources && !supported.has("--test-examples-sources")) {
+      ignored.push("test example sources");
+    }
+  }
+  if (ignored.length > 0) {
+    const message = `The installed Reqs2X does not support these settings, which were ignored: ${ignored.join(", ")}.`;
+    vscode.window.showWarningMessage(message);
+    logCliOperation(`reqs2tests: ${message}`);
+  }
+
+  const exampleArgs: string[] = [];
+  if (maxTestExamples === 0) {
+    exampleArgs.push("--no-test-examples");
+  } else {
+    if (supported.has("--max-test-examples")) {
+      exampleArgs.push("--max-test-examples", maxTestExamples.toString());
+    }
+    if (exampleSources.length > 0 && supported.has("--test-examples-sources")) {
+      exampleArgs.push("--test-examples-sources", ...exampleSources);
+    }
   }
 
   const args = [
@@ -199,15 +280,26 @@ export async function generateTestsFromRequirements(
     "--retries",
     retries.toString(),
     batched ? "--batched" : "--no-batched",
+    ...(batched ? ["--batch-size", batchSize.toString()] : []),
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
-    ...(noTestExamples ? ["--no-test-examples"] : []),
-    ...(reorder ? [] : ["--no-reorder"]),
     ...(funcDefs ? [] : ["--no-func-defs"]),
     ...(allowUUTStubs ? [] : ["--no-allow-uut-stubs"]),
-    "--allow-partial",
+    allowPartial ? "--allow-partial" : "--no-allow-partial",
+    ...(deduplicate ? [] : ["--no-deduplicate"]),
+    ...(fastMode && supported.has("--fast") ? ["--fast"] : []),
+    ...(options.onlyDelta ? ["--only-delta"] : []),
+    ...exampleArgs,
     "--json-events",
     "--requirement-keys",
   ];
+
+  // A delta run with nothing to do writes no tests, so a leftover .tst from an
+  // earlier run would otherwise be re-imported as fresh output.
+  try {
+    fs.rmSync(tstPath, { force: true });
+  } catch (err) {
+    logCliError(`Could not remove stale ${tstPath}: ${err}`);
+  }
 
   try {
     const { cancelled } = await runReqs2xTool({
@@ -215,16 +307,28 @@ export async function generateTestsFromRequirements(
       args,
       llm: true,
       progress: {
-        title: `Generating Requirement Tests for ${envName.split(".")[0]}`,
+        title: options.onlyDelta
+          ? `Generating Requirement Tests (untested or changed) for ${envName.split(".")[0]}`
+          : `Generating Requirement Tests for ${envName.split(".")[0]}`,
         logPrefix: "reqs2tests",
       },
     });
     if (cancelled) return;
 
+    if (!fs.existsSync(tstPath)) {
+      // reqs2tests reports the reason itself via an `info` event.
+      logCliOperation(
+        `reqs2tests wrote no test script to ${tstPath}; nothing to import`
+      );
+      return;
+    }
+
     await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
     await refreshAllExtensionData();
     vscode.window.showInformationMessage(
-      "Successfully generated tests for the requirements!"
+      options.onlyDelta
+        ? "Generated tests for untested and changed requirements. Tests written earlier for the changed requirements are kept — review and remove any that no longer apply."
+        : "Successfully generated tests for the requirements!"
     );
   } catch (err) {
     const message = `Error: ${err instanceof Error ? err.message : String(err)}`;

@@ -80,6 +80,21 @@ export class ProgressTracker {
       }
       vscode.window.showWarningMessage(json.value);
       logCliOperation(`Warning: ${json.value}`);
+    } else if (json.event === "info") {
+      // User-facing status the tool wants surfaced even though nothing went
+      // wrong — e.g. "nothing to infer / nothing to do" on the --only-untraced
+      // and --only-delta paths, where the run otherwise completes with no
+      // visible effect.
+      vscode.window.showInformationMessage(json.value);
+      logCliOperation(`${this.logPrefix}: ${json.value}`);
+    } else if (json.event === "notice") {
+      // Vector Subscription nudge: `{ phase, text }`. Phase 1 is informational;
+      // later phases escalate to a warning, mirroring how the CLI renders it.
+      const { phase, text } = json.value;
+      if (!text) return;
+      if (phase >= 2) vscode.window.showWarningMessage(text);
+      else vscode.window.showInformationMessage(text);
+      logCliOperation(`${this.logPrefix} notice (phase ${phase}): ${text}`);
     }
   }
 }
