@@ -74,6 +74,26 @@ setting: "Unit Test Location". By default, this settings value is "./unitTests" 
 that the environment will be created in the "./unitTests" sub-directory of the directory
 containing the source file.
 
+### Ada Support (GNAT on host)
+
+The extension supports Ada environments (`.adb` / `.ads` sources): create and build
+environments, browse the test tree, run tests, coverage annotations, MC/DC reports, and
+Reqs2X requirement/test generation. Ada support is currently **GNAT on the host only**:
+
+- **Compiler is fixed to GNAT (host).** When you create a new Ada environment, project,
+  or configuration, the extension does **not** show a compiler picker. Instead it writes a
+  minimal Ada configuration file named `ADACAST_.CFG` containing exactly:
+
+  ```
+  COMPILATION_SYSTEM: GNAT
+  TARGET_VARIANT: HOST
+  ```
+
+  GNAT (and `gprbuild`) must be available on your `PATH`; the extension does not bundle a
+  toolchain. Before creating any Ada environment it shows a confirmation prompt noting that
+  only GNAT on the host is supported (and an error if no GNAT is found on `PATH`).
+- If an `ADACAST_.CFG` already exists in the target directory, it is left untouched.
+
 ### Coded Testing Support
 
 If you would like to use the Coded Tests feature (VectorCAST 24 and newer), you must 
@@ -473,6 +493,9 @@ that coverage kind will be active after the re-build action.
 - LSE features for Class Instances have not yet been implemented
 - LSE features for TEST.FLOW have not been implemented
 - Deleting a test does not remove the TC annotations in the File Explorer view
+- Ada support is GNAT-on-host only: new Ada environments/projects/configurations are always
+  generated with a minimal `ADACAST_.CFG` (`COMPILATION_SYSTEM: GNAT`, `TARGET_VARIANT: HOST`)
+  and Coded Tests are not available for Ada. See "Ada Support (GNAT on host)" above.
 - [Open issues from GitHub](https://github.com/vectorgrp/vector-vscode-vcast/issues)
 
 ## Contributing
