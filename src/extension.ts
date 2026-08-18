@@ -687,6 +687,22 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(generateRequirementsTestsCommand);
 
+  let generateRequirementsTestsDeltaCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.generateTestsFromRequirementsDelta",
+    async (args: any) => {
+      if (args) {
+        const testNode: testNodeType = getTestNode(args.id);
+        const enviroPath = testNode.enviroPath;
+        await generateTestsFromRequirements(
+          enviroPath,
+          testNode.functionName || testNode.unitName || null,
+          { onlyDelta: true }
+        );
+      }
+    }
+  );
+  context.subscriptions.push(generateRequirementsTestsDeltaCommand);
+
   let importRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.importRequirements",
     async (args: any) => {
