@@ -62,12 +62,6 @@ describe("Validating commonUtilities", () => {
   test(
     "validate extractJson",
     async () => {
-      // extractJson parses the stdout of Reqs2X CLI tools (see llmProvider's
-      // llm2check usage): a JSON verdict like {"usable": ..., "problem": ...}
-      // that may be surrounded by log lines, and whose "problem" text often
-      // embeds the LLM provider's OWN JSON error response. The cases below
-      // mirror that.
-
       // Clean run: stdout is exactly the JSON verdict (fast path)
       expect(extractJson('  {"usable": true, "problem": null}\n')).toEqual({
         usable: true,
