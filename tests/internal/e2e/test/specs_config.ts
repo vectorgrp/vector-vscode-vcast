@@ -332,6 +332,38 @@ export function getSpecGroups(
     };
   }
 
+  // Ada end-to-end spec. The group is always defined here so the runner can
+  // resolve it (specs + env) when dispatched; it is get_gha_matrix.ts that
+  // limits WHICH versions actually run it - only the latest release, the one
+  // the Ada integration targets. It exercises the whole Ada flow in one file:
+  // create env from Ada sources, build, test tree, run, coverage, .tst
+  // autocompletion, and the Ada restrictions (no coded tests / ATG).
+  specGroups["ada"] = {
+    specs: ["./**/**/vcast_ada.test.ts"],
+    env: {
+      WAIT_AFTER_TESTS_FINISHED: "True",
+      VCAST_USE_PYTHON: "True",
+      // The spec's reqs2x section mirrors the requirements group: PCT release
+      // storage (skips the RGW setup) and debug logs for diagnosability.
+      REQS2X_PCT_RELEASE: "True",
+      VCAST_REQS2X_LOG_LEVEL: "debug",
+    },
+    params: {},
+  };
+
+  // Ada-in-a-managed-project end-to-end spec. Same "latest release only" gating
+  // as the "ada" group (see get_gha_matrix.ts). It creates the project + the
+  // Ada environment inside it from scratch, then runs the same checks (tree,
+  // run, coverage kinds, MC/DC report) against the project environment.
+  specGroups["ada_project"] = {
+    specs: ["./**/**/vcast_ada_project.test.ts"],
+    env: {
+      WAIT_AFTER_TESTS_FINISHED: "True",
+      VCAST_USE_PYTHON: "True",
+    },
+    params: {},
+  };
+
   return specGroups;
 }
 

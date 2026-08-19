@@ -104,12 +104,16 @@ def runClicastCommandWithEcho(commandToRun):
     process = subprocess.Popen(
         commandToRun.split(" "), stdout=subprocess.PIPE, text=True
     )
-    while process.poll() is None:
-        line = process.stdout.readline().rstrip()
+    # Iterate the pipe until EOF rather than looping on process.poll(): polling
+    # stops as soon as the process exits and drops any output still buffered in
+    # the pipe.
+    for line in process.stdout:
+        line = line.rstrip()
         if len(line) > 0:
             stdoutString += line + "\n"
             print(line, flush=True)
 
+    process.wait()
     return process.returncode, stdoutString
 
 
@@ -168,15 +172,18 @@ def runClicastScriptUsingServer(enviroPath, commandFileName):
     return exitCode, returnText
 
 
-def runClicastScriptCommandLine(commandFileName, echoToStdout):
+def runClicastScriptCommandLine(commandFileName, echoToStdout, languageFlag="-lc"):
     """
     The caller should create a correctly formatted clicast script
-    and then call this with the name of that script
+    and then call this with the name of that script.
+
+    languageFlag sets the language for the "tools execute" session. It defaults
+    to "-lc" (C/C++), but must be "-l ada" for Ada environments.
     """
 
     # true at the end tells clicast to exit with the exit code of the first
     # command that fails.  If this is set to false, it always returns 0
-    commandToRun = f"{pythonUtilities.globalClicastCommand} -lc tools execute {commandFileName} true"
+    commandToRun = f"{pythonUtilities.globalClicastCommand} {languageFlag} tools execute {commandFileName} true"
 
     if echoToStdout:
         returnCode, stdoutString = runClicastCommandWithEcho(commandToRun)
@@ -201,13 +208,104 @@ tempEnviroScript = "rebuild.env"
 tempTestScript = "rebuild.tst"
 
 
-def updateScriptsAndRebuild(enviroPath, jsonOptions):
+# is-Ada is a fixed property of a built environment (its language never changes
+# on rebuild), so we cache it per environment path. Opening the DataAPI is
+# expensive, and environmentIsAda is called on every executeTest; without this
+# cache, running a large test suite paid a fresh API open per test.
+_environmentIsAdaCache = {}
+
+
+def environmentIsAda(enviroPath):
+    """
+    Returns true if the environment is an Ada env based on the is_ada flag.
+    """
+    key = os.path.normpath(enviroPath)
+    if key in _environmentIsAdaCache:
+        return _environmentIsAdaCache[key]
+    try:
+        with UnitTestApi(enviroPath) as api:
+            result = bool(getattr(api.environment, "is_ada", False))
+    except Exception:
+        result = False
+    _environmentIsAdaCache[key] = result
+    return result
+
+
+def adaParentLibOverride(enviroName):
+    """
+    On rebuild we regenerate the enviro script with "enviro script create".
+    For Ada environments VectorCAST re-emits ENVIRO.PARENT_LIB as a bare GPR
+    basename (relative to the current directory). But the GPR lives in the Ada
+    *source* directory, not the rebuild CWD (unitTests/), so a relative
+    reference does not resolve at build time and "enviro build" fails with
+    exit code 19.
+
+    The extension's original <envName>.env script still records the correct
+    ABSOLUTE PARENT_LIB it wrote at create time, so read it back and use that to
+    fix up the regenerated script. Returns the absolute PARENT_LIB value, or
+    None if it is unavailable (in which case the regenerated value is kept).
+    """
+    originalEnv = enviroName + ".env"
+    if not os.path.isfile(originalEnv):
+        print(
+            f"  [ada rebuild] original env script '{originalEnv}' not found in "
+            f"'{os.getcwd()}'; cannot restore absolute PARENT_LIB"
+        )
+        return None
+    try:
+        with open(originalEnv, "r") as originalFile:
+            for line in originalFile:
+                if line.strip().startswith("ENVIRO.PARENT_LIB"):
+                    _, value = line.split(":", 1)
+                    value = value.strip()
+                    if not os.path.isabs(value):
+                        print(
+                            f"  [ada rebuild] original PARENT_LIB is not absolute "
+                            f"('{value}'); keeping regenerated value"
+                        )
+                        return None
+                    if not os.path.exists(value):
+                        # Use it anyway. The exists check has bitten us before
+                        # (path resolves differently in CI). A wrong path
+                        # just reproduces the original failure, it does not make
+                        # things worse.
+                        print(
+                            f"  [ada rebuild] WARNING: original PARENT_LIB "
+                            f"'{value}' does not exist on disk; using it anyway"
+                        )
+                    return value
+    except Exception as error:
+        print(
+            f"  [ada rebuild] could not read PARENT_LIB from '{originalEnv}': {error}"
+        )
+    return None
+
+
+def updateScriptsAndRebuild(enviroPath, jsonOptions, isAda=False):
     """
     This does the actual work of updating the scripts
     and invoking the build and load test script commands
     """
 
     enviroName = os.path.basename(enviroPath)
+
+    # Ada environments must be rebuilt with the Ada language flag; C/C++ use
+    # "-lc". Use the single-token "-lada" (matching vcastAdapter and executeTest):
+    # this flag is written into a "tools execute" command file / server command
+    # stream, where a two-token "-l ada" could shift the following args.
+    languageFlag = "-lada" if isAda else "-lc"
+
+    # For Ada, "enviro script create" loses the absolute PARENT_LIB (GPR) path;
+    # recover it from the original env script so the rebuild can find the GPR.
+    adaParentLib = adaParentLibOverride(enviroName) if isAda else None
+    if isAda:
+        if adaParentLib:
+            print(f"  [ada rebuild] using PARENT_LIB: {adaParentLib}")
+        else:
+            print(
+                "  [ada rebuild] no absolute PARENT_LIB override; using the "
+                "value produced by 'enviro script create'"
+            )
 
     # Read the enviro script into a list of strings
     with open(tempEnviroScript, "r") as enviroFile:
@@ -230,8 +328,15 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions):
                 enviroCommand, enviroValue = line.split(":", 1)
                 enviroCommand = enviroCommand.strip()
                 enviroValue = enviroValue.strip()
+                # Ada: restore the absolute GPR path lost by "script create".
+                if adaParentLib and enviroCommand == "ENVIRO.PARENT_LIB":
+                    whatToWrite = f"ENVIRO.PARENT_LIB: {adaParentLib}\n"
+                    # Consume any user-supplied PARENT_LIB so it is not ALSO
+                    # re-emitted before ENVIRO.END (which produced a duplicate
+                    # line). The recovered absolute GPR path intentionally wins.
+                    jsonOptions.pop("ENVIRO.PARENT_LIB", None)
                 # if so replace the existing value ...
-                if enviroCommand in jsonOptions:
+                elif enviroCommand in jsonOptions:
                     whatToWrite = f"{enviroCommand}: {jsonOptions[enviroCommand]}\n"
                     jsonOptions.pop(enviroCommand)
 
@@ -262,9 +367,9 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions):
 
     # Build the new environment from the updated script.
     with open(commandFileName, "w") as commandFile:
-        commandFile.write(f"-lc enviro build {tempEnviroScript}\n")
+        commandFile.write(f"{languageFlag} enviro build {tempEnviroScript}\n")
     returnCodeRebuild, commandOutputRebuild = runClicastScriptCommandLine(
-        commandFileName, echoToStdout=echoToStdout
+        commandFileName, echoToStdout=echoToStdout, languageFlag=languageFlag
     )
 
     if returnCodeRebuild == 0:
@@ -272,7 +377,7 @@ def updateScriptsAndRebuild(enviroPath, jsonOptions):
         with open(commandFileName, "w") as commandFile:
             commandFile.write(f"-e{enviroName} test script run {tempTestScript}\n")
         returnCodeTests, commandOutputTests = runClicastScriptCommandLine(
-            commandFileName, echoToStdout=echoToStdout
+            commandFileName, echoToStdout=echoToStdout, languageFlag=languageFlag
         )
         commandOutputRebuild = f"{commandOutputRebuild}\n{commandOutputTests.rstrip()}"
         returnCodeRebuild = returnCodeTests
@@ -310,6 +415,11 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
     """
 
     with cd(os.path.dirname(enviroPath)):
+        # Determine the source language while the environment still exists, so
+        # that we can rebuild it with the correct clicast language flag (Ada
+        # vs C/C++).
+        isAda = environmentIsAda(enviroPath)
+
         # first we generate a .env and .tst for the existing environment
         # we do this using a clicast script
         enviroName = os.path.basename(enviroPath)
@@ -326,7 +436,7 @@ def rebuildEnvironmentWithUpdates(enviroPath, jsonOptions):
         if returnCode == 0:
             # now we update the scripts and rebuild the environment
             returnCode, commandOutputRebuild = updateScriptsAndRebuild(
-                enviroPath, jsonOptions
+                enviroPath, jsonOptions, isAda
             )
             # concatenate the output from both commands for completeness
             commandOutput = f"{commandOutput}\n{commandOutputRebuild.rstrip()}"
@@ -359,11 +469,14 @@ def executeTest(enviroPath, testIDObject):
     # separate variable because in the future there will be additional parameters
     shouldQuoteParameters = not pythonUtilities.USE_SERVER
     standardArgs = getStandardArgsFromTestObject(testIDObject, shouldQuoteParameters)
+    # Ada environments must be driven with the Ada language flag; C/C++ use "-lc".
+    # Use the single-token form "-lada" (not "-l ada"): in server mode this
+    # command string is tokenised and piped to the already-language-bound clicast
+    # instance, and a two-token "-l ada" could shift the following -e/-u args.
+    languageFlag = "-lada" if environmentIsAda(enviroPath) else "-lc"
     # we cannot include the execute command in the command script that we use for
     # results because we need the return code from the execute command separately
-    commandToRun = (
-        f"{pythonUtilities.globalClicastCommand} -lc {standardArgs} execute run"
-    )
+    commandToRun = f"{pythonUtilities.globalClicastCommand} {languageFlag} {standardArgs} execute run"
     executeReturnCode, stdoutText = runClicastCommand(enviroPath, commandToRun)
 
     # currently clicast returns the same error code for a failed coded test compile or

@@ -2,6 +2,14 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.34] - 2026-08-01
+
+### Added
+- Support for Ada environments: create and build environments from `.adb`/`.ads` sources (GNAT only), view the test tree, run tests, coverage gutters, MC/DC reports, and Reqs2X requirement/test generation.
+- New **nele.ai** LLM provider for Reqs2X
+- More Reqs2X test-generation controls: fast mode, batch size, test deduplication,
+  partial-test handling, and configurable example count/sources
+
 ## [1.0.33] - 2026-06-30
 
 ### Added

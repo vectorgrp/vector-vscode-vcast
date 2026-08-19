@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.33",
+  "version": "1.0.34",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -1105,7 +1105,7 @@
       "explorer/context": [
         {
           "command": "vectorcastTestExplorer.newEnviroVCAST",
-          "when": "resourceLangId == cpp || resourceLangId == c",
+          "when": "resourceLangId == cpp || resourceLangId == c || resourceExtname == .adb || resourceExtname == .ads",
           "group": "2_workspace"
         },
         {
@@ -1115,7 +1115,7 @@
         },
         {
           "command": "vectorcastTestExplorer.newEnviroInProjectVCAST",
-          "when": "(resourceLangId == cpp || resourceLangId == c) && vectorcastTestExplorer.globalProjectIsOpenedChecker",
+          "when": "(resourceLangId == cpp || resourceLangId == c || resourceExtname == .adb || resourceExtname == .ads) && vectorcastTestExplorer.globalProjectIsOpenedChecker",
           "group": "2_workspace"
         },
         {
@@ -1206,167 +1206,167 @@
     "vectorcastTestExplorer.vcastsubmenu": [
       {
         "command": "vectorcastTestExplorer.openProjectInVectorCAST",
-        "group": "vcast.project",
+        "group": "1_open@3",
         "when": "testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites"
       },
       {
         "command": "vectorcastTestExplorer.addCompilerToProject",
-        "group": "vcast.project",
+        "group": "6_project@2",
         "when": "testId =~ /\\.vcm$/"
       },
       {
         "command": "vectorcastTestExplorer.createNewCFG", 
-        "group": "vcast.project",
+        "group": "6_project@1",
         "when": "testId =~ /\\.vcm$/"
       },
       {
         "command": "vectorcastTestExplorer.addEnviroToProject",
-        "group": "vcast.project",
+        "group": "6_project@4",
         "when": "testId =~ /\\.vcm$/"
       },
       {
         "command": "vectorcastTestExplorer.addTestsuiteToCompiler",
-        "group": "vcast.project",
+        "group": "6_project@3",
         "when": "testId in vectorcastTestExplorer.globalProjectCompilers"
       },
       {
         "command": "vectorcastTestExplorer.updateProjectEnvironment",
-        "group": "vcast.project",
+        "group": "2_env@4",
         "when": "(testId =~ /^vcast:.*$/ && (testId in vectorcastTestExplorer.vcastUnbuiltEnviroList || testId in vectorcastTestExplorer.vcastEnviroList) && vectorcastTestExplorer.globalProjectIsOpenedChecker) && !config.vectorcastTestExplorer.automaticallyUpdateManageProject"
       },
       {
         "command": "vectorcastTestExplorer.buildProjectEnviro",
-        "group": "vcast.build",
+        "group": "2_env@1",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.getEnvFullReport",
-        "group": "vcast.build",
+        "group": "2_env@6",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.buildExecuteIncremental",
-        "group": "vcast.build",
+        "group": "2_env@3",
         "when": "vectorcastTestExplorer.globalProjectIsOpenedChecker && ( testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites || (testId =~ /^vcast:.*$/ && ( testId in vectorcastTestExplorer.vcastEnviroList || testId in vectorcastTestExplorer.vcastUnbuiltEnviroList)))"
       },
       {
         "command": "vectorcastTestExplorer.rebuildEnviro",
-        "group": "vcast.build",
+        "group": "2_env@2",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.cleanEnviro",
-        "group": "vcast.build",
+        "group": "2_env@5",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.globalProjectIsOpenedChecker && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.openVCAST",
-        "group": "vcast.enviroManagement",
+        "group": "1_open@1",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.deleteEnviro",
-        "group": "vcast.enviroManagement",
+        "group": "7_delete@2",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && !vectorcastTestExplorer.globalProjectIsOpenedChecker"
       },
       {
         "command": "vectorcastTestExplorer.deleteEnviroFromProject",
-        "group": "vcast.enviroManagement",
+        "group": "7_delete@3",
         "when": "testId =~ /^vcast:.*$/ && (testId in vectorcastTestExplorer.vcastUnbuiltEnviroList || testId in vectorcastTestExplorer.vcastEnviroList) && vectorcastTestExplorer.globalProjectIsOpenedChecker"
       },
       {
         "command": "vectorcastTestExplorer.removeTestsuite",
-        "group": "vcast.enviroManagement",
+        "group": "7_delete@4",
         "when": "testId =~ /^vcast:.*$/ && (testId in vectorcastTestExplorer.vcastUnbuiltEnviroList || testId in vectorcastTestExplorer.vcastEnviroList) && vectorcastTestExplorer.globalProjectIsOpenedChecker"
       },
       {
         "command": "vectorcastTestExplorer.editTestScript",
-        "group": "vcast.testScript",
+        "group": "3_tests@2",
         "when": "testId =~ /^vcast:.*$/ && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.createTestScript",
-        "group": "vcast.testScript",
+        "group": "3_tests@1",
         "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && !(testId =~ /.*coded_tests_driver.*/ )"
       },
       {
         "command": "vectorcastTestExplorer.editCodedTest",
-        "group": "vcast.testScript",
+        "group": "4_coded@1",
         "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId =~ /.*coded_tests_driver.+/"
       },
       {
         "command": "vectorcastTestExplorer.addCodedTests",
-        "group": "vcast.testScript",
+        "group": "4_coded@2",
         "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ &&  testId not in vectorcastTestExplorer.vcastHasCodedTestsList"
       },
       {
         "command": "vectorcastTestExplorer.generateCodedTests",
-        "group": "vcast.testScript",
+        "group": "4_coded@3",
         "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ &&  testId not in vectorcastTestExplorer.vcastHasCodedTestsList"
       },
       {
         "command": "vectorcastTestExplorer.removeCodedTests",
-        "group": "vcast.testScript",
+        "group": "4_coded@4",
         "when": "testId =~ /^vcast:.*$/ && testId =~ /.*coded_tests_driver$/ && testId in vectorcastTestExplorer.vcastHasCodedTestsList"
       },
       {
         "command": "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
-        "group": "vcast.enviroManagement",
+        "group": "1_open@2",
         "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
-        "group": "vcast.testGeneration",
+        "group": "3_tests@3",
         "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.insertATGTests",
-        "group": "vcast.testGeneration",
+        "group": "3_tests@4",
         "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.atgAvailable && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.deleteTest",
-        "group": "vcast.delete",
+        "group": "7_delete@1",
         "when": "testId =~ /^vcast:.*$/ && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.deleteTestsuite",
-        "group": "vcast.delete",
+        "group": "7_delete@5",
         "when": "testId in vectorcastTestExplorer.globalProjectTestsuites"
       },
       {
         "command": "vectorcastTestExplorer.deleteCompiler",
-        "group": "vcast.delete",
+        "group": "7_delete@6",
         "when": "testId in vectorcastTestExplorer.globalProjectCompilers"
       },
       {
         "command": "vectorcastTestExplorer.generateRequirements",
-        "group": "vcast@8",
+        "group": "5_reqs@1",
         "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.importRequirements",
-        "group": "vcast@8",
+        "group": "5_reqs@3",
         "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.migrateLegacyRequirements",
-        "group": "vcast@8",
+        "group": "5_reqs@5",
         "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastLegacyMigrationAvailable && vectorcastTestExplorer.reqs2xFeatureEnabled"
       },
       {
         "command": "vectorcastTestExplorer.showRequirements",
-        "group": "vcast@9",
+        "group": "5_reqs@2",
         "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.exportRequirements",
-        "group": "vcast@9",
+        "group": "5_reqs@4",
         "when": "testId =~ /^vcast:[^|]+$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.generateTestsFromRequirements",
-        "group": "vcast@10",
+        "group": "5_reqs@7",
         "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
@@ -1376,12 +1376,12 @@
       },
       {
         "command": "vectorcastTestExplorer.removeRequirements",
-        "group": "vcast@9",
+        "group": "5_reqs@6",
         "when": "testId =~ /^vcast:[^|]+$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
         "command": "vectorcastTestExplorer.viewResults",
-        "group": "vcast.results",
+        "group": "1_open@4",
         "when": "testId =~ /^vcast:.*$/ && testId not in vectorcastTestExplorer.vcastEnviroList  && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       }
     ]

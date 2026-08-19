@@ -82,7 +82,8 @@ export function vcastLicenseOK(): boolean {
 // Build Environment - no server logic needed ----------------------------------------
 export async function buildEnvironmentFromScript(
   unitTestLocation: string,
-  enviroName: string
+  enviroName: string,
+  isAda: boolean = false
 ) {
   // this function is separate and exported because it's used when we
   // create environments from source files and from .env files
@@ -90,7 +91,14 @@ export async function buildEnvironmentFromScript(
   // this call runs clicast in the background
   const enviroPath = path.join(unitTestLocation, enviroName);
 
-  const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
+  // The outer language flag drives the build; an Ada env built with "-lc"
+  // fails ("No preprocessor command specified"), so use "-lada" for Ada.
+  const clicastArgs = [
+    isAda ? "-lada" : "-lc",
+    "env",
+    "build",
+    enviroName + ".env",
+  ];
   // This is long running commands so we open the message pane to give the user a sense of what is going on.
   openMessagePane();
   executeWithRealTimeEcho(
@@ -233,6 +241,9 @@ export function setCodedTestOption(unitTestLocation: string) {
   // to make sure that the CFG file has the right value for coded testing.
   // This is easier than keeping track of n CFG files and their values
   // and I think that the coded test option will be removed soon.
+  //
+  // Note: no special handling is needed for Ada environments. Ada does not
+  // support coded tests, so VectorCAST never creates a coded_tests_driver
 
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   if (settings.get("build.enableCodedTesting", false)) {

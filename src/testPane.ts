@@ -723,7 +723,15 @@ export async function updateTestsForEnvironment(
   // In case we are refreshing the extension, we do not want to call the API n times (n=|envs|)
   // Instead we get the entire env data at once and save us time.
   jsonData = await loadEnviroData(enviroData, comingFromRefresh);
-  if (!jsonData) return;
+  if (!jsonData) {
+    // No data came back. The environment node cannot be (re)built. Log it so
+    // this does not fail silently.
+    vectorMessage(
+      `No environment data returned for ${enviroData.buildDirectory}; ` +
+        `the test pane was not updated.`
+    );
+    return;
+  }
 
   await processSingleEnvData(parentNode, enviroData, jsonData);
 }
