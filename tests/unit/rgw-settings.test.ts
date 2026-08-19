@@ -4,6 +4,10 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { readCsvSourcePath } from "../../src/requirements/rgwSettings";
 
+// The snake_case keys mirror the on-disk JSON written by VectorCAST,
+// so we'll disable the strictCamelCase check here.
+/* eslint-disable @typescript-eslint/naming-convention */
+
 const legacySettings = (csvPath: string) => ({
   current_gateway: "csv",
   csv: {
@@ -20,21 +24,22 @@ const newCsvSettings = (csvPath: string) => ({
 });
 
 describe("RGW settings layout", () => {
-  let innerDir: string;
+  let innerDirectory: string;
 
-  const write = (name: string, contents: unknown) =>
+  const write = (name: string, contents: unknown) => {
     fs.writeFileSync(
-      path.join(innerDir, name),
+      path.join(innerDirectory, name),
       JSON.stringify(contents, null, 4),
-      "utf-8"
+      "utf8"
     );
+  };
 
   beforeEach(() => {
-    innerDir = fs.mkdtempSync(path.join(os.tmpdir(), "rgw-settings-"));
+    innerDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "rgw-settings-"));
   });
 
   afterEach(() => {
-    fs.rmSync(innerDir, { recursive: true, force: true });
+    fs.rmSync(innerDirectory, { recursive: true, force: true });
   });
 
   test("reads the split layout written by VectorCAST 2026sp1+", () => {
@@ -44,13 +49,13 @@ describe("RGW settings layout", () => {
     });
     write("csv_settings.json", newCsvSettings("/reqs/new.csv"));
 
-    expect(readCsvSourcePath(innerDir)).toBe("/reqs/new.csv");
+    expect(readCsvSourcePath(innerDirectory)).toBe("/reqs/new.csv");
   });
 
   test("reads the single-file layout written before 2026sp1", () => {
     write("settings.json", legacySettings("/reqs/old.csv"));
 
-    expect(readCsvSourcePath(innerDir)).toBe("/reqs/old.csv");
+    expect(readCsvSourcePath(innerDirectory)).toBe("/reqs/old.csv");
   });
 
   test("prefers the split layout when a migrated gateway has both", () => {
@@ -59,7 +64,7 @@ describe("RGW settings layout", () => {
     write("gateway_settings.json", { current_gateway: "csv" });
     write("csv_settings.json", newCsvSettings("/reqs/current.csv"));
 
-    expect(readCsvSourcePath(innerDir)).toBe("/reqs/current.csv");
+    expect(readCsvSourcePath(innerDirectory)).toBe("/reqs/current.csv");
   });
 
   test("falls back to settings.json when only gateway_settings.json migrated", () => {
@@ -68,24 +73,25 @@ describe("RGW settings layout", () => {
     write("gateway_settings.json", { current_gateway: "csv" });
     write("settings.json", legacySettings("/reqs/only-here.csv"));
 
-    expect(readCsvSourcePath(innerDir)).toBe("/reqs/only-here.csv");
+    expect(readCsvSourcePath(innerDirectory)).toBe("/reqs/only-here.csv");
   });
 
   test("returns null for a non-CSV gateway in either layout", () => {
     write("settings.json", { current_gateway: "polarion" });
-    expect(readCsvSourcePath(innerDir)).toBeNull();
+    expect(readCsvSourcePath(innerDirectory)).toBeNull();
 
     write("gateway_settings.json", { current_gateway: "polarion" });
-    expect(readCsvSourcePath(innerDir)).toBeNull();
+    expect(readCsvSourcePath(innerDirectory)).toBeNull();
   });
 
   test("returns null when the CSV path is missing or unusable", () => {
-    expect(readCsvSourcePath(innerDir)).toBeNull();
+    expect(readCsvSourcePath(innerDirectory)).toBeNull();
 
     write("gateway_settings.json", { current_gateway: "csv" });
-    expect(readCsvSourcePath(innerDir)).toBeNull();
+    expect(readCsvSourcePath(innerDirectory)).toBeNull();
 
     write("csv_settings.json", { import_csv_path: "" });
-    expect(readCsvSourcePath(innerDir)).toBeNull();
+    expect(readCsvSourcePath(innerDirectory)).toBeNull();
   });
 });
+/* eslint-enable @typescript-eslint/naming-convention */
