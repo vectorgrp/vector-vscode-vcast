@@ -139,10 +139,6 @@ export async function runReqs2xTool(
   );
 
   const spawnOpts = opts.cwd ? { cwd: opts.cwd } : {};
-  const startProc = async (): Promise<ChildProcessWithoutNullStreams> =>
-    opts.llm
-      ? await spawnWithVcastEnv(opts.exe, opts.args, spawnOpts)
-      : spawn(opts.exe, opts.args, spawnOpts);
 
   if (opts.progress) {
     const progressOpts = opts.progress;
@@ -153,7 +149,7 @@ export async function runReqs2xTool(
         cancellable: true,
       },
       async (progress, cancellationToken) => {
-        const proc = await startProc();
+        const proc = await spawnWithVcastEnv(opts.exe, opts.args, spawnOpts, opts.llm);
         const tracker = new ProgressTracker(progress, progressOpts.logPrefix);
 
         let cancelled = false;
@@ -190,7 +186,7 @@ export async function runReqs2xTool(
   }
 
   // No progress notification: capture both streams and log them.
-  const proc = await startProc();
+  const proc = await spawnWithVcastEnv(opts.exe, opts.args, spawnOpts, opts.llm);
   let stdout = "";
   let stderr = "";
   let exitCode: number | null = null;

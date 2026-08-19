@@ -354,11 +354,14 @@ export async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
 export async function spawnWithVcastEnv(
   command: string,
   args: string[],
-  options: any = {}
+  options: any = {},
+  checkLLMConfig: boolean = false
 ): Promise<ChildProcessWithoutNullStreams> {
-  const checkSuccessful = await performLLMProviderUsableCheck();
-  if (!checkSuccessful) {
-    throw new Error("LLM provider settings are not usable");
+  if (checkLLMConfig) {
+    const checkSuccessful = await performLLMProviderUsableCheck();
+    if (!checkSuccessful) {
+      throw new Error("LLM provider settings are not usable");
+    }
   }
 
   const env = await createProcessEnvironment();
