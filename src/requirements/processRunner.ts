@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { logCliError, logCliOperation } from "./requirementsLog";
 import { spawnWithVcastEnv } from "./llmProvider";
 
@@ -149,7 +148,12 @@ export async function runReqs2xTool(
         cancellable: true,
       },
       async (progress, cancellationToken) => {
-        const proc = await spawnWithVcastEnv(opts.exe, opts.args, spawnOpts, opts.llm);
+        const proc = await spawnWithVcastEnv(
+          opts.exe,
+          opts.args,
+          spawnOpts,
+          opts.llm
+        );
         const tracker = new ProgressTracker(progress, progressOpts.logPrefix);
 
         let cancelled = false;
@@ -186,7 +190,12 @@ export async function runReqs2xTool(
   }
 
   // No progress notification: capture both streams and log them.
-  const proc = await spawnWithVcastEnv(opts.exe, opts.args, spawnOpts, opts.llm);
+  const proc = await spawnWithVcastEnv(
+    opts.exe,
+    opts.args,
+    spawnOpts,
+    opts.llm
+  );
   let stdout = "";
   let stderr = "";
   let exitCode: number | null = null;
