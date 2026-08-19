@@ -140,6 +140,10 @@ describe("vTypeCheck VS Code Extension", () => {
     // The different strucutre (autocompletion) + we already clicked on the same webview
     // make the problems, so we just navigate with tab and enter within the webview
     await insertStringToInput("ANewProject", "Project Name Input");
+    // Project Name -> Language select. The New Project form now has a Language
+    // dropdown (defaults to "C / C++") between the name and the compiler
+    // section, so tab once more past it to land on the compiler input.
+    await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
     await browser.keys("GNU Native_Automatic_C++17");
     await browser.keys(["Tab"]);
@@ -232,6 +236,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
     console.log("Inserting Data to Webview for Banana project");
     await insertStringToInput("Banana", "Project Name Input");
+    // Project Name -> Language select (defaults to "C / C++"), then Tab again to
+    // reach the compiler input - the New Project form now has a Language
+    // dropdown between the name and the compiler section.
+    await browser.keys(["Tab"]);
     await browser.keys(["Tab"]);
     await browser.keys("GNU Native_Automatic_C++");
     await browser.keys(["Tab"]);

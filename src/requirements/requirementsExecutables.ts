@@ -99,49 +99,80 @@ export function setupReqs2XExecutablePaths(
     exeFilename("llm2check")
   ).fsPath;
 
-  // A different binary may have been resolved; drop the cached probe.
-  onlyUntracedSupport = undefined;
+  // A different binary may have been resolved; drop the cached help output.
+  helpTextCache.clear();
 
   return true;
 }
 
-let onlyUntracedSupport: boolean | undefined; // undefined until first probed
-let onlyUntracedProbe: Promise<boolean> | undefined;
+// Resolved exe path -> its `--help` output. The promise itself is cached so
+// concurrent callers share one subprocess, and a failed probe stays cached as
+// empty rather than re-running (and re-waiting out the timeout) every call.
+const helpTextCache = new Map<string, Promise<string>>();
 
-/**
- * Probe (once, cached) whether the resolved `panreq` supports `--only-untraced`
- * by scanning `panreq --help`. `panreq` ships with VectorCAST and is versioned
- * independently of this extension, so an older one may predate the flag. Any
- * failure resolves to `false` — callers then fall back to full inference rather
- * than passing a flag the binary would reject.
- */
-export async function panreqSupportsOnlyUntraced(): Promise<boolean> {
-  if (onlyUntracedSupport !== undefined) return onlyUntracedSupport;
-  if (onlyUntracedProbe) return onlyUntracedProbe;
-  if (!PANREQ_EXECUTABLE_PATH) return false;
+function reqs2xHelpText(exe: string): Promise<string> {
+  const cached = helpTextCache.get(exe);
+  if (cached) return cached;
 
-  onlyUntracedProbe = (async () => {
-    let supported = false;
+  const probe = (async () => {
     try {
       const result = await runReqs2xTool({
-        exe: PANREQ_EXECUTABLE_PATH,
+        exe,
         args: ["--help"],
         captureOutput: true,
         allowNonZeroExit: true,
         timeoutMs: 10000,
       });
-      const help = `${result.stdout ?? ""}${result.stderr ?? ""}`;
-      supported = help.includes("--only-untraced");
+      return `${result.stdout ?? ""}${result.stderr ?? ""}`;
     } catch (err) {
-      logCliError(`panreq capability probe failed: ${err}`);
+      logCliError(`reqs2x capability probe failed for ${exe}: ${err}`);
+      return "";
     }
-    onlyUntracedSupport = supported;
-    onlyUntracedProbe = undefined;
-    logCliOperation(
-      `panreq --only-untraced support: ${supported ? "yes" : "no"}`
-    );
-    return supported;
   })();
 
-  return onlyUntracedProbe;
+  helpTextCache.set(exe, probe);
+  return probe;
+}
+
+/**
+ * Whether the resolved binary accepts `flag`, per its `--help`. The Reqs2X tools
+ * ship with VectorCAST and are versioned independently of this extension, so an
+ * older installation may predate a flag we would otherwise pass. Resolves to
+ * `false` when unknown, so callers degrade instead of passing something the
+ * binary rejects.
+ */
+async function reqs2xSupportsFlag(exe: string, flag: string): Promise<boolean> {
+  if (!exe) return false;
+  return (await reqs2xHelpText(exe)).includes(flag);
+}
+
+/**
+ * Filter `flags` down to those the binary accepts. One probe covers all of
+ * them, since the help output is cached per binary. Reporting what is missing is
+ * left to callers, which know whether the user actually asked for it.
+ */
+export async function reqs2xSupportedFlags(
+  exe: string,
+  flags: string[]
+): Promise<Set<string>> {
+  if (!exe) return new Set();
+  const help = await reqs2xHelpText(exe);
+  return new Set(flags.filter((flag) => help.includes(flag)));
+}
+
+// Recent enough that the installed Reqs2X may not have them, so they get probed
+// before use.
+export const RECENT_REQS2TESTS_FLAGS = [
+  "--fast",
+  "--max-test-examples",
+  "--test-examples-sources",
+];
+
+export async function panreqSupportsOnlyUntraced(): Promise<boolean> {
+  return reqs2xSupportsFlag(PANREQ_EXECUTABLE_PATH, "--only-untraced");
+}
+
+// Also recent; probed separately because it gates a command, not an argument.
+export async function reqs2testsSupportsDelta(): Promise<boolean> {
+  return reqs2xSupportsFlag(REQS2TESTS_EXECUTABLE_PATH, "--only-delta");
 }

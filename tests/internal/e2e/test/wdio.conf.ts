@@ -320,6 +320,9 @@ export const config: Options.Testrunner = {
     let clicastExecutablePath: string;
     let testInputEnvPath: string;
     let codedTestsPath: string;
+    // Populated with the Ada tutorial sources (manager.adb, database.adb, ...)
+    // so the Ada e2e spec can create an environment from them.
+    let testInputAdaPath: string;
 
     const promisifiedExec = promisify(exec);
 
@@ -809,6 +812,10 @@ ENVIRO.END
       codedTestsPath = path.join(testInputVcastTutorial, "cpp", "TestFiles");
       await mkdir(codedTestsPath, { recursive: true });
 
+      // Ada tutorial sources live in their own "ada" subfolder of the workspace.
+      testInputAdaPath = path.join(testInputVcastTutorial, "ada");
+      await mkdir(testInputAdaPath, { recursive: true });
+
       const vscodeSettingsPath = path.join(testInputVcastTutorial, ".vscode");
       await mkdir(vscodeSettingsPath, { recursive: true });
 
@@ -932,6 +939,11 @@ ENVIRO.END
         "*.cpp"
       );
 
+      // Ada tutorial sources (bodies + specs) for the Ada e2e spec.
+      const pathToAdaTutorial = path.join(vectorcastDir, "tutorial", "ada");
+      const adaBodyFilesToCopy = path.join(pathToAdaTutorial, "*.adb");
+      const adaSpecFilesToCopy = path.join(pathToAdaTutorial, "*.ads");
+
       // Copying didn't work with cp from fs
       if (process.platform == "win32") {
         await executeCommand(
@@ -946,6 +958,14 @@ ENVIRO.END
         await executeCommand(
           `xcopy /s /i /y ${codedTestsExamplesToCopy} ${codedTestsPath} > NUL 2> NUL`
         );
+        // Ada sources (best-effort: the tutorial/ada folder exists on all
+        // supported releases, but tolerate its absence).
+        await executeCommand(
+          `xcopy /s /i /y ${adaBodyFilesToCopy} ${testInputAdaPath} > NUL 2> NUL`
+        ).catch(() => {});
+        await executeCommand(
+          `xcopy /s /i /y ${adaSpecFilesToCopy} ${testInputAdaPath} > NUL 2> NUL`
+        ).catch(() => {});
         await executeCommand(
           `xcopy /s /i /y ${testInputVcastTutorial} ${path.join(
             initialWorkdir,
@@ -960,6 +980,12 @@ ENVIRO.END
         await executeCommand(
           `cp ${codedTestsExamplesToCopy} ${codedTestsPath}`
         );
+        await executeCommand(
+          `cp ${adaBodyFilesToCopy} ${testInputAdaPath}`
+        ).catch(() => {});
+        await executeCommand(
+          `cp ${adaSpecFilesToCopy} ${testInputAdaPath}`
+        ).catch(() => {});
         await executeCommand(
           `cp -r ${testInputVcastTutorial} ${path.join(initialWorkdir, "test")}`
         );

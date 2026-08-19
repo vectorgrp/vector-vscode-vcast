@@ -24,6 +24,7 @@ import clicastInterface
 import pythonUtilities
 import tstUtilities
 import mcdcReport
+import severage_coverage
 
 from vcastDataServerTypes import errorCodes
 from vConstants import TAG_FOR_INIT
@@ -243,8 +244,19 @@ def getTestDataVCAST(api, enviroPath):
         initNode["tests"].append(testInfo)
     testList.append(initNode)
 
+    # Ada exposes stubbed dependency units (e.g. DATABASE) as their own units
+    # WITH subprograms even though they are not under test, so without a filter
+    # they wrongly appear in the test tree. We only apply the is_uut filter for
+    # Ada: C/C++ historically showed every unit, and applying this filter there
+    # could hide a C/C++ unit that legitimately reports is_uut == False (a
+    # behaviour change/regression). Default is_uut to True so a missing attribute
+    # never drops a unit.
+    isAda = bool(getattr(api.environment, "is_ada", False))
+
     # Now do normal tests
     for unit in api.Unit.all():
+        if isAda and not getattr(unit, "is_uut", True):
+            continue
         # we used to add these and throw them away in the typescript, now we don't add them
         if unit.name != "uut_prototype_stubs":
             unitNode = dict()
@@ -290,8 +302,22 @@ def getUnitData(api):
 
     sourceObjects = api.SourceFile.all()
     for sourceObject in sourceObjects:
-        sourcePath = sourceObject.display_path
-        if sourceObject.is_instrumented:
+        # display_path and is_instrumented are delegated through cover_data, so
+        # they raise AttributeError whenever coverage has not been initialized
+        # (cover_data is None), which is common for Ada environments and for
+        # any freshly built environment. ONLY in that case do we fall back to
+        # the plain path.
+        try:
+            sourcePath = sourceObject.display_path
+        except AttributeError:
+            sourcePath = getattr(sourceObject, "path", "") or ""
+        if not sourcePath:
+            continue
+        try:
+            isInstrumented = sourceObject.is_instrumented
+        except AttributeError:
+            isInstrumented = False
+        if isInstrumented:
             covered, uncovered, partiallyCovered, checksum = getCoverageData(
                 sourceObject
             )
@@ -317,6 +343,76 @@ def getUnitData(api):
             unitInfo["partiallyCovered"] = ""
             unitList.append(unitInfo)
 
+    return unitList
+
+
+def getSubunitUnitData(api, enviroPath):
+    """
+    For Ada environments that use "separate" subunits, VectorCAST records
+    coverage against the merged listing and does not expose a mapping back to the
+    individual subunit source files. severage_coverage reconstructs that mapping
+    (by aligning the listing against the real files), so here we turn it into
+    normal unitData entries so the extension paints coverage on those files like
+    any other source file.
+
+    Returns [] for non-Ada environments or when there are no subunits.
+    """
+    # severage_coverage lists the environment directory to find the subunit
+    # copies. enviroPath is the env directory (getEnviroData) or the .vce file
+    # (workspace scan), so normalize to the directory.
+    if os.path.isdir(enviroPath):
+        envDir = enviroPath
+    elif enviroPath.lower().endswith(".vce"):
+        envDir = enviroPath[:-4]
+    else:
+        envDir = enviroPath
+    if not os.path.isdir(envDir):
+        return []
+
+    try:
+        results = severage_coverage.subunit_coverage(api, envDir)
+    except Exception:
+        return []
+
+    # The extension only shows coverage when the stored checksum matches the CRC
+    # of the file on disk, so compute the same pycksum value it uses.
+    try:
+        import pycksum
+    except Exception:
+        pycksum = None
+
+    unitList = []
+    for path, rows in results.items():
+        coveredString = ""
+        uncoveredString = ""
+        partiallyCoveredString = ""
+        for lineNumber in sorted(rows):
+            state = rows[lineNumber][1]
+            if state == "covered":
+                coveredString += f"{lineNumber},"
+            elif state == "partial":
+                partiallyCoveredString += f"{lineNumber},"
+            else:
+                uncoveredString += f"{lineNumber},"
+
+        checksum = 0
+        if pycksum is not None and os.path.isfile(path):
+            try:
+                with open(path, "rb") as checksumFile:
+                    checksum = pycksum.cksum(checksumFile)
+            except Exception:
+                checksum = 0
+
+        unitList.append(
+            {
+                "path": path,
+                "functionList": [],
+                "cmcChecksum": checksum,
+                "covered": coveredString,
+                "uncovered": uncoveredString,
+                "partiallyCovered": partiallyCoveredString,
+            }
+        )
     return unitList
 
 
@@ -583,16 +679,65 @@ def getCodeBasedTestNames(filePath):
     return returnObject
 
 
+def _longestDottedPrefix(text, names):
+    """Return the longest name in `names` that is a dotted prefix of `text`
+    (i.e. name == text or text starts with name + "."), or None."""
+    best = None
+    for name in names:
+        if text == name or text.startswith(name + "."):
+            if best is None or len(name) > len(best):
+                best = name
+    return best
+
+
+def splitTestIDString(enviroPath, restOfString):
+    """Split "UNIT.FUNCTION.TEST" into (unitName, functionName, testName).
+
+    The "." delimiter is ambiguous for Ada: a child-unit name (WAREHOUSE.ORDERS)
+    and a nested-package subprogram name (PRICING.APPLY_DISCOUNT) both contain
+    dots, so a naive split assigns the wrong pieces (e.g. unit=WAREHOUSE,
+    subprogram=ORDERS -> "Subprogram 'ORDERS' is invalid"). We resolve the
+    boundaries against the environment's real unit and function names, taking the
+    longest match. Compound/Init tests use the sentinel unit "not-used".
+
+    Falls back to the historical naive split if the environment cannot be read
+    (behaviour is identical for C/C++, whose names contain no dots).
+    """
+    if restOfString.startswith("not-used."):
+        function, _, testName = restOfString[len("not-used.") :].partition(".")
+        return "not-used", function, testName
+
+    try:
+        with UnitTestApi(enviroPath) as api:
+            units = list(api.Unit.all())
+            unit = _longestDottedPrefix(restOfString, (u.name for u in units))
+            if unit is not None:
+                rest = restOfString[len(unit) + 1 :]
+                functionNames = [
+                    f.vcast_name for u in units if u.name == unit for f in u.functions
+                ]
+                function = _longestDottedPrefix(rest, functionNames)
+                if function is not None:
+                    return unit, function, rest[len(function) + 1 :]
+    except Exception:
+        pass
+
+    pieces = restOfString.split(".")
+    return pieces[0], pieces[1], ".".join(pieces[2:])
+
+
 class testID:
     def __init__(self, enviroPath, testIDString):
-        self.enviroName, restOfString = testIDString.split("|")
-        pieces = restOfString.split(".")
-        self.unitName = pieces[0]
-        self.functionName = pieces[1]
-        self.testName = ".".join(pieces[2:])
+        self.enviroName, restOfString = testIDString.split("|", 1)
+        self.unitName, self.functionName, self.testName = splitTestIDString(
+            enviroPath, restOfString
+        )
 
         # There can be all sort of odd characters in the test name
-        # because we use the parameterized name ... so create a hash
+        # because we use the parameterized name ... so create a hash.
+        # NOTE: joining the three parts back with "." reproduces restOfString
+        # regardless of where the unit/function boundaries fell, so the hash
+        # (and thus the report file name) is unchanged by the smarter split.
         temp = ".".join([self.unitName, self.functionName, self.testName])
         hashString = hashlib.md5(temp.encode("utf-8")).hexdigest()
         self.reportName = os.path.join(enviroPath, hashString) + ".html"
@@ -789,7 +934,10 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                 api = UnitTestApi(vce_path)
                 test_data = getTestDataVCAST(api, vce_path)
                 unit_data = getUnitData(api)
+                # Ada: add coverage for "separate" subunit source files.
+                unit_data.extend(getSubunitUnitData(api, vce_path))
                 mocking_support = getEnviroSupportsMock(api)
+                is_ada = bool(getattr(api.environment, "is_ada", False))
                 api.close()
 
                 enviro_list.append(
@@ -798,6 +946,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                         "testData": test_data,
                         "unitData": unit_data,
                         "mockingSupport": mocking_support,
+                        "isAda": is_ada,
                     }
                 )
 
@@ -822,8 +971,14 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         # the global list of testable functions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(api, pathToUse)
         topLevel["unitData"] = getUnitData(api)
+        # Ada: add coverage for "separate" subunit source files, mapped back
+        # from the merged listing onto the real files.
+        topLevel["unitData"].extend(getSubunitUnitData(api, pathToUse))
         topLevel["enviro"] = dict()
         topLevel["mockingSupport"] = getEnviroSupportsMock(api)
+        # Ada environments behave like C/C++ except for coded tests, which do
+        # not exist for Ada. The extension uses this flag to suppress those.
+        topLevel["isAda"] = bool(getattr(api.environment, "is_ada", False))
 
         api.close()
         returnObject = topLevel

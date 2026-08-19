@@ -7,7 +7,22 @@ import tempfile
 from pathlib import Path
 from datetime import datetime
 
-DISTRIBUTION_NAMES = ("autoreq-linux.tar.gz", "autoreq-win.tar.gz")
+# In "with-ada" mode (R2T_WITH_ADA set) we fetch the Ada-capable build, which
+# bundles libadalang (required for Ada requirement generation) and is published
+# only for linux under the "-with-ada" name. The Ada e2e is linux-only, so we
+# fetch just that artifact and save it under the stock local filename the
+# workflow extracts (autoreq-linux.tar.gz). In the normal mode we fetch the
+# stock linux + win builds (remote name == local name).
+WITH_ADA = os.getenv("R2T_WITH_ADA", "").lower() in ("1", "true", "yes")
+if WITH_ADA:
+    REMOTE_FOR_LOCAL = {"autoreq-linux.tar.gz": "autoreq-linux-with-ada.tar.gz"}
+else:
+    REMOTE_FOR_LOCAL = {
+        "autoreq-linux.tar.gz": "autoreq-linux.tar.gz",
+        "autoreq-win.tar.gz": "autoreq-win.tar.gz",
+    }
+# Local filenames the rest of the script (and the workflow) expect.
+DISTRIBUTION_NAMES = tuple(REMOTE_FOR_LOCAL.keys())
 
 # Distribution folders are named "<timestamp>-<sha>-<run id>". Match the
 # timestamp prefix rather than splitting on "-": what follows the timestamp
@@ -33,7 +48,12 @@ if os.getenv("R2T_RELEASE_URL_LIN"):
         f"Using R2T_RELEASE_URL_LIN: {os.getenv('R2T_RELEASE_URL_LIN')} for Linux"
     )
     url = os.getenv("R2T_RELEASE_URL_LIN").rstrip("/")
-    download_file(url)
+    # Save under the local filename the existence check below looks for. In
+    # with-ada mode that is the stock "autoreq-linux.tar.gz" even though the
+    # override URL points at a "-with-ada" tarball; without this the override
+    # would download to the wrong name and be ignored (falling through to
+    # Artifactory).
+    download_file(url, "autoreq-linux.tar.gz")
 if os.getenv("R2T_RELEASE_URL_WIN"):
     logging.info(
         f"Using R2T_RELEASE_URL_WIN: {os.getenv('R2T_RELEASE_URL_WIN')} for Windows"
@@ -76,10 +96,15 @@ with tempfile.TemporaryDirectory() as tmpdirname:
     )
 
     for c in children_urls:
-        for distribution_name in DISTRIBUTION_NAMES:
-            if os.path.exists(distribution_name):
+        for local_name in DISTRIBUTION_NAMES:
+            if os.path.exists(local_name):
                 continue
-            url = f"{BASE_URL}/{PATH}{c}/{distribution_name}"
+            # The artifact on artifactory may have a different name than the
+            # local file we save it as (with-ada mode fetches
+            # "autoreq-linux-with-ada.tar.gz" but stores it as
+            # "autoreq-linux.tar.gz" so the workflow extraction is unchanged).
+            remote_name = REMOTE_FOR_LOCAL[local_name]
+            url = f"{BASE_URL}/{PATH}{c}/{remote_name}"
             status_file = Path(tmpdirname, "status.txt")
             if platform.system() == "Windows":
                 cmd = (
@@ -97,7 +122,7 @@ with tempfile.TemporaryDirectory() as tmpdirname:
             with open(status_file) as f:
                 status = f.read().strip()
             if status == "200" or status.strip().endswith("OK"):
-                download_file(url)
+                download_file(url, local_name)
 
         if all(os.path.exists(f) for f in DISTRIBUTION_NAMES):
             break
