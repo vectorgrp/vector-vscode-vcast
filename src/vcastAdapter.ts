@@ -1073,7 +1073,13 @@ export async function getATGLineTest(
   );
   const cwd = enviroPath;
   try {
-    await executeATGLineForScript(commandToRun, cwd, enviroPath, tstScriptPath, envVars);
+    await executeATGLineForScript(
+      commandToRun,
+      cwd,
+      enviroPath,
+      tstScriptPath,
+      envVars
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     vectorMessage(`getATGLineTest failed: ${msg}`);

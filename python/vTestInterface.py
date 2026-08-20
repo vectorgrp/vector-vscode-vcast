@@ -968,9 +968,7 @@ def buildTypeNode(name, typeObj, depth, maxDepth, visited=None):
         try:
             elementType = typeObj.element
             if elementType:
-                child = buildTypeNode(
-                    "[0]", elementType, depth + 1, maxDepth, visited
-                )
+                child = buildTypeNode("[0]", elementType, depth + 1, maxDepth, visited)
                 node["children"].append(child)
         except Exception:
             pass
@@ -1039,13 +1037,43 @@ def buildVariableTree(api, sourceFile, functionName, maxDepth=3):
 
 
 C_KEYWORDS = {
-    "if", "else", "for", "while", "do", "switch", "case",
-    "return", "break", "continue", "goto", "sizeof",
-    "typedef", "struct", "union", "enum", "void",
-    "int", "float", "double", "char", "short", "long",
-    "unsigned", "signed", "const", "static", "extern",
-    "volatile", "auto", "register", "inline", "bool",
-    "true", "false", "NULL", "nullptr",
+    "if",
+    "else",
+    "for",
+    "while",
+    "do",
+    "switch",
+    "case",
+    "return",
+    "break",
+    "continue",
+    "goto",
+    "sizeof",
+    "typedef",
+    "struct",
+    "union",
+    "enum",
+    "void",
+    "int",
+    "float",
+    "double",
+    "char",
+    "short",
+    "long",
+    "unsigned",
+    "signed",
+    "const",
+    "static",
+    "extern",
+    "volatile",
+    "auto",
+    "register",
+    "inline",
+    "bool",
+    "true",
+    "false",
+    "NULL",
+    "nullptr",
 }
 
 
@@ -1120,8 +1148,8 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
                         return None
                     value = hover["contents"].get("value", "")
                     # Parse category: ### variable, ### field, ### param
-                    cat_match = re.search(r'###\s+(\w+)\s+`(\w+)`', value)
-                    type_match = re.search(r'Type:\s*`(.*?)`', value)
+                    cat_match = re.search(r"###\s+(\w+)\s+`(\w+)`", value)
+                    type_match = re.search(r"Type:\s*`(.*?)`", value)
                     if cat_match and type_match:
                         info = {
                             "category": cat_match.group(1),
@@ -1138,8 +1166,7 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
             # Find all member access chains (e.g., zzz->f->g) and individual variables
             # Pattern: identifier (-> or .) identifier (-> or .) ...
             chain_pattern = re.compile(
-                r'\b([a-zA-Z_]\w*)\b'
-                r'((?:\s*(?:->|\.)\s*[a-zA-Z_]\w*)*)'
+                r"\b([a-zA-Z_]\w*)\b" r"((?:\s*(?:->|\.)\s*[a-zA-Z_]\w*)*)"
             )
 
             seen_vars = set()
@@ -1149,7 +1176,11 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
             for lineIdx in range(min(targetLine, len(lines))):
                 rawLine = lines[lineIdx]
                 line = rawLine.rstrip()
-                if not line.strip() or line.strip().startswith("//") or line.strip().startswith("#"):
+                if (
+                    not line.strip()
+                    or line.strip().startswith("//")
+                    or line.strip().startswith("#")
+                ):
                     continue
 
                 for match in chain_pattern.finditer(line):
@@ -1186,7 +1217,7 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
                     # Process member access chain: ->f->g or .f.g
                     if rest.strip():
                         # Parse the chain segments
-                        segments = re.findall(r'(?:->|\.)\s*([a-zA-Z_]\w*)', rest)
+                        segments = re.findall(r"(?:->|\.)\s*([a-zA-Z_]\w*)", rest)
                         parentNode = var_nodes.get(base)
                         currentCol = baseCol + len(base)
 
@@ -1356,9 +1387,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         returnObject = {"locals": []}
         if sourceFile and targetLine > 0:
             sourceDir = os.path.dirname(sourceFile)
-            locals_list = getLocalVariablesFromClangd(
-                sourceDir, sourceFile, targetLine
-            )
+            locals_list = getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine)
             returnObject["locals"] = locals_list
 
     elif mode == "executeTest":

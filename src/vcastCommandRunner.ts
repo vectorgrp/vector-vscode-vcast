@@ -645,7 +645,9 @@ export async function executeATGLineForScript(
     async (progress, token) => {
       progress.report({ increment: 0 });
       vectorMessage("-".repeat(60));
-      const envVarStr = Object.entries(envVars).map(([k, v]) => `${k}=${v}`).join(" ");
+      const envVarStr = Object.entries(envVars)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(" ");
       vectorMessage(`Executing: ${envVarStr ? envVarStr + " " : ""}${command}`);
       vectorMessage(`cwd: ${cwd}`);
       vectorMessage("-".repeat(60));
@@ -737,8 +739,7 @@ export async function executeATGLineForScript(
 
           const status: commandStatusType = {
             errorCode: code,
-            stdout:
-              stdoutBuffer + (stderrBuffer ? `\n${stderrBuffer}` : ""),
+            stdout: stdoutBuffer + (stderrBuffer ? `\n${stderrBuffer}` : ""),
           };
           const enviroName = path.basename(enviroPath || "");
           try {
@@ -756,8 +757,7 @@ export async function executeATGLineForScript(
           vectorMessage(`Failed to spawn process: ${err.message}`);
           const status: commandStatusType = {
             errorCode: "spawn_error",
-            stdout:
-              stdoutBuffer + (stderrBuffer ? `\n${stderrBuffer}` : ""),
+            stdout: stdoutBuffer + (stderrBuffer ? `\n${stderrBuffer}` : ""),
           };
           const enviroName = path.basename(enviroPath || "");
           try {

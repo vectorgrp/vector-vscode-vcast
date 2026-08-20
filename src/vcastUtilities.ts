@@ -922,10 +922,7 @@ export async function loadATGLineTest(
       new RegExp(`ATG-.*-LINE-${lineNumber}\\b`)
     );
     if (testItem) {
-      vscode.commands.executeCommand(
-        "vscode.revealTestInExplorer",
-        testItem
-      );
+      vscode.commands.executeCommand("vscode.revealTestInExplorer", testItem);
     }
   } else {
     vectorMessage(`No Environment found for ${sourceFile}`);
@@ -1016,7 +1013,9 @@ export function getATGLineTestCommand(
   // If any Azure env vars were explicitly set, include the API version
   // (which has a package.json default) so the provider has a complete config
   const hasAzureVars = Object.keys(envVars).some(
-    (k) => k.startsWith("VCAST_REQS2X_AZURE_") && k !== "VCAST_REQS2X_AZURE_OPENAI_API_VERSION"
+    (k) =>
+      k.startsWith("VCAST_REQS2X_AZURE_") &&
+      k !== "VCAST_REQS2X_AZURE_OPENAI_API_VERSION"
   );
   if (hasAzureVars && !envVars["VCAST_REQS2X_AZURE_OPENAI_API_VERSION"]) {
     const apiVersion = reqs2xConfig.get<string>("azure.apiVersion", "");

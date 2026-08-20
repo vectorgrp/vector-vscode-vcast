@@ -37,10 +37,7 @@ interface SelectedVariable {
 
 // ─── Variable Lookup ─────────────────────────────────────────────────
 
-function buildLookupFromNodes(
-  nodes: any[],
-  target: Map<string, VariableInfo>
-) {
+function buildLookupFromNodes(nodes: any[], target: Map<string, VariableInfo>) {
   if (!nodes) return;
   for (const node of nodes) {
     const entry: VariableInfo = {
@@ -476,15 +473,14 @@ export class ATGModeManager {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return false;
     const text = editor.document.lineAt(line - 1).text.trimStart();
-    return /^(if|else\s+if|while|for|switch)\s*\(/.test(text) ||
+    return (
+      /^(if|else\s+if|while|for|switch)\s*\(/.test(text) ||
       /}\s*while\s*\(/.test(text) ||
-      /\?\s*.*\s*:/.test(text);
+      /\?\s*.*\s*:/.test(text)
+    );
   }
 
-  private getDefaultIndexFromLine(
-    fullPath: string,
-    lineIdx?: number
-  ): string {
+  private getDefaultIndexFromLine(fullPath: string, lineIdx?: number): string {
     if (lineIdx === undefined) return "";
     const editor = vscode.window.activeTextEditor;
     if (!editor) return "";
@@ -543,8 +539,7 @@ export class ATGModeManager {
 
         // Check if it's after -> or . (field access)
         const before = line.substring(0, col).trimEnd();
-        const isFieldAccess =
-          before.endsWith("->") || before.endsWith(".");
+        const isFieldAccess = before.endsWith("->") || before.endsWith(".");
 
         // Determine if clickable
         let isClickable = false;
@@ -601,11 +596,7 @@ export class ATGModeManager {
       editor.setDecorations(this.selectedDeco, selectedRanges);
   }
 
-  private resolvePathFromLine(
-    line: string,
-    col: number,
-    name: string
-  ): string {
+  private resolvePathFromLine(line: string, col: number, name: string): string {
     const segments = [name];
     let pos = col;
 
@@ -638,10 +629,7 @@ export class ATGModeManager {
     return segments.join(".");
   }
 
-  private findFunctionBounds(
-    editor: vscode.TextEditor,
-    functionName?: string
-  ) {
+  private findFunctionBounds(editor: vscode.TextEditor, functionName?: string) {
     const lines = editor.document.getText().split(/\r?\n/);
     this.funcStartLine = 1;
     this.funcEndLine = lines.length;

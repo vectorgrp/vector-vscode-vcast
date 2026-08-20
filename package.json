@@ -84,10 +84,6 @@
         "title": "ATG Mode Actions"
       },
       {
-        "command": "myext.selectEnvStatus",
-        "title": "Select environment (Multiple env selection)"
-      },
-      {
         "command": "vectorcastTestExplorer.createNewProject",
         "title": "Create New Project"
       },

@@ -193,6 +193,7 @@ import {
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
 import { getNonce, resolveWebviewBase } from "./webviewUtils";
+import { ATGModeManager, ATGSidebarViewProvider } from "./atgMode";
 
 const path = require("path");
 
@@ -212,13 +213,10 @@ function decodeAndRemoveDeveloperEnvs() {
   }
 }
 
-import { ATGModeManager, ATGSidebarViewProvider } from "./atgMode";
-
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
 
-let selectedEnvStatusBarObject: vscode.StatusBarItem | undefined;
 const atgModeManager = new ATGModeManager();
 
 export function getMessagePane(): vscode.OutputChannel {
@@ -249,14 +247,6 @@ export async function activate(context: vscode.ExtensionContext) {
   // this checks the vcast installation,
   // and if its ok will proceed with full activation
   await checkPrerequisites(context);
-
-  selectedEnvStatusBarObject = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    10
-  );
-  selectedEnvStatusBarObject.command = "myext.selectEnvStatus";
-  selectedEnvStatusBarObject.tooltip = "Select environment for current file";
-  context.subscriptions.push(selectedEnvStatusBarObject);
 
   // ATG Mode: sidebar view provider
   const atgSidebarProvider = new ATGSidebarViewProvider(
