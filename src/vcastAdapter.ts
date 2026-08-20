@@ -1063,6 +1063,17 @@ export async function getATGLineTest(
   truthValue: "True" | "False" | "" = "",
   sourceFile: string = ""
 ): Promise<void> {
+  // Defense in depth: the context menu is gated on atgAvailable and
+  // ATGModeManager.enter() checks too, but never interpolate an undefined
+  // command into a shell string.
+  if (!atgCommandToUse) {
+    vectorMessage(
+      "getATGLineTest: no licensed 'atg' found in the VectorCAST installation"
+    );
+    vscode.window.showWarningMessage("ATG is not available.");
+    return;
+  }
+
   const { command: commandToRun, envVars } = getATGLineTestCommand(
     tstScriptPath,
     lineNumber,

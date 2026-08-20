@@ -6,6 +6,7 @@ import { loadATGLineTest } from "./vcastUtilities";
 import { getVcastInterfaceCommandForVariableInfo } from "./vcastUtilities";
 import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import {
+  atgAvailable,
   clicastCommandToUse,
   globalTestInterfacePath,
   vPythonCommandToUse,
@@ -104,6 +105,17 @@ export class ATGModeManager {
     lineNumber: number,
     _context: vscode.ExtensionContext
   ) {
+    // Same policy the editor/lineNumber/context menu is gated on: atg must
+    // have been found, licensed, and be a supported version. This command is
+    // also reachable from the command palette, which has no such gating, so
+    // bail out before the user does the work of selecting variables.
+    if (!atgAvailable) {
+      vscode.window.showWarningMessage(
+        "ATG is not available: no licensed, supported 'atg' was found in the VectorCAST installation."
+      );
+      return;
+    }
+
     if (this.isActive) this.exit();
 
     this.isActive = true;

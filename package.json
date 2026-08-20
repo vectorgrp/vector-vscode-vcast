@@ -1229,7 +1229,7 @@
         },
         {
           "command": "vectorcastTestExplorer.getATGTestForLine",
-          "when": "vectorcastTestExplorer.configured && ( editorLineNumber in vectorcastTestExplorer.allBranchLinesForActiveFile || editorLineNumber in vectorcastTestExplorer.allStatementLinesForActiveFile )",
+          "when": "vectorcastTestExplorer.configured && vectorcastTestExplorer.atgAvailable && ( editorLineNumber in vectorcastTestExplorer.allBranchLinesForActiveFile || editorLineNumber in vectorcastTestExplorer.allStatementLinesForActiveFile )",
           "args": [
             "${lineNumber}"
           ],
