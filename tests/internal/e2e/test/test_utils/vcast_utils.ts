@@ -17,6 +17,8 @@ import * as fs from "fs";
 import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
+import expectedAtgTests26 from "../atg_tests_26.json";
+import { getToolVersion } from "../../../../unit/getToolversion";
 
 // Local VM takes longer and needs a higher TIMEOUT
 export const TIMEOUT = 240_000;
@@ -556,12 +558,53 @@ export async function validateGeneratedTestScriptContent(
   );
   const tab = (await editorView.openEditor(tstFilename)) as TextEditor;
 
-  const fullGenTstScript = await tab.getText();
+  // Only compare TEST.* directive lines. The "-- ..." comment lines (unit /
+  // subprogram headers, path descriptions, note prose) are unreliable:
+  // - the "-- Unit:" header appears once per unit and scrolls out of the
+  //   editor viewport, and tab.getText() only returns rendered lines;
+  // - note wording was reworded in vc26.
+  // The TEST.* lines carry the real content and sit at the focused test case.
+  const onlyTestLines = (s: string) =>
+    s
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("TEST."));
+
+  const expectedTestDirectives = onlyTestLines(
+    Array.isArray(expectedTestCode)
+      ? expectedTestCode.join("\n")
+      : (expectedTestCode ?? "")
+  );
+
+  let genTestDirectives: string[] = [];
+  try {
+    await browser.waitUntil(
+      async () => {
+        genTestDirectives = onlyTestLines(await tab.getText());
+        return expectedTestDirectives.every((line) =>
+          genTestDirectives.includes(line)
+        );
+      },
+      { timeout: 15_000, interval: 300 }
+    );
+  } catch {
+    console.log(
+      "=== EXPECTED TEST.* (" + expectedTestDirectives.length + ") ==="
+    );
+    console.log(JSON.stringify(expectedTestDirectives, null, 2));
+    console.log("=== GENERATED TEST.* (" + genTestDirectives.length + ") ===");
+    console.log(JSON.stringify(genTestDirectives, null, 2));
+    console.log("=== MISSING ===");
+    for (const line of expectedTestDirectives) {
+      if (!genTestDirectives.includes(line))
+        console.log("MISSING >>> " + JSON.stringify(line));
+    }
+  }
 
   await editorView.closeAllEditors();
-  for (let line of expectedTestCode) {
-    line = line.trim();
-    expect(fullGenTstScript.includes(line)).toBe(true);
+
+  for (const line of expectedTestDirectives) {
+    expect(genTestDirectives.includes(line)).toBe(true);
   }
 }
 
@@ -936,7 +979,11 @@ export async function getAllExpectedTests(testGenMethodText: string) {
   if (testGenMethodText === testGenMethod.BasisPath) {
     return expectedBasisPathTests;
   }
-
+  // ATG output drifted in vc26 (reworded notes, dropped some TEST.VALUE lines)
+  const toolVersion = await getToolVersion();
+  if (toolVersion >= 26) {
+    return expectedAtgTests26;
+  }
   return expectedAtgTests;
 }
 
@@ -1658,9 +1705,34 @@ export async function rebuildEnvironmentFromTestingPane(envName: string) {
   }
 }
 
-export async function selectOutputChannel(channelName: string) {
-  const dropdown = await $("select.monaco-select-box");
-  await dropdown.selectByVisibleText(channelName);
+// Select an Output-panel channel by name reliably across VS Code builds, and
+// gracefully (returns false instead of throwing when the channel isn't present
+// yet, so it's safe to call inside a waitUntil poll loop). wdio-vscode-service's
+// OutputView.selectChannel targets `select[title="Tasks"]`, whose `title` is
+// actually the CURRENTLY selected channel - it only matches while "Tasks" is
+// active, and silently fails once another channel is showing. We instead find
+// the output channel <select> by matching an option's text/value (unique to the
+// channel picker) and switch it directly, dispatching the "change" event VS
+// Code's SelectBox listens for. Returns true if the channel was found+selected.
+export async function selectOutputChannel(
+  channelName: string
+): Promise<boolean> {
+  return (await browser.execute((name: string) => {
+    const selects = Array.from(
+      document.querySelectorAll("select")
+    ) as HTMLSelectElement[];
+    for (const sel of selects) {
+      const opt = Array.from(sel.options).find(
+        (o) => o.value === name || o.textContent === name
+      );
+      if (opt) {
+        sel.value = opt.value;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      }
+    }
+    return false;
+  }, channelName)) as boolean;
 }
 
 /**
@@ -2025,4 +2097,156 @@ export async function waitForEnvSuffix(
       timeoutMsg: `Timed out waiting for "Processing environment data for:" and "/${env}"`,
     }
   );
+}
+
+// ---------------------------------------------------------------------------
+// Ada-specific helpers (shared by the free-env and project Ada e2e specs).
+// ---------------------------------------------------------------------------
+
+// Ada-aware "Insert Basis Path Tests" + run. The shared insertBasisPathTestFor()
+// hard-waits for "BASIS-PATH-004" (the C/C++ Manager::AddIncludedDessert has 4
+// basis paths); the Ada subprogram has 3, so that wait would hang for the full
+// timeout. Here we insert the basis-path tests, then run them and wait on the
+// post-run data refresh ("Processing environment data for:"), which is
+// independent of how many basis paths the subprogram happens to have.
+export async function insertAndRunAdaBasisPaths(
+  bottomBar: BottomBarPanel,
+  unit: string,
+  subprogram: string,
+  reFindMethodBeforeRun = false
+): Promise<void> {
+  const content = await getViewContent("Testing");
+  let unitNode: TreeItem | undefined;
+  for (const section of await content.getSections()) {
+    unitNode = await findSubprogram(unit, section);
+    if (unitNode) {
+      if (!(await unitNode.isExpanded())) await unitNode.expand();
+      break;
+    }
+  }
+  if (!unitNode)
+    throw new Error(`Unit '${unit}' not found in the Testing pane`);
+
+  const method = await findSubprogramMethod(unitNode, subprogram);
+  if (!method) throw new Error(`Subprogram '${subprogram}' not found`);
+
+  const outputView = await bottomBar.openOutputView();
+  await outputView.clearText();
+
+  // Open the context menu on the subprogram, retrying if the VS Code tree hover
+  // tooltip ("<name> (Not yet run)") intercepts the right-click ("element click
+  // intercepted"). Pressing Escape dismisses any lingering hover between tries.
+  let contextMenu;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await browser.keys([Key.Escape]);
+      contextMenu = await (method as CustomTreeItem).openContextMenu();
+      break;
+    } catch (err) {
+      if (attempt === 3) throw err;
+    }
+  }
+  await contextMenu.select("VectorCAST");
+  await (await $("aria/Insert Basis Path Tests")).click();
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Script loaded successfully"),
+    { timeout: TIMEOUT }
+  );
+
+  // Run the generated basis-path tests so their coverage shows in the gutters.
+  await outputView.clearText();
+
+  // In deep project trees, "Insert Basis Path Tests" turns the leaf subprogram
+  // node into a parent (it now has basis-path children), which invalidates the
+  // pre-insert `method` handle. Clicking Run Test on the stale handle runs
+  // nothing, so no coverage appears (symptom: "Coverage: 1/48" on the first
+  // iteration). Re-resolve the node so Run Test targets the one that actually
+  // holds the new tests. Free (non-project) envs keep the handle valid, so this
+  // re-find is opt-in to avoid perturbing their already-passing flow.
+  let methodToRun = method;
+  if (reFindMethodBeforeRun) {
+    const refreshed = await getViewContent("Testing");
+    for (const section of await refreshed.getSections()) {
+      const u = await findSubprogram(unit, section);
+      if (u) {
+        if (!(await u.isExpanded())) await u.expand();
+        const m = await findSubprogramMethod(u, subprogram);
+        if (m) {
+          methodToRun = m;
+          break;
+        }
+      }
+    }
+  }
+
+  await (await (await methodToRun.getActionButton("Run Test")).elem).click();
+  await browser.waitUntil(
+    async () =>
+      (await outputView.getText())
+        .toString()
+        .includes("Processing environment data for:"),
+    { timeout: TIMEOUT }
+  );
+
+  // The post-run data refresh can leave the subprogram node COLLAPSED. The
+  // subsequent deleteGeneratedTest -> getTestHandle only waits 10s for the
+  // method to report exactly N children, and a collapsed node reports ZERO
+  // children in VS Code's virtualized tree - so the delete flakes
+  // ("BASIS-PATH-002 not found"). Re-find the subprogram fresh and leave both
+  // it and the method EXPANDED so the generated tests are materialized before
+  // the delete step reads them.
+  const settled = await getViewContent("Testing");
+  for (const section of await settled.getSections()) {
+    const u = await findSubprogram(unit, section);
+    if (!u) continue;
+    if (!(await u.isExpanded())) await u.expand();
+    const m = await findSubprogramMethod(u, subprogram);
+    if (m) {
+      try {
+        if (!(await m.isExpanded())) await m.expand();
+      } catch {
+        /* best-effort - deleteGeneratedTest re-finds it anyway */
+      }
+    }
+    break;
+  }
+}
+
+// Read the coverage gutter icon URL for a given line of a source file, so the
+// ACTUAL icon can be logged and compared (checkForGutterAndGenerateReport
+// asserts internally and never reveals what it actually saw). Mirrors that
+// helper's gutter lookup but returns the background-image URL instead of
+// asserting; returns a placeholder string when the line has no gutter icon.
+export async function readAdaGutterIcon(
+  unitFileName: string,
+  line: number
+): Promise<string> {
+  const wb = await browser.getWorkbench();
+  const explorerView = await wb.getActivityBar().getViewControl("Explorer");
+  await explorerView?.openView();
+  const wsSection =
+    await expandWorkspaceFolderSectionInExplorer("vcastTutorial");
+  let fileItem = await wsSection.findItem(unitFileName);
+  if (!fileItem) {
+    const adaFolder = wsSection.findItem("ada");
+    await (await adaFolder).select();
+    fileItem = await wsSection.findItem(unitFileName);
+  }
+  const editorView = wb.getEditorView();
+  const openEditors = await editorView.getOpenEditorTitles();
+  if (!openEditors.includes(unitFileName) && fileItem) await fileItem.select();
+  const tab = (await editorView.openEditor(unitFileName)) as TextEditor;
+  await tab.moveCursor(line, 1);
+  try {
+    const lineNumberElement = await $(`.line-numbers=${line}`);
+    const parent = await lineNumberElement.parentElement();
+    const flaskElement = await parent.$(".cgmr.codicon");
+    const bg = await flaskElement.getCSSProperty("background-image");
+    return (bg && bg.value) || "(no background-image)";
+  } catch (e) {
+    return `(no gutter element: ${(e as Error).message})`;
+  }
 }

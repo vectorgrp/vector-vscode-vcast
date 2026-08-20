@@ -6,11 +6,11 @@ import {
 } from "vscode";
 import {
   getCoverageDataForFile,
-  getListOfFilesWithCoverage,
+  getListOfFilesToDecorate,
   updateGlobalStatementsAndBranchesForFile,
 } from "./vcastTestInterface";
 
-import { getRangeOption } from "./utilities";
+import { getRangeOption, isSupportedSourceFile } from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 import {
@@ -177,11 +177,9 @@ export async function updateCOVdecorations() {
 
   let activeEditor = vscode.window.activeTextEditor;
 
-  if (
-    activeEditor &&
-    (activeEditor.document.languageId == "c" ||
-      activeEditor.document.languageId == "cpp")
-  ) {
+  // Ada is not A VSCode supproted language. So we need to gate on file extension because
+  // otherwise activeEditor.document.languageId would return "Plaintext".
+  if (activeEditor && isSupportedSourceFile(activeEditor.document.uri.fsPath)) {
     const filePath = url.fileURLToPath(activeEditor.document.uri.toString());
 
     // this returns the cached coverage data for this file
@@ -328,7 +326,7 @@ export async function toggleCoverageAction() {
   } else {
     coverageOn = true;
     if (fileDecorator)
-      fileDecorator.updateCoverageDecorations(getListOfFilesWithCoverage());
+      fileDecorator.updateCoverageDecorations(getListOfFilesToDecorate());
     await updateCOVdecorations();
   }
 }

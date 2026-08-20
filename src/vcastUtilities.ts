@@ -16,9 +16,11 @@ import {
 } from "./testData";
 
 import {
+  builtEnviroIsAda,
   jsoncModificationOptions,
   jsoncParseErrors,
   jsoncParseOptions,
+  notifyAdaFeatureDisabled,
   openFileWithLineSelected,
 } from "./utilities";
 
@@ -278,6 +280,12 @@ export async function generateAndLoadATGTests(testNode: testNodeType) {
   // Other points:
   //   - Use a temporary filename and ensure we delete it.
   //   - ATG can be slowish, so we need a status dialog
+
+  // ATG generation is disabled for Ada
+  if (builtEnviroIsAda(testNode.enviroPath)) {
+    notifyAdaFeatureDisabled("Generating ATG tests");
+    return;
+  }
 
   const enclosingDirectory = path.dirname(testNode.enviroPath);
   const timeStamp = Date.now().toString();

@@ -23,7 +23,7 @@ on:
       r2t-release-branch:
         description: 'Release branch to be used for the bundle'
         required: false
-        default: "demo_release"
+        default: "main"
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -390,18 +390,27 @@ jobs:
       
       - name: Pull latest reqs2tests release
         shell: bash
+        env:
+          # The Ada groups need the Ada-capable ("with-ada") reqs2tests build,
+          # which bundles libadalang; the stock build cannot index Ada envs
+          # (code2reqs fails with "libadalang is not available in this build").
+          # R2T_WITH_ADA tells the download script to fetch the linux with-ada
+          # artifact and save it as autoreq-linux.tar.gz, so the extraction below
+          # is unchanged. It is linux-only (the Ada e2e is linux), so the win
+          # tarball is not required in that mode.
+          R2T_WITH_ADA: ${{ (matrix.group == 'ada' || matrix.group == 'ada_project') && 'true' || '' }}
         run: |
           python3 ./ci/get_most_recent_reqs2tests_distribution.py
           if [ ! -f "autoreq-linux.tar.gz" ]; then
             echo "Error: autoreq-linux.tar.gz not found."
             exit 1
           fi
-          if [ ! -f "autoreq-win.tar.gz" ]; then
+          if [ -z "$R2T_WITH_ADA" ] && [ ! -f "autoreq-win.tar.gz" ]; then
             echo "Error: autoreq-win.tar.gz not found."
             exit 1
           fi
 
-          # extract linux distribution
+          # extract linux distribution (the with-ada build for the Ada groups)
           tar -xf autoreq-linux.tar.gz > /dev/null && rm autoreq-linux.tar.gz
           mv distribution /tmp/linux_distribution
 
@@ -433,9 +442,13 @@ jobs:
             ls -laR "$REQS_PATH"
           fi
 
-          # extract windows distribution for other uses (kept in /tmp)
-          tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
-          mv distribution /tmp/win_distribution
+          # extract windows distribution for other uses (kept in /tmp).
+          # Skipped in with-ada mode: that build is linux-only (the Ada e2e is
+          # linux), so no autoreq-win.tar.gz was fetched.
+          if [ -z "$R2T_WITH_ADA" ]; then
+            tar -xf autoreq-win.tar.gz > /dev/null && rm autoreq-win.tar.gz
+            mv distribution /tmp/win_distribution
+          fi
 
           TARGET_DIR="$GITHUB_WORKSPACE/tests/internal/e2e/test"
           echo "Listing all files and directories under: $TARGET_DIR"
@@ -495,13 +508,73 @@ jobs:
           echo 'Activating Vcast ${{ matrix.version }}'
           echo "VECTORCAST_DIR=$RELEASE_DIR" >> $GITHUB_ENV
           echo "PATH=$RELEASE_DIR:$PATH" >> $GITHUB_ENV
-          USE_VCAST_24=$([ "$(head -n1 "$RELEASE_DIR/DATA/tool_version.txt" | grep -oE '^[0-9]+')" -ge 24 ] && echo "True" || echo "False")
+          TOOL_VERSION=$(head -n1 "$RELEASE_DIR/DATA/tool_version.txt" | grep -oE '^[0-9]+')
+          USE_VCAST_24=$([ "$TOOL_VERSION" -ge 24 ] && echo "True" || echo "False")
+          USE_VCAST_25=$([ "$TOOL_VERSION" -ge 25 ] && echo "True" || echo "False")
           echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
+          echo "USE_VCAST_25=$USE_VCAST_25" >> $GITHUB_ENV
         shell: bash
       
       - name: Load hidden env vars
         run: |
           echo "${{ secrets.E2E_ENV_BLOCK }}" >> $GITHUB_ENV
+
+      # The Ada e2e group needs a GNAT toolchain AND gprbuild on PATH:
+      # VectorCAST's Ada harness link step runs `gnatmake -P<gpr>`, and modern
+      # gnatmake (GNAT 14+) delegates project files to gprbuild - so without
+      # gprbuild the link fails with "project files are no longer supported by
+      # gnatmake; use gprbuild instead". VectorCAST bundles neither, and the
+      # container is non-root with no access to public apt repos.
+      #
+      # So we install RELOCATABLE FSF GNAT + gprbuild the same way the pipeline
+      # installs reqs2tests: download the tarballs, extract into $HOME (no root
+      # needed), and prepend their bins to PATH. Defaults point at the public
+      # GNAT-FSF-builds releases on GitHub (no hosting required); override
+      # GNAT_RELEASE_URL_LIN / GPRBUILD_RELEASE_URL_LIN (e.g. in
+      # secrets.E2E_ENV_BLOCK) to re-hosted tarballs if GitHub is unreachable.
+      - name: Install GNAT + gprbuild for the Ada e2e groups
+        if: matrix.group == 'ada' || matrix.group == 'ada_project'
+        shell: bash
+        run: |
+          # Fail the step on any command/download/extract error (and on unset
+          # vars / broken pipes) so a transient failure here surfaces clearly
+          # instead of passing and then failing later with "gnatmake not found".
+          set -euo pipefail
+          install_tarball() {
+            local url="$1" dest="$2"
+            mkdir -p "$dest"
+            echo "Downloading $url"
+            wget -q "$url" -O /tmp/toolchain.tar.gz
+            # --strip-components=1 flattens the single top-level dir in the
+            # tarball so bin/ lands directly under $dest.
+            tar -xf /tmp/toolchain.tar.gz -C "$dest" --strip-components=1
+            rm -f /tmp/toolchain.tar.gz
+          }
+          GNAT_URL="${GNAT_RELEASE_URL_LIN:-https://github.com/alire-project/GNAT-FSF-builds/releases/download/gnat-14.2.0-1/gnat-x86_64-linux-14.2.0-1.tar.gz}"
+          GPRBUILD_URL="${GPRBUILD_RELEASE_URL_LIN:-https://github.com/alire-project/GNAT-FSF-builds/releases/download/gprbuild-25.0.0-1/gprbuild-x86_64-linux-25.0.0-1.tar.gz}"
+
+          if command -v gnatls >/dev/null 2>&1; then
+            echo "GNAT already present: $(gnatls --version | head -n1)"
+          else
+            install_tarball "$GNAT_URL" "$HOME/gnat"
+            echo "PATH=$HOME/gnat/bin:$PATH" >> "$GITHUB_ENV"
+            export PATH="$HOME/gnat/bin:$PATH"
+            echo "Installed GNAT: $("$HOME/gnat/bin/gnatls" --version | head -n1)"
+          fi
+
+          if command -v gprbuild >/dev/null 2>&1; then
+            echo "gprbuild already present: $(gprbuild --version | head -n1)"
+          else
+            install_tarball "$GPRBUILD_URL" "$HOME/gprbuild"
+            echo "PATH=$HOME/gprbuild/bin:$PATH" >> "$GITHUB_ENV"
+            export PATH="$HOME/gprbuild/bin:$PATH"
+            echo "Installed gprbuild: $("$HOME/gprbuild/bin/gprbuild" --version | head -n1)"
+          fi
+
+          # Hard-fail if either tool is not actually resolvable, so the "Run
+          # tests" step never starts against a half-installed toolchain.
+          command -v gnatls >/dev/null || { echo "gnatls not on PATH after install" >&2; exit 1; }
+          command -v gprbuild >/dev/null || { echo "gprbuild not on PATH after install" >&2; exit 1; }
 
       - name: Run tests
         run: |

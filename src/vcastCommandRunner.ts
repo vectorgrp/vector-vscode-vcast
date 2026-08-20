@@ -27,6 +27,14 @@ export interface commandStatusType {
   stdout: string;
 }
 
+// Node's execSync defaults to a 1 MiB stdout buffer. Commands like
+// getWorkspaceEnviroData emit a single JSON document covering every
+// environment in the workspace, which easily exceeds 1 MiB on large projects.
+// When the limit is hit, execSync throws and hands back stdout truncated
+// mid-stream, so JSON.parse fails and we silently lose all environment data.
+// Give it a generous ceiling so the full scan output is always captured.
+const maxCommandOutputBuffer = 256 * 1024 * 1024; // 256 MiB
+
 export function convertServerResponseToCommandStatus(
   serverResponse: transmitResponseType
 ): commandStatusType {
@@ -183,7 +191,10 @@ export function executeCommandSync(
   let commandStatus: commandStatusType = { errorCode: 0, stdout: "" };
   try {
     // commandOutput is a buffer: (Uint8Array)
-    commandStatus.stdout = execSync(commandToRun, { cwd: cwd })
+    commandStatus.stdout = execSync(commandToRun, {
+      cwd: cwd,
+      maxBuffer: maxCommandOutputBuffer,
+    })
       .toString()
       .trim();
   } catch (error: any) {

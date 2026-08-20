@@ -1,0 +1,36 @@
+key,id,title,description,unit,function,lines
+FR11,FR11,Number of tables,The system will support 6 tables.,manager,Clear_Table,
+FR12,FR12,Number of seats per table,The system will support 4 seats per table.,manager,Place_Order,
+FR13,FR13,List of entrees,"The system will support the following entrees:
+
+steak
+chicken
+lobster
+pasta
+none",manager,Place_Order,
+FR14,FR14,Placing an order updates occupied status,Placing an order updates the table's occupied status to true within the table database.,manager,Place_Order,
+FR15,FR15,Placing an order updates number in party,Placing an order updates the table's number in party within the table database.,manager,Place_Order,
+FR16,FR16,Placing an order updates a seat's order,Placing an order updates the seat's order within the table database.,manager,Place_Order,
+FR17,FR17,Placing an order updates check total,"Placing an order increases the table's check total within the table database, by an amount depending on the entree ordered, according to the following schedule:
+
+Entree: Amount
+
+steak: 14.0
+chicken: 10.0
+lobster: 18.0
+pasta: 12.0
+none: 0.0",manager,Place_Order,
+FR18,FR18,Clearing a table resets occupied status,Clearing a table updates the table's occupied status to false within the table database.,manager,Clear_Table,
+FR19,FR19,Clearing a table resets number in party,Clearing a table updates the table's number in party to 1 within the table database.,manager,Clear_Table,
+FR20,FR20,Clearing a table resets orders for all seats,Clearing a table clears the orders for all seats of the table within the table database.,manager,Clear_Table,
+FR21,FR21,Clearing a table resets check total,Clearing a table updates the table's check total to 0.0 within the table database.,manager,Clear_Table,
+FR22,FR22,Obtaining check total,The system will provide a way to obtain the check total for a given table.,manager,Get_Check_Total,
+FR23,FR23,Size of waiting list,The system will support a waiting list of up to 10 parties.,manager,Add_Party_To_Waiting_List,
+FR24,FR24,Adding a party to waiting list,"The system will provide a means of adding a party to the waiting list, with the party specified by name.",manager,Add_Party_To_Waiting_List,
+FR25,FR25,Getting the head of the waiting list,The system will provide a means of obtaining the name of the party at the head of the waiting list.,manager,Get_Next_Party_To_Be_Seated,
+FR26,FR26,Resetting the head of the waiting list,The head of the waiting list shall be reset when it reaches the end of the waiting list.,manager,Get_Next_Party_To_Be_Seated,
+FR27,FR27,Adding free dessert,"Placing certain orders will qualify the seat for free dessert, according to the following schedule:
+
+Steak with caesar salad and a mixed drink qualifies a seat for pie.
+Lobster with green salad and wine qualifies a seat for cake.
+No free dessert otherwise.",manager,Add_Included_Dessert,

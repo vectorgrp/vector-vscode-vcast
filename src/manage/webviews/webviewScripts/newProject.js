@@ -27,6 +27,25 @@ globalThis.addEventListener("DOMContentLoaded", () => {
   const dbPathLabel = document.getElementById("dbPathLabel");
   const dbCheckbox = document.getElementById("useDefaultDB");
 
+  // Language selector: Ada is GNAT-on-host only, so it hides the whole C/C++
+  // compiler-selection section (the extension writes a minimal ADACAST_.CFG).
+  const languageSelect = document.getElementById("languageSelect");
+  const compilerSelectionSection = document.getElementById(
+    "compilerSelectionSection"
+  );
+  const adaNote = document.getElementById("adaNote");
+
+  function applyLanguage() {
+    const isAda = languageSelect && languageSelect.value === "ada";
+    if (compilerSelectionSection)
+      compilerSelectionSection.style.display = isAda ? "none" : "";
+    if (adaNote) adaNote.style.display = isAda ? "block" : "none";
+  }
+  if (languageSelect) {
+    languageSelect.addEventListener("change", applyLanguage);
+    applyLanguage();
+  }
+
   // --- Initialization Logic ---
 
   // Show default CFG row + OR only if defaultCFG exists
@@ -142,6 +161,7 @@ globalThis.addEventListener("DOMContentLoaded", () => {
 
     vscode.postMessage({
       command: "submit",
+      language: languageSelect ? languageSelect.value : "c",
       projectName: nameInput.value.trim(),
       targetDir,
       useDefaultCFG: isUsingDefault,

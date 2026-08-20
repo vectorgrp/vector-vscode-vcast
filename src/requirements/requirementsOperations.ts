@@ -1,119 +1,40 @@
 import * as vscode from "vscode";
-import { exeFilename, showSettings } from "../utilities";
-import {
-  findRelevantRequirementGateway,
-  getAutoreqExecutableDirectory,
-  setupRequirementsFileWatchers,
-  spawnWithVcastEnv,
-  updateRequirementsAvailability,
-} from "./requirementsUtils";
+import { showSettings } from "../utilities";
 import { refreshAllExtensionData } from "../testPane";
 import { loadTestScriptIntoEnvironment } from "../vcastAdapter";
+import { updateRequirementsAvailability } from "./availability";
+import { logCliError, logCliOperation } from "./requirementsLog";
+import {
+  CODE2REQS_EXECUTABLE_PATH,
+  PANREQ_EXECUTABLE_PATH,
+  RECENT_REQS2TESTS_FLAGS,
+  REQS2TESTS_EXECUTABLE_PATH,
+  reqs2testsSupportsDelta,
+  reqs2xSupportedFlags,
+  setupReqs2XExecutablePaths,
+} from "./requirementsExecutables";
+import { runReqs2xTool } from "./processRunner";
+import {
+  defaultRequirementGatewayPath,
+  findRelevantRequirementGateway,
+  setVcastRepositoryInConfig,
+} from "./rgwPath";
+import {
+  hasCompleteAndUsableRGW,
+  inferTraceability,
+  readRGWBundle,
+} from "./rgwIo";
 
 const path = require("path");
 const fs = require("fs");
 
 let reqs2XFeatureEnabled: boolean = false;
 
-export const GENERATE_REQUIREMENTS_ENABLED: boolean = true;
-
-// Setup the paths to the reqs2x executables
-let CODE2REQS_EXECUTABLE_PATH: string;
-let REQS2TESTS_EXECUTABLE_PATH: string;
-let PANREQ_EXECUTABLE_PATH: string;
-
-export let LLM2CHECK_EXECUTABLE_PATH: string;
-
-// Add a new output channel for CLI operations
-let cliOutputChannel: vscode.OutputChannel = vscode.window.createOutputChannel(
-  "VectorCAST Requirement Test Generation Operations"
-);
-
-export function logCliOperation(message: string): void {
-  const timestamp = new Date().toLocaleTimeString();
-  cliOutputChannel.appendLine(`[${timestamp}] ${message}`);
-}
-
-export function logCliError(
-  message: string,
-  show: boolean | null = null
-): void {
-  const timestamp = new Date().toLocaleTimeString();
-  cliOutputChannel.appendLine(`[${timestamp}] ${message}`);
-
-  if (show) {
-    cliOutputChannel.show();
-  }
-}
-
-class ProgressTracker {
-  private lastProgress = 0.0;
-
-  constructor(
-    private progress: vscode.Progress<{ message?: string; increment?: number }>,
-    private logPrefix: string
-  ) {}
-
-  public processOutput(output: string) {
-    const lines = output.split("\n");
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const json = JSON.parse(line);
-        this.handleJson(json);
-      } catch (e) {
-        logCliOperation(`${this.logPrefix}: ${line}`);
-      }
-    }
-  }
-
-  private handleJson(json: any) {
-    if (!json.event) {
-      throw new Error(
-        `Invalid JSON event: ${JSON.stringify(json)}. Missing 'event' field.`
-      );
-    }
-    if (!json.value) {
-      throw new Error(
-        `Invalid JSON event: ${JSON.stringify(json)}. Missing 'value' field.`
-      );
-    }
-    if (json.event === "progress") {
-      let step: string | undefined;
-      let newProgress: number | undefined;
-      if (typeof json.value === "object") {
-        step = json.value.step;
-        newProgress = json.value.progress;
-      } else if (typeof json.value === "number") {
-        newProgress = json.value; // legacy
-      }
-
-      if (newProgress === undefined) {
-        return;
-      }
-
-      const increment = (newProgress - this.lastProgress) * 100;
-      if (increment > 0) {
-        this.progress.report({ message: step, increment });
-        this.lastProgress = newProgress;
-        logCliOperation(
-          `${this.logPrefix} Progress: ${(newProgress * 100).toFixed(
-            2
-          )}% - ${step ?? ""}`
-        );
-      }
-    } else if (json.event === "problem") {
-      if (
-        this.logPrefix === "reqs2tests" &&
-        json.value.includes("Individual")
-      ) {
-        return;
-      }
-      vscode.window.showWarningMessage(json.value);
-      logCliOperation(`Warning: ${json.value}`);
-    }
-  }
-}
+// Authoritative "Reqs2X can actually run" flag: the feature is enabled in
+// settings AND all reqs2X executables were resolved on disk. Set by
+// initializeReqs2X and mirrored to the `reqs2xFeatureEnabled` context key (which
+// gates the menus); this exported copy lets extension code make the same check.
+export let reqs2xUsable = false;
 
 export function initializeReqs2X(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration(
@@ -124,57 +45,39 @@ export function initializeReqs2X(context: vscode.ExtensionContext) {
   let featureEnabled: boolean = false;
 
   if (reqs2XFeatureEnabled) {
-    setupRequirementsFileWatchers(context);
     const successful = setupReqs2XExecutablePaths(context);
     if (!successful) {
-      // Tell the user that we couldn't find the executables as an error popup and offer to open settings
       vscode.window
         .showErrorMessage(
           "Could not find the reqs2X executables anywhere, disabling Reqs2X. Please check your settings.",
           "Open Settings"
         )
         .then((selection) => {
-          if (selection === "Open Settings") {
-            showSettings();
-          }
+          if (selection === "Open Settings") showSettings();
         });
     } else {
       featureEnabled = true;
     }
   }
 
+  reqs2xUsable = featureEnabled;
   vscode.commands.executeCommand(
     "setContext",
     "vectorcastTestExplorer.reqs2xFeatureEnabled",
     featureEnabled
   );
+  void publishDeltaSupportContext(featureEnabled);
 }
 
-function setupReqs2XExecutablePaths(context: vscode.ExtensionContext): boolean {
-  const baseUri = getAutoreqExecutableDirectory(context);
-
-  if (!baseUri) {
-    return false;
-  }
-
-  CODE2REQS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    exeFilename("code2reqs")
-  ).fsPath;
-  REQS2TESTS_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    exeFilename("reqs2tests")
-  ).fsPath;
-  PANREQ_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    exeFilename("panreq")
-  ).fsPath;
-  LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
-    baseUri,
-    exeFilename("llm2check")
-  ).fsPath;
-
-  return true;
+// Hides the delta menu item when the installed reqs2tests predates --only-delta.
+// Not awaited, so the item stays hidden until the probe answers.
+async function publishDeltaSupportContext(featureEnabled: boolean) {
+  const supported = featureEnabled && (await reqs2testsSupportsDelta());
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.reqs2xSupportsDelta",
+    supported
+  );
 }
 
 export async function generateRequirements(enviroPath: string) {
@@ -183,53 +86,21 @@ export async function generateRequirements(enviroPath: string) {
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  // remove ".env" if present
-  const enviroNameWithoutExt = envName.replace(/\.env$/, "");
-  const envReqsFolderPath = path.join(
-    parentDir,
-    `reqs-${enviroNameWithoutExt}`
-  );
-
-  // Ensure the requirements folder exists
-  if (!fs.existsSync(envReqsFolderPath)) {
-    fs.mkdirSync(envReqsFolderPath, { recursive: true });
-  }
-
-  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
-  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
-  const repositoryDir = path.join(
-    envReqsFolderPath,
-    "generated_requirement_repository"
-  );
-
-  // Check for existing gateway
-  const existingGateway = findRelevantRequirementGateway(enviroPath);
-  if (existingGateway) {
-    const warningMessage = `Warning: An existing requirements gateway was found at ${existingGateway}. Generating requirements will switch the environment gateway to a new one.`;
+  // Resolve the RGW path: use an already-configured VCAST_REPOSITORY if set,
+  // otherwise fall back to the extension's default location and write it into
+  // CCAST_.CFG so subsequent operations find the same gateway.
+  let repositoryDir = findRelevantRequirementGateway(enviroPath);
+  if (repositoryDir) {
     const choice = await vscode.window.showWarningMessage(
-      warningMessage,
+      `Warning: An existing requirements gateway was found at ${repositoryDir}. Generating requirements will overwrite it.`,
       "Continue",
       "Cancel"
     );
-
-    if (choice !== "Continue") {
-      return;
-    }
-  }
-
-  // Check for existing reqs.csv or reqs.xlsx
-  if (fs.existsSync(xlsxPath) || fs.existsSync(csvPath)) {
-    const message =
-      "Existing requirements files found. Do you want to overwrite them?";
-    const choice = await vscode.window.showWarningMessage(
-      message,
-      "Overwrite",
-      "Cancel"
-    );
-
-    if (choice !== "Overwrite") {
-      return;
-    }
+    if (choice !== "Continue") return;
+  } else {
+    repositoryDir = defaultRequirementGatewayPath(enviroPath);
+    fs.mkdirSync(path.dirname(repositoryDir), { recursive: true });
+    setVcastRepositoryInConfig(enviroPath, repositoryDir);
   }
 
   const config = vscode.workspace.getConfiguration(
@@ -239,135 +110,82 @@ export async function generateRequirements(enviroPath: string) {
     "generateHighLevelRequirements",
     false
   );
-  const reorder = config.get<boolean>("reorder", true);
-
-  const commandArgs = [
+  const args = [
     "-e",
     envPath,
-    "--export-excel",
-    xlsxPath,
     "--export-repository",
-    `${existingGateway ?? repositoryDir}`, // use existingGateway if not null/undefined, else repositoryDir. This would mean that the vcast env in the path is not defined.
+    repositoryDir,
     "--json-events",
-    //"--combine-related-requirements",
-    //"--extended-reasoning"
+    ...(generateHighLevelRequirements
+      ? ["--generate-high-level-requirements"]
+      : []),
   ];
 
-  if (generateHighLevelRequirements) {
-    commandArgs.push("--generate-high-level-requirements");
+  try {
+    const { cancelled } = await runReqs2xTool({
+      exe: CODE2REQS_EXECUTABLE_PATH,
+      args,
+      llm: true,
+      progress: {
+        title: `Generating Requirements for ${envName.split(".")[0]}`,
+        logPrefix: "code2reqs",
+      },
+    });
+    if (cancelled) return;
+
+    await refreshAllExtensionData();
+    updateRequirementsAvailability(enviroPath);
+    vscode.commands.executeCommand("vectorcastTestExplorer.showRequirements", {
+      id: enviroPath,
+    });
+    vscode.window.showInformationMessage(
+      "Successfully generated requirements for the environment!"
+    );
+  } catch (err) {
+    const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    vscode.window.showErrorMessage(message);
+    logCliError(message, true);
   }
-
-  if (!reorder) {
-    commandArgs.push("--no-reorder");
-  }
-
-  // Log the command being executed
-  const commandString = `${CODE2REQS_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
-  logCliOperation(`Executing command: ${commandString}`);
-
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: `Generating Requirements for ${envName.split(".")[0]}`,
-      cancellable: true,
-    },
-    async (progress, cancellationToken) => {
-      const process = await spawnWithVcastEnv(
-        CODE2REQS_EXECUTABLE_PATH,
-        commandArgs
-      );
-
-      return new Promise<void>((resolve, reject) => {
-        const tracker = new ProgressTracker(progress, "code2reqs");
-
-        cancellationToken.onCancellationRequested(() => {
-          process.kill();
-          logCliOperation("Operation cancelled by user");
-          resolve();
-        });
-
-        process.stdout.on("data", (data) => {
-          if (cancellationToken.isCancellationRequested) return;
-          tracker.processOutput(data.toString());
-        });
-
-        process.stderr.on("data", (data) => {
-          const errorOutput = data.toString();
-          logCliError(`code2reqs: ${errorOutput}`);
-          console.error(`Stderr: ${errorOutput}`);
-        });
-
-        process.on("close", async (code) => {
-          if (cancellationToken.isCancellationRequested) return;
-          if (code === 0) {
-            logCliOperation(
-              `code2reqs completed successfully with code ${code}`
-            );
-            await refreshAllExtensionData();
-            updateRequirementsAvailability(enviroPath);
-            vscode.commands.executeCommand(
-              "vectorcastTestExplorer.showRequirements",
-              { id: enviroPath }
-            );
-            vscode.window.showInformationMessage(
-              "Successfully generated requirements for the environment!"
-            );
-            resolve();
-          } else {
-            const errorMessage = `Error: code2reqs exited with code ${code}`;
-            vscode.window.showErrorMessage(errorMessage);
-            logCliError(errorMessage, true);
-            reject(new Error(errorMessage));
-          }
-        });
-      });
-    }
-  );
 }
+
+// Mirror of the defaults declared in package.json. Needed beyond config.get's
+// fallback so we can tell an untouched setting from one the user chose.
+const DEFAULT_MAX_TEST_EXAMPLES = 3;
+const DEFAULT_TEST_EXAMPLE_SOURCES = ["environment", "generated"];
 
 export async function generateTestsFromRequirements(
   enviroPath: string,
-  unitOrFunctionName: string | null
+  unitOrFunctionName: string | null,
+  options: { onlyDelta?: boolean } = {}
 ) {
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
   const envName = `${lowestDirname}.env`;
   const envPath = path.join(parentDir, envName);
 
-  // remove ".env" if present
-  const enviroNameWithoutExt = envName.replace(/\.env$/, "");
-  const envReqsFolderPath = path.join(
-    parentDir,
-    `reqs-${enviroNameWithoutExt}`
-  );
-
-  // Ensure the requirements folder exists
-  if (!fs.existsSync(envReqsFolderPath)) {
-    fs.mkdirSync(envReqsFolderPath, { recursive: true });
-  }
-
-  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
-  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
-
-  // tstPath must be in the same parent directory as the .env.
-  // If the .tst is stored inside reqs-<envName>, VectorCAST treats the
-  // environment as read-only and refuses to load it. Therefore we place
-  // reqs2tests.tst directly under parentDir, alongside <envName>.env.
+  // tstPath must be in the same parent directory as the .env. If the .tst is
+  // stored inside reqs-<envName>, VectorCAST treats the environment as
+  // read-only and refuses to load it.
   const tstPath = path.join(parentDir, "reqs2tests.tst");
 
-  let reqsFile = "";
-  if (fs.existsSync(xlsxPath)) {
-    reqsFile = xlsxPath;
-  } else if (fs.existsSync(csvPath)) {
-    reqsFile = csvPath;
-  } else {
+  const gatewayPath = findRelevantRequirementGateway(enviroPath);
+  if (!gatewayPath) {
     vscode.window.showErrorMessage(
-      "No requirements file found. Please generate requirements first."
+      "No requirements gateway found. Please generate requirements first."
     );
     return;
   }
 
-  // Get the decompose setting from configuration
+  // Test generation needs per-requirement traceability — reqs2tests routes
+  // each requirement to its mapped function. If the RGW has none, offer to
+  // infer it now rather than letting reqs2tests no-op or fail downstream.
+  const proceed = await offerTraceabilityInferenceIfMissing(enviroPath, {
+    prompt:
+      "None of the requirements trace to a function. Test generation requires per-requirement traceability. Would you like to infer it automatically first?",
+    cancelMeansAbort: true,
+  });
+  if (!proceed) return;
+
   const config = vscode.workspace.getConfiguration(
     "vectorcastTestExplorer.reqs2x"
   );
@@ -375,11 +193,26 @@ export async function generateTestsFromRequirements(
     "decomposeRequirements",
     true
   );
-
-  const noTestExamples = config.get<boolean>("noTestExamples", false);
-  const reorder = config.get<boolean>("reorder", true);
   const funcDefs = config.get<boolean>("functionDefinitions", true);
   const allowUUTStubs = config.get<boolean>("enableUutStubbing", true);
+  const batched = config.get<boolean>("batched", true);
+  const fastMode = config.get<boolean>("fastMode", false);
+  const deduplicate = config.get<boolean>("deduplicateTests", true);
+  const allowPartial = config.get<boolean>("allowPartialTests", true);
+  const exampleSources = config.get<string[]>(
+    "testExampleSources",
+    DEFAULT_TEST_EXAMPLE_SOURCES
+  );
+
+  // Clamped because settings.json can be hand-edited past the schema minimum.
+  // Deprecated noTestExamples still wins while explicitly enabled.
+  const batchSize = Math.max(1, config.get<number>("batchSize", 4));
+  const maxTestExamples = config.get<boolean>("noTestExamples", false)
+    ? 0
+    : Math.max(
+        0,
+        config.get<number>("maxTestExamples", DEFAULT_MAX_TEST_EXAMPLES)
+      );
 
   const retries = config.get<number>("retries", 2);
   if (retries < 1) {
@@ -389,340 +222,341 @@ export async function generateTestsFromRequirements(
     return;
   }
 
-  const enableRequirementKeys =
-    findRelevantRequirementGateway(enviroPath) !== null;
-  console.log(decomposeRequirements, enableRequirementKeys);
+  // --incremental-export is deliberately unused: we import one .tst at the end,
+  // and it force-disables deduplication. Same for code2reqs.
+  const supported = await reqs2xSupportedFlags(
+    REQS2TESTS_EXECUTABLE_PATH,
+    RECENT_REQS2TESTS_FLAGS
+  );
 
-  const commandArgs = [
+  // Settings whose flag this Reqs2X lacks are dropped rather than passed, which
+  // would fail the run. Only mention the ones actually asked for: on an
+  // untouched default nothing is lost, because the CLI default matches.
+  const ignored: string[] = [];
+  if (fastMode && !supported.has("--fast")) {
+    ignored.push("fast mode");
+  }
+  if (maxTestExamples > 0) {
+    if (
+      maxTestExamples !== DEFAULT_MAX_TEST_EXAMPLES &&
+      !supported.has("--max-test-examples")
+    ) {
+      ignored.push("maximum test examples");
+    }
+    const sourcesMatchDefault =
+      exampleSources.length === DEFAULT_TEST_EXAMPLE_SOURCES.length &&
+      exampleSources.every((s, i) => s === DEFAULT_TEST_EXAMPLE_SOURCES[i]);
+    // An empty list is never passed either way, so it is not "ignored".
+    const customSources = exampleSources.length > 0 && !sourcesMatchDefault;
+    if (customSources && !supported.has("--test-examples-sources")) {
+      ignored.push("test example sources");
+    }
+  }
+  if (ignored.length > 0) {
+    const message = `The installed Reqs2X does not support these settings, which were ignored: ${ignored.join(", ")}.`;
+    vscode.window.showWarningMessage(message);
+    logCliOperation(`reqs2tests: ${message}`);
+  }
+
+  const exampleArgs: string[] = [];
+  if (maxTestExamples === 0) {
+    exampleArgs.push("--no-test-examples");
+  } else {
+    if (supported.has("--max-test-examples")) {
+      exampleArgs.push("--max-test-examples", maxTestExamples.toString());
+    }
+    if (exampleSources.length > 0 && supported.has("--test-examples-sources")) {
+      exampleArgs.push("--test-examples-sources", ...exampleSources);
+    }
+  }
+
+  const args = [
     "-e",
     envPath,
-    reqsFile, // use the chosen requirements file
+    gatewayPath,
     ...(unitOrFunctionName ? ["-f", unitOrFunctionName] : []),
     "--export-tst",
     tstPath,
     "--retries",
     retries.toString(),
-    "--batched",
+    batched ? "--batched" : "--no-batched",
+    ...(batched ? ["--batch-size", batchSize.toString()] : []),
     ...(decomposeRequirements ? [] : ["--no-requirement-decomposition"]),
-    ...(noTestExamples ? ["--no-test-examples"] : []),
-    ...(reorder ? [] : ["--no-reorder"]),
     ...(funcDefs ? [] : ["--no-func-defs"]),
     ...(allowUUTStubs ? [] : ["--no-allow-uut-stubs"]),
-    "--allow-partial",
+    allowPartial ? "--allow-partial" : "--no-allow-partial",
+    ...(deduplicate ? [] : ["--no-deduplicate"]),
+    ...(fastMode && supported.has("--fast") ? ["--fast"] : []),
+    ...(options.onlyDelta ? ["--only-delta"] : []),
+    ...exampleArgs,
     "--json-events",
-    ...(enableRequirementKeys ? ["--requirement-keys"] : []),
+    "--requirement-keys",
   ];
 
-  // Log the command being executed
-  const commandString = `${REQS2TESTS_EXECUTABLE_PATH} ${commandArgs.join(
-    " "
-  )}`;
-  logCliOperation(`Executing command: ${commandString}`);
-
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: `Generating Requirement Tests for ${envName.split(".")[0]}`,
-      cancellable: true,
-    },
-    async (progress, cancellationToken) => {
-      const process = await spawnWithVcastEnv(
-        REQS2TESTS_EXECUTABLE_PATH,
-        commandArgs
-      );
-
-      return new Promise<void>((resolve, reject) => {
-        const tracker = new ProgressTracker(progress, "reqs2tests");
-
-        cancellationToken.onCancellationRequested(() => {
-          process.kill();
-          logCliOperation("Operation cancelled by user");
-          resolve();
-        });
-
-        process.stdout.on("data", (data) => {
-          if (cancellationToken.isCancellationRequested) return;
-          tracker.processOutput(data.toString());
-        });
-
-        process.stderr.on("data", (data) => {
-          const errorOutput = data.toString();
-          logCliError(`reqs2tests: ${errorOutput}`);
-          console.error(`Stderr: ${errorOutput}`);
-        });
-
-        process.on("close", async (code) => {
-          if (cancellationToken.isCancellationRequested) return;
-
-          if (code === 0) {
-            logCliOperation(
-              `reqs2tests completed successfully with code ${code}`
-            );
-            await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
-            await refreshAllExtensionData();
-
-            vscode.window.showInformationMessage(
-              "Successfully generated tests for the requirements!"
-            );
-            resolve();
-          } else {
-            const errorMessage = `Error: reqs2tests exited with code ${code}`;
-            vscode.window.showErrorMessage(errorMessage);
-            logCliError(errorMessage, true);
-            reject(new Error(errorMessage));
-          }
-        });
-      });
-    }
-  );
-}
-
-export async function importRequirementsFromGateway(enviroPath: string) {
-  const parentDir = path.dirname(enviroPath);
-  const lowestDirname = path.basename(enviroPath);
-  const envName = `${lowestDirname}.env`;
-  const envPath = path.join(parentDir, envName);
-
-  // Determine (or create) the requirements folder used elsewhere in the extension
-  const enviroNameWithoutExt = lowestDirname.replace(/\.env$/, "");
-  const envReqsFolderPath = path.join(
-    parentDir,
-    `reqs-${enviroNameWithoutExt}`
-  );
-  const repositoryDirExpandedEnv = path.join(
-    envReqsFolderPath,
-    "generated_requirement_repository"
-  );
-  if (!fs.existsSync(envReqsFolderPath)) {
-    fs.mkdirSync(envReqsFolderPath, { recursive: true });
+  // A delta run with nothing to do writes no tests, so a leftover .tst from an
+  // earlier run would otherwise be re-imported as fresh output.
+  try {
+    fs.rmSync(tstPath, { force: true });
+  } catch (err) {
+    logCliError(`Could not remove stale ${tstPath}: ${err}`);
   }
 
-  // Look for requirement gateway
-  const repositoryPath = findRelevantRequirementGateway(enviroPath);
-  if (!repositoryPath) {
+  try {
+    const { cancelled } = await runReqs2xTool({
+      exe: REQS2TESTS_EXECUTABLE_PATH,
+      args,
+      llm: true,
+      progress: {
+        title: options.onlyDelta
+          ? `Generating Requirement Tests (untested or changed) for ${envName.split(".")[0]}`
+          : `Generating Requirement Tests for ${envName.split(".")[0]}`,
+        logPrefix: "reqs2tests",
+      },
+    });
+    if (cancelled) return;
+
+    if (!fs.existsSync(tstPath)) {
+      // reqs2tests reports the reason itself via an `info` event.
+      logCliOperation(
+        `reqs2tests wrote no test script to ${tstPath}; nothing to import`
+      );
+      return;
+    }
+
+    await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
+    await refreshAllExtensionData();
+    vscode.window.showInformationMessage(
+      options.onlyDelta
+        ? "Generated tests for untested and changed requirements. Tests written earlier for the changed requirements are kept — review and remove any that no longer apply."
+        : "Successfully generated tests for the requirements!"
+    );
+  } catch (err) {
+    const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    vscode.window.showErrorMessage(message);
+    logCliError(message, true);
+  }
+}
+
+/**
+ * If the bundle has no traceability for any requirement, prompt the user to
+ * run --infer-traceability. Returns true if the caller should proceed (either
+ * we already had traceability, the user accepted and inference succeeded, or
+ * `cancelMeansAbort` is false and the user declined). Returns false to
+ * abort the caller's flow.
+ */
+async function offerTraceabilityInferenceIfMissing(
+  enviroPath: string,
+  options: { prompt: string; cancelMeansAbort: boolean }
+): Promise<boolean> {
+  const bundle = readRGWBundle(enviroPath);
+  if (!bundle) return true; // nothing to evaluate; let caller continue
+
+  const hasAnyFunction = Object.values(bundle.traceability).some(
+    (entry) => entry?.function != null
+  );
+  if (hasAnyFunction) return true;
+
+  const choice = await vscode.window.showWarningMessage(
+    options.prompt,
+    "Infer traceability",
+    options.cancelMeansAbort ? "Cancel" : "Skip"
+  );
+
+  if (choice !== "Infer traceability") {
+    return !options.cancelMeansAbort;
+  }
+
+  try {
+    const refreshed = await inferTraceability(enviroPath, bundle.gatewayPath);
+    if (!refreshed) return false; // user cancelled the inference progress
+    return true;
+  } catch (err) {
+    vscode.window.showErrorMessage(`Failed to infer traceability: ${err}`);
+    return false;
+  }
+}
+
+const EXT_TO_FORMAT: Record<string, string> = {
+  ".xlsx": "excel",
+  ".csv": "csv",
+  ".json": "json",
+};
+
+/**
+ * Import a requirements file (xlsx / csv / json) into the env's RGW.
+ * Sets up the default gateway location if VCAST_REPOSITORY is unset, runs
+ * panreq with the standard cancellable progress notification, then
+ * refreshes the test pane and the availability context key.
+ *
+ * Returns whether the import actually completed (false on user cancel of
+ * the progress, panreq failure, or other thrown errors). Does not show
+ * success messages — caller decides whether/how to celebrate.
+ */
+export async function importRequirementsFromPath(
+  enviroPath: string,
+  sourcePath: string,
+  options: { progressTitle: string }
+): Promise<boolean> {
+  const parentDir = path.dirname(enviroPath);
+  const envPath = path.join(parentDir, `${path.basename(enviroPath)}.env`);
+
+  let gatewayPath = findRelevantRequirementGateway(enviroPath);
+  if (!gatewayPath) {
+    gatewayPath = defaultRequirementGatewayPath(enviroPath);
+    fs.mkdirSync(path.dirname(gatewayPath), { recursive: true });
+    setVcastRepositoryInConfig(enviroPath, gatewayPath);
+  }
+
+  try {
+    const { cancelled } = await runReqs2xTool({
+      exe: PANREQ_EXECUTABLE_PATH,
+      args: [
+        sourcePath,
+        gatewayPath,
+        "--target-format",
+        "rgw",
+        "--target-env",
+        envPath,
+        "--json-events",
+      ],
+      progress: { title: options.progressTitle, logPrefix: "panreq" },
+    });
+    if (cancelled) return false;
+
+    await refreshAllExtensionData();
+    updateRequirementsAvailability(enviroPath);
+    return true;
+  } catch (err) {
+    const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    vscode.window.showErrorMessage(message);
+    logCliError(message, true);
+    return false;
+  }
+}
+
+export async function importRequirements(enviroPath: string) {
+  const sourceUris = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    openLabel: "Import Requirements",
+    filters: {
+      "Requirements files": ["xlsx", "csv", "json"],
+      "Excel (*.xlsx)": ["xlsx"],
+      "CSV (*.csv)": ["csv"],
+      "JSON (*.json)": ["json"],
+    },
+  });
+  if (!sourceUris || sourceUris.length === 0) return;
+  const sourcePath = sourceUris[0].fsPath;
+
+  const ext = path.extname(sourcePath).toLowerCase();
+  if (!EXT_TO_FORMAT[ext]) {
     vscode.window.showErrorMessage(
-      "Requirements Gateway either is not specified or does not exist. Aborting."
+      `Unsupported import format: ${ext}. Use .xlsx, .csv, or .json.`
     );
     return;
   }
 
-  // Target files INSIDE the reqs-<env> folder (align with generate/remove logic)
-  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
-  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
-
-  // Check if requirements files already exist
-  const xlsxExists = fs.existsSync(xlsxPath);
-  const csvExists = fs.existsSync(csvPath);
-
-  if (xlsxExists || csvExists) {
-    let warningMessage = "Warning: ";
-    if (xlsxExists) {
-      warningMessage +=
-        "An existing Excel requirements file (reqs.xlsx) will be overwritten.";
-    }
-    if (csvExists) {
-      if (xlsxExists) warningMessage += " Additionally, ";
-      warningMessage +=
-        "An existing CSV requirements file (reqs.csv) will be ignored as the new Excel file takes precedence.";
-    }
-
+  // If a gateway already exists we ask first — the user may have come here
+  // by mistake. The actual setup-and-run happens in the shared helper.
+  const existingGateway = findRelevantRequirementGateway(enviroPath);
+  if (existingGateway) {
     const choice = await vscode.window.showWarningMessage(
-      warningMessage,
+      `Importing will overwrite the existing requirements gateway at ${existingGateway}.`,
       "Continue",
       "Cancel"
     );
     if (choice !== "Continue") return;
   }
 
-  const choice = await vscode.window.showInformationMessage(
-    "Would you like the system to automatically try to add traceability to the requirements?",
-    "Yes",
-    "No"
-  );
-  const addTraceability = choice === "Yes";
+  const enviroName = path.basename(enviroPath);
+  const ok = await importRequirementsFromPath(enviroPath, sourcePath, {
+    progressTitle: `Importing Requirements for ${enviroName}`,
+  });
+  if (!ok) return;
 
-  const commandArgs = [
-    `${repositoryPath ?? repositoryDirExpandedEnv}`, // repositoryPath should never be undefined here, as we return before but just to be sure
-    xlsxPath,
+  vscode.window.showInformationMessage(
+    `Successfully imported requirements from ${path.basename(sourcePath)}`
+  );
+
+  // Same prompt as generateTestsFromRequirements: imported requirements
+  // typically lack code traceability. Skip-vs-infer; "Skip" leaves the user
+  // free to set traceability manually in the editor later.
+  await offerTraceabilityInferenceIfMissing(enviroPath, {
+    prompt:
+      "None of the imported requirements trace to a function. Would you like to infer traceability automatically?",
+    cancelMeansAbort: false,
+  });
+}
+
+export async function exportRequirements(enviroPath: string) {
+  if (!hasCompleteAndUsableRGW(enviroPath)) {
+    vscode.window.showErrorMessage("No requirements available to export.");
+    return;
+  }
+  const gatewayPath = findRelevantRequirementGateway(enviroPath)!;
+
+  const parentDir = path.dirname(enviroPath);
+  const lowestDirname = path.basename(enviroPath);
+  const envName = `${lowestDirname}.env`;
+  const envPath = path.join(parentDir, envName);
+
+  const targetUri = await vscode.window.showSaveDialog({
+    saveLabel: "Export Requirements",
+    defaultUri: vscode.Uri.file(
+      path.join(parentDir, `${lowestDirname}-requirements.csv`)
+    ),
+    filters: {
+      "CSV (*.csv)": ["csv"],
+      "Excel (*.xlsx)": ["xlsx"],
+      "JSON (*.json)": ["json"],
+    },
+  });
+  if (!targetUri) return;
+  const targetPath = targetUri.fsPath;
+
+  const ext = path.extname(targetPath).toLowerCase();
+  const targetFormat = EXT_TO_FORMAT[ext];
+  if (!targetFormat) {
+    vscode.window.showErrorMessage(
+      `Unsupported export format: ${ext}. Use .xlsx, .csv, or .json.`
+    );
+    return;
+  }
+
+  const args = [
+    gatewayPath,
+    targetPath,
     "--target-format",
-    "excel",
-    ...(addTraceability ? ["--infer-traceability"] : []),
+    targetFormat,
     "--target-env",
     envPath,
     "--json-events",
   ];
 
-  const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
-  logCliOperation(`Executing command: ${commandString}`);
+  try {
+    const { cancelled } = await runReqs2xTool({
+      exe: PANREQ_EXECUTABLE_PATH,
+      args,
+      progress: {
+        title: `Exporting Requirements for ${lowestDirname}`,
+        logPrefix: "panreq",
+      },
+    });
+    if (cancelled) return;
 
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: `Importing Requirements from Gateway`,
-      cancellable: true,
-    },
-    async (progress, cancellationToken) => {
-      const proc = await spawnWithVcastEnv(PANREQ_EXECUTABLE_PATH, commandArgs);
-
-      return new Promise<void>((resolve, reject) => {
-        const tracker = new ProgressTracker(progress, "panreq");
-
-        cancellationToken.onCancellationRequested(() => {
-          proc.kill();
-          logCliOperation("Operation cancelled by user");
-          resolve();
-        });
-
-        proc.stdout.on("data", (d) => {
-          if (cancellationToken.isCancellationRequested) return;
-          tracker.processOutput(d.toString());
-        });
-
-        proc.stderr.on("data", (d) => {
-          const errOut = d.toString();
-          logCliError(`panreq: ${errOut.trim()}`);
-        });
-
-        proc.on("close", async (code) => {
-          if (cancellationToken.isCancellationRequested) return;
-          if (code === 0) {
-            logCliOperation(
-              `reqs2excel completed successfully with code ${code}`
-            );
-            await refreshAllExtensionData();
-            updateRequirementsAvailability(enviroPath);
-            vscode.commands.executeCommand(
-              "vectorcastTestExplorer.showRequirements",
-              { id: enviroPath }
-            );
-            vscode.window.showInformationMessage(
-              "Successfully imported requirements from gateway"
-            );
-            resolve();
-          } else {
-            const msg = `Error: panreq exited with code ${code}`;
-            vscode.window.showErrorMessage(msg);
-            logCliError(msg, true);
-            reject(new Error(msg));
-          }
-        });
-      });
-    }
-  );
-}
-
-export async function populateRequirementsGateway(enviroPath: string) {
-  const parentDir = path.dirname(enviroPath);
-  const envName = path.basename(enviroPath);
-  const envPath = path.join(parentDir, envName);
-
-  // remove ".env" if present
-  const enviroNameWithoutExt = envName.replace(/\.env$/, "");
-  const envReqsFolderPath = path.join(
-    parentDir,
-    `reqs-${enviroNameWithoutExt}`
-  );
-
-  const csvPath = path.join(envReqsFolderPath, "reqs.csv");
-  const xlsxPath = path.join(envReqsFolderPath, "reqs.xlsx");
-
-  // Check which requirements file exists
-  let requirementsFile = "";
-  if (fs.existsSync(xlsxPath)) {
-    requirementsFile = xlsxPath;
-  } else if (fs.existsSync(csvPath)) {
-    requirementsFile = csvPath;
-  } else {
-    vscode.window.showErrorMessage(
-      "No requirements file found. Generate requirements first."
+    const choice = await vscode.window.showInformationMessage(
+      `Successfully exported requirements to ${path.basename(targetPath)}`,
+      "Reveal in File Explorer"
     );
-    return;
-  }
-
-  // Check if there is an existing requirements gateway
-  const existingGateway = findRelevantRequirementGateway(enviroPath);
-  if (existingGateway) {
-    const warningMessage = `Warning: An existing requirements gateway was found at ${existingGateway}. Generating requirements will switch the environment gateway to a new one.`;
-    const choice = await vscode.window.showWarningMessage(
-      warningMessage,
-      "Continue",
-      "Cancel"
-    );
-
-    if (choice !== "Continue") {
-      return;
-    }
-  }
-
-  const exportRepository = path.join(
-    envReqsFolderPath,
-    "generated_requirement_repository"
-  );
-
-  const commandArgs = [
-    requirementsFile,
-    `${existingGateway ?? exportRepository}`,
-    "--target-format",
-    "rgw",
-    "--target-env",
-    envPath,
-  ];
-
-  // Log the command being executed
-  const commandString = `${PANREQ_EXECUTABLE_PATH} ${commandArgs.join(" ")}`;
-  logCliOperation(`Executing command: ${commandString}`);
-
-  // Show progress while running
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: "Populating Requirements Gateway...",
-      cancellable: false,
-    },
-    async (progress) => {
-      const process = await spawnWithVcastEnv(
-        PANREQ_EXECUTABLE_PATH,
-        commandArgs
+    if (choice === "Reveal in File Explorer") {
+      vscode.commands.executeCommand(
+        "revealFileInOS",
+        vscode.Uri.file(targetPath)
       );
-
-      return new Promise<void>((resolve, reject) => {
-        process.stdout.on("data", (data) => {
-          const output = data.toString().trim();
-          logCliOperation(`panreq: ${output}`);
-        });
-
-        process.stderr.on("data", (data) => {
-          const errorOutput = data.toString().trim();
-          logCliError(`panreq: ${errorOutput}`);
-        });
-
-        process.on("close", async (code) => {
-          if (code === 0) {
-            logCliOperation(
-              `reqs2rgw completed successfully with code ${code}`
-            );
-
-            try {
-              await refreshAllExtensionData();
-              vscode.window.showInformationMessage(
-                `Successfully populated requirements gateway at ${exportRepository}`
-              );
-              resolve();
-            } catch (err) {
-              const error = err instanceof Error ? err : new Error(String(err));
-              vscode.window.showErrorMessage(
-                `Error updating environment configuration: ${error.message}`
-              );
-              reject(error);
-            }
-          } else {
-            const errorMessage = `Error: reqs2rgw exited with code ${code}`;
-            vscode.window.showErrorMessage(errorMessage);
-            logCliError(errorMessage, true);
-            reject(new Error(errorMessage));
-          }
-        });
-      });
     }
-  );
+  } catch (err) {
+    const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    vscode.window.showErrorMessage(message);
+    logCliError(message, true);
+  }
 }

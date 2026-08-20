@@ -327,22 +327,21 @@ def processType(type, commandPieces, currentIndex, triggerCharacter):
 
 def isTestableFunction(functionNode):
 
-    # this is the modern way to make this check, available in vc24sp5+
-    if hasattr(functionNode, "is_testable"):
-        if functionNode.is_testable:
-            return True
-        else:
-            return False
-
-    # Otherwise we check using this hack ...
     # dataAPI had a bug that caused <<INIT>> to be in the function list
-    # this was fixed in vc24sp5, but we need this check for older enviros
+    # (fixed in vc24sp5, but keep the guard for older enviros).
     if functionNode.vcast_name == TAG_FOR_INIT:
         return False
-    elif functionNode.is_non_testable_stub:
-        return False
-    else:
-        return True
+
+    # We intentionally do NOT use functionNode.is_testable. That property is
+    # defined as `sourcefile_id and unit_id != 10`, and unit id 10 is a slot
+    # reserved for the C/C++ uut_prototype_stubs unit. In a multi-UUT Ada
+    # environment a real UUT can be assigned unit id 10, in which case
+    # is_testable wrongly reports every one of its subprograms as non-testable
+    # and the whole unit vanishes from the test tree (e.g. WAREHOUSE.INVENTORY).
+    # Rework if that issue is fixed in the DataAPI.
+    return bool(getattr(functionNode, "sourcefile_id", None)) and (
+        not functionNode.is_non_testable_stub
+    )
 
 
 def getFunctionList(api, unitName):
@@ -426,7 +425,12 @@ def processSubprogramLines(api, pieces, triggerCharacter, unit):
         objectList = api.Unit.all()
         returnData.choiceList = getFunctionList(api, unit)
         returnData.choiceKind = choiceKindType.Function
-        returnData.choiceList.extend(["<<INIT>>", "<<COMPOUND>>", "coded_tests_driver"])
+        # <<INIT>> and <<COMPOUND>> are language-agnostic, but coded tests do
+        # not exist for Ada (VectorCAST never creates the coded_tests_driver
+        # pseudo-function), so don't offer it as a completion there.
+        returnData.choiceList.extend(["<<INIT>>", "<<COMPOUND>>"])
+        if not getattr(api.environment, "is_ada", False):
+            returnData.choiceList.append("coded_tests_driver")
     else:
         processStandardLines(api, pieces, triggerCharacter)
     return returnData
