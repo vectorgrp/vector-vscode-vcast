@@ -6,3 +6,6 @@
 
 # Check subdirectories too
 !*/
+
+# VS Code builds downloaded by wdio-vscode-service when e2e tests run locally
+tests/internal/e2e/.wdio-vscode-service/

@@ -1,0 +1,36 @@
+# pnpm settings. Since pnpm 10.16+ this file is also pnpm's config file, which is
+# why pnpm-only settings (minimumReleaseAge, onlyBuiltDependencies) live here
+# instead of in .npmrc (.npmrc is only read for registry/auth settings).
+
+# Supply-chain hardening: refuse to install package versions that were published
+# less than 24h (1440 minutes) ago, to avoid pulling a freshly-compromised release
+# before it has been noticed and yanked.
+minimumReleaseAge: 1440
+
+# Hoist all dependencies to the root node_modules, like npm/yarn do. The codebase
+# imports some transitive packages (e.g. vscode-languageserver-types, vscode-uri)
+# that are not declared as direct dependencies; pnpm's default strict layout would
+# make those "phantom" imports unresolvable. This keeps the npm-compatible layout.
+shamefullyHoist: true
+
+# Version overrides for transitive dependencies.
+overrides:
+  # cheerio is a transitive dependency of @vscode/vsce. cheerio >=1.1 pulls in
+  # undici@7, which dropped Node 18 support (it references the `File` global that
+  # only exists in Node 20+). This project targets Node 18, so pin cheerio to the
+  # 1.0.0 line, which depends on the Node-18-compatible undici@6.x.
+  cheerio: 1.0.0
+  # @types/minimatch@6.0.0 is an empty deprecation stub (minimatch ships its own
+  # types now). TypeScript auto-includes it as an implicit type library and fails
+  # because it contains no declarations. Pin to the last real typings release.
+  "@types/minimatch": 5.1.2
+
+# Dependencies allowed to run install/build (lifecycle) scripts. pnpm blocks all
+# such scripts by default; these need their postinstall to fetch a binary:
+#   esbuild           - bundler binary (used by the esbuild-* and package scripts)
+#   @vscode/vsce-sign - VSIX signing binary (used by `vsce package`)
+#   keytar            - native credential store (pulled in by @vscode/vsce)
+onlyBuiltDependencies:
+  - esbuild
+  - "@vscode/vsce-sign"
+  - keytar
