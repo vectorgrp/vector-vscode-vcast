@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATG Test for Line</title>
+  <link rel="stylesheet" href="{{ cssUri }}" />
+</head>
+<body>
+  <!-- Shown only if the view is opened while no ATG session is active -->
+  <div id="inactive" class="inactive" hidden>
+    <div class="inactive-card">
+      <div class="inactive-title">ATG Test for Line</div>
+      <p>
+        Right-click a statement or branch line in a source file and choose
+        <b>ATG Test for Line</b> to start.
+      </p>
+    </div>
+  </div>
+
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <nav class="crumbs" aria-label="Target">
+        <span class="crumb file" id="crumbFile"></span>
+        <span class="sep">›</span>
+        <span class="crumb fn" id="crumbFn"></span>
+        <span class="sep">›</span>
+        <button type="button" class="crumb line" id="crumbLine" title="Reveal target line in the editor"></button>
+      </nav>
+
+      <div class="decision" id="decisionBox" hidden>
+        <span class="decision-label">Outcome</span>
+        <div class="seg" role="group" aria-label="Decision outcome" id="truthSeg">
+          <button type="button" data-truth="" class="active" title="Let ATG choose the outcome">Auto</button>
+          <button type="button" data-truth="True" title="Reach the line with the condition true">True</button>
+          <button type="button" data-truth="False" title="Reach the line with the condition false">False</button>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button type="button" id="btnCancel" class="btn secondary">Cancel</button>
+        <button type="button" id="btnFetch" class="btn primary" title="Generate a test that reaches the target line (Ctrl+Enter)">
+          <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5-9-5.5z"/></svg>
+          Generate test
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="code-pane" aria-label="Source preview">
+        <div class="pane-title">
+          <span class="pane-name">Source preview</span>
+          <span class="pane-hint">Click a variable to constrain it · click a line number to move the target · double-click a line to show it in the editor</span>
+        </div>
+        <div class="code" id="code" tabindex="0"></div>
+      </section>
+
+      <aside class="side" aria-label="Constraints">
+        <div class="pane-title">
+          <span class="pane-name">Constraints <span class="count" id="varCount">0</span></span>
+        </div>
+
+        <div class="quick-add" id="quickAdd">
+          <svg class="ico search" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.7 10.3a5.5 5.5 0 1 0-1.4 1.4l3 3 1.4-1.4-3-3zM7 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
+          <input type="text" id="quickAddInput" class="input" placeholder="Add a variable by name…" autocomplete="off" spellcheck="false" aria-label="Add a variable" />
+          <ul class="dropdown" id="quickAddList" role="listbox" hidden></ul>
+        </div>
+
+        <div class="var-list" id="varList"></div>
+
+        <div class="empty" id="emptyState">
+          <p class="empty-title">No constraints yet</p>
+          <p class="muted">ATG finds inputs that reach the target line on its own. Add constraints only when you want specific variables pinned to specific values.</p>
+        </div>
+
+        <footer class="side-footer">
+          <span class="muted" id="footerInfo"></span>
+          <span class="muted kbd-hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> generates</span>
+        </footer>
+      </aside>
+    </main>
+  </div>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+
+  <script src="{{ scriptUri }}"></script>
+</body>
+</html>

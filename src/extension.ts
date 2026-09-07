@@ -193,7 +193,11 @@ import {
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
 import { getNonce, resolveWebviewBase } from "./webviewUtils";
-import { ATGModeManager, ATGSidebarViewProvider } from "./atgMode";
+import {
+  ATGModeManager,
+  ATGLinePanelViewProvider,
+  ATG_MODE_ACTIVE_CONTEXT,
+} from "./atgMode";
 
 const path = require("path");
 
@@ -248,16 +252,18 @@ export async function activate(context: vscode.ExtensionContext) {
   // and if its ok will proceed with full activation
   await checkPrerequisites(context);
 
-  // ATG Mode: sidebar view provider
-  const atgSidebarProvider = new ATGSidebarViewProvider(
+  // ATG Test for Line: bottom-panel view (only visible while the mode is
+  // active, see the view's `when` clause in package.json)
+  vscode.commands.executeCommand("setContext", ATG_MODE_ACTIVE_CONTEXT, false);
+  const atgPanelProvider = new ATGLinePanelViewProvider(
     atgModeManager,
-    context.extensionUri
+    context
   );
-  atgModeManager.setSidebarView(atgSidebarProvider);
+  atgModeManager.setPanelView(atgPanelProvider);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
-      "vectorcastTestExplorer.atgSelectedVars",
-      atgSidebarProvider,
+      ATGLinePanelViewProvider.viewId,
+      atgPanelProvider,
       { webviewOptions: { retainContextWhenHidden: true } }
     )
   );
@@ -287,10 +293,13 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         const choice = await vscode.window.showQuickPick(
           [
-            { label: "$(check) Fetch Test", action: "fetch" },
-            { label: "$(close) Exit ATG Mode", action: "exit" },
+            {
+              label: "$(play) Generate test for the target line",
+              action: "fetch",
+            },
+            { label: "$(close) Cancel ATG Test for Line", action: "exit" },
           ],
-          { placeHolder: "ATG Mode Actions" }
+          { placeHolder: "ATG Test for Line" }
         );
         if (choice?.action === "fetch") atgModeManager.fetchTest();
         if (choice?.action === "exit") atgModeManager.exit();

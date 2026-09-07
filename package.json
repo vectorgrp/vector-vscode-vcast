@@ -37,20 +37,22 @@
   ],
   "contributes": {
     "viewsContainers": {
-      "activitybar": [
+      "panel": [
         {
-          "id": "vectorcastATG",
-          "title": "VectorCAST ATG",
-          "icon": "images/dark/beaker-plus.svg"
+          "id": "vectorcastATGLine",
+          "title": "ATG Test for Line",
+          "icon": "images/dark/atg-target.svg"
         }
       ]
     },
     "views": {
-      "vectorcastATG": [
+      "vectorcastATGLine": [
         {
           "type": "webview",
-          "id": "vectorcastTestExplorer.atgSelectedVars",
-          "name": "Selected Variables"
+          "id": "vectorcastTestExplorer.atgLinePanel",
+          "name": "ATG Test for Line",
+          "when": "vectorcastTestExplorer.atgModeActive",
+          "visibility": "visible"
         }
       ]
     },
@@ -69,19 +71,25 @@
       },
       {
         "command": "vectorcastTestExplorer.atgToggleVariable",
+        "category": "VectorCAST Test Explorer",
         "title": "Toggle ATG Variable"
       },
       {
         "command": "vectorcastTestExplorer.atgExitMode",
-        "title": "Exit ATG Mode"
+        "category": "VectorCAST Test Explorer",
+        "title": "Cancel ATG Test for Line",
+        "icon": "$(close)"
       },
       {
         "command": "vectorcastTestExplorer.atgFetchTest",
-        "title": "ATG: Fetch Test"
+        "category": "VectorCAST Test Explorer",
+        "title": "Generate ATG Test for Line",
+        "icon": "$(play)"
       },
       {
         "command": "vectorcastTestExplorer.atgShowMenu",
-        "title": "ATG Mode Actions"
+        "category": "VectorCAST Test Explorer",
+        "title": "ATG Test for Line: Actions"
       },
       {
         "command": "vectorcastTestExplorer.createNewProject",
@@ -900,6 +908,22 @@
       ],
       "commandPalette": [
         {
+          "command": "vectorcastTestExplorer.atgToggleVariable",
+          "when": "false"
+        },
+        {
+          "command": "vectorcastTestExplorer.atgExitMode",
+          "when": "vectorcastTestExplorer.atgModeActive"
+        },
+        {
+          "command": "vectorcastTestExplorer.atgFetchTest",
+          "when": "vectorcastTestExplorer.atgModeActive"
+        },
+        {
+          "command": "vectorcastTestExplorer.atgShowMenu",
+          "when": "vectorcastTestExplorer.atgModeActive"
+        },
+        {
           "command": "vectorcastTestExplorer.configure"
         },
         {
@@ -1136,6 +1160,16 @@
         }
       ],
       "view/title": [
+        {
+          "command": "vectorcastTestExplorer.atgFetchTest",
+          "when": "view == vectorcastTestExplorer.atgLinePanel",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vectorcastTestExplorer.atgExitMode",
+          "when": "view == vectorcastTestExplorer.atgLinePanel",
+          "group": "navigation@2"
+        },
         {
           "command": "vectorcastTestExplorer.toggleLog",
           "when": "view=~/^.*test.*$/",
