@@ -63,6 +63,10 @@ const atgName = "atg";
 export let atgCommandToUse: string | undefined = undefined;
 export let atgAvailable: boolean = false;
 
+// The "ATG Test for Line" feature drives ATG through its LLM_PATHS option,
+// which older ATG builds do not have at all. Set by checkForATGLLMPaths().
+export let atgLLMPathsAvailable: boolean = false;
+
 // this is set to true if the clicast version supports server mode
 let enviroDataServerAvailable: boolean = false;
 
@@ -209,6 +213,28 @@ function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
   return vcastVersionGreaterThan({ version: 23, servicePack: 5 });
 }
 
+function checkForATGLLMPaths(atgCommand: string): boolean {
+  //
+  // LLM_PATHS is a private ATG option, so it does not show up in the plain
+  // --help output -- only in the developer help. We probe for the flag
+  // rather than inferring it from the VectorCAST version, because the ATG
+  // that actually runs can be redirected with VCAST_ATG_PATH.
+  //
+  // Anything unexpected (an older atg that rejects --help-dev, a missing
+  // license) leaves this false, so the feature stays hidden rather than
+  // offering a line test that cannot work.
+  //
+  const commandStatus = executeCommandSync(
+    `${atgCommand} --help-dev`,
+    process.cwd(),
+    false
+  );
+  if (commandStatus.errorCode != 0) {
+    return false;
+  }
+  return commandStatus.stdout.includes("--llm-paths");
+}
+
 function checkForATG(vcastInstallationPath: string) {
   // we only set atgCommandToUse if we find atg and it's licensed
   const atgCommand = path.join(vcastInstallationPath, exeFilename(atgName));
@@ -242,6 +268,24 @@ function checkForATG(vcastInstallationPath: string) {
       "setContext",
       "vectorcastTestExplorer.atgAvailable",
       atgAvailable
+    );
+
+    atgLLMPathsAvailable =
+      atgAvailable && checkForATGLLMPaths(candidateCommand);
+    if (atgAvailable) {
+      vectorMessage(
+        atgLLMPathsAvailable
+          ? "   'atg' supports LLM_PATHS, line test is available"
+          : "   'atg' does NOT support LLM_PATHS, line test is not available"
+      );
+    }
+
+    // atgLLMPathsAvailable gates the "ATG Test for Line" command and the
+    // ATG sidebar in package.json
+    vscode.commands.executeCommand(
+      "setContext",
+      "vectorcastTestExplorer.atgLLMPathsAvailable",
+      atgLLMPathsAvailable
     );
   } else {
     vectorMessage(

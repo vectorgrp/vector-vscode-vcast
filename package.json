@@ -50,7 +50,8 @@
         {
           "type": "webview",
           "id": "vectorcastTestExplorer.atgSelectedVars",
-          "name": "Selected Variables"
+          "name": "Selected Variables",
+          "when": "vectorcastTestExplorer.atgLLMPathsAvailable"
         }
       ]
     },
@@ -1229,7 +1230,7 @@
         },
         {
           "command": "vectorcastTestExplorer.getATGTestForLine",
-          "when": "vectorcastTestExplorer.configured && vectorcastTestExplorer.atgAvailable && ( editorLineNumber in vectorcastTestExplorer.allBranchLinesForActiveFile || editorLineNumber in vectorcastTestExplorer.allStatementLinesForActiveFile )",
+          "when": "vectorcastTestExplorer.configured && vectorcastTestExplorer.atgAvailable && vectorcastTestExplorer.atgLLMPathsAvailable && ( editorLineNumber in vectorcastTestExplorer.allBranchLinesForActiveFile || editorLineNumber in vectorcastTestExplorer.allStatementLinesForActiveFile )",
           "args": [
             "${lineNumber}"
           ],

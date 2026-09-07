@@ -7,6 +7,7 @@ import { getVcastInterfaceCommandForVariableInfo } from "./vcastUtilities";
 import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import {
   atgAvailable,
+  atgLLMPathsAvailable,
   clicastCommandToUse,
   globalTestInterfacePath,
   vPythonCommandToUse,
@@ -112,6 +113,15 @@ export class ATGModeManager {
     if (!atgAvailable) {
       vscode.window.showWarningMessage(
         "ATG is not available: no licensed, supported 'atg' was found in the VectorCAST installation."
+      );
+      return;
+    }
+
+    // The line test needs ATG's LLM_PATHS option, which older ATG builds do
+    // not have. The context menu and the sidebar are gated on this too.
+    if (!atgLLMPathsAvailable) {
+      vscode.window.showWarningMessage(
+        "ATG Test for Line is not available: this version of 'atg' does not support LLM_PATHS."
       );
       return;
     }
