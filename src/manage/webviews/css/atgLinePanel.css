@@ -192,20 +192,82 @@ input:focus-visible,
 
 /* Buttons */
 
-.topbar-actions {
+.side-actions {
   display: flex;
-  gap: 8px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 4px 12px 12px;
   flex-shrink: 0;
+}
+
+/* Label sits above the Auto/True/False control and never grows past it:
+ * width 0 + min-width 100% keeps it out of the width calculation. */
+.side-actions .decision {
+  display: grid;
+  grid-template-rows: auto auto;
+  justify-items: center;
+  row-gap: 3px;
+  width: fit-content;
+}
+
+.side-actions .decision-label {
+  width: 0;
+  min-width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+
+.vsep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  margin: 0 2px;
+}
+
+.action-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-row .btn {
+  width: 118px;
+  height: 26px;
+  padding: 0 8px;
+  gap: 6px;
+  font-size: 12px;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.action-row .btn .ico {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.action-row .btn span {
+  display: block;
+  line-height: 16px;
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   border-radius: 2px;
   padding: 4px 12px;
   line-height: 18px;
   border: 1px solid var(--vscode-button-border, transparent);
+  vertical-align: middle;
 }
 
 .btn.primary {
@@ -226,28 +288,106 @@ input:focus-visible,
   background: var(--vscode-button-secondaryHoverBackground);
 }
 
+.btn.danger {
+  background: var(--vscode-statusBarItem-errorBackground, #c42b1c);
+  color: var(--vscode-statusBarItem-errorForeground, #ffffff);
+}
+
+.btn.danger:hover {
+  filter: brightness(1.12);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-/* ─── Main split ─────────────────────────────────────────────────── */
+/* ─── Main split ─────────────────────────────────────────────────────
+ * Wide: source preview | splitter | constraints, side by side.
+ * Narrow: constraints on top, splitter, preview below.
+ * The splitter is draggable; the chosen size lives in --code-size /
+ * --side-size and is remembered per webview. */
 
 .main {
   flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+  display: flex;
+  flex-direction: row;
   min-height: 0;
+  --code-size: 58%;
+  --side-size: 55%;
+}
+
+.code-pane {
+  flex: 0 0 var(--code-size);
+  min-width: 220px;
+  max-width: calc(100% - 300px);
+}
+
+.side {
+  flex: 1 1 auto;
+  min-width: 280px;
+}
+
+.splitter {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+  transition: background-color 120ms ease-out;
+}
+
+.splitter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1px;
+  background: var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+}
+
+.splitter:hover,
+.splitter.dragging {
+  background: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder));
+}
+
+.splitter:hover::after,
+.splitter.dragging::after {
+  background: transparent;
+}
+
+body.resizing,
+body.resizing * {
+  cursor: inherit !important;
+  user-select: none;
 }
 
 @media (max-width: 760px) {
   .main {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    flex-direction: column;
+  }
+  .side {
+    order: 1;
+    flex: 0 0 var(--side-size);
+    min-height: 180px;
+    max-height: calc(100% - 140px);
+    min-width: 0;
+  }
+  .splitter {
+    order: 2;
+    cursor: row-resize;
+  }
+  .splitter::after {
+    width: auto;
+    height: 1px;
   }
   .code-pane {
+    order: 3;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    min-height: 120px;
     border-right: none;
-    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
   }
   .pane-hint {
     display: none;
@@ -300,9 +440,7 @@ input:focus-visible,
 .code-pane {
   display: flex;
   flex-direction: column;
-  min-width: 0;
   min-height: 0;
-  border-right: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
 }
 
 .code {
@@ -333,34 +471,24 @@ input:focus-visible,
   text-align: right;
   color: var(--vscode-editorLineNumber-foreground, #858585);
   user-select: none;
-  cursor: pointer;
   border-left: 3px solid transparent;
 }
 
-.line .ln:hover {
-  color: var(--vscode-editorLineNumber-activeForeground, var(--vscode-foreground));
-  background: var(--vscode-list-hoverBackground);
-}
-
-.line.no-target .ln {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
 
 .line .content {
   flex: 1;
   padding-right: 16px;
 }
 
+/* Target: same green as the highlight in the real editor */
 .line.target {
-  background: var(--vscode-editor-rangeHighlightBackground, rgba(0, 122, 204, 0.12));
-  box-shadow: inset 0 1px 0 var(--vscode-editor-rangeHighlightBorder, transparent),
-    inset 0 -1px 0 var(--vscode-editor-rangeHighlightBorder, transparent);
+  background: rgba(87, 184, 89, 0.22);
+  box-shadow: inset 0 1px 0 rgba(87, 184, 89, 0.45), inset 0 -1px 0 rgba(87, 184, 89, 0.45);
 }
 
 .line.target .ln {
-  color: var(--vscode-focusBorder, #007acc);
-  border-left-color: var(--vscode-focusBorder, #007acc);
+  color: #57b859;
+  border-left-color: #57b859;
   font-weight: 700;
 }
 
@@ -370,7 +498,7 @@ input:focus-visible,
   left: 0.55em;
   font-size: 0.65em;
   top: 0.45em;
-  color: var(--vscode-focusBorder, #007acc);
+  color: #57b859;
 }
 
 /* ─── Syntax palette ─────────────────────────────────────────────────
@@ -381,15 +509,15 @@ input:focus-visible,
  * icon colours for variables and types. */
 
 :root {
-  --syn-keyword: var(--vscode-debugTokenExpression-name, #c586c0);
+  --syn-keyword: var(--vscode-terminal-ansiMagenta, #c586c0);
   --syn-type: var(--vscode-terminal-ansiCyan, #4ec9b0);
-  --syn-typekw: var(--vscode-debugTokenExpression-boolean, #569cd6);
-  --syn-number: var(--vscode-debugTokenExpression-number, #b5cea8);
-  --syn-string: var(--vscode-debugTokenExpression-string, #ce9178);
+  --syn-typekw: var(--vscode-terminal-ansiBlue, #569cd6);
+  --syn-number: var(--vscode-terminal-ansiGreen, #b5cea8);
+  --syn-string: var(--vscode-charts-orange, #ce9178);
   --syn-comment: var(--vscode-gitDecoration-addedResourceForeground, #6a9955);
   --syn-func: var(--vscode-charts-yellow, #dcdcaa);
   --syn-preproc: var(--vscode-debugTokenExpression-name, #c586c0);
-  --syn-variable: var(--vscode-symbolIcon-variableForeground, #75beff);
+  --syn-variable: var(--vscode-terminal-ansiBrightBlue, #75beff);
   --syn-br1: var(--vscode-editorBracketHighlight-foreground1, #ffd700);
   --syn-br2: var(--vscode-editorBracketHighlight-foreground2, #da70d6);
   --syn-br3: var(--vscode-editorBracketHighlight-foreground3, #179fff);
@@ -410,6 +538,7 @@ input:focus-visible,
 
 .kw {
   color: var(--syn-keyword);
+  font-weight: 600;
 }
 
 /* user-defined types (OrderType, Manager::) */
@@ -433,7 +562,6 @@ input:focus-visible,
 .cmt {
   color: var(--syn-comment);
   font-style: italic;
-  opacity: 0.9;
 }
 
 .pp {

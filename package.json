@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -40,7 +40,7 @@
       "panel": [
         {
           "id": "vectorcastATGLine",
-          "title": "ATG Test for Line",
+          "title": "VectorCAST: ATG Test for Line",
           "icon": "images/dark/atg-target.svg"
         }
       ]
@@ -50,7 +50,7 @@
         {
           "type": "webview",
           "id": "vectorcastTestExplorer.atgLinePanel",
-          "name": "ATG Test for Line",
+          "name": "VectorCAST: ATG Test for Line",
           "when": "vectorcastTestExplorer.atgModeActive",
           "visibility": "visible"
         }
@@ -1160,16 +1160,6 @@
         }
       ],
       "view/title": [
-        {
-          "command": "vectorcastTestExplorer.atgFetchTest",
-          "when": "view == vectorcastTestExplorer.atgLinePanel",
-          "group": "navigation@1"
-        },
-        {
-          "command": "vectorcastTestExplorer.atgExitMode",
-          "when": "view == vectorcastTestExplorer.atgLinePanel",
-          "group": "navigation@2"
-        },
         {
           "command": "vectorcastTestExplorer.toggleLog",
           "when": "view=~/^.*test.*$/",

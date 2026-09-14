@@ -5,6 +5,7 @@ import {
   buildVariableValues,
   choosePreviewWindow,
   computeClickableTokens,
+  decisionExtent,
   findFunctionBounds,
   flattenLookup,
   getDefaultIndexFromLineText,
@@ -85,6 +86,34 @@ describe("isDecisionLineText", () => {
   });
 });
 
+describe("decisionExtent", () => {
+  const lines = [
+    "void f() {",
+    "  if(Order->Entree == Steak &&",
+    "     Order->Salad == Caesar &&",
+    "     Order->Beverage == MixedDrink) {",
+    "    Order->Dessert = Pies;",
+    "  }",
+    "  while (x) y();",
+    "}",
+  ];
+
+  test("spans a multi-line condition until the parentheses balance", () => {
+    expect(decisionExtent(lines, 2)).toEqual({ start: 2, end: 4 });
+  });
+
+  test("keeps single-line decisions and statements to one line", () => {
+    expect(decisionExtent(lines, 7)).toEqual({ start: 7, end: 7 });
+    expect(decisionExtent(lines, 5)).toEqual({ start: 5, end: 5 });
+  });
+
+  test("never runs past the cap or the file", () => {
+    const open = ["if (a &&", "b &&", "c &&", "d &&", "e"];
+    expect(decisionExtent(open, 1, 3)).toEqual({ start: 1, end: 3 });
+    expect(decisionExtent(open, 1)).toEqual({ start: 1, end: 5 });
+  });
+});
+
 describe("getDefaultIndexFromLineText", () => {
   test("extracts the subscript of the given path", () => {
     expect(getDefaultIndexFromLineText("buf[i] = 1;", "buf")).toBe("i");
@@ -143,7 +172,7 @@ describe("computeClickableTokens", () => {
 
   test("marks known scalars, pointers and fields, skips by-value structs", () => {
     const tokens = computeClickableTokens(lines, 1, lines.length, demoLookup());
-    const paths = tokens.map((t) => `${t.line}:${t.path}`);
+    const paths = tokens.map((token) => `${token.line}:${token.path}`);
 
     expect(paths).toContain("1:Order");
     expect(paths).toContain("2:Order");
@@ -160,7 +189,7 @@ describe("computeClickableTokens", () => {
 
   test("ignores identifiers inside a line comment", () => {
     const tokens = computeClickableTokens(lines, 2, 2, demoLookup());
-    const orderTokens = tokens.filter((t) => t.path === "Order");
+    const orderTokens = tokens.filter((token) => token.path === "Order");
     expect(orderTokens).toHaveLength(1);
     expect(orderTokens[0].start).toBe(lines[1].indexOf("Order"));
   });
@@ -172,7 +201,7 @@ describe("computeClickableTokens", () => {
       1,
       demoLookup()
     );
-    const mystery = tokens.find((t) => t.path === "Order.Mystery");
+    const mystery = tokens.find((token) => token.path === "Order.Mystery");
     expect(mystery).toBeDefined();
     expect(mystery?.kind).toBe("unknown");
   });
@@ -195,7 +224,7 @@ describe("computeClickableTokens", () => {
 describe("flattenLookup", () => {
   test("lists assignable paths, grouped parameters first, without by-value structs", () => {
     const flat = flattenLookup(demoLookup());
-    const paths = flat.map((k) => k.path);
+    const paths = flat.map((known) => known.path);
     expect(paths).toEqual([
       "Order",
       "Order.Dessert",
@@ -203,11 +232,10 @@ describe("flattenLookup", () => {
       "TableData.IsOccupied",
       "WaitingListSize",
     ]);
-    expect(flat.find((k) => k.path === "Order.Entree")?.enumValues).toEqual([
-      "Steak",
-      "Chicken",
-    ]);
-    expect(flat.find((k) => k.path === "WaitingListSize")?.group).toBe(
+    expect(
+      flat.find((known) => known.path === "Order.Entree")?.enumValues
+    ).toEqual(["Steak", "Chicken"]);
+    expect(flat.find((known) => known.path === "WaitingListSize")?.group).toBe(
       "global"
     );
   });
@@ -265,10 +293,10 @@ describe("choosePreviewWindow", () => {
   });
 
   test("clamps long functions to a window that contains the target", () => {
-    const w = choosePreviewWindow(1, 2000, 1500, 400);
-    expect(w.end - w.start + 1).toBe(400);
-    expect(w.start).toBeLessThanOrEqual(1500);
-    expect(w.end).toBeGreaterThanOrEqual(1500);
+    const clamped = choosePreviewWindow(1, 2000, 1500, 400);
+    expect(clamped.end - clamped.start + 1).toBe(400);
+    expect(clamped.start).toBeLessThanOrEqual(1500);
+    expect(clamped.end).toBeGreaterThanOrEqual(1500);
 
     const tail = choosePreviewWindow(1, 2000, 1990, 400);
     expect(tail).toEqual({ start: 1601, end: 2000 });

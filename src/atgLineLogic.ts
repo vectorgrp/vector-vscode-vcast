@@ -107,26 +107,26 @@ export function resolvePathFromLine(
   let pos = col;
 
   while (pos > 0) {
-    let p = pos - 1;
-    while (p >= 0 && /\s/.test(line[p])) p--;
+    let cursor = pos - 1;
+    while (cursor >= 0 && /\s/.test(line[cursor])) cursor--;
 
-    if (p >= 1 && line[p - 1] === "-" && line[p] === ">") {
-      p -= 2;
-    } else if (p >= 0 && line[p] === ".") {
-      p--;
+    if (cursor >= 1 && line[cursor - 1] === "-" && line[cursor] === ">") {
+      cursor -= 2;
+    } else if (cursor >= 0 && line[cursor] === ".") {
+      cursor--;
     } else {
       break;
     }
 
-    while (p >= 0 && /\s/.test(line[p])) p--;
+    while (cursor >= 0 && /\s/.test(line[cursor])) cursor--;
 
-    const identEnd = p + 1;
-    while (p >= 0 && /[a-zA-Z0-9_]/.test(line[p])) p--;
-    p++;
+    const identifierEnd = cursor + 1;
+    while (cursor >= 0 && /[a-zA-Z0-9_]/.test(line[cursor])) cursor--;
+    cursor++;
 
-    if (p < identEnd) {
-      segments.unshift(line.substring(p, identEnd));
-      pos = p;
+    if (cursor < identifierEnd) {
+      segments.unshift(line.substring(cursor, identifierEnd));
+      pos = cursor;
     } else {
       break;
     }
@@ -141,11 +141,11 @@ export function resolvePathFromLine(
  * "} else if (" and "} while (" count.
  */
 export function isDecisionLineText(text: string): boolean {
-  const t = text.trimStart();
+  const trimmed = text.trimStart();
   return (
-    /^(}\s*)?(if|else\s+if|while|for|switch)\s*\(/.test(t) ||
-    /}\s*while\s*\(/.test(t) ||
-    /\?\s*.*\s*:/.test(t)
+    /^(}\s*)?(if|else\s+if|while|for|switch)\s*\(/.test(trimmed) ||
+    /}\s*while\s*\(/.test(trimmed) ||
+    /\?\s*.*\s*:/.test(trimmed)
   );
 }
 
@@ -159,8 +159,42 @@ export function getDefaultIndexFromLineText(
 ): string {
   const escaped = fullPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const regex = new RegExp(`${escaped}\\s*\\[\\s*([^\\]]+?)\\s*\\]`);
-  const m = regex.exec(lineText);
-  return m ? m[1].trim() : "";
+  const match = regex.exec(lineText);
+  return match ? match[1].trim() : "";
+}
+
+/**
+ * The lines a decision statement spans, so a multi-line `if (a &&\n b &&\n c)`
+ * can be highlighted as a whole. Follows the parenthesis balance from the
+ * target line, capped at `maxLines`. Non-decision lines return just
+ * themselves. 1-based inclusive bounds.
+ */
+export function decisionExtent(
+  lines: string[],
+  targetLine: number,
+  maxLines = 8
+): { start: number; end: number } {
+  const single = { start: targetLine, end: targetLine };
+  const first = lines[targetLine - 1];
+  if (first === undefined || !isDecisionLineText(first)) return single;
+
+  let depth = 0;
+  let seenParen = false;
+  let end = targetLine;
+  const last = Math.min(lines.length, targetLine - 1 + maxLines);
+  for (let lineIndex = targetLine - 1; lineIndex < last; lineIndex++) {
+    for (const character of lines[lineIndex]) {
+      if (character === "(") {
+        depth++;
+        seenParen = true;
+      } else if (character === ")") {
+        depth--;
+      }
+    }
+    end = lineIndex + 1;
+    if (seenParen && depth <= 0) break;
+  }
+  return { start: targetLine, end };
 }
 
 /**
@@ -174,26 +208,30 @@ export function findFunctionBounds(
   const whole = { start: 1, end: Math.max(1, lines.length) };
   if (!functionName) return whole;
 
-  for (let i = 0; i < lines.length; i++) {
-    if (!lines[i].includes(functionName) || !/\(/.test(lines[i])) continue;
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    if (
+      !lines[lineIndex].includes(functionName) ||
+      !/\(/.test(lines[lineIndex])
+    )
+      continue;
 
     let depth = 0;
     let sawBrace = false;
-    for (let j = i; j < lines.length; j++) {
-      for (const ch of lines[j]) {
-        if (ch === "{") {
+    for (let scanIndex = lineIndex; scanIndex < lines.length; scanIndex++) {
+      for (const character of lines[scanIndex]) {
+        if (character === "{") {
           depth++;
           sawBrace = true;
-        } else if (ch === "}") {
+        } else if (character === "}") {
           depth--;
           if (sawBrace && depth === 0) {
-            return { start: i + 1, end: j + 1 };
+            return { start: lineIndex + 1, end: scanIndex + 1 };
           }
         }
       }
     }
     // Opening line found but the body never closed: take the rest of the file.
-    return { start: i + 1, end: lines.length };
+    return { start: lineIndex + 1, end: lines.length };
   }
   return whole;
 }
@@ -260,17 +298,17 @@ export function flattenLookup(
   const out: KnownVariable[] = [];
   const walk = (map: Map<string, VariableInfo>, prefix: string) => {
     for (const [name, info] of map) {
-      const p = prefix ? `${prefix}.${name}` : name;
+      const fullPath = prefix ? `${prefix}.${name}` : name;
       if (info.kind !== "struct") {
         out.push({
-          path: p,
+          path: fullPath,
           displayType: info.displayType,
           kind: info.kind,
           group: info.group,
           enumValues: info.enumValues,
         });
       }
-      if (info.children.size > 0) walk(info.children, p);
+      if (info.children.size > 0) walk(info.children, fullPath);
     }
   };
   walk(lookup, "");
@@ -281,10 +319,10 @@ export function flattenLookup(
     global: 2,
     unknown: 3,
   };
-  out.sort((a, b) => {
-    const g = groupOrder[a.group] - groupOrder[b.group];
-    if (g !== 0) return g;
-    return a.path.localeCompare(b.path);
+  out.sort((first, second) => {
+    const groupDifference = groupOrder[first.group] - groupOrder[second.group];
+    if (groupDifference !== 0) return groupDifference;
+    return first.path.localeCompare(second.path);
   });
   return out;
 }

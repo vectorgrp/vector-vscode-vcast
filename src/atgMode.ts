@@ -25,6 +25,7 @@ import {
   buildVariableValues,
   choosePreviewWindow,
   computeClickableTokens,
+  decisionExtent,
   findFunctionBounds,
   flattenLookup,
   getDefaultIndexFromLineText,
@@ -161,10 +162,12 @@ export class ATGModeManager {
     // Decoration types (light/dark aware gutter icon)
     this.targetLineDeco = vscode.window.createTextEditorDecorationType({
       isWholeLine: true,
-      backgroundColor: new vscode.ThemeColor("editor.rangeHighlightBackground"),
+      backgroundColor: "rgba(87, 184, 89, 0.22)",
       borderWidth: "0 0 0 3px",
       borderStyle: "solid",
-      borderColor: new vscode.ThemeColor("focusBorder"),
+      borderColor: "#57b859",
+      overviewRulerColor: "#57b859",
+      overviewRulerLane: vscode.OverviewRulerLane.Full,
       gutterIconSize: "contain",
       light: {
         gutterIconPath: context.asAbsolutePath(
@@ -209,23 +212,23 @@ export class ATGModeManager {
 
     // Mouse click detection on decorated ranges
     this.disposables.push(
-      vscode.window.onDidChangeTextEditorSelection((e) => {
+      vscode.window.onDidChangeTextEditorSelection((event) => {
         if (
           !this.isActive ||
-          e.textEditor.document.uri.fsPath !== this.filePath ||
-          e.kind !== vscode.TextEditorSelectionChangeKind.Mouse
+          event.textEditor.document.uri.fsPath !== this.filePath ||
+          event.kind !== vscode.TextEditorSelectionChangeKind.Mouse
         )
           return;
 
-        const pos = e.selections[0]?.active;
-        if (!pos) return;
+        const clickPosition = event.selections[0]?.active;
+        if (!clickPosition) return;
 
         // Click on a clickable identifier toggles it
         for (const tok of this.tokens) {
           if (
-            tok.line - 1 === pos.line &&
-            pos.character >= tok.start &&
-            pos.character <= tok.end
+            tok.line - 1 === clickPosition.line &&
+            clickPosition.character >= tok.start &&
+            clickPosition.character <= tok.end
           ) {
             const clickedLine = tok.line;
             setTimeout(() => {
@@ -233,19 +236,6 @@ export class ATGModeManager {
               this.toggleVariable(tok.path, clickedLine);
             }, 50);
             return;
-          }
-        }
-
-        // Gutter click (selects the whole line, cursor lands at column 0 of
-        // the next line) moves the target line.
-        if (pos.character === 0) {
-          const newLine = pos.line; // 1-based line of the clicked row
-          if (
-            newLine >= this.funcStartLine &&
-            newLine <= this.funcEndLine &&
-            newLine !== this.targetLine
-          ) {
-            this.setTargetLine(newLine);
           }
         }
       })
@@ -260,15 +250,19 @@ export class ATGModeManager {
 
     // Keep tokens / preview in sync if the user edits the file meanwhile
     this.disposables.push(
-      vscode.workspace.onDidChangeTextDocument((e) => {
-        if (!this.isActive || e.document.uri.fsPath !== this.filePath) return;
+      vscode.workspace.onDidChangeTextDocument((event) => {
+        if (!this.isActive || event.document.uri.fsPath !== this.filePath)
+          return;
         if (this.docChangeTimer) clearTimeout(this.docChangeTimer);
         this.docChangeTimer = setTimeout(() => {
           this.docChangeTimer = null;
           if (!this.isActive) return;
-          const b = findFunctionBounds(this.documentLines(), this.functionName);
-          this.funcStartLine = b.start;
-          this.funcEndLine = b.end;
+          const bounds = findFunctionBounds(
+            this.documentLines(),
+            this.functionName
+          );
+          this.funcStartLine = bounds.start;
+          this.funcEndLine = bounds.end;
           this.refreshAfterChange();
         }, 300);
       })
@@ -284,6 +278,10 @@ export class ATGModeManager {
       await this.panelView.reveal();
       this.panelView.notifyStateChanged();
     }
+
+    // The panel just took space at the bottom; bring the target line back into
+    // view at the top of the editor and hand focus back to the code.
+    setTimeout(() => void this.revealTargetAtTop(), 150);
 
     // Fetch clangd locals asynchronously
     this.fetchLocalsAsync(this.enviroPath);
@@ -323,7 +321,7 @@ export class ATGModeManager {
       clearTimeout(this.docChangeTimer);
       this.docChangeTimer = null;
     }
-    for (const d of this.disposables) d.dispose();
+    for (const disposable of this.disposables) disposable.dispose();
     this.disposables = [];
     this.statusBarItem = null;
     this.tokens = [];
@@ -381,9 +379,9 @@ export class ATGModeManager {
   }
 
   setVariableValue(fullPath: string, value: string) {
-    const v = this.selectedVars.get(fullPath);
-    if (v) {
-      v.value = value;
+    const variable = this.selectedVars.get(fullPath);
+    if (variable) {
+      variable.value = value;
       this.updateStatusBar();
     }
   }
@@ -393,18 +391,18 @@ export class ATGModeManager {
   }
 
   addArrayEntry(fullPath: string) {
-    const v = this.selectedVars.get(fullPath);
-    if (v) {
-      v.entries.push({ index: "", value: "" });
+    const variable = this.selectedVars.get(fullPath);
+    if (variable) {
+      variable.entries.push({ index: "", value: "" });
       this.updateStatusBar();
       this.panelView?.notifyStateChanged();
     }
   }
 
   removeArrayEntry(fullPath: string, entryIndex: number) {
-    const v = this.selectedVars.get(fullPath);
-    if (v && entryIndex >= 0 && entryIndex < v.entries.length) {
-      v.entries.splice(entryIndex, 1);
+    const variable = this.selectedVars.get(fullPath);
+    if (variable && entryIndex >= 0 && entryIndex < variable.entries.length) {
+      variable.entries.splice(entryIndex, 1);
       this.updateStatusBar();
       this.panelView?.notifyStateChanged();
     }
@@ -416,9 +414,9 @@ export class ATGModeManager {
     field: "index" | "value",
     fieldValue: string
   ) {
-    const v = this.selectedVars.get(fullPath);
-    if (v && entryIndex >= 0 && entryIndex < v.entries.length) {
-      v.entries[entryIndex][field] = fieldValue;
+    const variable = this.selectedVars.get(fullPath);
+    if (variable && entryIndex >= 0 && entryIndex < variable.entries.length) {
+      variable.entries[entryIndex][field] = fieldValue;
       this.updateStatusBar();
     }
   }
@@ -452,6 +450,27 @@ export class ATGModeManager {
     this.updateStatusBar();
     this.panelView?.notifyStateChanged();
     vectorMessage(`ATG Mode: Truth value → ${value || "auto"}`);
+  }
+
+  /** After the panel opened, show the target line at the top of the editor. */
+  private async revealTargetAtTop() {
+    if (!this.isActive || !this.document) return;
+    const editor = this.editorsForFile()[0];
+    if (!editor) return;
+    try {
+      const focused = await vscode.window.showTextDocument(this.document, {
+        viewColumn: editor.viewColumn,
+        preserveFocus: false,
+        preview: false,
+      });
+      const line = Math.min(this.targetLine, this.document.lineCount) - 1;
+      focused.revealRange(
+        new vscode.Range(line, 0, line, 0),
+        vscode.TextEditorRevealType.AtTop
+      );
+    } catch {
+      // editor may have been closed meanwhile
+    }
   }
 
   /** Reveal a source line in the editor without stealing focus from the panel. */
@@ -504,8 +523,16 @@ export class ATGModeManager {
     if (!this.crossHighlightDeco) return;
     const ranges = fullPath
       ? this.tokens
-          .filter((t) => t.path === fullPath)
-          .map((t) => new vscode.Range(t.line - 1, t.start, t.line - 1, t.end))
+          .filter((token) => token.path === fullPath)
+          .map(
+            (token) =>
+              new vscode.Range(
+                token.line - 1,
+                token.start,
+                token.line - 1,
+                token.end
+              )
+          )
       : [];
     for (const editor of this.editorsForFile()) {
       editor.setDecorations(this.crossHighlightDeco, ranges);
@@ -534,23 +561,27 @@ export class ATGModeManager {
     }
 
     const allLines = this.documentLines();
-    const win = choosePreviewWindow(
+    const previewWindow = choosePreviewWindow(
       this.funcStartLine,
       this.funcEndLine,
       this.targetLine
     );
-    const lines = allLines.slice(win.start - 1, win.end);
+    const lines = allLines.slice(previewWindow.start - 1, previewWindow.end);
     const tokens = this.tokens.filter(
-      (t) => t.line >= win.start && t.line <= win.end
+      (token) =>
+        token.line >= previewWindow.start && token.line <= previewWindow.end
     );
     const targetable = [...this.getTargetableLines()]
-      .filter((l) => l >= win.start && l <= win.end)
-      .sort((a, b) => a - b);
+      .filter(
+        (lineNumber) =>
+          lineNumber >= previewWindow.start && lineNumber <= previewWindow.end
+      )
+      .sort((first, second) => first - second);
 
     const variables = [];
-    for (const [p, info] of this.selectedVars) {
+    for (const [variablePath, info] of this.selectedVars) {
       variables.push({
-        path: p,
+        path: variablePath,
         displayType: info.displayType,
         kind: info.kind,
         enumValues: info.enumValues,
@@ -569,7 +600,7 @@ export class ATGModeManager {
       isDecision: this.targetIsDecision,
       funcStartLine: this.funcStartLine,
       funcEndLine: this.funcEndLine,
-      previewStart: win.start,
+      previewStart: previewWindow.start,
       lines,
       tokens,
       targetable,
@@ -586,7 +617,7 @@ export class ATGModeManager {
 
   private editorsForFile(): vscode.TextEditor[] {
     return vscode.window.visibleTextEditors.filter(
-      (e) => e.document.uri.fsPath === this.filePath
+      (editor) => editor.document.uri.fsPath === this.filePath
     );
   }
 
@@ -651,9 +682,16 @@ export class ATGModeManager {
       (isSelected ? selected : clickable).push({ range, hoverMessage: hover });
     }
 
-    const targetRange = [
-      new vscode.Range(this.targetLine - 1, 0, this.targetLine - 1, 0),
-    ];
+    // Highlight the whole decision statement, not just its first line
+    const extent = decisionExtent(this.documentLines(), this.targetLine);
+    const targetRange: vscode.Range[] = [];
+    for (
+      let lineNumber = extent.start;
+      lineNumber <= extent.end;
+      lineNumber++
+    ) {
+      targetRange.push(new vscode.Range(lineNumber - 1, 0, lineNumber - 1, 0));
+    }
     for (const editor of this.editorsForFile()) {
       if (this.targetLineDeco)
         editor.setDecorations(this.targetLineDeco, targetRange);
@@ -665,9 +703,9 @@ export class ATGModeManager {
 
   private updateStatusBar() {
     if (!this.statusBarItem) return;
-    const n = this.selectedVars.size;
-    const tv = this.truthValue ? ` [${this.truthValue}]` : "";
-    this.statusBarItem.text = `$(beaker) ATG line ${this.targetLine}${tv} · ${n} constraint${n !== 1 ? "s" : ""}`;
+    const constraintCount = this.selectedVars.size;
+    const outcomeSuffix = this.truthValue ? ` [${this.truthValue}]` : "";
+    this.statusBarItem.text = `$(beaker) ATG line ${this.targetLine}${outcomeSuffix} · ${constraintCount} constraint${constraintCount !== 1 ? "s" : ""}`;
     this.statusBarItem.command = "vectorcastTestExplorer.atgShowMenu";
     this.statusBarItem.tooltip =
       "ATG Test for Line is active — click for actions";
@@ -724,6 +762,7 @@ export class ATGLinePanelViewProvider implements vscode.WebviewViewProvider {
   static readonly containerId = "vectorcastATGLine";
 
   private view: vscode.WebviewView | null = null;
+  private revealedAt = 0;
 
   constructor(
     private manager: ATGModeManager,
@@ -758,8 +797,17 @@ export class ATGLinePanelViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((message) =>
       this.handleMessage(message)
     );
+    // Hiding the view (switching panel tab, closing the panel, "Hide")
+    // is the same as pressing Cancel. Ignore the burst of visibility events
+    // that can accompany the view being created.
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible) return;
+      if (Date.now() - this.revealedAt < 1000) return;
+      if (this.manager.isActive) this.manager.exit();
+    });
     webviewView.onDidDispose(() => {
       if (this.view === webviewView) this.view = null;
+      if (this.manager.isActive) this.manager.exit();
     });
   }
 
@@ -783,6 +831,7 @@ export class ATGLinePanelViewProvider implements vscode.WebviewViewProvider {
         `workbench.view.extension.${ATGLinePanelViewProvider.containerId}`
       );
 
+    this.revealedAt = Date.now();
     for (let attempt = 0; attempt < 5 && !this.view; attempt++) {
       try {
         await focusView();
@@ -863,11 +912,6 @@ export class ATGLinePanelViewProvider implements vscode.WebviewViewProvider {
           this.manager.setTruthValue(message.value);
         }
         break;
-      case "setTargetLine": {
-        const line = toLine(message.line);
-        if (line !== undefined) this.manager.setTargetLine(line);
-        break;
-      }
       case "revealLine": {
         const line = toLine(message.line);
         if (line !== undefined) this.manager.revealLine(line);
@@ -923,6 +967,8 @@ The ATG panel assets could not be found. See the VectorCAST Test Explorer output
 }
 
 function toLine(value: unknown): number | undefined {
-  const n = Number(value);
-  return Number.isInteger(n) && n > 0 ? n : undefined;
+  const lineNumber = Number(value);
+  return Number.isInteger(lineNumber) && lineNumber > 0
+    ? lineNumber
+    : undefined;
 }

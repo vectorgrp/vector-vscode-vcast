@@ -28,36 +28,39 @@
         <button type="button" class="crumb line" id="crumbLine" title="Reveal target line in the editor"></button>
       </nav>
 
-      <div class="decision" id="decisionBox" hidden>
-        <span class="decision-label">Outcome</span>
-        <div class="seg" role="group" aria-label="Decision outcome" id="truthSeg">
-          <button type="button" data-truth="" class="active" title="Let ATG choose the outcome">Auto</button>
-          <button type="button" data-truth="True" title="Reach the line with the condition true">True</button>
-          <button type="button" data-truth="False" title="Reach the line with the condition false">False</button>
-        </div>
-      </div>
 
-      <div class="topbar-actions">
-        <button type="button" id="btnCancel" class="btn secondary">Cancel</button>
-        <button type="button" id="btnFetch" class="btn primary" title="Generate a test that reaches the target line (Ctrl+Enter)">
-          <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5-9-5.5z"/></svg>
-          Generate test
-        </button>
-      </div>
     </header>
 
     <main class="main">
       <section class="code-pane" aria-label="Source preview">
         <div class="pane-title">
           <span class="pane-name">Source preview</span>
-          <span class="pane-hint">Click a variable to constrain it · click a line number to move the target · double-click a line to show it in the editor</span>
+          <span class="pane-hint">Click a variable to constrain it · double-click a line to show it in the editor</span>
         </div>
         <div class="code" id="code" tabindex="0"></div>
       </section>
 
+      <div class="splitter" id="splitter" role="separator" aria-label="Resize panes" title="Drag to resize"></div>
+
       <aside class="side" aria-label="Constraints">
         <div class="pane-title">
           <span class="pane-name">Constraints <span class="count" id="varCount">0</span></span>
+        </div>
+
+        <div class="side-actions">
+          <div class="decision" id="decisionBox" hidden>
+            <span class="decision-label" title="Outcome of the condition on the target line">Outcome of the condition</span>
+            <div class="seg" role="group" aria-label="Decision outcome" id="truthSeg">
+              <button type="button" data-truth="" class="active" title="Let ATG choose the outcome">Auto</button>
+              <button type="button" data-truth="True" title="Reach the line with the condition true">True</button>
+              <button type="button" data-truth="False" title="Reach the line with the condition false">False</button>
+            </div>
+          </div>
+          <div class="vsep" id="actionsSep" hidden></div>
+          <div class="action-row">
+            <button type="button" id="btnFetch" class="btn primary" title="Generate a test that reaches the target line (Ctrl+Enter)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2v9.6L12.6 8z"/></svg><span>Generate test</span></button>
+            <button type="button" id="btnCancel" class="btn danger" title="Leave without generating a test"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Cancel</span></button>
+          </div>
         </div>
 
         <div class="quick-add" id="quickAdd">
