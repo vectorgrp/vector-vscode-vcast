@@ -10,7 +10,8 @@
 //   - the ways of leaving the mode (panel Cancel, status bar quick pick,
 //     hiding the panel),
 //   - and, when the installed atg supports targeted lines and an LLM provider
-//     is configured, generating, loading, revealing and deleting the test.
+//     is configured, generating/loading/revealing/deleting a test, and checking
+//     that a true vs false outcome on a simple branch reaches it accordingly.
 //
 // The spec runs inside the basic_user_interactions group on the
 // DATABASE-MANAGER environment built by the earlier specs and leaves the
@@ -61,6 +62,12 @@ const MULTI_LINE_DECISION = 22;
 const PLACE_ORDER_PREVIEW_LINES = 31; // lines 36..66
 const ADD_DESSERT_PREVIEW_LINES = 18; // lines 17..34
 
+// if(WaitingListSize > 9) in Manager::AddPartyToWaitingList - a simple branch
+// used to check the chosen outcome actually reaches it: WaitingListSize must be
+// > 9 for the true case and not > 9 for the false case.
+const BRANCH_LINE = 84;
+const BRANCH_FUNCTION = "Manager::AddPartyToWaitingList";
+
 // Colour of the target line decoration (see ATGModeManager.enter)
 const TARGET_HIGHLIGHT = "rgba(87,184,89,0.22)";
 
@@ -84,6 +91,9 @@ describe("vTypeCheck VS Code Extension", () => {
   // Set by the LLM settings test, the generation test and used by cleanup.
   let llmConfigured = false;
   let generatedTestName = "";
+  // Set true once the generate test confirms the installed atg can target a
+  // line; the range-check test reuses it instead of probing again.
+  let generationSupported = false;
 
   before(async () => {
     workbench = await browser.getWorkbench();
@@ -671,6 +681,7 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log(`Skipping ATG line test generation: ${support.reason}`);
       return;
     }
+    generationSupported = true;
 
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
@@ -755,6 +766,45 @@ describe("vTypeCheck VS Code Extension", () => {
       { timeout: TIMEOUT, timeoutMsg: "the test is still in the Testing view" }
     );
     await assertTestsDeleted(ENV_NAME, generatedTestName);
+  });
+
+  it("should reach the branch with the chosen true/false outcome", async () => {
+    await updateTestID();
+    if (!atgAvailable || !generationSupported) {
+      console.log("ATG line generation unavailable; skipping the range check");
+      return;
+    }
+
+    // if(WaitingListSize > 9): the value ATG picks is its own choice, so assert
+    // the range the chosen outcome requires rather than a specific number.
+    console.log("Generating a test that reaches the branch TRUE");
+    const trueRun = await generateWithOutcome(
+      BRANCH_LINE,
+      BRANCH_FUNCTION,
+      "True"
+    );
+    expect(trueRun.log).toContain(
+      `VCAST_ATG_TARGETED_LINE=${BRANCH_LINE}:True`
+    );
+    const trueValues = waitingListSizeValues(trueRun.block);
+    expect(trueValues.length).toBeGreaterThan(0);
+    expect(trueValues.every((value) => value > 9)).toBe(true);
+    await deleteLineTest(trueRun.handle, BRANCH_FUNCTION);
+
+    console.log("Generating a test that reaches the branch FALSE");
+    const falseRun = await generateWithOutcome(
+      BRANCH_LINE,
+      BRANCH_FUNCTION,
+      "False"
+    );
+    expect(falseRun.log).toContain(
+      `VCAST_ATG_TARGETED_LINE=${BRANCH_LINE}:False`
+    );
+    // WaitingListSize defaults to 0, so for the false case it may be left unset;
+    // whether present or not, it must never be above 9.
+    const falseValues = waitingListSizeValues(falseRun.block);
+    expect(falseValues.every((value) => value <= 9)).toBe(true);
+    await deleteLineTest(falseRun.handle, BRANCH_FUNCTION);
   });
 
   it("should reset the Azure OpenAI settings", async () => {
@@ -1002,16 +1052,17 @@ describe("vTypeCheck VS Code Extension", () => {
   }
 
   async function findLineTest(
-    pattern: RegExp
+    pattern: RegExp,
+    functionName: string = FUNCTION_NAME
   ): Promise<CustomTreeItem | undefined> {
     const vcastTestingViewContent = await getViewContent("Testing");
     for (const section of await vcastTestingViewContent.getSections()) {
       const subprogram = await findSubprogram(UNIT_NAME, section);
       if (!subprogram) continue;
       await subprogram.expand();
-      const method = await findSubprogramMethod(subprogram, FUNCTION_NAME);
+      const method = await findSubprogramMethod(subprogram, functionName);
       if (!method)
-        throw new Error(`${FUNCTION_NAME} not found in the Testing view`);
+        throw new Error(`${functionName} not found in the Testing view`);
       if (!(await method.isExpanded())) await method.expand();
       for (const child of await method.getChildren()) {
         const label = (
@@ -1024,19 +1075,96 @@ describe("vTypeCheck VS Code Extension", () => {
     throw new Error(`Unit ${UNIT_NAME} not found in the Testing view`);
   }
 
-  async function waitForLineTest(pattern: RegExp): Promise<CustomTreeItem> {
+  async function waitForLineTest(
+    pattern: RegExp,
+    functionName: string = FUNCTION_NAME
+  ): Promise<CustomTreeItem> {
     let handle: CustomTreeItem | undefined;
     await browser.waitUntil(
       async () => {
-        handle = await findLineTest(pattern);
+        handle = await findLineTest(pattern, functionName);
         return handle !== undefined;
       },
       {
         timeout: TIMEOUT,
-        timeoutMsg: `no test matching ${pattern} under ${FUNCTION_NAME}`,
+        timeoutMsg: `no test matching ${pattern} under ${functionName}`,
       }
     );
     return handle;
+  }
+
+  /**
+   * Generate an ATG line test on `line` with a decision outcome, wait for it to
+   * load, and return the run's log plus the generated test's script block and
+   * its tree handle.
+   */
+  async function generateWithOutcome(
+    line: number,
+    functionName: string,
+    truth: "True" | "False"
+  ): Promise<{ log: string; block: string; handle: CustomTreeItem }> {
+    const outputView = await bottomBar.openOutputView();
+    await outputView.clearText();
+
+    await enterAtgMode(line);
+    panel = await openAtgPanel();
+    const outcomeButton = await $(`#truthSeg button[data-truth="${truth}"]`);
+    await outcomeButton.waitForClickable({ timeout: 10_000 });
+    await outcomeButton.click();
+    await browser.waitUntil(
+      async () =>
+        (await outcomeButton.getAttribute("class")).includes("active"),
+      { timeout: 10_000, timeoutMsg: `${truth} outcome was not activated` }
+    );
+    const generateButton = await $("#btnFetch");
+    await generateButton.waitForClickable({ timeout: 10_000 });
+    await generateButton.click();
+    await panel.close();
+    await waitForModeExit();
+
+    await bottomBar.openOutputView();
+    await browser.waitUntil(
+      async () =>
+        (await outputView.getText())
+          .toString()
+          .includes("Script loaded successfully"),
+      { timeout: TIMEOUT, timeoutMsg: "the ATG line test was not loaded" }
+    );
+    const log = (await outputView.getText()).toString();
+
+    const handle = await waitForLineTest(
+      new RegExp(`^ATG-${UNIT_NAME.toUpperCase()}-LINE-${line}`),
+      functionName
+    );
+    const name = (await (await handle.elem).getText()).trim();
+    const block = extractTestBlock(await exportTestScript(), name);
+    return { log, block, handle };
+  }
+
+  /** Every numeric TEST.VALUE assigned to WaitingListSize in a test block. */
+  function waitingListSizeValues(block: string): number[] {
+    const values: number[] = [];
+    const regex = /WaitingListSize\b[^:\n]*:\s*(\d+)/g;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(block)) !== null) {
+      values.push(Number(match[1]));
+    }
+    return values;
+  }
+
+  /** Delete a generated line test and wait for it to leave the tree. */
+  async function deleteLineTest(
+    handle: CustomTreeItem,
+    functionName: string
+  ): Promise<void> {
+    const name = (await (await handle.elem).getText()).trim();
+    await deleteTest(handle);
+    await browser.waitUntil(
+      async () =>
+        (await findLineTest(new RegExp(`^${name}$`), functionName)) ===
+        undefined,
+      { timeout: TIMEOUT, timeoutMsg: `${name} was not deleted from the tree` }
+    );
   }
 
   /** Export the environment's tests to a script and return its content. */
