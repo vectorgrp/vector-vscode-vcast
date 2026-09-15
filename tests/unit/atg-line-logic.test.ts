@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  VariableInfo,
+  type VariableInfo,
   buildLookupFromNodes,
   buildVariableValues,
   choosePreviewWindow,
@@ -180,9 +180,9 @@ describe("computeClickableTokens", () => {
     expect(paths).toContain("3:TableData.IsOccupied");
     expect(paths).toContain("4:WaitingListSize");
 
-    // by-value struct itself is not assignable
+    // By-value struct itself is not assignable
     expect(paths).not.toContain("3:TableData");
-    // unknown bare identifiers are not clickable
+    // Unknown bare identifiers are not clickable
     expect(paths).not.toContain("2:Steak");
     expect(paths).not.toContain("1:OrderType");
   });
