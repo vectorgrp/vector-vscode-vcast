@@ -576,6 +576,44 @@ jobs:
           command -v gnatls >/dev/null || { echo "gnatls not on PATH after install" >&2; exit 1; }
           command -v gprbuild >/dev/null || { echo "gprbuild not on PATH after install" >&2; exit 1; }
 
+      # PyATG gives `atg` the ability to generate a test for a single targeted
+      # source line (VCAST_ATG_LLM_PATHS), which the ATG line-test spec in the
+      # basic_user_interactions groups needs; the `atg` shipped in the release
+      # cannot do it. Only those two groups run that spec, and only they get
+      # VCAST_ATG_PATH pointed at PyATG - the other ATG groups keep using the
+      # release's own `atg` so their golden-output comparisons are unaffected.
+      #
+      # This is opt-in: until the PYATG_REPO repository variable and the
+      # PYATG_TOKEN secret are configured, both steps skip and the spec detects
+      # the missing capability and skips its generation tests, exactly as today.
+      - name: Check out PyATG
+        if: ${{ vars.PYATG_REPO != '' && (matrix.group == 'basic_user_interactions' || matrix.group == 'basic_user_interactions_server') }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.PYATG_REPO }}
+          ref: ${{ vars.PYATG_REF }}
+          token: ${{ secrets.PYATG_TOKEN }}
+          github-server-url: ${{ vars.PYATG_GITHUB_SERVER_URL || github.server_url }}
+          path: pyatg
+          fetch-depth: 1
+
+      - name: Wire PyATG into atg
+        if: ${{ vars.PYATG_REPO != '' && (matrix.group == 'basic_user_interactions' || matrix.group == 'basic_user_interactions_server') }}
+        shell: bash
+        run: |
+          if [ ! -f pyatg/atg/main.py ]; then
+            echo "::error::PyATG layout unexpected: pyatg/atg/main.py not found (check PYATG_REPO / PYATG_REF)."
+            exit 1
+          fi
+          # Point the release's `atg` at the PyATG checkout. main.py needs the
+          # `atg` package on PYTHONPATH; append so nothing already there is lost.
+          {
+            echo "ATG_ROOT=${GITHUB_WORKSPACE}/pyatg"
+            echo "VCAST_ATG_PATH=${GITHUB_WORKSPACE}/pyatg/atg/main.py"
+            echo "PYTHONPATH=${GITHUB_WORKSPACE}/pyatg${PYTHONPATH:+:${PYTHONPATH}}"
+          } >> "$GITHUB_ENV"
+          echo "PyATG wired: VCAST_ATG_PATH=${GITHUB_WORKSPACE}/pyatg/atg/main.py"
+
       - name: Run tests
         run: |
           ./tests/internal/e2e/run_e2e_tests.sh

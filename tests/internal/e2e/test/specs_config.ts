@@ -25,6 +25,7 @@ export function getSpecGroups(
         "./**/**/vcast.third_test.test.ts",
         "./**/**/vcast.rest.test.ts",
         "./**/**/vcast.rest_2.test.ts",
+        "./**/**/vcast_atg_line_test.test.ts",
         "./**/**/vcast.rest_3.test.ts",
       ],
       env: {
@@ -162,6 +163,7 @@ export function getSpecGroups(
         "./**/**/vcast.third_test.test.ts",
         "./**/**/vcast.rest.test.ts",
         "./**/**/vcast.rest_2.test.ts",
+        "./**/**/vcast_atg_line_test.test.ts",
         "./**/**/vcast.rest_3.test.ts",
       ],
       env: {

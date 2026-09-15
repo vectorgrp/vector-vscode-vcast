@@ -908,6 +908,10 @@
       ],
       "commandPalette": [
         {
+          "command": "vectorcastTestExplorer.getATGTestForLine",
+          "when": "false"
+        },
+        {
           "command": "vectorcastTestExplorer.atgToggleVariable",
           "when": "false"
         },
