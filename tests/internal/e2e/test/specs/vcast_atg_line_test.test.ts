@@ -64,8 +64,8 @@ const PLACE_ORDER_PREVIEW_LINES = 31; // lines 36..66
 const ADD_DESSERT_PREVIEW_LINES = 18; // lines 17..34
 
 // if(WaitingListSize > 9) in Manager::AddPartyToWaitingList - a simple branch
-// used to check the two outcomes reach opposite sides of the condition (one
-// input > 9, the other not).
+// used to check the chosen outcome reaches it: the true case sets the input
+// WaitingListSize above 9, the false case never does.
 const BRANCH_LINE = 84;
 const BRANCH_FUNCTION = "Manager::AddPartyToWaitingList";
 
@@ -777,7 +777,10 @@ describe("vTypeCheck VS Code Extension", () => {
     // condition. Assert that (one input is > 9 and the other is not) rather than
     // fixing which outcome is which - the value ATG picks is its own choice, and
     // observed true/false-to-value direction is not the intuitive one.
-    console.log("Generating a test for one outcome");
+    // The TEST.VALUE input (not the post-run report value) is what "reach the
+    // condition true/false" controls: true sets WaitingListSize above 9, false
+    // never does.
+    console.log("Generating a test that reaches the branch TRUE");
     const trueRun = await generateWithOutcome(
       BRANCH_LINE,
       BRANCH_FUNCTION,
@@ -787,10 +790,10 @@ describe("vTypeCheck VS Code Extension", () => {
       `VCAST_ATG_TARGETED_LINE=${BRANCH_LINE}:True`
     );
     const trueValues = waitingListSizeValues(trueRun.block);
-    expect(trueValues.length).toBeGreaterThan(0);
+    expect(trueValues.some((value) => value > 9)).toBe(true);
     await deleteLineTest(trueRun.handle, BRANCH_FUNCTION);
 
-    console.log("Generating a test for the opposite outcome");
+    console.log("Generating a test that reaches the branch FALSE");
     const falseRun = await generateWithOutcome(
       BRANCH_LINE,
       BRANCH_FUNCTION,
@@ -799,13 +802,10 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(falseRun.log).toContain(
       `VCAST_ATG_TARGETED_LINE=${BRANCH_LINE}:False`
     );
+    // False may set an explicit small value or leave WaitingListSize at its
+    // default 0; either way its input is never above 9.
     const falseValues = waitingListSizeValues(falseRun.block);
-    expect(falseValues.length).toBeGreaterThan(0);
-
-    // Opposite sides of the branch: exactly one outcome's input exceeds 9.
-    const trueAbove = trueValues.some((value) => value > 9);
-    const falseAbove = falseValues.some((value) => value > 9);
-    expect(trueAbove).not.toBe(falseAbove);
+    expect(falseValues.every((value) => value <= 9)).toBe(true);
     await deleteLineTest(falseRun.handle, BRANCH_FUNCTION);
   });
 
