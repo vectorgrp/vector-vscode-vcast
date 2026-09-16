@@ -680,7 +680,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // When PyATG and an LLM provider are actually present, run for real and let
     // a failure be a failure. Skip only when a prerequisite is genuinely
     // missing (local dev, or a group without the PyATG checkout).
-    const prereq = generationPrerequisites();
+    const prereq = await generationPrerequisites();
     if (!prereq.ok) {
       console.log(`Skipping ATG line test generation: ${prereq.reason}`);
       return;
@@ -767,7 +767,7 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should reach the branch with the chosen true/false outcome", async () => {
     await updateTestID();
     if (!atgAvailable) return;
-    const prereq = generationPrerequisites();
+    const prereq = await generationPrerequisites();
     if (!prereq.ok) {
       console.log(`Skipping the range check: ${prereq.reason}`);
       return;
@@ -1223,12 +1223,16 @@ describe("vTypeCheck VS Code Extension", () => {
 
   /**
    * Whether ATG line-test generation is expected to work: PyATG is wired
-   * (VCAST_ATG_PATH points at a real file) so the release atg can target a
-   * line, and an LLM provider is configured. When both hold the generation
-   * tests run for real and a failure is a real failure; otherwise they are
-   * skipped with a logged reason (local dev, or a group without PyATG).
+   * (VCAST_ATG_PATH points at a real file), an LLM provider is configured, and
+   * the release's bundled Python is new enough to run PyATG. When all hold the
+   * generation tests run for real and a failure is a real failure; otherwise
+   * they are skipped with a logged reason (local dev, a group without PyATG, or
+   * a release whose Python is too old).
    */
-  function generationPrerequisites(): { ok: boolean; reason: string } {
+  async function generationPrerequisites(): Promise<{
+    ok: boolean;
+    reason: string;
+  }> {
     const atgPath = process.env.VCAST_ATG_PATH;
     if (!atgPath || !fs.existsSync(atgPath)) {
       return {
@@ -1245,7 +1249,43 @@ describe("vTypeCheck VS Code Extension", () => {
       };
     }
 
+    // PyATG uses typing.Self, which only exists in Python 3.11+. Some releases
+    // bundle an older vpython that cannot import it (atg then exits with an
+    // ImportError), so generation genuinely cannot run on those.
+    const python = await vpythonVersion();
+    if (!python.atLeast311) {
+      return {
+        ok: false,
+        reason: `PyATG needs Python 3.11+, but this release's vpython is ${python.version}`,
+      };
+    }
+
     return { ok: true, reason: "" };
+  }
+
+  /** The release vpython's Python version and whether it is >= 3.11. */
+  async function vpythonVersion(): Promise<{
+    version: string;
+    atLeast311: boolean;
+  }> {
+    const vpython = path.join(process.env.VECTORCAST_DIR ?? "", "vpython");
+    try {
+      // Parse a marker rather than raw stdout: vpython can print a banner (e.g.
+      // a VECTORCAST_DIR mismatch warning) before the version.
+      const { stdout, stderr } = await promisifiedExec(
+        `"${vpython}" -c "import sys; print('PYVER=%d.%d' % sys.version_info[:2])"`
+      );
+      const match = /PYVER=(\d+)\.(\d+)/.exec(`${stdout}\n${stderr}`);
+      if (!match) return { version: "unknown", atLeast311: false };
+      const major = Number(match[1]);
+      const minor = Number(match[2]);
+      return {
+        version: `${major}.${minor}`,
+        atLeast311: major > 3 || (major === 3 && minor >= 11),
+      };
+    } catch {
+      return { version: "unknown", atLeast311: false };
+    }
   }
 
   async function setAzureSetting(title: string, value: string) {
