@@ -91,9 +91,6 @@ describe("vTypeCheck VS Code Extension", () => {
   // Set by the LLM settings test, the generation test and used by cleanup.
   let llmConfigured = false;
   let generatedTestName = "";
-  // Set true once the generate test confirms the installed atg can target a
-  // line; the range-check test reuses it instead of probing again.
-  let generationSupported = false;
 
   before(async () => {
     workbench = await browser.getWorkbench();
@@ -106,8 +103,11 @@ describe("vTypeCheck VS Code Extension", () => {
     // (vectorcastTestExplorer.atgAvailable), the same way the ATG groups are.
     try {
       const toolVersion = await getToolVersion();
+      // The workflow sets ENABLE_ATG_FEATURE: TRUE, but GitHub passes it to the
+      // job as the string "true", so compare case-insensitively.
       atgAvailable =
-        process.env.ENABLE_ATG_FEATURE === "TRUE" && toolVersion >= 24;
+        (process.env.ENABLE_ATG_FEATURE ?? "").toUpperCase() === "TRUE" &&
+        toolVersion >= 24;
       console.log(
         `Tool version ${toolVersion}, ENABLE_ATG_FEATURE=${process.env.ENABLE_ATG_FEATURE} -> ATG line tests ${atgAvailable ? "enabled" : "skipped"}`
       );
@@ -673,15 +673,14 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
     if (!atgAvailable) return;
 
-    // Only the extension's own command line tells us whether the installed
-    // atg can target a line at all (older releases ignore the option and
-    // would generate tests for every function instead).
-    const support = await probeAtgLineTestSupport();
-    if (!support.supported) {
-      console.log(`Skipping ATG line test generation: ${support.reason}`);
+    // When PyATG and an LLM provider are actually present, run for real and let
+    // a failure be a failure. Skip only when a prerequisite is genuinely
+    // missing (local dev, or a group without the PyATG checkout).
+    const prereq = generationPrerequisites();
+    if (!prereq.ok) {
+      console.log(`Skipping ATG line test generation: ${prereq.reason}`);
       return;
     }
-    generationSupported = true;
 
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
@@ -770,8 +769,10 @@ describe("vTypeCheck VS Code Extension", () => {
 
   it("should reach the branch with the chosen true/false outcome", async () => {
     await updateTestID();
-    if (!atgAvailable || !generationSupported) {
-      console.log("ATG line generation unavailable; skipping the range check");
+    if (!atgAvailable) return;
+    const prereq = generationPrerequisites();
+    if (!prereq.ok) {
+      console.log(`Skipping the range check: ${prereq.reason}`);
       return;
     }
 
@@ -1206,92 +1207,30 @@ describe("vTypeCheck VS Code Extension", () => {
   }
 
   /**
-   * Run the same atg command line the extension runs for a line test against
-   * a scratch script. Older atg versions ignore the TARGETED_* options and
-   * run a full ATG instead, and the targeted search needs an LLM provider, so
-   * the result decides whether the generation tests can run.
+   * Whether ATG line-test generation is expected to work: PyATG is wired
+   * (VCAST_ATG_PATH points at a real file) so the release atg can target a
+   * line, and an LLM provider is configured. When both hold the generation
+   * tests run for real and a failure is a real failure; otherwise they are
+   * skipped with a logged reason (local dev, or a group without PyATG).
    */
-  async function probeAtgLineTestSupport(): Promise<{
-    supported: boolean;
-    reason: string;
-  }> {
-    const atg = path.join(process.env.VECTORCAST_DIR ?? "", "atg");
-    const enviroPath = path.resolve(ENV_PARENT_DIR, ENV_NAME);
-    const probeScript = path.resolve("atg-line-probe.tst");
-    fs.rmSync(probeScript, { force: true });
-
-    const env: NodeJS.ProcessEnv = {
-      ...process.env,
-      ...azureEnvForAtg(),
-      VCAST_ATG_LLM_PATHS: "1",
-      VCAST_ATG_NODE_MAPPING: "1",
-      VCAST_ATG_TARGETED_LINE: `${TARGET_LINE}`,
-      VCAST_ATG_TARGETED_FILE: UNIT_FILE,
-      VCAST_ATG_TARGETED_VALUES: "Table:3;Order.Entree:Steak",
-    };
-
-    let output = "";
-    let exitCode = 0;
-    try {
-      const { stdout, stderr } = await promisifiedExec(
-        `"${atg}" -d 1 -v "${probeScript}"`,
-        { cwd: enviroPath, env, timeout: TIMEOUT, maxBuffer: 64 * 1024 * 1024 }
-      );
-      output = `${stdout}\n${stderr}`;
-    } catch (error) {
-      const failure = error as {
-        code?: unknown;
-        stdout?: string;
-        stderr?: string;
-        message?: string;
-      };
-      exitCode = typeof failure.code === "number" ? failure.code : 1;
-      output = `${failure.stdout ?? ""}\n${failure.stderr ?? ""}\n${failure.message ?? ""}`;
-    }
-    const generated = fs.existsSync(probeScript)
-      ? fs.readFileSync(probeScript, "utf8")
-      : "";
-    fs.rmSync(probeScript, { force: true });
-
-    if (output.includes("Unknown ATG option (env): TARGETED_LINE")) {
+  function generationPrerequisites(): { ok: boolean; reason: string } {
+    const atgPath = process.env.VCAST_ATG_PATH;
+    if (!atgPath || !fs.existsSync(atgPath)) {
       return {
-        supported: false,
-        reason: "the installed atg does not know the TARGETED_LINE option",
+        ok: false,
+        reason:
+          "PyATG is not wired (VCAST_ATG_PATH unset or missing); the release atg cannot target a line",
       };
     }
-    if (output.includes("No provider configuration found")) {
-      return {
-        supported: false,
-        reason: "no LLM provider is configured for atg's path search",
-      };
-    }
-    if (exitCode !== 0) {
-      const firstError =
-        output.split("\n").find((line) => /error/i.test(line)) ?? "";
-      return {
-        supported: false,
-        reason: `atg exited with ${exitCode} ${firstError.trim()}`,
-      };
-    }
-    if (!generated.includes(`TEST.NAME:ATG-MANAGER-LINE-${TARGET_LINE}`)) {
-      return {
-        supported: false,
-        reason: "atg did not produce an ATG-MANAGER-LINE test",
-      };
-    }
-    return { supported: true, reason: "" };
-  }
 
-  /** The variables the extension derives from the Azure settings set above. */
-  function azureEnvForAtg(): Record<string, string> {
-    if (!llmConfigured) return {};
-    return {
-      VCAST_REQS2X_AZURE_OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
-      VCAST_REQS2X_AZURE_OPENAI_BASE_URL: process.env.AZURE_BASE_URL ?? "",
-      VCAST_REQS2X_AZURE_OPENAI_DEPLOYMENT: AZURE_DEPLOYMENT,
-      VCAST_REQS2X_AZURE_OPENAI_MODEL_NAME: AZURE_MODEL_NAME,
-      VCAST_REQS2X_AZURE_OPENAI_API_VERSION: AZURE_API_VERSION,
-    };
+    if (!llmConfigured) {
+      return {
+        ok: false,
+        reason: "no LLM provider configured (OPENAI_API_KEY / AZURE_BASE_URL)",
+      };
+    }
+
+    return { ok: true, reason: "" };
   }
 
   async function setAzureSetting(title: string, value: string) {
