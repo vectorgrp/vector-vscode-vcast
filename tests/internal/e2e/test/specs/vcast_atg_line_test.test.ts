@@ -23,6 +23,7 @@ import path from "node:path";
 import {
   type BottomBarPanel,
   type CustomTreeItem,
+  type OutputView,
   type TextEditor,
   type Workbench,
 } from "wdio-vscode-service";
@@ -77,6 +78,9 @@ const TARGET_HIGHLIGHT = "rgba(87,184,89,0.22)";
 const AZURE_DEPLOYMENT = "gpt-4.1-mini";
 const AZURE_MODEL_NAME = "gpt-4.1-mini";
 const AZURE_API_VERSION = "2024-12-01-preview";
+
+// atg with the LLM path search can take several minutes to produce a test.
+const GENERATE_TIMEOUT = 600_000;
 
 type AtgPanel = Awaited<ReturnType<Workbench["getAllWebviews"]>>[number];
 
@@ -703,14 +707,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await waitForModeExit();
 
     await bottomBar.openOutputView();
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Script loaded successfully"),
-      { timeout: TIMEOUT, timeoutMsg: "the ATG line test was not loaded" }
-    );
-    const log = (await outputView.getText()).toString();
+    const log = await waitForScriptLoaded(outputView);
     expect(log).toContain(`VCAST_ATG_TARGETED_LINE=${TARGET_LINE}`);
     expect(log).toContain(`VCAST_ATG_TARGETED_FILE=${UNIT_FILE}`);
     expect(log).toContain(
@@ -1052,6 +1049,31 @@ describe("vTypeCheck VS Code Extension", () => {
     );
   }
 
+  /**
+   * Wait for the generated ATG line test to load. On timeout, dump the tail of
+   * the VectorCAST output so the reason (atg error, LLM failure, still running)
+   * is visible in the job log instead of just "not loaded".
+   */
+  async function waitForScriptLoaded(outputView: OutputView): Promise<string> {
+    try {
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes("Script loaded successfully"),
+        { timeout: GENERATE_TIMEOUT, interval: 2000 }
+      );
+    } catch {
+      const out = (await outputView.getText()).toString();
+      console.log("=== ATG generation output (tail) ===");
+      console.log(out.split(/\r?\n/).slice(-80).join("\n"));
+      console.log("=== end ATG generation output ===");
+      throw new Error("the ATG line test was not loaded (see output above)");
+    }
+
+    return (await outputView.getText()).toString();
+  }
+
   async function findLineTest(
     pattern: RegExp,
     functionName: string = FUNCTION_NAME
@@ -1124,14 +1146,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await waitForModeExit();
 
     await bottomBar.openOutputView();
-    await browser.waitUntil(
-      async () =>
-        (await outputView.getText())
-          .toString()
-          .includes("Script loaded successfully"),
-      { timeout: TIMEOUT, timeoutMsg: "the ATG line test was not loaded" }
-    );
-    const log = (await outputView.getText()).toString();
+    const log = await waitForScriptLoaded(outputView);
 
     const handle = await waitForLineTest(
       new RegExp(`^ATG-${UNIT_NAME.toUpperCase()}-LINE-${line}`),
