@@ -24,6 +24,7 @@ import {
   type BottomBarPanel,
   type CustomTreeItem,
   type OutputView,
+  type SettingsEditor,
   type TextEditor,
   type Workbench,
 } from "wdio-vscode-service";
@@ -1304,13 +1305,11 @@ describe("vTypeCheck VS Code Extension", () => {
     const category = "Vectorcast Test Explorer › Reqs2x › Azure";
     // findSetting occasionally returns undefined when the settings list has not
     // rendered yet; re-open and search again until the row shows up.
-    type SettingHandle = Awaited<
-      ReturnType<Awaited<ReturnType<Workbench["openSettings"]>>["findSetting"]>
-    >;
+    type SettingHandle = Awaited<ReturnType<SettingsEditor["findSetting"]>>;
     let setting: SettingHandle | undefined;
     await browser.waitUntil(
       async () => {
-        const settingsEditor = await workbench.openSettings();
+        const settingsEditor = await openSettingsEditor();
         setting = await settingsEditor.findSetting(title, category);
         if (setting) return true;
         await workbench.getEditorView().closeAllEditors();
@@ -1324,5 +1323,25 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await setting!.setValue(value);
     await workbench.getEditorView().closeAllEditors();
+  }
+
+  /**
+   * Open the user settings editor through the workbench API and wait for its
+   * tab. Workbench.openSettings drives the command palette with an F1
+   * keystroke, which it sends to the active editor tab whenever a webview is
+   * in the DOM; right after the ATG panel closes there is a webview but no
+   * open tab, so the palette never opens and the setting query is typed into
+   * whichever monaco input has focus (the Testing view filter) instead.
+   */
+  async function openSettingsEditor(): Promise<SettingsEditor> {
+    await browser.executeWorkbench((vscode) => {
+      vscode.commands.executeCommand("workbench.action.openSettings");
+    });
+    const editorView = workbench.getEditorView();
+    await browser.waitUntil(
+      async () => (await editorView.getOpenEditorTitles()).includes("Settings"),
+      { timeout: 10_000, timeoutMsg: "the Settings editor did not open" }
+    );
+    return (await editorView.openEditor("Settings")) as SettingsEditor;
   }
 });
