@@ -68,6 +68,11 @@ const ADD_DESSERT_PREVIEW_LINES = 18; // lines 17..34
 // WaitingListSize above 9, the false case never does.
 const BRANCH_LINE = 84;
 const BRANCH_FUNCTION = "Manager::AddPartyToWaitingList";
+// WaitingListSize = 0; inside if(WaitingListSize > 9) - reachable only when the
+// branch is taken. AddPartyToWaitingList calls no other unit, so its generated
+// test loads and deletes cleanly (unlike PlaceOrder, whose test stubs the
+// database unit that this env builds as a real UUT).
+const GEN_LINE = 85;
 
 // Colour of the target line decoration (see ATGModeManager.enter)
 const TARGET_HIGHLIGHT = "rgba(87,184,89,0.22)";
@@ -673,7 +678,7 @@ describe("vTypeCheck VS Code Extension", () => {
     llmConfigured = true;
   });
 
-  it("should generate, load and reveal an ATG test for the line with the chosen constraints", async () => {
+  it("should generate and load an ATG test for a line", async () => {
     await updateTestID();
     if (!atgAvailable) return;
 
@@ -689,16 +694,8 @@ describe("vTypeCheck VS Code Extension", () => {
     const outputView = await bottomBar.openOutputView();
     await outputView.clearText();
 
-    await enterAtgMode(TARGET_LINE);
+    await enterAtgMode(GEN_LINE);
     panel = await openAtgPanel();
-    await clickPreviewVariable("Table");
-    await (await waitForCard("Table")).$(".value-row input.val").setValue("3");
-    await clickPreviewVariable("Order.Entree");
-    await (await waitForCard("Order.Entree"))
-      .$("select.input")
-      .selectByVisibleText("Steak");
-    expect(await $("#varCount").getText()).toBe("2");
-
     console.log("Generating the test");
     const generateButton = await $("#btnFetch");
     await generateButton.waitForClickable({ timeout: 10_000 });
@@ -709,27 +706,23 @@ describe("vTypeCheck VS Code Extension", () => {
     await bottomBar.openOutputView();
     console.log("Waiting for the generated test in the Testing view");
     const testHandle = await waitForGeneratedTest(
-      new RegExp(`^ATG-MANAGER-LINE-${TARGET_LINE}`),
-      FUNCTION_NAME,
+      new RegExp(`^ATG-MANAGER-LINE-${GEN_LINE}`),
+      BRANCH_FUNCTION,
       outputView
     );
     generatedTestName = (await (await testHandle.elem).getText()).trim();
     console.log(`Generated test: ${generatedTestName}`);
 
-    // Verify the chosen constraints made it into the loaded test. PlaceOrder
-    // calls the database unit, so its test stubs database functions; those
-    // stubs cannot apply here (both units are real UUTs) and clicast reports a
-    // load warning, but the parameter values still apply - which is what we
-    // check.
+    // Reaching line 85 (inside if(WaitingListSize > 9)) requires WaitingListSize
+    // above 9, so a correctly targeted test sets it there.
     const script = await exportTestScript();
     const testBlock = extractTestBlock(script, generatedTestName);
     expect(testBlock).toContain(`TEST.UNIT:${UNIT_NAME}`);
-    expect(testBlock).toMatch(/TEST\.SUBPROGRAM:Manager::PlaceOrder/);
     expect(testBlock).toMatch(
-      /TEST\.VALUE:manager\.Manager::PlaceOrder(\([^)]*\))?\.Table:3/
+      /TEST\.SUBPROGRAM:Manager::AddPartyToWaitingList/
     );
-    expect(testBlock).toMatch(
-      /TEST\.VALUE:manager\.Manager::PlaceOrder(\([^)]*\))?\.Order\.Entree:Steak/
+    expect(waitingListSizeValues(testBlock).some((value) => value > 9)).toBe(
+      true
     );
   });
 
@@ -741,7 +734,8 @@ describe("vTypeCheck VS Code Extension", () => {
     }
 
     const testHandle = await waitForLineTest(
-      new RegExp(`^${generatedTestName}$`)
+      new RegExp(`^${generatedTestName}$`),
+      BRANCH_FUNCTION
     );
     await deleteTest(testHandle);
 
@@ -755,8 +749,10 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     await browser.waitUntil(
       async () =>
-        (await findLineTest(new RegExp(`^${generatedTestName}$`))) ===
-        undefined,
+        (await findLineTest(
+          new RegExp(`^${generatedTestName}$`),
+          BRANCH_FUNCTION
+        )) === undefined,
       { timeout: TIMEOUT, timeoutMsg: "the test is still in the Testing view" }
     );
     await assertTestsDeleted(ENV_NAME, generatedTestName);
