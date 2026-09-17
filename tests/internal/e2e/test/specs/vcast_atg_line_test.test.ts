@@ -756,22 +756,20 @@ describe("vTypeCheck VS Code Extension", () => {
     );
   });
 
-  it("should reach the branch with the chosen true/false outcome", async () => {
+  // if(WaitingListSize > 9): the two outcomes reach opposite sides of the
+  // condition, so their generated inputs must differ. The TEST.VALUE input (not
+  // the post-run report value) is what "reach the condition true/false"
+  // controls: true sets WaitingListSize above 9, false never does. Each outcome
+  // is its own test so a single ~10-minute generation fits the mocha budget.
+  it("should reach the branch TRUE outcome", async () => {
     await updateTestID();
     if (!atgAvailable) return;
     const prereq = await generationPrerequisites();
     if (!prereq.ok) {
-      console.log(`Skipping the range check: ${prereq.reason}`);
+      console.log(`Skipping the TRUE range check: ${prereq.reason}`);
       return;
     }
 
-    // if(WaitingListSize > 9): the two outcomes must reach opposite sides of the
-    // condition. Assert that (one input is > 9 and the other is not) rather than
-    // fixing which outcome is which - the value ATG picks is its own choice, and
-    // observed true/false-to-value direction is not the intuitive one.
-    // The TEST.VALUE input (not the post-run report value) is what "reach the
-    // condition true/false" controls: true sets WaitingListSize above 9, false
-    // never does.
     console.log("Generating a test that reaches the branch TRUE");
     const trueRun = await generateWithOutcome(
       BRANCH_LINE,
@@ -780,7 +778,17 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     const trueValues = waitingListSizeValues(trueRun.block);
     expect(trueValues.some((value) => value > 9)).toBe(true);
-    await deleteLineTest(trueRun.handle, BRANCH_FUNCTION);
+    await deleteLineTest(trueRun.handle);
+  });
+
+  it("should reach the branch FALSE outcome", async () => {
+    await updateTestID();
+    if (!atgAvailable) return;
+    const prereq = await generationPrerequisites();
+    if (!prereq.ok) {
+      console.log(`Skipping the FALSE range check: ${prereq.reason}`);
+      return;
+    }
 
     console.log("Generating a test that reaches the branch FALSE");
     const falseRun = await generateWithOutcome(
@@ -792,7 +800,7 @@ describe("vTypeCheck VS Code Extension", () => {
     // default 0; either way its input is never above 9.
     const falseValues = waitingListSizeValues(falseRun.block);
     expect(falseValues.every((value) => value <= 9)).toBe(true);
-    await deleteLineTest(falseRun.handle, BRANCH_FUNCTION);
+    await deleteLineTest(falseRun.handle);
   });
 
   it("should reset the Azure OpenAI settings", async () => {
@@ -1164,18 +1172,25 @@ describe("vTypeCheck VS Code Extension", () => {
     return values;
   }
 
-  /** Delete a generated line test and wait for it to leave the tree. */
-  async function deleteLineTest(
-    handle: CustomTreeItem,
-    functionName: string
-  ): Promise<void> {
+  /** Delete a generated line test and confirm it left the environment. */
+  async function deleteLineTest(handle: CustomTreeItem): Promise<void> {
     const name = (await (await handle.elem).getText()).trim();
     await deleteTest(handle);
+    // Verify via the environment script, not the tree, which stalls on the
+    // now-empty subprogram; fail fast if the test is somehow still there.
     await browser.waitUntil(
-      async () =>
-        (await findLineTest(new RegExp(`^${name}$`), functionName)) ===
-        undefined,
-      { timeout: TIMEOUT, timeoutMsg: `${name} was not deleted from the tree` }
+      async () => {
+        try {
+          return !(await exportTestScript()).includes(name);
+        } catch {
+          return false;
+        }
+      },
+      {
+        timeout: 60_000,
+        interval: 3000,
+        timeoutMsg: `${name} is still in the environment after delete`,
+      }
     );
   }
 
