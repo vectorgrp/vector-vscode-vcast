@@ -1301,12 +1301,28 @@ describe("vTypeCheck VS Code Extension", () => {
 
   async function setAzureSetting(title: string, value: string) {
     console.log(`Setting Reqs2x › Azure › ${title}`);
-    const settingsEditor = await workbench.openSettings();
-    const setting = await settingsEditor.findSetting(
-      title,
-      "Vectorcast Test Explorer › Reqs2x › Azure"
+    const category = "Vectorcast Test Explorer › Reqs2x › Azure";
+    // findSetting occasionally returns undefined when the settings list has not
+    // rendered yet; re-open and search again until the row shows up.
+    type SettingHandle = Awaited<
+      ReturnType<Awaited<ReturnType<Workbench["openSettings"]>>["findSetting"]>
+    >;
+    let setting: SettingHandle | undefined;
+    await browser.waitUntil(
+      async () => {
+        const settingsEditor = await workbench.openSettings();
+        setting = await settingsEditor.findSetting(title, category);
+        if (setting) return true;
+        await workbench.getEditorView().closeAllEditors();
+        return false;
+      },
+      {
+        timeout: 30_000,
+        interval: 2000,
+        timeoutMsg: `Reqs2x › Azure › ${title} did not render in settings`,
+      }
     );
-    await setting.setValue(value);
+    await setting!.setValue(value);
     await workbench.getEditorView().closeAllEditors();
   }
 });
