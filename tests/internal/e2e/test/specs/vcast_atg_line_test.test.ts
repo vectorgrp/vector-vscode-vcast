@@ -911,10 +911,31 @@ describe("vTypeCheck VS Code Extension", () => {
     await waitForModeExit();
     await openManagerCpp();
     console.log(`Entering ATG Test for Line on line ${line}`);
-    await openGutterMenu(line);
-    await $(`aria/${MENU_ITEM}`).waitForExist({ timeout: 10_000 });
-    await (await $(`aria/${MENU_ITEM}`)).click();
-    await waitForStatusBarText(`ATG line ${line}`);
+    // When manager.cpp was just (re)opened, its coverage gutter icons are still
+    // being rendered while the margin is queried: the icon can be missing or
+    // momentarily not interactable, and the menu may not carry the entry yet.
+    // Retry the whole entry until the status bar confirms the mode.
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await openGutterMenu(line);
+        const item = await $(".monaco-menu").$(`aria/${MENU_ITEM}`);
+        await item.waitForClickable({ timeout: 10_000 });
+        await item.click();
+        await browser.waitUntil(
+          async () =>
+            ((await atgStatusBarText()) ?? "").includes(`ATG line ${line}`),
+          { timeout: 15_000 }
+        );
+        return;
+      } catch (error) {
+        lastError = error;
+        await browser.keys(Key.Escape);
+        await waitForContextMenuToClose().catch(() => undefined);
+        await browser.pause(2000);
+      }
+    }
+    throw new Error(`Could not enter ATG mode on line ${line}: ${lastError}`);
   }
 
   /** Switch into the panel webview. Leaves the driver inside the frame. */
