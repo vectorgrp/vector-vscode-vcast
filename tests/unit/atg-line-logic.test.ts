@@ -67,6 +67,11 @@ describe("resolvePathFromLine", () => {
   test("returns the bare name when there is no accessor", () => {
     expect(resolvePathFromLine("foo(bar);", 4, "bar")).toBe("bar");
   });
+
+  test("stops when an accessor has no parent identifier", () => {
+    expect(resolvePathFromLine("->g", 2, "g")).toBe("g");
+    expect(resolvePathFromLine(".g", 1, "g")).toBe("g");
+  });
 });
 
 describe("isDecisionLineText", () => {
@@ -159,6 +164,11 @@ describe("findFunctionBounds", () => {
     expect(findFunctionBounds(lines, "Nope")).toEqual({ start: 1, end: 10 });
     expect(findFunctionBounds(lines)).toEqual({ start: 1, end: 10 });
   });
+
+  test("returns the rest of the file when the body never closes", () => {
+    const unclosed = ["void Leaky(int x)", "{", "  if (x) {"];
+    expect(findFunctionBounds(unclosed, "Leaky")).toEqual({ start: 1, end: 3 });
+  });
 });
 
 describe("computeClickableTokens", () => {
@@ -206,6 +216,16 @@ describe("computeClickableTokens", () => {
     expect(mystery?.kind).toBe("unknown");
   });
 
+  test("skips empty lines within the requested range", () => {
+    const tokens = computeClickableTokens(
+      ["", "WaitingListSize++;"],
+      1,
+      2,
+      demoLookup()
+    );
+    expect(tokens.map((token) => token.path)).toEqual(["WaitingListSize"]);
+  });
+
   test("respects the requested line range and reports columns", () => {
     const tokens = computeClickableTokens(lines, 4, 4, demoLookup());
     expect(tokens).toEqual([
@@ -247,6 +267,23 @@ describe("lookupPath", () => {
     expect(lookupPath(lookup, "Order.Entree")?.kind).toBe("enum");
     expect(lookupPath(lookup, "Order.Nope")).toBeNull();
     expect(lookupPath(lookup, "Nope")).toBeNull();
+  });
+});
+
+describe("buildLookupFromNodes", () => {
+  test("skips a missing node list, invalid nodes and defaults fields", () => {
+    const lookup = new Map<string, VariableInfo>();
+    buildLookupFromNodes(undefined, lookup);
+    expect(lookup.size).toBe(0);
+
+    buildLookupFromNodes(
+      [undefined, { displayType: "int" }, { name: 42 }, { name: "Bare" }],
+      lookup,
+      "global"
+    );
+    expect([...lookup.keys()]).toEqual(["Bare"]);
+    expect(lookup.get("Bare")?.displayType).toBe("");
+    expect(lookup.get("Bare")?.kind).toBe("unknown");
   });
 });
 
