@@ -479,6 +479,12 @@ If you change a build setting, and rebuild an existing environment, the new buil
 to update that environment.  For example, if you change the coverage kind to "Statement+Branch" 
 that coverage kind will be active after the re-build action.
 
+If you only changed function bodies, "Incremental Re-Build Environment" (next to "Re-Build Environment" in
+the environment's context menu) is a much faster alternative: it recompiles and relinks the test harness
+without re-parsing the units. VectorCAST refuses an incremental re-build when the changes affect the
+interface (a renamed parameter, a new enum value, ...); in that case the previous harness is kept and a
+notification offers the full re-build instead.
+
 - "Enable Coded Tests" enables coded testing when new environments are built or re-built
 - "Coverage Kind" sets the coverage kind for when environments are are built or re-built
 

@@ -19,7 +19,10 @@ import {
 } from "./testPane";
 
 import { removeFilePattern } from "./utilities";
-import { loadTestScriptIntoEnvironment } from "./vcastAdapter";
+import {
+  loadTestScriptIntoEnvironment,
+  rebuildEnvironment,
+} from "./vcastAdapter";
 import { commandStatusType } from "./vcastCommandRunner";
 import {
   removeCoverageDataForEnviro,
@@ -99,6 +102,49 @@ export async function rebuildEnvironmentCallback(
     );
     openMessagePane();
   }
+}
+
+/**
+ * Callback function when we incrementally re-build a single Environment.
+ * clicast restores the previous harness itself when the incremental re-build
+ * fails, so on failure we only have to tell the user and offer the full
+ * re-build that the source changes require.
+ * @param enviroPath Path to env
+ * @param code Exit code of the process
+ */
+export async function incrementalRebuildEnvironmentCallback(
+  enviroPath: string,
+  code: number
+) {
+  const enviroName = path.basename(enviroPath);
+
+  if (code == 0) {
+    vectorMessage(
+      `Environment incremental re-build complete for ${enviroName}`
+    );
+    await updateDataForEnvironment(enviroPath);
+    return;
+  }
+
+  vectorMessage(
+    `Environment incremental re-build failed for ${enviroName}; the previous test harness was restored. See the output above for details.`
+  );
+  openMessagePane();
+
+  // Not awaited: the incremental re-build's progress notification must close
+  // now, and the user can leave this message open (or dismiss it) for as
+  // long as they like.
+  const fullRebuildAction = "Re-Build Environment";
+  void vscode.window
+    .showInformationMessage(
+      `The incremental re-build of ${enviroName} failed. The source changes require a full re-build of the environment.`,
+      fullRebuildAction
+    )
+    .then(async (choice) => {
+      if (choice === fullRebuildAction) {
+        await rebuildEnvironment(enviroPath, rebuildEnvironmentCallback);
+      }
+    });
 }
 
 /**

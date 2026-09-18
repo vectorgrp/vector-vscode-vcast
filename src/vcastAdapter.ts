@@ -7,6 +7,7 @@ import { execSync, spawn } from "child_process";
 import {
   buildEnvironmentCallback,
   deleteEnvironmentCallback,
+  incrementalRebuildEnvironmentCallback,
 } from "./callbacks";
 
 import { updateProjectData } from "./manage/manageSrc/manageCommands";
@@ -944,6 +945,55 @@ export async function rebuildEnvironmentUsingServer(
 
   // call the callback to update the test explorer pane
   await rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
+}
+
+// Incremental Rebuild Environment - server logic included ---------------------------
+export async function incrementalRebuildEnvironment(enviroPath: string) {
+  // "environment incremental rebuild" recompiles and relinks the test harness
+  // for changed function bodies without re-parsing the units. clicast refuses
+  // changes that would alter the parameter tree (a renamed parameter, a new
+  // enum value, ...) with a non-zero exit code and restores the previous
+  // harness itself; the callback then offers a full re-build.
+
+  // The harness files are rewritten in place, so in server mode close any
+  // open connection to the environment first (as we do for delete).
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+
+  const enviroName = path.basename(enviroPath);
+  const clicastArgs = [
+    `-e${enviroName}`,
+    "environment",
+    "incremental",
+    "rebuild",
+  ];
+
+  // Long running command: open the message pane so the user sees the progress
+  openMessagePane();
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Incremental re-build of environment: ${enviroName}...`,
+      cancellable: false,
+    },
+    async (progress) => {
+      progress.report({ increment: 25 });
+
+      await new Promise<void>((resolve) => {
+        executeWithRealTimeEcho(
+          clicastCommandToUse,
+          clicastArgs,
+          path.dirname(enviroPath),
+          async (envPath: string, errorCode: number) => {
+            await incrementalRebuildEnvironmentCallback(envPath, errorCode);
+            resolve();
+          },
+          enviroPath
+        );
+      });
+
+      progress.report({ increment: 100 });
+    }
+  );
 }
 
 // Get Execution Report ----------------------------------------------------------------

@@ -1,5 +1,7 @@
 // Test/specs/vcast.test.ts
 import { exec } from "node:child_process";
+import * as fs from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 import {
   type BottomBarPanel,
@@ -19,6 +21,7 @@ import {
   deleteTest,
   updateTestID,
   assertTestsDeleted,
+  rebuildEnvironmentFromTestingPane,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 
@@ -147,6 +150,100 @@ describe("vTypeCheck VS Code Extension", () => {
     statusBar = workbench.getStatusBar();
     const statusBarInfos = await statusBar.getItems();
     expect(statusBarInfos.includes("Coverage Out of Date")).toBe(true);
+  });
+
+  // The incremental re-build only recompiles the harness, it does not re-parse
+  // the units. clicast therefore refuses changes that would alter the
+  // parameter tree (here a renamed parameter), keeps the previous harness and
+  // the extension has to offer the full re-build instead.
+  it("should refuse an incremental re-build after an interface change and offer the full re-build", async () => {
+    await updateTestID();
+    const envName = "DATABASE-MANAGER";
+
+    editManagerCpp(ORIGINAL_CLEAR_TABLE, RENAMED_CLEAR_TABLE);
+    try {
+      const outputView = await bottomBar.openOutputView();
+      await outputView.clearText();
+      await rebuildEnvironmentFromTestingPane(
+        envName,
+        "Incremental Re-Build Environment"
+      );
+
+      console.log("Waiting for clicast to refuse the incremental re-build");
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes(
+              "Incremental Rebuild failed due to a global scope change"
+            ),
+        { timeout: TIMEOUT }
+      );
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes(`Environment incremental re-build failed for ${envName}`),
+        { timeout: TIMEOUT }
+      );
+
+      console.log("Checking the notification that offers the full re-build");
+      const notification = await waitForNotification(
+        `The incremental re-build of ${envName} failed`
+      );
+      const actionTitles: string[] = [];
+      for (const action of await notification.getActions()) {
+        actionTitles.push(await action.getTitle());
+      }
+      expect(actionTitles).toContain("Re-Build Environment");
+
+      // Closing the notification must not start the full re-build
+      await notification.dismiss();
+      await browser.pause(2000);
+      const outputText = (await outputView.getText()).toString();
+      expect(outputText).not.toContain("Environment re-build complete");
+      expect(outputText).not.toContain("Environment built Successfully");
+    } finally {
+      editManagerCpp(RENAMED_CLEAR_TABLE, ORIGINAL_CLEAR_TABLE);
+    }
+  });
+
+  it("should incrementally re-build the environment after a function body change", async () => {
+    await updateTestID();
+    const envName = "DATABASE-MANAGER";
+
+    editManagerCpp(ORIGINAL_DELETE_RECORD, EXTENDED_DELETE_RECORD);
+    try {
+      const outputView = await bottomBar.openOutputView();
+      await outputView.clearText();
+      await rebuildEnvironmentFromTestingPane(
+        envName,
+        "Incremental Re-Build Environment"
+      );
+
+      console.log("Waiting for the incremental re-build to complete");
+      await browser.waitUntil(
+        async () =>
+          (await outputView.getText())
+            .toString()
+            .includes(
+              `Environment incremental re-build complete for ${envName}`
+            ),
+        { timeout: TIMEOUT }
+      );
+      const outputText = (await outputView.getText()).toString();
+      expect(outputText).toContain("Incremental Rebuild Complete");
+      expect(outputText).not.toContain("Incremental Rebuild failed");
+
+      // No full re-build offer this time
+      for (const notification of await workbench.getNotifications()) {
+        expect(await notification.getMessage()).not.toContain(
+          `The incremental re-build of ${envName} failed`
+        );
+      }
+    } finally {
+      editManagerCpp(EXTENDED_DELETE_RECORD, ORIGINAL_DELETE_RECORD);
+    }
   });
 
   it("should validate test deletion", async () => {
@@ -283,4 +380,65 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log(stdout);
     }
   });
+
+  // ─── incremental re-build helpers ────────────────────────────────
+
+  // Manager::ClearTable in the tutorial's manager.cpp
+  const ORIGINAL_CLEAR_TABLE = "void Manager::ClearTable(unsigned int Table)";
+  const RENAMED_CLEAR_TABLE =
+    "void Manager::ClearTable(unsigned int TableNumber)";
+  const ORIGINAL_DELETE_RECORD = "  Data.DeleteRecord(Table);";
+  const EXTENDED_DELETE_RECORD = "  (void)Table;\n  Data.DeleteRecord(Table);";
+
+  /**
+   * Replace `from` with `to` in the workspace's manager.cpp on disk. The file
+   * is open in the editor with no unsaved changes, so VS Code picks up the
+   * change and the environment sees a modified unit. A renamed parameter has
+   * to be replaced in the body too, so the harness still compiles and the
+   * incremental re-build fails for the interface change alone.
+   */
+  function editManagerCpp(from: string, to: string) {
+    const managerCpp = path.join(
+      process.env.INIT_CWD,
+      "test",
+      "vcastTutorial",
+      "cpp",
+      "manager.cpp"
+    );
+    let content = fs.readFileSync(managerCpp, "utf8");
+    if (from === ORIGINAL_CLEAR_TABLE) {
+      content = content.replace(
+        "Data.DeleteRecord(Table);",
+        "Data.DeleteRecord(TableNumber);"
+      );
+    } else if (from === RENAMED_CLEAR_TABLE) {
+      content = content.replace(
+        "Data.DeleteRecord(TableNumber);",
+        "Data.DeleteRecord(Table);"
+      );
+    }
+    expect(content).toContain(from);
+    fs.writeFileSync(managerCpp, content.replace(from, to));
+  }
+
+  /** The first notification whose message contains `text`. */
+  async function waitForNotification(text: string) {
+    let found: Awaited<ReturnType<Workbench["getNotifications"]>>[number];
+    await browser.waitUntil(
+      async () => {
+        for (const notification of await workbench.getNotifications()) {
+          if ((await notification.getMessage()).includes(text)) {
+            found = notification;
+            return true;
+          }
+        }
+        return false;
+      },
+      {
+        timeout: TIMEOUT,
+        timeoutMsg: `no notification containing '${text}' appeared`,
+      }
+    );
+    return found;
+  }
 });
