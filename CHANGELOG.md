@@ -2,7 +2,7 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
-## [Unreleased]
+## [1.0.35] - 2026-09-21
 
 ### Added
 - **Incremental Re-Build Environment** in the environment context menu: recompiles and relinks the test harness for changed function bodies without a full re-build. When the source changes need a full re-build (for example a renamed parameter), a notification says so and offers to run it.
