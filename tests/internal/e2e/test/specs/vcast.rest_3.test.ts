@@ -11,6 +11,7 @@ import {
   type CustomTreeItem,
   type Workbench,
   type TreeItem,
+  type Notification,
 } from "wdio-vscode-service";
 import { Key } from "webdriverio";
 import {
@@ -152,15 +153,13 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(statusBarInfos.includes("Coverage Out of Date")).toBe(true);
   });
 
-  // The incremental re-build only recompiles the harness, it does not re-parse
-  // the units. clicast therefore refuses changes that would alter the
-  // parameter tree (here a renamed parameter), keeps the previous harness and
-  // the extension has to offer the full re-build instead.
+  // A renamed parameter changes the parameter tree, which an incremental
+  // re-build cannot handle. clicast keeps the previous harness.
   it("should refuse an incremental re-build after an interface change and offer the full re-build", async () => {
     await updateTestID();
     const envName = "DATABASE-MANAGER";
 
-    editManagerCpp(ORIGINAL_CLEAR_TABLE, RENAMED_CLEAR_TABLE);
+    editManagerCpp(RENAME_CLEAR_TABLE_PARAMETER);
     try {
       const outputView = await bottomBar.openOutputView();
       await outputView.clearText();
@@ -204,7 +203,7 @@ describe("vTypeCheck VS Code Extension", () => {
       expect(outputText).not.toContain("Environment re-build complete");
       expect(outputText).not.toContain("Environment built Successfully");
     } finally {
-      editManagerCpp(RENAMED_CLEAR_TABLE, ORIGINAL_CLEAR_TABLE);
+      revertManagerCpp(RENAME_CLEAR_TABLE_PARAMETER);
     }
   });
 
@@ -212,7 +211,7 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
     const envName = "DATABASE-MANAGER";
 
-    editManagerCpp(ORIGINAL_DELETE_RECORD, EXTENDED_DELETE_RECORD);
+    editManagerCpp(EXTEND_DELETE_RECORD_BODY);
     try {
       const outputView = await bottomBar.openOutputView();
       await outputView.clearText();
@@ -242,7 +241,7 @@ describe("vTypeCheck VS Code Extension", () => {
         );
       }
     } finally {
-      editManagerCpp(EXTENDED_DELETE_RECORD, ORIGINAL_DELETE_RECORD);
+      revertManagerCpp(EXTEND_DELETE_RECORD_BODY);
     }
   });
 
@@ -381,23 +380,37 @@ describe("vTypeCheck VS Code Extension", () => {
     }
   });
 
-  // ─── incremental re-build helpers ────────────────────────────────
+  // Incremental re-build helpers ------------------------------------------------
 
-  // Manager::ClearTable in the tutorial's manager.cpp
-  const ORIGINAL_CLEAR_TABLE = "void Manager::ClearTable(unsigned int Table)";
-  const RENAMED_CLEAR_TABLE =
-    "void Manager::ClearTable(unsigned int TableNumber)";
-  const ORIGINAL_DELETE_RECORD = "  Data.DeleteRecord(Table);";
-  const EXTENDED_DELETE_RECORD = "  (void)Table;\n  Data.DeleteRecord(Table);";
+  type Replacement = { from: string; to: string };
+
+  // Manager::ClearTable in the tutorial's manager.cpp. Renaming the parameter
+  // is an interface change; the body is renamed along so the harness still compiles.
+  const RENAME_CLEAR_TABLE_PARAMETER: Replacement[] = [
+    {
+      from: "void Manager::ClearTable(unsigned int Table)",
+      to: "void Manager::ClearTable(unsigned int TableNumber)",
+    },
+    {
+      from: "Data.DeleteRecord(Table);",
+      to: "Data.DeleteRecord(TableNumber);",
+    },
+  ];
+
+  // A body-only change, which an incremental re-build accepts.
+  const EXTEND_DELETE_RECORD_BODY: Replacement[] = [
+    {
+      from: "  Data.DeleteRecord(Table);",
+      to: "  (void)Table;\n  Data.DeleteRecord(Table);",
+    },
+  ];
 
   /**
-   * Replace `from` with `to` in the workspace's manager.cpp on disk. The file
-   * is open in the editor with no unsaved changes, so VS Code picks up the
-   * change and the environment sees a modified unit. A renamed parameter has
-   * to be replaced in the body too, so the harness still compiles and the
-   * incremental re-build fails for the interface change alone.
+   * Apply the replacements to the workspace's manager.cpp on disk. The file is
+   * open in the editor without unsaved changes, so VS Code reloads it and the
+   * environment sees a modified unit.
    */
-  function editManagerCpp(from: string, to: string) {
+  function editManagerCpp(replacements: Replacement[]) {
     const managerCpp = path.join(
       process.env.INIT_CWD,
       "test",
@@ -406,24 +419,22 @@ describe("vTypeCheck VS Code Extension", () => {
       "manager.cpp"
     );
     let content = fs.readFileSync(managerCpp, "utf8");
-    if (from === ORIGINAL_CLEAR_TABLE) {
-      content = content.replace(
-        "Data.DeleteRecord(Table);",
-        "Data.DeleteRecord(TableNumber);"
-      );
-    } else if (from === RENAMED_CLEAR_TABLE) {
-      content = content.replace(
-        "Data.DeleteRecord(TableNumber);",
-        "Data.DeleteRecord(Table);"
-      );
+    for (const { from, to } of replacements) {
+      expect(content).toContain(from);
+      content = content.replace(from, to);
     }
-    expect(content).toContain(from);
-    fs.writeFileSync(managerCpp, content.replace(from, to));
+    fs.writeFileSync(managerCpp, content);
+  }
+
+  function revertManagerCpp(replacements: Replacement[]) {
+    editManagerCpp(
+      replacements.map(({ from, to }) => ({ from: to, to: from }))
+    );
   }
 
   /** The first notification whose message contains `text`. */
-  async function waitForNotification(text: string) {
-    let found: Awaited<ReturnType<Workbench["getNotifications"]>>[number];
+  async function waitForNotification(text: string): Promise<Notification> {
+    let found: Notification | undefined;
     await browser.waitUntil(
       async () => {
         for (const notification of await workbench.getNotifications()) {

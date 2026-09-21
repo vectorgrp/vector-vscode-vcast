@@ -1692,7 +1692,7 @@ export async function rebuildEnvironmentFromTestingPane(
   const env = `${envName}`;
 
   console.log(`${menuItemLabel} from Test Explorer`);
-  // Flask --> Right-click on env --> Re-Build environment
+  // Flask --> Right-click on env --> VectorCAST --> menuItemLabel
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
     for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
       await visibleItem.select();
