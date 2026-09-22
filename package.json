@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -97,6 +97,11 @@
         "command": "vectorcastTestExplorer.rebuildEnviro",
         "category": "VectorCAST Test Explorer",
         "title": "Re-Build Environment"
+      },
+      {
+        "command": "vectorcastTestExplorer.incrementalRebuildEnviro",
+        "category": "VectorCAST Test Explorer",
+        "title": "Incremental Re-Build Environment"
       },
       {
         "command": "vectorcastTestExplorer.buildProjectEnviro",
@@ -878,6 +883,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.incrementalRebuildEnviro",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.buildIncremental",
           "when": "never"
         },
@@ -1231,7 +1240,7 @@
       },
       {
         "command": "vectorcastTestExplorer.updateProjectEnvironment",
-        "group": "2_env@4",
+        "group": "2_env@5",
         "when": "(testId =~ /^vcast:.*$/ && (testId in vectorcastTestExplorer.vcastUnbuiltEnviroList || testId in vectorcastTestExplorer.vcastEnviroList) && vectorcastTestExplorer.globalProjectIsOpenedChecker) && !config.vectorcastTestExplorer.automaticallyUpdateManageProject"
       },
       {
@@ -1241,12 +1250,12 @@
       },
       {
         "command": "vectorcastTestExplorer.getEnvFullReport",
-        "group": "2_env@6",
+        "group": "2_env@7",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList"
       },
       {
         "command": "vectorcastTestExplorer.buildExecuteIncremental",
-        "group": "2_env@3",
+        "group": "2_env@4",
         "when": "vectorcastTestExplorer.globalProjectIsOpenedChecker && ( testId =~ /\\.vcm$/ || testId in vectorcastTestExplorer.globalProjectCompilers || testId in vectorcastTestExplorer.globalProjectTestsuites || (testId =~ /^vcast:.*$/ && ( testId in vectorcastTestExplorer.vcastEnviroList || testId in vectorcastTestExplorer.vcastUnbuiltEnviroList)))"
       },
       {
@@ -1255,8 +1264,13 @@
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {
+        "command": "vectorcastTestExplorer.incrementalRebuildEnviro",
+        "group": "2_env@3",
+        "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
+      },
+      {
         "command": "vectorcastTestExplorer.cleanEnviro",
-        "group": "2_env@5",
+        "group": "2_env@6",
         "when": "testId =~ /^vcast:.*$/ && testId in vectorcastTestExplorer.vcastEnviroList && vectorcastTestExplorer.globalProjectIsOpenedChecker && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList"
       },
       {

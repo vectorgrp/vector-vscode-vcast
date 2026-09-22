@@ -1681,13 +1681,18 @@ export async function checkForGutterAndGenerateReport(
 /**
  * Rebuilds env directly from the Testing pane.
  * @param envName Name of environment.
+ * @param menuItemLabel Context menu entry to use; defaults to the full
+ * re-build, pass "Incremental Re-Build Environment" for the incremental one.
  */
-export async function rebuildEnvironmentFromTestingPane(envName: string) {
+export async function rebuildEnvironmentFromTestingPane(
+  envName: string,
+  menuItemLabel = "Re-Build Environment"
+) {
   const vcastTestingViewContent = await getViewContent("Testing");
   const env = `${envName}`;
 
-  console.log("Re-Building Environment from Test Explorer");
-  // Flask --> Right-click on env --> Re-Build environment
+  console.log(`${menuItemLabel} from Test Explorer`);
+  // Flask --> Right-click on env --> VectorCAST --> menuItemLabel
   for (const vcastTestingViewContentSection of await vcastTestingViewContent.getSections()) {
     for (const visibleItem of await vcastTestingViewContentSection.getVisibleItems()) {
       await visibleItem.select();
@@ -1695,7 +1700,6 @@ export async function rebuildEnvironmentFromTestingPane(envName: string) {
       const subprogramGroup = visibleItem as CustomTreeItem;
       if ((await subprogramGroup.getTooltip()).includes(env)) {
         await subprogramGroup.expand();
-        const menuItemLabel = "Re-Build Environment";
         const contextMenu = await subprogramGroup.openContextMenu();
         await contextMenu.select("VectorCAST");
         await (await $(`aria/${menuItemLabel}`)).click();

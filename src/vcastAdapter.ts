@@ -7,6 +7,7 @@ import { execSync, spawn } from "child_process";
 import {
   buildEnvironmentCallback,
   deleteEnvironmentCallback,
+  incrementalRebuildEnvironmentCallback,
 } from "./callbacks";
 
 import { updateProjectData } from "./manage/manageSrc/manageCommands";
@@ -878,15 +879,32 @@ export async function rebuildEnvironmentUsingPython(
   const commandVerb = commandPieces[0];
   commandPieces.shift();
 
-  const unitTestLocation = path.dirname(enviroPath);
+  await runWithProgressAndCallback(
+    `Rebuilding environment: ${path.basename(enviroPath)}...`,
+    commandVerb,
+    commandPieces,
+    path.dirname(enviroPath),
+    enviroPath,
+    rebuildEnvironmentCallback
+  );
+}
 
-  // The progress bar ensures the execution waits and prevents failure when rebuilding
-  // multiple environments (for instance when changing the coverageKind).
-  // It also provides visual progress to the user.
+// Runs a long clicast or vpython command under a progress notification and
+// returns once the callback has processed the exit code. Awaiting the whole
+// thing is what keeps back-to-back re-builds (for instance after a coverage
+// kind change) from overlapping.
+async function runWithProgressAndCallback(
+  title: string,
+  command: string,
+  argList: string[],
+  workingDirectory: string,
+  enviroPath: string,
+  callback: (enviroPath: string, errorCode: number) => Promise<void>
+) {
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `Rebuilding environment: ${path.basename(enviroPath)}...`,
+      title,
       cancellable: false,
     },
     async (progress) => {
@@ -894,11 +912,11 @@ export async function rebuildEnvironmentUsingPython(
 
       await new Promise<void>((resolve) => {
         executeWithRealTimeEcho(
-          commandVerb,
-          commandPieces,
-          unitTestLocation,
+          command,
+          argList,
+          workingDirectory,
           async (envPath: string, errorCode: number) => {
-            await rebuildEnvironmentCallback(envPath, errorCode);
+            await callback(envPath, errorCode);
             resolve();
           },
           enviroPath
@@ -944,6 +962,36 @@ export async function rebuildEnvironmentUsingServer(
 
   // call the callback to update the test explorer pane
   await rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
+}
+
+// Incremental Rebuild Environment - server logic included ---------------------------
+export async function incrementalRebuildEnvironment(enviroPath: string) {
+  // Recompiles and relinks the harness for changed function bodies without
+  // re-parsing the units. clicast exits non-zero on an interface change and
+  // restores the previous harness itself; the callback then offers a full re-build.
+
+  // The harness files are rewritten in place, so close any open server
+  // connection to the environment first, as delete does.
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+
+  const enviroName = path.basename(enviroPath);
+  const clicastArgs = [
+    `-e${enviroName}`,
+    "environment",
+    "incremental",
+    "rebuild",
+  ];
+
+  // Long running command: open the message pane so the user sees the progress
+  openMessagePane();
+  await runWithProgressAndCallback(
+    `Incremental re-build of environment: ${enviroName}...`,
+    clicastCommandToUse,
+    clicastArgs,
+    path.dirname(enviroPath),
+    enviroPath,
+    incrementalRebuildEnvironmentCallback
+  );
 }
 
 // Get Execution Report ----------------------------------------------------------------
