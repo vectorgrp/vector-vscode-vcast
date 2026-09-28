@@ -1100,6 +1100,42 @@ def classifyType(varType):
         return "unknown"
 
 
+def chmodOnlyWhenNeeded():
+    """
+    Context manager that skips chmod on files that are already executable.
+
+    multilspy chmods its bundled clangd every time it starts a language
+    server. In a shared VectorCAST installation that binary is owned by
+    root and is already mode 755, and chmod on a file you do not own
+    fails with EPERM even when the mode is unchanged -- so the language
+    server never starts and we silently lose all local variables.
+
+    Any chmod that would actually change something is still performed.
+    """
+    import contextlib
+
+    @contextlib.contextmanager
+    def manager():
+        realChmod = os.chmod
+
+        def guardedChmod(path, mode, *args, **kwargs):
+            try:
+                if os.path.isfile(path) and os.access(path, os.X_OK):
+                    return None
+            except OSError:
+                # Fall through and let the real chmod report the problem.
+                pass
+            return realChmod(path, mode, *args, **kwargs)
+
+        os.chmod = guardedChmod
+        try:
+            yield
+        finally:
+            os.chmod = realChmod
+
+    return manager()
+
+
 def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
     """
     Use the bundled clangd (via multilspy) to find local variables
@@ -1113,17 +1149,19 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
         from monitors4codegen.multilspy.multilspy_config import MultilspyConfig
         from monitors4codegen.multilspy.multilspy_logger import MultilspyLogger
         from monitors4codegen.multilspy import SyncLanguageServer
-    except ImportError:
-        return locals_list
+    except ImportError as error:
+        return locals_list, f"multilspy is not available: {error}"
 
     try:
         config = MultilspyConfig.from_dict({"code_language": "c"})
         logger = MultilspyLogger()
-        lsp = SyncLanguageServer.create(config, logger, sourceDir)
+        # multilspy chmods the bundled clangd on the way in; see the helper.
+        with chmodOnlyWhenNeeded():
+            lsp = SyncLanguageServer.create(config, logger, sourceDir)
 
         relativeFile = os.path.basename(sourceFile)
 
-        with lsp.start_server():
+        with chmodOnlyWhenNeeded(), lsp.start_server():
             lsp.open_file(relativeFile)
 
             # Read source lines
@@ -1257,10 +1295,15 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
                             else:
                                 parentNode = existingChild
 
-    except Exception:
-        pass
+    except Exception as error:
+        #
+        # Locals are a best-effort enrichment, so a failure here must not
+        # break the request -- but it must not be invisible either, or
+        # "no variables to select" looks identical to "no variables".
+        #
+        return locals_list, f"{type(error).__name__}: {error}"
 
-    return locals_list
+    return locals_list, None
 
 
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
@@ -1387,8 +1430,12 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         returnObject = {"locals": []}
         if sourceFile and targetLine > 0:
             sourceDir = os.path.dirname(sourceFile)
-            locals_list = getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine)
+            locals_list, localsError = getLocalVariablesFromClangd(
+                sourceDir, sourceFile, targetLine
+            )
             returnObject["locals"] = locals_list
+            if localsError:
+                returnObject["error"] = localsError
 
     elif mode == "executeTest":
         try:

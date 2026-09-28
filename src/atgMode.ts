@@ -735,7 +735,15 @@ export class ATGModeManager {
       commandToRun,
       { cwd: path.dirname(enviroPath) },
       (error: any, stdout: string) => {
-        if (error || !this.isActive || this.filePath !== requestedFor) return;
+        // A stale reply for a file we have moved on from is not worth
+        // reporting, but a real failure is.
+        if (!this.isActive || this.filePath !== requestedFor) return;
+        if (error) {
+          vectorMessage(
+            `ATG Mode: could not read local variables: ${error.message ?? error}`
+          );
+          return;
+        }
         try {
           const marker = "ACTUAL-DATA";
           const idx = stdout.indexOf(marker);
@@ -743,12 +751,23 @@ export class ATGModeManager {
             idx >= 0 ? stdout.substring(idx + marker.length) : stdout
           ).trim();
           const data = JSON.parse(cleanOutput);
+          if (data.error) {
+            // clangd could not be started, so only parameters and globals
+            // will be selectable. Say so rather than showing a short list.
+            vectorMessage(
+              `ATG Mode: local variables unavailable: ${data.error}`
+            );
+          }
           if (data.locals && data.locals.length > 0) {
             buildLookupFromNodes(data.locals, this.variableLookup, "local");
             this.refreshAfterChange();
           }
-        } catch {
-          // Locals are a best-effort enrichment; ignore parse failures.
+        } catch (parseError: any) {
+          vectorMessage(
+            `ATG Mode: could not parse local variable data: ${
+              parseError?.message ?? parseError
+            }`
+          );
         }
       }
     );
