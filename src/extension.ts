@@ -92,6 +92,7 @@ import {
   openVcastFromEnviroNode,
   openVcastFromVCEfile,
   rebuildEnvironment,
+  incrementalRebuildEnvironment,
   openProjectInVcast,
   deleteLevel,
 } from "./vcastAdapter";
@@ -1057,6 +1058,17 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(rebuildEnviro);
+
+  // Command: vectorcastTestExplorer.incrementalRebuildEnviro  ////////////////////////////////////////////
+  let incrementalRebuildEnviro = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.incrementalRebuildEnviro",
+    (enviroNode: any) => {
+      // this returns the full path to the environment directory
+      const enviroPath = getEnviroPathFromID(enviroNode.id);
+      incrementalRebuildEnvironment(enviroPath);
+    }
+  );
+  context.subscriptions.push(incrementalRebuildEnviro);
 
   let updateProjectLevelCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.updateProjectEnvironment",
