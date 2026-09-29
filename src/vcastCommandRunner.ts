@@ -652,11 +652,21 @@ export async function executeATGLineForScript(
       vectorMessage(`cwd: ${cwd}`);
       vectorMessage("-".repeat(60));
 
+      //
+      // The line test always runs the atg that ships with the configured
+      // VectorCAST. VCAST_ATG_PATH in the user's environment would
+      // redirect it to a separate ATG working copy, so drop it here
+      // rather than inherit it. A deliberate developer override can be
+      // added later if one is wanted.
+      //
+      const childEnv = { ...process.env, ...envVars };
+      delete childEnv.VCAST_ATG_PATH;
+
       const proc: ChildProcess = spawn(command, [], {
         cwd,
         shell: true,
         windowsHide: true,
-        env: { ...process.env, ...envVars },
+        env: childEnv,
       });
 
       let stdoutBuffer = "";
