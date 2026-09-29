@@ -953,17 +953,13 @@ export function getATGLineTestCommand(
 ): ATGLineTestCommand {
   const varValueCommand = buildVarStringSimple(variableValues);
 
-  // Use the VS Code setting if set, otherwise rely on the user's VCAST_ATG_PATH env var
-  const atgPathSetting = vscode.workspace
-    .getConfiguration("vectorcastTestExplorer")
-    .get<string>("atgPath", "");
-
-  // Build env vars object for cross-platform compatibility
+  //
+  // Build env vars object for cross-platform compatibility. VCAST_ATG_PATH
+  // is deliberately not set here: the spawned process inherits the
+  // environment, so an ATG redirect is picked up from the user's own
+  // VCAST_ATG_PATH.
+  //
   const envVars: Record<string, string> = {};
-
-  if (atgPathSetting) {
-    envVars["VCAST_ATG_PATH"] = atgPathSetting;
-  }
 
   // Build LLM provider env vars from reqs2x settings
   const reqs2xConfig = vscode.workspace.getConfiguration(
