@@ -656,11 +656,25 @@ export async function executeATGLineForScript(
       // The line test always runs the atg that ships with the configured
       // VectorCAST. VCAST_ATG_PATH in the user's environment would
       // redirect it to a separate ATG working copy, so drop it here
-      // rather than inherit it. A deliberate developer override can be
-      // added later if one is wanted.
+      // rather than inherit it.
       //
       const childEnv = { ...process.env, ...envVars };
       delete childEnv.VCAST_ATG_PATH;
+
+      //
+      // Undocumented developer override: VCAST_ATG_DEV_PATH points the
+      // line test at an ATG working copy instead of the bundled one.
+      // Deliberately not a setting -- it is for ATG development, not for
+      // users, so it is only reachable by exporting it in the
+      // environment. Applied after the delete above so it wins.
+      //
+      const atgDevPath = process.env.VCAST_ATG_DEV_PATH;
+      if (atgDevPath) {
+        childEnv.VCAST_ATG_PATH = atgDevPath;
+        vectorMessage(
+          `ATG: VCAST_ATG_DEV_PATH is set, using ${atgDevPath} instead of the bundled atg`
+        );
+      }
 
       const proc: ChildProcess = spawn(command, [], {
         cwd,
