@@ -1136,11 +1136,95 @@ def chmodOnlyWhenNeeded():
     return manager()
 
 
-def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
+def getStubbedFunctionNames(enviroPath):
+    """
+    Names of the functions VectorCAST stubs for this environment.
+
+    Returns (names, error). A stubbed call is the only way a local can
+    be driven from a targeted value, so this set decides which locals
+    are worth offering for selection.
+    """
+    names = set()
+    try:
+        api = UnitTestApi(enviroPath)
+    except Exception as error:
+        return names, f"could not open environment: {error}"
+
+    try:
+        for unit in api.Unit.all():
+            if unit.name == "uut_prototype_stubs":
+                for function in unit.functions:
+                    names.add(function.name)
+    except Exception as error:
+        return names, f"could not read stubbed functions: {error}"
+    finally:
+        api.close()
+
+    return names, None
+
+
+def splitSimpleAssignment(line):
+    """
+    Split "lhs = rhs" into (lhs, rhs) for a plain assignment.
+
+    Returns (None, None) for anything that is not one: comparisons
+    (==, !=, <=, >=) and compound assignments are all ignored.
+    """
+    for index, char in enumerate(line):
+        if char != "=":
+            continue
+        previous = line[index - 1] if index > 0 else ""
+        following = line[index + 1] if index + 1 < len(line) else ""
+        if following == "=" or previous in "=!<>+-*/%&|^":
+            continue
+        return line[:index], line[index + 1 :]
+    return None, None
+
+
+def findStubAssignedLocals(lines, targetLine, stubNames):
+    """
+    Names assigned from a call to a stubbed function, e.g.
+
+        int range_m = read_radar_range_m();
+
+    Only these can be steered by --targeted-values, so everything else
+    is left out of the selection list.
+    """
+    assigned = set()
+    if not stubNames:
+        return assigned
+
+    nameRegex = re.compile(r"([A-Za-z_]\w*)\s*\(")
+    declRegex = re.compile(r"([A-Za-z_]\w*)\s*$")
+
+    for lineIdx in range(min(targetLine, len(lines))):
+        line = lines[lineIdx].split("//")[0]
+        lhs, rhs = splitSimpleAssignment(line)
+        if lhs is None:
+            continue
+        #
+        # The left side may carry a declaration ("int range_m"), so take
+        # the trailing identifier.
+        #
+        match = declRegex.search(lhs.strip())
+        if not match:
+            continue
+        if any(callee in stubNames for callee in nameRegex.findall(rhs)):
+            assigned.add(match.group(1))
+
+    return assigned
+
+
+def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine, stubNames=None):
     """
     Use the bundled clangd (via multilspy) to find local variables
     and struct field types in scope at the target line.
-    Returns a list of variable tree nodes with children for struct fields.
+
+    Only locals assigned from a call to a stubbed function are returned:
+    those are the ones a targeted value can actually drive. stubNames is
+    the set of stubbed function names for the environment.
+
+    Returns (list of variable tree nodes, error or None).
     """
     import re
 
@@ -1170,6 +1254,13 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
                 fullPath = sourceFile
             with open(fullPath, "r") as f:
                 lines = f.readlines()
+
+            #
+            # Restrict the result to locals fed by a stubbed call. Without
+            # this every local in scope is offered, including ones no
+            # targeted value can influence.
+            #
+            stubAssigned = findStubAssignedLocals(lines, targetLine, stubNames or set())
 
             # Collect hover info for all identifiers up to targetLine
             # hoverCache: (lineIdx, col) -> {category, name, type}
@@ -1236,8 +1327,13 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine):
                     if baseInfo["category"] not in ("variable", "field"):
                         continue
 
-                    # Add the base variable if not seen
-                    if base not in seen_vars and baseInfo["category"] == "variable":
+                    # Add the base variable if not seen, and only when a
+                    # stubbed call assigns it.
+                    if (
+                        base not in seen_vars
+                        and baseInfo["category"] == "variable"
+                        and base in stubAssigned
+                    ):
                         varType = baseInfo["type"]
                         kind = classifyType(varType)
                         # Pointers to structs: kind is "array" (pointer), not "struct"
@@ -1430,12 +1526,13 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         returnObject = {"locals": []}
         if sourceFile and targetLine > 0:
             sourceDir = os.path.dirname(sourceFile)
+            stubNames, stubError = getStubbedFunctionNames(pathToUse)
             locals_list, localsError = getLocalVariablesFromClangd(
-                sourceDir, sourceFile, targetLine
+                sourceDir, sourceFile, targetLine, stubNames
             )
             returnObject["locals"] = locals_list
-            if localsError:
-                returnObject["error"] = localsError
+            if localsError or stubError:
+                returnObject["error"] = localsError or stubError
 
     elif mode == "executeTest":
         try:
