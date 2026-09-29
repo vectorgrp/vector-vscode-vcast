@@ -1183,9 +1183,13 @@ def splitSimpleAssignment(line):
 
 def findStubAssignedLocals(lines, targetLine, stubNames):
     """
-    Names assigned from a call to a stubbed function, e.g.
+    Names a stubbed call can drive, either
 
-        int range_m = read_radar_range_m();
+        int range_m = read_radar_range_m();     the return value
+
+    or
+
+        Data.GetTableRecord(Table, &TableData); written through a pointer
 
     Only these can be steered by --targeted-values, so everything else
     is left out of the selection list.
@@ -1194,23 +1198,40 @@ def findStubAssignedLocals(lines, targetLine, stubNames):
     if not stubNames:
         return assigned
 
-    nameRegex = re.compile(r"([A-Za-z_]\w*)\s*\(")
+    #
+    # C++ stubs are recorded qualified ("DataBase::GetTableRecord") while
+    # the call site names them bare, so match on the trailing segment.
+    #
+    bareStubNames = {name.rsplit("::", 1)[-1] for name in stubNames}
+
+    callRegex = re.compile(r"([A-Za-z_]\w*)\s*\(")
+    addressRegex = re.compile(r"&\s*([A-Za-z_]\w*)")
     declRegex = re.compile(r"([A-Za-z_]\w*)\s*$")
 
     for lineIdx in range(min(targetLine, len(lines))):
         line = lines[lineIdx].split("//")[0]
+
+        if not any(callee in bareStubNames for callee in callRegex.findall(line)):
+            continue
+
+        #
+        # The return value assigned to a local. The left side may carry a
+        # declaration ("int range_m"), so take the trailing identifier.
+        #
         lhs, rhs = splitSimpleAssignment(line)
-        if lhs is None:
-            continue
+        if lhs is not None and any(
+            callee in bareStubNames for callee in callRegex.findall(rhs)
+        ):
+            match = declRegex.search(lhs.strip())
+            if match:
+                assigned.add(match.group(1))
+
         #
-        # The left side may carry a declaration ("int range_m"), so take
-        # the trailing identifier.
+        # Anything passed by address on a line that calls a stub. The stub
+        # can write through the pointer, so the variable is reachable even
+        # though nothing is assigned to it here.
         #
-        match = declRegex.search(lhs.strip())
-        if not match:
-            continue
-        if any(callee in stubNames for callee in nameRegex.findall(rhs)):
-            assigned.add(match.group(1))
+        assigned.update(addressRegex.findall(line))
 
     return assigned
 
