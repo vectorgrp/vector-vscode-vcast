@@ -1136,13 +1136,18 @@ def chmodOnlyWhenNeeded():
     return manager()
 
 
-def getStubbedFunctionNames(enviroPath):
+def getModelledFunctionNames(enviroPath):
     """
-    Names of the functions VectorCAST stubs for this environment.
+    Names of the functions ATG can drive the result of: the stubs, plus
+    the functions of the units under test.
 
-    Returns (names, error). A stubbed call is the only way a local can
-    be driven from a targeted value, so this set decides which locals
-    are worth offering for selection.
+    A local is only worth offering for selection if a call fills it, and
+    a call is only useful if ATG models what it does. Stubs are the
+    obvious case, but a unit under test is modelled too -- an
+    environment that stubs nothing (every unit is a UUT) still lets a
+    targeted value steer a local filled by one of its own functions.
+
+    Returns (names, error).
     """
     names = set()
     try:
@@ -1152,11 +1157,12 @@ def getStubbedFunctionNames(enviroPath):
 
     try:
         for unit in api.Unit.all():
-            if unit.name == "uut_prototype_stubs":
-                for function in unit.functions:
-                    names.add(function.name)
+            if unit.name == "USER_GLOBALS_VCAST":
+                continue
+            for function in unit.functions:
+                names.add(function.name)
     except Exception as error:
-        return names, f"could not read stubbed functions: {error}"
+        return names, f"could not read function names: {error}"
     finally:
         api.close()
 
@@ -1181,9 +1187,9 @@ def splitSimpleAssignment(line):
     return None, None
 
 
-def findStubAssignedLocals(lines, targetLine, stubNames):
+def findCallAssignedLocals(lines, targetLine, callableNames):
     """
-    Names a stubbed call can drive, either
+    Names a modelled call can drive, either
 
         int range_m = read_radar_range_m();     the return value
 
@@ -1191,18 +1197,19 @@ def findStubAssignedLocals(lines, targetLine, stubNames):
 
         Data.GetTableRecord(Table, &TableData); written through a pointer
 
-    Only these can be steered by --targeted-values, so everything else
-    is left out of the selection list.
+    callableNames covers the stubs and the UUT functions, so a local
+    filled by either is kept. Locals holding only literals or computed
+    expressions are left out: no targeted value can steer them.
     """
     assigned = set()
-    if not stubNames:
+    if not callableNames:
         return assigned
 
     #
-    # C++ stubs are recorded qualified ("DataBase::GetTableRecord") while
+    # Functions are recorded qualified ("DataBase::GetTableRecord") while
     # the call site names them bare, so match on the trailing segment.
     #
-    bareStubNames = {name.rsplit("::", 1)[-1] for name in stubNames}
+    bareNames = {name.rsplit("::", 1)[-1] for name in callableNames}
 
     callRegex = re.compile(r"([A-Za-z_]\w*)\s*\(")
     addressRegex = re.compile(r"&\s*([A-Za-z_]\w*)")
@@ -1211,7 +1218,7 @@ def findStubAssignedLocals(lines, targetLine, stubNames):
     for lineIdx in range(min(targetLine, len(lines))):
         line = lines[lineIdx].split("//")[0]
 
-        if not any(callee in bareStubNames for callee in callRegex.findall(line)):
+        if not any(callee in bareNames for callee in callRegex.findall(line)):
             continue
 
         #
@@ -1220,30 +1227,30 @@ def findStubAssignedLocals(lines, targetLine, stubNames):
         #
         lhs, rhs = splitSimpleAssignment(line)
         if lhs is not None and any(
-            callee in bareStubNames for callee in callRegex.findall(rhs)
+            callee in bareNames for callee in callRegex.findall(rhs)
         ):
             match = declRegex.search(lhs.strip())
             if match:
                 assigned.add(match.group(1))
 
         #
-        # Anything passed by address on a line that calls a stub. The stub
-        # can write through the pointer, so the variable is reachable even
-        # though nothing is assigned to it here.
+        # Anything passed by address on a line that calls a modelled
+        # function: it can write through the pointer, so the variable is
+        # reachable even though nothing is assigned to it here.
         #
         assigned.update(addressRegex.findall(line))
 
     return assigned
 
 
-def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine, stubNames=None):
+def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine, callableNames=None):
     """
     Use the bundled clangd (via multilspy) to find local variables
     and struct field types in scope at the target line.
 
-    Only locals assigned from a call to a stubbed function are returned:
-    those are the ones a targeted value can actually drive. stubNames is
-    the set of stubbed function names for the environment.
+    Only locals filled by a call ATG models are returned: those are the
+    ones a targeted value can actually drive. callableNames is the set of
+    stub and UUT function names for the environment.
 
     Returns (list of variable tree nodes, error or None).
     """
@@ -1277,11 +1284,13 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine, stubNames=Non
                 lines = f.readlines()
 
             #
-            # Restrict the result to locals fed by a stubbed call. Without
+            # Restrict the result to locals fed by a modelled call. Without
             # this every local in scope is offered, including ones no
             # targeted value can influence.
             #
-            stubAssigned = findStubAssignedLocals(lines, targetLine, stubNames or set())
+            callAssigned = findCallAssignedLocals(
+                lines, targetLine, callableNames or set()
+            )
 
             # Collect hover info for all identifiers up to targetLine
             # hoverCache: (lineIdx, col) -> {category, name, type}
@@ -1353,7 +1362,7 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine, stubNames=Non
                     if (
                         base not in seen_vars
                         and baseInfo["category"] == "variable"
-                        and base in stubAssigned
+                        and base in callAssigned
                     ):
                         varType = baseInfo["type"]
                         kind = classifyType(varType)
@@ -1547,13 +1556,13 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         returnObject = {"locals": []}
         if sourceFile and targetLine > 0:
             sourceDir = os.path.dirname(sourceFile)
-            stubNames, stubError = getStubbedFunctionNames(pathToUse)
+            callableNames, namesError = getModelledFunctionNames(pathToUse)
             locals_list, localsError = getLocalVariablesFromClangd(
-                sourceDir, sourceFile, targetLine, stubNames
+                sourceDir, sourceFile, targetLine, callableNames
             )
             returnObject["locals"] = locals_list
-            if localsError or stubError:
-                returnObject["error"] = localsError or stubError
+            if localsError or namesError:
+                returnObject["error"] = localsError or namesError
 
     elif mode == "executeTest":
         try:
