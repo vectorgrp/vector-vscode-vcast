@@ -330,7 +330,15 @@ export async function fetchRequirementCoverageData(
       try {
         const { stdout } = await runReqs2xTool({
           exe: TESTS2CHECK_EXECUTABLE_PATH,
-          args: ["-e", enviroPath, gatewayPath, "-f", testName, "--json"],
+          args: [
+            "-e",
+            enviroPath,
+            gatewayPath,
+            "-f",
+            testName,
+            "--json",
+            "--justification",
+          ],
           llm: true,
           captureOutput: true,
         });

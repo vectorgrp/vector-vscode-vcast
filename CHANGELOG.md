@@ -5,7 +5,7 @@ All notable changes to the "vectorcastTestExplorer" extension will be documented
 ## [1.0.36] - 2026-10-06
 
 ### Added
-- Added a Test Review for Requirement Tests
+- Added a Test Review for Requirement Tests, with an AI verdict on whether the test exercises its requirement
 
 ## [1.0.35] - 2026-09-21
 

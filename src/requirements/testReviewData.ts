@@ -2,6 +2,13 @@
 
 const path = require("path");
 
+export interface Justification {
+  verdict: string;
+  confidence: string;
+  argument: string;
+  caveats: string[];
+}
+
 export interface RequirementData {
   title: string;
   description: string;
@@ -10,6 +17,7 @@ export interface RequirementData {
   importantLineEnd: number;
   expectedLines: number[];
   actualLines: number[];
+  justification?: Justification;
 }
 
 /**
@@ -42,6 +50,7 @@ export function parseTests2checkResult(
   const minLine = expectedLines.length ? Math.min(...expectedLines) : 0;
   const maxLine = expectedLines.length ? Math.max(...expectedLines) : 0;
 
+  const argument = testResult.argument;
   return {
     title: testResult.name || testName,
     description: notes,
@@ -50,6 +59,15 @@ export function parseTests2checkResult(
     importantLineEnd: maxLine + 1,
     expectedLines,
     actualLines: unitCoverage?.lines || [],
+    // Only present when tests2check ran with --justification.
+    justification: argument
+      ? {
+          verdict: argument.verdict,
+          confidence: argument.confidence,
+          argument: argument.argument || "",
+          caveats: argument.caveats || [],
+        }
+      : undefined,
   };
 }
 
@@ -134,6 +152,21 @@ export function createRequirementInfoBox(reqData: RequirementData): string {
     return lines;
   };
 
+  const justification = reqData.justification;
+  const justificationLines = justification
+    ? [
+        midBorder,
+        ...formatBlock(
+          `AI JUSTIFICATION: ${justification.verdict} (confidence: ${justification.confidence})`
+        ),
+        divider,
+        ...formatBlock(justification.argument),
+        ...justification.caveats.flatMap((caveat) =>
+          formatBlock(`- caveat: ${caveat}`)
+        ),
+      ]
+    : [];
+
   return [
     "",
     topBorder,
@@ -142,6 +175,7 @@ export function createRequirementInfoBox(reqData: RequirementData): string {
     formatLine("DESCRIPTION"),
     divider,
     ...formatBlock(reqData.description),
+    ...justificationLines,
     bottomBorder,
     "",
   ].join("\n");
