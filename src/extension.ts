@@ -692,10 +692,11 @@ function configureExtension(context: vscode.ExtensionContext) {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
-        await generateTestsFromRequirements(
+        const generated = await generateTestsFromRequirements(
           enviroPath,
           testNode.functionName || testNode.unitName || null
         );
+        if (!generated) return;
 
         // We need to execute the test and refresh the extension data so that the tests get the
         // Reqs review button (see openReqsCoverageReview). On normal envs, after generating the tests,

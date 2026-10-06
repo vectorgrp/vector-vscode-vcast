@@ -498,7 +498,7 @@
           "vectorcastTestExplorer.reqs2x.enableRequirementsCoverageReview": {
             "order": 2,
             "type": "boolean",
-            "description": "Enable the Requirements Coverage Review feature (requires a Requirements Beta release)",
+            "description": "Enable the Requirements Coverage Review for tests linked to requirements (requires a Reqs2X distribution that includes tests2check)",
             "default": false
           },
           "vectorcastTestExplorer.reqs2x.decomposeRequirements": {

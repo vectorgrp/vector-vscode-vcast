@@ -157,7 +157,7 @@ export async function generateTestsFromRequirements(
   enviroPath: string,
   unitOrFunctionName: string | null,
   options: { onlyDelta?: boolean } = {}
-) {
+): Promise<boolean> {
   const parentDir = path.dirname(enviroPath);
   const lowestDirname = path.basename(enviroPath);
   const envName = `${lowestDirname}.env`;
@@ -173,7 +173,7 @@ export async function generateTestsFromRequirements(
     vscode.window.showErrorMessage(
       "No requirements gateway found. Please generate requirements first."
     );
-    return;
+    return false;
   }
 
   // Test generation needs per-requirement traceability — reqs2tests routes
@@ -184,7 +184,7 @@ export async function generateTestsFromRequirements(
       "None of the requirements trace to a function. Test generation requires per-requirement traceability. Would you like to infer it automatically first?",
     cancelMeansAbort: true,
   });
-  if (!proceed) return;
+  if (!proceed) return false;
 
   const config = vscode.workspace.getConfiguration(
     "vectorcastTestExplorer.reqs2x"
@@ -219,7 +219,7 @@ export async function generateTestsFromRequirements(
     vscode.window.showErrorMessage(
       "Retries must be greater than or equal to 1. Please check your settings."
     );
-    return;
+    return false;
   }
 
   // --incremental-export is deliberately unused: we import one .tst at the end,
@@ -313,14 +313,14 @@ export async function generateTestsFromRequirements(
         logPrefix: "reqs2tests",
       },
     });
-    if (cancelled) return;
+    if (cancelled) return false;
 
     if (!fs.existsSync(tstPath)) {
       // reqs2tests reports the reason itself via an `info` event.
       logCliOperation(
         `reqs2tests wrote no test script to ${tstPath}; nothing to import`
       );
-      return;
+      return false;
     }
 
     await loadTestScriptIntoEnvironment(envName.split(".")[0], tstPath);
@@ -330,10 +330,12 @@ export async function generateTestsFromRequirements(
         ? "Generated tests for untested and changed requirements. Tests written earlier for the changed requirements are kept — review and remove any that no longer apply."
         : "Successfully generated tests for the requirements!"
     );
+    return true;
   } catch (err) {
     const message = `Error: ${err instanceof Error ? err.message : String(err)}`;
     vscode.window.showErrorMessage(message);
     logCliError(message, true);
+    return false;
   }
 }
 
