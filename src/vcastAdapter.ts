@@ -7,6 +7,7 @@ import { execSync, spawn } from "child_process";
 import {
   buildEnvironmentCallback,
   deleteEnvironmentCallback,
+  incrementalRebuildEnvironmentCallback,
 } from "./callbacks";
 
 import { updateProjectData } from "./manage/manageSrc/manageCommands";
@@ -82,7 +83,8 @@ export function vcastLicenseOK(): boolean {
 // Build Environment - no server logic needed ----------------------------------------
 export async function buildEnvironmentFromScript(
   unitTestLocation: string,
-  enviroName: string
+  enviroName: string,
+  isAda: boolean = false
 ) {
   // this function is separate and exported because it's used when we
   // create environments from source files and from .env files
@@ -90,7 +92,14 @@ export async function buildEnvironmentFromScript(
   // this call runs clicast in the background
   const enviroPath = path.join(unitTestLocation, enviroName);
 
-  const clicastArgs = ["-lc", "env", "build", enviroName + ".env"];
+  // The outer language flag drives the build; an Ada env built with "-lc"
+  // fails ("No preprocessor command specified"), so use "-lada" for Ada.
+  const clicastArgs = [
+    isAda ? "-lada" : "-lc",
+    "env",
+    "build",
+    enviroName + ".env",
+  ];
   // This is long running commands so we open the message pane to give the user a sense of what is going on.
   openMessagePane();
   executeWithRealTimeEcho(
@@ -233,6 +242,9 @@ export function setCodedTestOption(unitTestLocation: string) {
   // to make sure that the CFG file has the right value for coded testing.
   // This is easier than keeping track of n CFG files and their values
   // and I think that the coded test option will be removed soon.
+  //
+  // Note: no special handling is needed for Ada environments. Ada does not
+  // support coded tests, so VectorCAST never creates a coded_tests_driver
 
   const settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
   if (settings.get("build.enableCodedTesting", false)) {
@@ -710,7 +722,15 @@ export async function getWorkspaceEnvDataVPython(
   );
   let jsonData = getJsonDataFromTestInterface(commandToRun, workspaceDir);
 
-  vectorMessage(`Building environments data for workspace: ${workspaceDir}`);
+  if (jsonData == null) {
+    vectorMessage(
+      `Failed to retrieve environment data for workspace folder: "${workspaceDir}". ` +
+        `The vpython command returned no data (possibly missing VectorCAST installation, ` +
+        `invalid environment, or a vpython execution error).`
+    );
+  } else {
+    vectorMessage(`Building environments data for workspace: ${workspaceDir}`);
+  }
 
   return jsonData;
 }
@@ -859,15 +879,32 @@ export async function rebuildEnvironmentUsingPython(
   const commandVerb = commandPieces[0];
   commandPieces.shift();
 
-  const unitTestLocation = path.dirname(enviroPath);
+  await runWithProgressAndCallback(
+    `Rebuilding environment: ${path.basename(enviroPath)}...`,
+    commandVerb,
+    commandPieces,
+    path.dirname(enviroPath),
+    enviroPath,
+    rebuildEnvironmentCallback
+  );
+}
 
-  // The progress bar ensures the execution waits and prevents failure when rebuilding
-  // multiple environments (for instance when changing the coverageKind).
-  // It also provides visual progress to the user.
+// Runs a long clicast or vpython command under a progress notification and
+// returns once the callback has processed the exit code. Awaiting the whole
+// thing is what keeps back-to-back re-builds (for instance after a coverage
+// kind change) from overlapping.
+async function runWithProgressAndCallback(
+  title: string,
+  command: string,
+  argList: string[],
+  workingDirectory: string,
+  enviroPath: string,
+  callback: (enviroPath: string, errorCode: number) => Promise<void>
+) {
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `Rebuilding environment: ${path.basename(enviroPath)}...`,
+      title,
       cancellable: false,
     },
     async (progress) => {
@@ -875,11 +912,11 @@ export async function rebuildEnvironmentUsingPython(
 
       await new Promise<void>((resolve) => {
         executeWithRealTimeEcho(
-          commandVerb,
-          commandPieces,
-          unitTestLocation,
+          command,
+          argList,
+          workingDirectory,
           async (envPath: string, errorCode: number) => {
-            await rebuildEnvironmentCallback(envPath, errorCode);
+            await callback(envPath, errorCode);
             resolve();
           },
           enviroPath
@@ -925,6 +962,36 @@ export async function rebuildEnvironmentUsingServer(
 
   // call the callback to update the test explorer pane
   await rebuildEnvironmentCallback(enviroPath, commandStatus.errorCode);
+}
+
+// Incremental Rebuild Environment - server logic included ---------------------------
+export async function incrementalRebuildEnvironment(enviroPath: string) {
+  // Recompiles and relinks the harness for changed function bodies without
+  // re-parsing the units. clicast exits non-zero on an interface change and
+  // restores the previous harness itself; the callback then offers a full re-build.
+
+  // The harness files are rewritten in place, so close any open server
+  // connection to the environment first, as delete does.
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+
+  const enviroName = path.basename(enviroPath);
+  const clicastArgs = [
+    `-e${enviroName}`,
+    "environment",
+    "incremental",
+    "rebuild",
+  ];
+
+  // Long running command: open the message pane so the user sees the progress
+  openMessagePane();
+  await runWithProgressAndCallback(
+    `Incremental re-build of environment: ${enviroName}...`,
+    clicastCommandToUse,
+    clicastArgs,
+    path.dirname(enviroPath),
+    enviroPath,
+    incrementalRebuildEnvironmentCallback
+  );
 }
 
 // Get Execution Report ----------------------------------------------------------------

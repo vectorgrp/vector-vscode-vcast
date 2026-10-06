@@ -25,22 +25,29 @@ def getMCDCLineDic(sourceObject):
         temp_line_coverage_dic[start_line] = MCDCLineCoverage.uncovered
         mcdc_unit_line_dic[unit] = temp_line_coverage_dic
 
-        covered_mcdc_found = False
-        uncovered_mcdc_found = False
+        # MCDC coverage is measured in terms of independence PAIRS, exactly as
+        # the per-line MCDC report shows ("Pairs satisfied: X of N").
+        # Partial means some-but-not-all pairs; fully covered means every pair.
+        total_pairs = mcdc.num_conditions
+        covered_pairs = getattr(mcdc, "max_num_conditions_with_covered_pair", None)
+        if covered_pairs is None:
+            # Defensive fallback for a DataAPI without pair-level MCDC counts
+            # (the pair-based classification above needs it): approximate from
+            # per-row coverage so the gutter still renders instead of raising an
+            # AttributeError that would break coverage for ALL languages.
+            rows = getattr(mcdc, "rows", [])
+            covered_pairs = sum(
+                1 for row in rows if getattr(row, "has_any_coverage", 0)
+            )
+            if rows:
+                total_pairs = len(rows)
 
-        for row in mcdc.rows:
-            if row.has_any_coverage != 0:
-                covered_mcdc_found = True
-            else:
-                uncovered_mcdc_found = True
-
-        if covered_mcdc_found == True:
-            # We found covered and uncovered mcdc pairs --> Partially covered
-            if uncovered_mcdc_found == True:
-                temp_line_coverage_dic[start_line] = MCDCLineCoverage.partially_covered
-            else:
-                # We found only covered mcdc pairs --> Fully covered
-                temp_line_coverage_dic[start_line] = MCDCLineCoverage.covered
+        if covered_pairs <= 0:
+            temp_line_coverage_dic[start_line] = MCDCLineCoverage.uncovered
+        elif covered_pairs < total_pairs:
+            temp_line_coverage_dic[start_line] = MCDCLineCoverage.partially_covered
+        else:
+            temp_line_coverage_dic[start_line] = MCDCLineCoverage.covered
 
     return mcdc_unit_line_dic
 

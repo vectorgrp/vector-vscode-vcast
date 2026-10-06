@@ -1,10 +1,9 @@
 import * as vscode from "vscode";
 import { Uri } from "vscode";
 
-import { getListOfFilesWithCoverage } from "./vcastTestInterface";
+import { getListOfFilesToDecorate } from "./vcastTestInterface";
 
 // this class allows us to add decorations to the file explorer
-// we currently use this to indicate what files have vcast coverage
 
 function decorateExplorerOn(): boolean {
   let settings = vscode.workspace.getConfiguration("vectorcastTestExplorer");
@@ -20,7 +19,7 @@ export function updateExploreDecorations() {
     if (!fileDecorator) {
       fileDecorator = new TreeFileDecorationProvider();
     }
-    fileDecorator.updateCoverageDecorations(getListOfFilesWithCoverage());
+    fileDecorator.updateCoverageDecorations(getListOfFilesToDecorate());
   } else {
     fileDecorator?.removeAllCoverageDecorations();
     fileDecorator = undefined;
@@ -100,7 +99,7 @@ export class TreeFileDecorationProvider
       return {
         badge: "VC",
         //color: new vscode.ThemeColor("charts.red"),
-        tooltip: "VectorCAST Coverage Exists",
+        tooltip: "VectorCAST unit",
       };
     } else return; // to get rid of the custom fileDecoration
   }

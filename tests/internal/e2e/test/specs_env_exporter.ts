@@ -5,10 +5,10 @@ import { getEnvVarsForGroup } from "./specs_config";
 const groupName = process.env.RUN_GROUP_NAME;
 let envVars: string;
 
-envVars =
-  process.env.USE_VCAST_24 === "True"
-    ? getEnvVarsForGroup(true, groupName)
-    : getEnvVarsForGroup(false, groupName);
+const useVcast24 = process.env.USE_VCAST_24 === "True";
+const useVcast25 = process.env.USE_VCAST_25 === "True";
+
+envVars = getEnvVarsForGroup(useVcast24, groupName, useVcast25);
 
 if (envVars) {
   console.log(envVars);

@@ -1,26 +1,95 @@
 const vscode = acquireVsCodeApi();
 
-window.addEventListener("DOMContentLoaded", () => {
-  const compilers = window.compilerData || [];
-  const defaultDir = window.defaultDir || "";
+globalThis.addEventListener("DOMContentLoaded", () => {
+  const compilers = globalThis.compilerData || [];
+  const defaultCFG = globalThis.defaultCFG || "";
+  const defaultDB = globalThis.defaultDB || "";
+  
+  // DOM Elements
+  const defaultRow = document.getElementById("defaultCompilerRow");
+  const defaultPath = document.getElementById("defaultCFGPath");
+  const orSeparator = document.getElementById("orSeparator");
+  const useDefaultCheckbox = document.getElementById("useDefaultCompiler");
+  const newCompilerSection = document.getElementById("newCompilerSection");
 
   const targetInput = document.getElementById("targetDirInput");
-  const browseBtn   = document.getElementById("btnBrowse");
-  const nameInput   = document.getElementById("projectNameInput");
-  const compInput   = document.getElementById("compilerInput");
+  const browseBtn = document.getElementById("btnBrowse");
+  const nameInput = document.getElementById("projectNameInput");
+  const compInput = document.getElementById("compilerInput");
   const suggestions = document.getElementById("suggestions");
 
-  // initialize target folder
-  let targetDir = defaultDir;
-  targetInput.value = targetDir;
+  // CFG Option Checkboxes
+  const codedCheckbox = document.getElementById("enableCodedTests");
+  const defaultCFGCheckbox = document.getElementById("defaultCFG");
 
-  // browse for folder
+  // DB Option Elements
+  const dbOptionRow = document.getElementById("dbOptionRow");
+  const dbPathLabel = document.getElementById("dbPathLabel");
+  const dbCheckbox = document.getElementById("useDefaultDB");
+
+  // Language selector: Ada is GNAT-on-host only, so it hides the whole C/C++
+  // compiler-selection section (the extension writes a minimal ADACAST_.CFG).
+  const languageSelect = document.getElementById("languageSelect");
+  const compilerSelectionSection = document.getElementById(
+    "compilerSelectionSection"
+  );
+  const adaNote = document.getElementById("adaNote");
+
+  function applyLanguage() {
+    const isAda = languageSelect && languageSelect.value === "ada";
+    if (compilerSelectionSection)
+      compilerSelectionSection.style.display = isAda ? "none" : "";
+    if (adaNote) adaNote.style.display = isAda ? "block" : "none";
+  }
+  if (languageSelect) {
+    languageSelect.addEventListener("change", applyLanguage);
+    applyLanguage();
+  }
+
+  // --- Initialization Logic ---
+
+  // Show default CFG row + OR only if defaultCFG exists
+  if (defaultCFG) {
+    defaultRow.style.display = "flex";
+    orSeparator.style.display = "block";
+    defaultPath.textContent = defaultCFG;
+  } else {
+    defaultRow.style.display = "none";
+    orSeparator.style.display = "none";
+  }
+
+  // Show Default DB row if a valid path exists
+  if (defaultDB) {
+    dbOptionRow.style.display = "flex";
+    dbPathLabel.textContent = defaultDB;
+  } else {
+    dbOptionRow.style.display = "none";
+  }
+
+  function updateCompilerVisibility() {
+    if (useDefaultCheckbox && useDefaultCheckbox.checked) {
+      newCompilerSection.style.display = "none";
+      if (defaultCFG) orSeparator.style.display = "none"; 
+    } else {
+      newCompilerSection.style.display = "block";
+      if (defaultCFG) orSeparator.style.display = "block";
+    }
+  }
+
+  if (useDefaultCheckbox) {
+    useDefaultCheckbox.addEventListener("change", updateCompilerVisibility);
+  }
+  updateCompilerVisibility();
+
+  // --- Target Directory Logic ---
+  let targetDir = globalThis.defaultDir || "";
+  targetInput.value = targetDir;
+  
   browseBtn.addEventListener("click", () => {
     vscode.postMessage({ command: "browseForDir" });
   });
-
-  // receive chosen folder
-  window.addEventListener("message", (e) => {
+  
+  globalThis.addEventListener("message", (e) => {
     const msg = e.data;
     if (msg.command === "setTargetDir") {
       targetDir = msg.targetDir;
@@ -28,11 +97,13 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // autocomplete setup (unchanged)...
+  // --- Autocomplete Logic ---
   let filtered = [], activeIndex = -1;
+
   function renderSuggestions() {
     suggestions.innerHTML = "";
     if (!filtered.length) return suggestions.classList.remove("visible");
+    
     filtered.forEach((item, i) => {
       const li = document.createElement("li");
       li.textContent = item;
@@ -45,16 +116,20 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     suggestions.classList.add("visible");
   }
+
   function updateSuggestions(showAll = false) {
-    const q = compInput.value.toLowerCase().trim();
+    const q = (compInput.value || "").toLowerCase().trim();
     filtered = showAll || !q
       ? [...compilers]
       : compilers.filter(c => c.toLowerCase().includes(q));
     activeIndex = -1;
     renderSuggestions();
   }
+
   compInput.addEventListener("input", () => updateSuggestions());
   compInput.addEventListener("focus", () => updateSuggestions(true));
+  compInput.addEventListener("click", () => updateSuggestions(true)); // Ensure click triggers it
+  
   compInput.addEventListener("keydown", e => {
     if (!filtered.length) return;
     if (e.key === "ArrowDown") {
@@ -75,21 +150,31 @@ window.addEventListener("DOMContentLoaded", () => {
       suggestions.classList.remove("visible");
     }
   });
+  
   document.addEventListener("click", e => {
     if (!e.target.closest(".autocomplete")) suggestions.classList.remove("visible");
   });
 
-  // submit
+  // --- Submit Logic ---
   document.getElementById("btnSubmit").addEventListener("click", () => {
+    const isUsingDefault = useDefaultCheckbox && useDefaultCheckbox.checked;
+
     vscode.postMessage({
       command: "submit",
+      language: languageSelect ? languageSelect.value : "c",
       projectName: nameInput.value.trim(),
-      compilerName: compInput.value.trim(),
-      targetDir
+      targetDir,
+      useDefaultCFG: isUsingDefault,
+      // Send compiler name only if NOT using default CFG
+      compilerName: isUsingDefault ? undefined : compInput.value.trim(),
+      // Send compiler options
+      enableCodedTests: !!(codedCheckbox && codedCheckbox.checked),
+      defaultCFG: !!(defaultCFGCheckbox && defaultCFGCheckbox.checked),
+      useDefaultDB: !!(dbCheckbox && dbCheckbox.checked)
     });
   });
 
-  // cancel
+  // --- Cancel Logic ---
   document.getElementById("btnCancel").addEventListener("click", () => {
     vscode.postMessage({ command: "cancel" });
   });

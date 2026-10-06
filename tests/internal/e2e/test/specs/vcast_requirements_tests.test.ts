@@ -240,18 +240,12 @@ describe("vTypeCheck VS Code Extension", () => {
 
         await generateButton.click();
 
-        const vcastNotificationSourceElement = await $(
-          "aria/VectorCAST Test Explorer (Extension)"
-        );
-        const vcastNotification = await vcastNotificationSourceElement.$("..");
-        await (await vcastNotification.$("aria/Continue")).click();
-
         // Should exit with code 0
         await browser.waitUntil(
           async () =>
             (await (await bottomBar.openOutputView()).getText())
               .toString()
-              .includes("code2reqs completed successfully with code 0"),
+              .includes("code2reqs exit code: 0"),
           { timeout: 180_000 }
         );
       }
@@ -275,10 +269,10 @@ describe("vTypeCheck VS Code Extension", () => {
     const testExplorerSection = sections[0];
     const testEnvironments = await testExplorerSection.getVisibleItems();
 
-    // CLick on Show Requirements for the (only) env
+    // Find an env, open Show Requirements
+    let opened = false;
     for (const testEnvironment of testEnvironments) {
       let testEnvironmentContextMenu;
-
       try {
         testEnvironmentContextMenu = await (
           testEnvironment as CustomTreeItem
@@ -290,10 +284,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
       if (testEnvironmentContextMenu != undefined) {
         await testEnvironmentContextMenu.select("VectorCAST");
-        const importButton = await $("aria/Show Requirements");
-        if (importButton == undefined) break;
-
-        await importButton.click();
+        const showButton = await $("aria/Show Requirements");
+        if (showButton == undefined) break;
+        await showButton.click();
 
         const editorView = workbench.getEditorView();
         await browser.waitUntil(
@@ -301,18 +294,163 @@ describe("vTypeCheck VS Code Extension", () => {
             (await (await editorView.getActiveTab()).getTitle()) ===
             "Requirements Report"
         );
-
         (await editorView.openEditor("Requirements Report")) as TextEditor;
-
-        // Expect some HTML stuff to be present
-        expect(await checkElementExistsInHTML("extreme.1")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme.2")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme.3")).toBe(true);
-        expect(await checkElementExistsInHTML("extreme.4")).toBe(true);
-
-        await editorView.closeEditor("Requirements Report", 0);
+        opened = true;
+        break;
       }
     }
+
+    if (!opened) {
+      throw new Error("Could not open the Requirements Report webview");
+    }
+
+    // Enter the webview iframe
+    const webviews = await workbench.getAllWebviews();
+    expect(webviews.length).toBeGreaterThanOrEqual(1);
+    const webview = webviews[0];
+    await webview.open();
+
+    // Check for html fields
+    expect(await $("h1=Requirements").isExisting()).toBe(true);
+    expect(await $("#rgw-pill").isExisting()).toBe(true);
+    expect(await $("#save-toolbar").isExisting()).toBe(true);
+    expect(await $("#search-input").isExisting()).toBe(true);
+
+    const bannerCount = await $$(".banner").length;
+    expect(bannerCount).toBeGreaterThanOrEqual(1);
+
+    // Verify cards rendered, whatever their IDs are
+    // we just expect >=1 card and read the IDs out of the DOM.
+    await browser.waitUntil(
+      async () => (await $$(".req[data-req-id]").length) > 0,
+      {
+        timeout: 10_000,
+        timeoutMsg: "No requirement cards rendered inside the webview",
+      }
+    );
+
+    // Check that there are some Requirement fields / cards
+    const cards = await $$(".req[data-req-id]");
+    const cardCount = cards.length;
+    console.log(`Rendered ${cardCount} requirement card(s) in the webview`);
+    expect(cardCount).toBeGreaterThan(0);
+
+    const renderedIds: string[] = [];
+    for (const c of cards) {
+      const id = await c.getAttribute("data-req-id");
+      if (id) renderedIds.push(id);
+    }
+    console.log(`Rendered requirement IDs: ${renderedIds.join(", ")}`);
+
+    // Pick the first card to drive the rest of the test against.
+    const firstId = renderedIds[0];
+    const firstCardSel = `.req[data-req-id="${firstId}"]`;
+
+    // Initially nothing is dirty -> Save changes is disabled.
+    const saveBtn = await $("#save-btn");
+    expect(await saveBtn.getAttribute("disabled")).not.toBe(null);
+
+    // Detect the policy from the toolbar
+    // policy.bodiesEditable -> the "+ Add requirement" button is rendered.
+    const addBtn = await $("#add-btn");
+    const isEditableBundle = await addBtn.isExisting();
+    console.log(
+      `Bundle policy: bodiesEditable=${isEditableBundle} (${
+        isEditableBundle ? "Reqs2X-generated" : "imported"
+      })`
+    );
+
+    // Try editing an existing card's title
+    const firstTitleInput = await $(
+      `${firstCardSel} input[data-field="title"]`
+    );
+    await firstTitleInput.waitForExist({ timeout: 5_000 });
+    const titleDisabled = await firstTitleInput.getAttribute("disabled");
+
+    if (titleDisabled === null) {
+      // Editable case: typing dirties the form and enables Save.
+      const original = (await firstTitleInput.getValue()) || "";
+      const edited = `${original} [edited by e2e]`;
+      await firstTitleInput.setValue(edited);
+      await browser.pause(200);
+      expect(await saveBtn.getAttribute("disabled")).toBe(null);
+
+      // Revert so we don't leave a dirty buffer hanging.
+      await firstTitleInput.setValue(original);
+      await browser.pause(200);
+    } else {
+      console.log(
+        "Title input on existing card is disabled → bundle is read-only. Skipping title-edit assertion."
+      );
+    }
+
+    // Traceability dropdowns
+    const traceUnitSelect = await $(
+      `${firstCardSel} [data-scope="trace"][data-field="unit"]`
+    );
+    const traceUnitExists = await traceUnitSelect.isExisting();
+    if (traceUnitExists) {
+      const tagName = (
+        (await traceUnitSelect.getTagName()) ?? ""
+      ).toLowerCase();
+      // <select> when unitsToFunctions is known, <input> when it isn't.
+      // We only assert it's there + interactable;
+      console.log(`Traceability:unit element is a <${tagName}>`);
+      expect(["select", "input"]).toContain(tagName);
+    }
+
+    //Add a new requirement
+    if (isEditableBundle) {
+      await addBtn.click();
+
+      const pendingCard = await $(".req--pending-added");
+      await pendingCard.waitForExist({ timeout: 5_000 });
+      expect(await pendingCard.isExisting()).toBe(true);
+
+      const keyInput = await pendingCard.$(`input[data-field="key"]`);
+      const newTitleInput = await pendingCard.$(`input[data-field="title"]`);
+      const newDescArea = await pendingCard.$(
+        `textarea[data-field="description"]`
+      );
+
+      // Duplicate key -> validation error written into the .field-error div.
+      await keyInput.setValue(firstId);
+      await browser.pause(200);
+      const errorEl = await pendingCard.$(
+        '.field-error[data-role="key-error"]'
+      );
+      const errorText = (await errorEl.getText()).toString();
+      console.log(`Duplicate-key error message: "${errorText}"`);
+      expect(errorText.length).toBeGreaterThan(0);
+
+      // Unique key now.
+      await keyInput.setValue(`${firstId}.e2e_added`);
+      await newTitleInput.setValue("E2E added requirement");
+      await newDescArea.setValue(
+        "This requirement was added by the e2e test to verify the editor flow."
+      );
+      await browser.pause(200);
+
+      expect(await saveBtn.getAttribute("disabled")).toBe(null);
+
+      // Discard so we don't actually mutate the gateway.
+      const discardBtn = await pendingCard.$(
+        'button[data-action="discard-added"]'
+      );
+      await discardBtn.click();
+      await browser.pause(200);
+
+      expect(await $(".req--pending-added").isExisting()).toBe(false);
+    } else {
+      console.log(
+        "Skipping add-requirement assertions (read-only bundle: no #add-btn in toolbar)."
+      );
+    }
+
+    // Leave the iframe and close the editor
+    await webview.close();
+    const editorView = workbench.getEditorView();
+    await editorView.closeEditor("Requirements Report", 0);
   });
 
   it("should generate requirements tests", async () => {
@@ -323,7 +461,7 @@ describe("vTypeCheck VS Code Extension", () => {
 
     const outputView = await bottomBar.openOutputView();
 
-    // Find Manager::PlaceOrder subprogram and click on Generate Tests
+    // Find moo::extreme subprogram and click on Generate Tests
     for (const vcastTestingViewSection of await vcastTestingViewContent.getSections()) {
       if (!(await vcastTestingViewSection.isExpanded()))
         await vcastTestingViewSection.expand();
@@ -355,6 +493,15 @@ describe("vTypeCheck VS Code Extension", () => {
       await subprogramMethod.select();
     }
 
+    // Make sure we're on the reqs channel and clear it so we only see
+    // output from THIS invocation of reqs2tests.
+    try {
+      await outputView.selectChannel(
+        "VectorCAST Requirement Test Generation Operations"
+      );
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
     await outputView.clearText();
 
     const contextMenu = await subprogramMethod.openContextMenu();
@@ -362,28 +509,39 @@ describe("vTypeCheck VS Code Extension", () => {
     const menuElement = await $("aria/Generate Tests from Requirements");
     await menuElement.click();
 
-    // 2025sp1 shows the first log and then doesnt switch back to the other output channel.
+    // Primary: wait for the reqs2tests completion line on the reqs channel.
+    // Fallback: switch to the main "VectorCAST Test Explorer" channel and
+    // wait for the post-load message there.
     try {
-      // First, try waiting for the "reqs2tests" log
       await browser.waitUntil(
         async () =>
           (await (await bottomBar.openOutputView()).getText())
             .toString()
-            .includes("reqs2tests completed successfully with code 0"),
+            .includes("reqs2tests exit code: 0"),
         { timeout: 240_000 }
       );
+      console.log(await outputView.getText());
+      // Generating reqs tests automatically open the VectorCAST Channel, so we maybe have to switch the channel here again
     } catch (err) {
-      // If that fails, fall back to "Processing environment data"
+      try {
+        await outputView.selectChannel(
+          "VectorCAST Requirement Test Generation Operations"
+        );
+      } catch (err) {
+        console.warn("selectChannel failed, continuing anyway:", err.message);
+      }
+      console.log(await outputView.getText());
       try {
         await browser.waitUntil(
           async () =>
             (await (await bottomBar.openOutputView()).getText())
               .toString()
-              .includes("Processing environment data for:"),
+              .includes("reqs2tests exit code: 0"),
           { timeout: 240_000 }
         );
+        console.log("REQS2TESTS Exited with 0");
+        console.log(await outputView.getText());
       } catch (err2) {
-        // Both attempts failed → rethrow the first error (or combine them)
         console.log(await outputView.getText());
         throw new Error(
           `Neither log message appeared within the timeout.\n` +
@@ -392,11 +550,30 @@ describe("vTypeCheck VS Code Extension", () => {
       }
     }
 
+    try {
+      await browser.waitUntil(async () =>
+        (await outputView.getChannelNames())
+          .toString()
+          .includes("VectorCAST Test Explorer")
+      );
+      await outputView.selectChannel("VectorCAST Test Explorer");
+    } catch (err) {
+      console.warn("selectChannel failed, continuing anyway:", err.message);
+    }
+    console.log(await outputView.getText());
+    await browser.takeScreenshot();
+    await browser.saveScreenshot("before_run_test.png");
+
     await (
       await (
         await subprogramMethod.getActionButton("Run Test")
       ).elem
     ).click();
+
+    await browser.takeScreenshot();
+    await browser.saveScreenshot(
+      "info_finished_creating_vcast_environment.png"
+    );
 
     // -------- Coverage validation --------
 

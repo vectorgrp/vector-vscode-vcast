@@ -18,13 +18,13 @@ void Add_Included_Dessert(struct order_type* Order)
      Order->Salad == CAESAR &&
      Order->Beverage == MIXED_DRINK) {
     
-    Order->Dessert = CAKE;
+    Order->Dessert = PIE;
   
   } else if(Order->Entree == LOBSTER &&
             Order->Salad == GREEN &&
             Order->Beverage == WINE) {
     
-    Order->Dessert = PIE;  
+    Order->Dessert = CAKE;
   }
 }
 
