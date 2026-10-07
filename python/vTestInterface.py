@@ -60,6 +60,7 @@ modeChoices = [
     "report",
     "mcdcReport",
     "mcdcLines",
+    "perTestCoverage",
     "parseCBT",
     "rebuild",
 ]
@@ -295,14 +296,12 @@ def getTestDataVCAST(api, enviroPath):
     return testList
 
 
-def getUnitData(api):
+def getSourceFiles(api):
     """
-    This function will return info about the units in an environment
+    Yields (sourcePath, sourceObject, isInstrumented) for every source file
+    of the environment that has a path
     """
-    unitList = list()
-
-    sourceObjects = api.SourceFile.all()
-    for sourceObject in sourceObjects:
+    for sourceObject in api.SourceFile.all():
         # display_path and is_instrumented are delegated through cover_data, so
         # they raise AttributeError whenever coverage has not been initialized
         # (cover_data is None), which is common for Ada environments and for
@@ -318,6 +317,16 @@ def getUnitData(api):
             isInstrumented = sourceObject.is_instrumented
         except AttributeError:
             isInstrumented = False
+        yield sourcePath, sourceObject, isInstrumented
+
+
+def getUnitData(api):
+    """
+    This function will return info about the units in an environment
+    """
+    unitList = list()
+
+    for sourcePath, sourceObject, isInstrumented in getSourceFiles(api):
         if isInstrumented:
             covered, uncovered, partiallyCovered, checksum = getCoverageData(
                 sourceObject
@@ -329,7 +338,6 @@ def getUnitData(api):
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
             unitInfo["partiallyCovered"] = partiallyCovered
-            unitInfo["perTestCoverage"] = getPerTestCoverageData(sourceObject)
             unitList.append(unitInfo)
 
         elif len(sourcePath) > 0:
@@ -343,7 +351,6 @@ def getUnitData(api):
             unitInfo["covered"] = ""
             unitInfo["uncovered"] = ""
             unitInfo["partiallyCovered"] = ""
-            unitInfo["perTestCoverage"] = {}
             unitList.append(unitInfo)
 
     return unitList
@@ -1311,6 +1318,20 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
         api.close()
         returnObject = topLevel
+
+    elif mode == "perTestCoverage":
+        try:
+            api = UnitTestApi(pathToUse)
+        except Exception as err:
+            raise UsageError(err)
+        # Only the requirements test review needs this, so it is not part of
+        # getEnviroData, which runs on every environment load
+        returnObject = {
+            sourcePath: getPerTestCoverageData(sourceObject)
+            for sourcePath, sourceObject, isInstrumented in getSourceFiles(api)
+            if isInstrumented
+        }
+        api.close()
 
     elif mode == "executeTest":
         try:

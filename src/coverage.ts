@@ -10,7 +10,12 @@ import {
   getListOfFilesToDecorate,
 } from "./vcastTestInterface";
 
-import { getRangeOption, isSupportedSourceFile } from "./utilities";
+import { getPerTestCoverageFromAPI } from "./vcastAdapter";
+import {
+  forceLowerCaseDriveLetter,
+  getRangeOption,
+  isSupportedSourceFile,
+} from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 import {
@@ -185,7 +190,12 @@ export async function updateCOVdecorations() {
     // In review mode, show only the selected test's coverage for the target file
     const coverageData =
       reviewModeActive && reviewModeTestId && reviewModeFilePath === filePath
-        ? getCoverageDataForFileAndTest(filePath, reviewModeTestId)
+        ? getCoverageDataForFileAndTest(
+            filePath,
+            reviewModeTestId,
+            reviewModeEnviroPath,
+            reviewModePerTestCoverage
+          )
         : getCoverageDataForFile(filePath);
 
     if (coverageData.hasCoverageData) {
@@ -338,22 +348,41 @@ export async function updateDisplayedCoverage() {
 let reviewModeActive: boolean = false;
 let reviewModeTestId: string | null = null;
 let reviewModeFilePath: string | null = null;
+let reviewModeEnviroPath: string = "";
+let reviewModePerTestCoverage: Record<string, Record<string, string>> = {};
 /////////////////////////////////////////////////////////////////////
 
 export function isReviewModeActive(): boolean {
   return reviewModeActive;
 }
 
-export function enterReviewMode(testId: string, filePath: string): void {
+export async function enterReviewMode(
+  testId: string,
+  filePath: string,
+  enviroPath: string
+): Promise<void> {
+  // Fetched per review rather than with the environment data, which would
+  // compute it for every test on every environment load.
+  const perTestCoverage = (await getPerTestCoverageFromAPI(enviroPath)) ?? {};
+  const forThisFile = Object.entries(perTestCoverage).find(
+    ([path]) =>
+      forceLowerCaseDriveLetter(path) === forceLowerCaseDriveLetter(filePath)
+  );
+  reviewModePerTestCoverage = (forThisFile?.[1] ?? {}) as Record<
+    string,
+    Record<string, string>
+  >;
   reviewModeActive = true;
   reviewModeTestId = testId;
   reviewModeFilePath = filePath;
+  reviewModeEnviroPath = enviroPath;
 }
 
 export async function exitReviewMode(): Promise<void> {
   reviewModeActive = false;
   reviewModeTestId = null;
   reviewModeFilePath = null;
+  reviewModePerTestCoverage = {};
 
   // Refresh normal coverage display
   if (coverageOn) {

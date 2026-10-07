@@ -654,34 +654,47 @@ export async function getDataForEnvironmentFromAPI(
   // what we get back is a JSON formatted string (if the command works)
   // that has two sub-fields: testData, and unitData
   vectorMessage("Processing environment data for: " + enviroPath);
+  return getEnvironmentJson(vcastCommandType.getEnviroData, enviroPath);
+}
 
-  let jsonData: any;
+// For every instrumented file of the environment, keyed by its path:
+// line number -> { "unit.function.test": "covered" | "partiallyCovered" }
+export async function getPerTestCoverageFromAPI(
+  enviroPath: string
+): Promise<any> {
+  return getEnvironmentJson(vcastCommandType.perTestCoverage, enviroPath);
+}
+
+async function getEnvironmentJson(
+  command: vcastCommandType,
+  enviroPath: string
+): Promise<any> {
   if (globalEnviroDataServerActive) {
-    jsonData = await getEnviroDataFromServer(enviroPath);
-  } else {
-    jsonData = getEnviroDataFromPython(enviroPath);
+    return getEnvironmentJsonFromServer(command, enviroPath);
   }
-
-  return jsonData;
+  return getEnvironmentJsonFromPython(command, enviroPath);
 }
 
 // vPython Logic
-function getEnviroDataFromPython(enviroPath: string): any {
-  // This function will return the environment data for a single directory
+function getEnvironmentJsonFromPython(
+  command: vcastCommandType,
+  enviroPath: string
+): any {
+  // This function will return the command's data for a single directory
   // by calling vpython with the appropriate command
-  const commandToRun = getVcastInterfaceCommand(
-    vcastCommandType.getEnviroData,
-    enviroPath
-  );
+  const commandToRun = getVcastInterfaceCommand(command, enviroPath);
   let jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
   return jsonData;
 }
 
 // Server Logic
-async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
+async function getEnvironmentJsonFromServer(
+  command: vcastCommandType,
+  enviroPath: string
+): Promise<any> {
   //
   const requestObject: clientRequestType = {
-    command: vcastCommandType.getEnviroData,
+    command: command,
     path: enviroPath,
   };
 

@@ -204,7 +204,6 @@ interface coverageDataType {
   covered: number[];
   uncovered: number[];
   partiallyCovered: number[];
-  perTestCoverage: Record<string, Record<string, string>>; // "lineNum" -> {"unit.func.test": "covered"|"partiallyCovered", ...}
 }
 
 interface fileCoverageType {
@@ -294,12 +293,14 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
 //////////////////////////////////////////////////////////////////////
 export function getCoverageDataForFileAndTest(
   filePath: string,
-  testId: string
+  testId: string,
+  enviroPath: string,
+  perTestCoverage: Record<string, Record<string, string>> // "lineNum" -> {"unit.func.test": "covered"|"partiallyCovered", ...}
 ): coverageSummaryType {
   // Returns coverage data for a specific test case on a specific file.
-  // Uses the perTestCoverage data to determine which lines the test covers
-  // and whether coverage is full or partial (for branch/MCDC environments).
-  // Lines not covered by this test are marked as uncovered.
+  // Uses the test's environment's perTestCoverage to determine which lines the
+  // test covers and whether coverage is full or partial (for branch/MCDC
+  // environments). Lines not covered by this test are marked as uncovered.
 
   let returnData: coverageSummaryType = {
     hasCoverageData: false,
@@ -321,7 +322,7 @@ export function getCoverageDataForFileAndTest(
   const partiallyCoveredByTest = new Set<number>();
   const allCoverableLines = new Set<number>();
 
-  for (const [enviroPath, enviroData] of dataForThisFile.enviroList.entries()) {
+  for (const enviroData of dataForThisFile.enviroList.values()) {
     if (enviroData.crc32Checksum != checksum) {
       continue;
     }
@@ -330,13 +331,13 @@ export function getCoverageDataForFileAndTest(
     for (const line of enviroData.covered) allCoverableLines.add(line);
     for (const line of enviroData.uncovered) allCoverableLines.add(line);
     for (const line of enviroData.partiallyCovered) allCoverableLines.add(line);
+  }
 
-    // Lines covered by this specific test
-    // Python produces short names like "unit.function.testname";
-    // compose the full test node ID to match the VS Code test explorer format
-    for (const [lineStr, testStatusMap] of Object.entries(
-      enviroData.perTestCoverage
-    )) {
+  // Lines covered by this specific test, if its environment matches the file
+  // Python produces short names like "unit.function.testname";
+  // compose the full test node ID to match the VS Code test explorer format
+  if (dataForThisFile.enviroList.get(enviroPath)?.crc32Checksum == checksum) {
+    for (const [lineStr, testStatusMap] of Object.entries(perTestCoverage)) {
       for (const [testName, status] of Object.entries(testStatusMap)) {
         const fullTestNodeId = `vcast:${enviroPath}|${testName}`;
         if (fullTestNodeId === testId) {
@@ -428,15 +429,11 @@ export function updateGlobalDataForFile(enviroPath: string, fileList: any[]) {
         .map(Number);
 
     const checksum = fileList[fileIndex].cmcChecksum;
-    const perTestCoverage: Record<string, Record<string, string>> = fileList[
-      fileIndex
-    ].perTestCoverage || {};
     let coverageData: coverageDataType = {
       crc32Checksum: checksum,
       covered: coveredList,
       uncovered: uncoveredList,
       partiallyCovered: partiallyCoveredList,
-      perTestCoverage: perTestCoverage,
     };
 
     let fileData: fileCoverageType | undefined =

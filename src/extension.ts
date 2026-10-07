@@ -1596,7 +1596,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         matchingUnit.path,
         reqData,
         context,
-        testId
+        testId,
+        enviroPath
       );
 
       // Open TST script beside source file

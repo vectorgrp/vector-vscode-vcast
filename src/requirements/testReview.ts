@@ -239,7 +239,8 @@ export async function openSourceFileWithHighlight(
   sourceFilePath: string,
   reqData: RequirementData,
   context: vscode.ExtensionContext,
-  testId: string
+  testId: string,
+  enviroPath: string
 ): Promise<void> {
   const sourceFileUri = vscode.Uri.file(sourceFilePath);
   const document = await vscode.workspace.openTextDocument(sourceFileUri);
@@ -258,7 +259,7 @@ export async function openSourceFileWithHighlight(
   });
 
   // Enter review mode BEFORE applying decorations
-  enterReviewMode(testId, sourceFilePath);
+  await enterReviewMode(testId, sourceFilePath, enviroPath);
 
   // Apply the green highlight to critical lines
   highlightCriticalLines(editor, document, reqData);
