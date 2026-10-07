@@ -155,11 +155,9 @@ import {
   TESTS2CHECK_EXECUTABLE_PATH,
 } from "./requirements/requirementsExecutables";
 import {
-  activeHighlightDecoration,
   fetchRequirementCoverageData,
   openSourceFileWithHighlight,
   openTstScriptAtTest,
-  setActiveHighlightDecoration,
 } from "./requirements/testReview";
 
 import {
@@ -698,10 +696,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         );
         if (!generated) return;
 
-        // We need to execute the test and refresh the extension data so that the tests get the
-        // Reqs review button (see openReqsCoverageReview). On normal envs, after generating the tests,
-        // we fetch the data from the env but the tests still not seem to have the data.
-        // Executing them and refreshing the extension solves this.
+        // The requirements test review compares coverage, so run the tests and
+        // refresh to show its button on the new ones.
         const testItem = findTestItemInController(testNode.enviroNodeID);
         if (testItem) {
           const request = new vscode.TestRunRequest([testItem]);
@@ -1610,19 +1606,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
 
-  let closeRequirementBoxes = vscode.commands.registerCommand(
-    "vectorcastTestExplorer.closeRequirementBoxes",
-    () => {
-      if (activeHighlightDecoration) {
-        activeHighlightDecoration.dispose();
-        setActiveHighlightDecoration(null);
-      }
-    }
-  );
-
-  // Register commands
   context.subscriptions.push(openReqsCoverageReview);
-  context.subscriptions.push(closeRequirementBoxes);
 
   let showRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.showRequirements",

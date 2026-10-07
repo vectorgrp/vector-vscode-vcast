@@ -16,10 +16,6 @@ import {
   RequirementData,
 } from "./testReviewData";
 
-// State Management
-export let activeHighlightDecoration: vscode.TextEditorDecorationType | null =
-  null;
-
 /**
  * Finds the line number containing the test name in the TST script
  */
@@ -158,7 +154,22 @@ export async function showRequirementPeekBox(
           reviewBoxes.get(uri.toString()) ?? "",
       }
     );
-    context.subscriptions.push(reviewBoxProvider);
+    // The review ends when no review box is visible any more
+    const reviewEnd = vscode.window.onDidChangeVisibleTextEditors(
+      async (editors) => {
+        const boxVisible = editors.some(
+          (editor) => editor.document.uri.scheme === "requirement-info"
+        );
+        if (reviewBoxes.size === 0 || boxVisible) {
+          return;
+        }
+        disposeCriticalLineDecorations();
+        reviewBoxes.clear();
+        await exitReviewMode();
+        updateDisplayedCoverage();
+      }
+    );
+    context.subscriptions.push(reviewBoxProvider, reviewEnd);
   }
 
   reviewBoxCount += 1;
@@ -191,35 +202,6 @@ export async function showRequirementPeekBox(
       }
     }
   }, 0);
-
-  // Listen for when the peek window is closed and clear highlights + exit review mode
-  const disposable = vscode.window.onDidChangeVisibleTextEditors(
-    async (editors) => {
-      const peekWindowOpen = editors.some(
-        (editor) => editor.document.uri.scheme === "requirement-info"
-      );
-
-      if (!peekWindowOpen) {
-        // Clear ALL coverage highlight decorations
-        disposeCriticalLineDecorations();
-
-        // Also clear the legacy single decoration if somehow still set
-        if (activeHighlightDecoration) {
-          activeHighlightDecoration.dispose();
-          setActiveHighlightDecoration(null);
-        }
-
-        // Exit review mode and refresh normal coverage
-        await exitReviewMode();
-        updateDisplayedCoverage();
-        reviewBoxes.clear();
-
-        // Clean up this listener
-        disposable.dispose();
-      }
-    }
-  );
-  context.subscriptions.push(disposable);
 }
 
 /**
@@ -306,12 +288,6 @@ export async function openTstScriptAtTest(
     preview: false,
     preserveFocus: false,
   });
-}
-
-export function setActiveHighlightDecoration(
-  decoration: vscode.TextEditorDecorationType | null
-): void {
-  activeHighlightDecoration = decoration;
 }
 
 /**
