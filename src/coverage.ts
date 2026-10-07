@@ -189,7 +189,9 @@ export async function updateCOVdecorations() {
 
     // In review mode, show only the selected test's coverage for the target file
     const coverageData =
-      reviewModeActive && reviewModeTestId && reviewModeFilePath === filePath
+      reviewModeActive &&
+      reviewModeTestId &&
+      reviewModeFilePath === forceLowerCaseDriveLetter(filePath)
         ? getCoverageDataForFileAndTest(
             filePath,
             reviewModeTestId,
@@ -374,7 +376,7 @@ export async function enterReviewMode(
   >;
   reviewModeActive = true;
   reviewModeTestId = testId;
-  reviewModeFilePath = filePath;
+  reviewModeFilePath = forceLowerCaseDriveLetter(filePath);
   reviewModeEnviroPath = enviroPath;
 }
 
