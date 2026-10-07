@@ -119,6 +119,29 @@ function wrapText(text: string, maxWidth: number): string[] {
  * Creates a formatted text box containing requirement information.
  * Guarantees nothing escapes the box — title and description are both wrapped.
  */
+/**
+ * The 1-based lines a review colors within the requirement's span: green where
+ * the test ran the line, red where the line is expected but the test missed it.
+ */
+export function reviewLineColors(reqData: RequirementData): {
+  covered: number[];
+  uncovered: number[];
+} {
+  const actual = new Set(reqData.actualLines.map((line) => line + 1));
+  const expected = new Set(reqData.expectedLines.map((line) => line + 1));
+  const covered: number[] = [];
+  const uncovered: number[] = [];
+  for (
+    let line = reqData.importantLineStart;
+    line <= reqData.importantLineEnd;
+    line++
+  ) {
+    if (actual.has(line)) covered.push(line);
+    else if (expected.has(line)) uncovered.push(line);
+  }
+  return { covered, uncovered };
+}
+
 export function createRequirementInfoBox(reqData: RequirementData): string {
   const BOX_WIDTH = 66; // total inner width (between the ║ borders)
   const PADDING = 2; // spaces on each side inside the border

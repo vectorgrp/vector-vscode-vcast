@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   createRequirementInfoBox,
   parseTests2checkResult,
+  reviewLineColors,
 } from "../../src/requirements/testReviewData";
 
 // The snake_case keys mirror the JSON printed by tests2check,
@@ -60,6 +61,33 @@ describe("tests2check result parsing", () => {
 
     expect(data.justification).toBeUndefined();
     expect(createRequirementInfoBox(data)).not.toContain("AI JUSTIFICATION");
+  });
+});
+
+describe("review line colors", () => {
+  test("marks expected lines the test ran green and the rest red", () => {
+    const data = parseTests2checkResult(
+      coverageResult,
+      "TEST_1",
+      "manager",
+      "",
+      5
+    );
+    expect(reviewLineColors(data)).toEqual({ covered: [11], uncovered: [12] });
+  });
+
+  test("marks every expected line red when the test ran none of them", () => {
+    const data = parseTests2checkResult(
+      { ...coverageResult, actual_coverage: [] },
+      "TEST_1",
+      "manager",
+      "",
+      5
+    );
+    expect(reviewLineColors(data)).toEqual({
+      covered: [],
+      uncovered: [11, 12],
+    });
   });
 });
 /* eslint-enable @typescript-eslint/naming-convention */

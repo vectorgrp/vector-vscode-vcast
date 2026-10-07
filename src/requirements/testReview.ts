@@ -14,6 +14,7 @@ import {
   createRequirementInfoBox,
   parseTests2checkResult,
   RequirementData,
+  reviewLineColors,
 } from "./testReviewData";
 
 /**
@@ -74,11 +75,6 @@ export function highlightCriticalLines(
   // Dispose all previous decorations via shared helper
   disposeCriticalLineDecorations();
 
-  if (!reqData.actualLines || reqData.actualLines.length === 0) {
-    return;
-  }
-
-  // --- Decoration types ---
   activeUncoveredDecoration = createCoverageDecoration(
     "rgba(243, 74, 51, 0.15)" // red bg
   );
@@ -86,48 +82,13 @@ export function highlightCriticalLines(
     "rgba(87, 184, 89, 0.15)" // green bg
   );
 
-  // Build a Set of critical line numbers for fast lookup (1-based)
-  const criticalLines = new Set<number>();
-  for (
-    let line = reqData.importantLineStart;
-    line <= reqData.importantLineEnd;
-    line++
-  ) {
-    criticalLines.add(line);
-  }
-
-  // actualLines from tests2check are 0-based, convert to 1-based
-  const actualLinesSet = new Set<number>(
-    reqData.actualLines.map((line) => line + 1)
-  );
-
-  // expectedLines from tests2check are 0-based, convert to 1-based
-  const expectedLinesSet = new Set<number>(
-    (reqData.expectedLines || []).map((line) => line + 1)
-  );
-
-  const uncoveredRanges: vscode.Range[] = [];
-  const coveredRanges: vscode.Range[] = [];
-
-  for (const line of criticalLines) {
-    // Guard: skip lines beyond the document
-    if (line > document.lineCount) {
-      continue;
-    }
-
-    const range = lineToRange(document, line);
-
-    if (actualLinesSet.has(line)) {
-      coveredRanges.push(range);
-    } else if (expectedLinesSet.has(line)) {
-      uncoveredRanges.push(range);
-    }
-    // Lines not in expectedLines or actualLines are non-executable — skip them
-  }
-
-  // Apply both decoration sets in one pass
-  editor.setDecorations(activeUncoveredDecoration, uncoveredRanges);
-  editor.setDecorations(activeCoveredDecoration, coveredRanges);
+  const { covered, uncovered } = reviewLineColors(reqData);
+  const ranges = (lines: number[]) =>
+    lines
+      .filter((line) => line <= document.lineCount)
+      .map((line) => lineToRange(document, line));
+  editor.setDecorations(activeUncoveredDecoration, ranges(uncovered));
+  editor.setDecorations(activeCoveredDecoration, ranges(covered));
 }
 
 // Every review box gets its own URI: VS Code keeps serving a document that is
