@@ -134,6 +134,12 @@ export function highlightCriticalLines(
   editor.setDecorations(activeCoveredDecoration, coveredRanges);
 }
 
+// Every review box gets its own URI: VS Code keeps serving a document that is
+// already open instead of asking the provider again.
+const reviewBoxes = new Map<string, string>();
+let reviewBoxProvider: vscode.Disposable | undefined;
+let reviewBoxCount = 0;
+
 /**
  * Shows the requirement info box as a peek window
  * Automatically clears highlights when the peek window is closed
@@ -144,21 +150,24 @@ export async function showRequirementPeekBox(
   reqData: RequirementData,
   context: vscode.ExtensionContext
 ): Promise<void> {
-  const virtualDocUri = vscode.Uri.parse("requirement-info:Requirement Info");
-  const infoBoxContent = createRequirementInfoBox(reqData);
-
-  // Create content provider for the virtual document
-  const provider = new (class implements vscode.TextDocumentContentProvider {
-    provideTextDocumentContent(): string {
-      return infoBoxContent;
-    }
-  })();
-
-  const providerDisposable =
-    vscode.workspace.registerTextDocumentContentProvider(
+  if (!reviewBoxProvider) {
+    reviewBoxProvider = vscode.workspace.registerTextDocumentContentProvider(
       "requirement-info",
-      provider
+      {
+        provideTextDocumentContent: (uri) =>
+          reviewBoxes.get(uri.toString()) ?? "",
+      }
     );
+    context.subscriptions.push(reviewBoxProvider);
+  }
+
+  reviewBoxCount += 1;
+  const virtualDocUri = vscode.Uri.from({
+    scheme: "requirement-info",
+    path: reqData.title,
+    query: String(reviewBoxCount),
+  });
+  reviewBoxes.set(virtualDocUri.toString(), createRequirementInfoBox(reqData));
 
   await vscode.workspace.openTextDocument(virtualDocUri);
 
@@ -203,6 +212,7 @@ export async function showRequirementPeekBox(
         // Exit review mode and refresh normal coverage
         await exitReviewMode();
         updateDisplayedCoverage();
+        reviewBoxes.clear();
 
         // Clean up this listener
         disposable.dispose();
@@ -210,11 +220,6 @@ export async function showRequirementPeekBox(
     }
   );
   context.subscriptions.push(disposable);
-
-  // Clean up provider after peek window is shown
-  setTimeout(() => {
-    providerDisposable.dispose();
-  }, 1000);
 }
 
 /**
