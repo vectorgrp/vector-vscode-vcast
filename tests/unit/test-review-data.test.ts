@@ -18,11 +18,11 @@ const coverageResult = {
 };
 
 const argument = {
-  verdict: "Partially",
-  confidence: "medium",
+  verdict: "Exercises",
   basis: "test-description",
-  argument: "Line 11 is expected but never reached.",
-  caveats: ["Over-coverage"],
+  argument: "The test runs line 11 and checks the total.",
+  checking_assertions: ["manager.total"],
+  caveats: ["Judged against the full linked requirement"],
 };
 
 describe("tests2check result parsing", () => {
@@ -38,16 +38,17 @@ describe("tests2check result parsing", () => {
     expect(data.expectedLines).toEqual([10, 11]);
     expect(data.actualLines).toEqual([10]);
     expect(data.justification).toEqual({
-      verdict: "Partially",
-      confidence: "medium",
-      argument: "Line 11 is expected but never reached.",
-      caveats: ["Over-coverage"],
+      verdict: "Exercises",
+      argument: "The test runs line 11 and checks the total.",
+      checkingAssertions: ["manager.total"],
+      caveats: ["Judged against the full linked requirement"],
     });
 
     const box = createRequirementInfoBox(data);
-    expect(box).toContain("AI JUSTIFICATION: Partially (confidence: medium)");
-    expect(box).toContain("Line 11 is expected but never reached.");
-    expect(box).toContain("- caveat: Over-coverage");
+    expect(box).toContain("AI JUSTIFICATION: Exercises");
+    expect(box).toContain("The test runs line 11 and checks the total.");
+    expect(box).toContain("- checked by: manager.total");
+    expect(box).toContain("- caveat: Judged against the full linked");
   });
 
   test("shows only the description without a justification", () => {

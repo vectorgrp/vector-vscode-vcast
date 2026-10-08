@@ -4,8 +4,8 @@ const path = require("path");
 
 export interface Justification {
   verdict: string;
-  confidence: string;
   argument: string;
+  checkingAssertions: string[];
   caveats: string[];
 }
 
@@ -63,8 +63,8 @@ export function parseTests2checkResult(
     justification: argument
       ? {
           verdict: argument.verdict,
-          confidence: argument.confidence,
           argument: argument.argument || "",
+          checkingAssertions: argument.checking_assertions || [],
           caveats: argument.caveats || [],
         }
       : undefined,
@@ -179,11 +179,12 @@ export function createRequirementInfoBox(reqData: RequirementData): string {
   const justificationLines = justification
     ? [
         midBorder,
-        ...formatBlock(
-          `AI JUSTIFICATION: ${justification.verdict} (confidence: ${justification.confidence})`
-        ),
+        ...formatBlock(`AI JUSTIFICATION: ${justification.verdict}`),
         divider,
         ...formatBlock(justification.argument),
+        ...justification.checkingAssertions.flatMap((name) =>
+          formatBlock(`- checked by: ${name}`)
+        ),
         ...justification.caveats.flatMap((caveat) =>
           formatBlock(`- caveat: ${caveat}`)
         ),
