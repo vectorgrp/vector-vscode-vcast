@@ -221,4 +221,23 @@ describe("Requirements test review", () => {
     );
     await browser.keys(Key.Escape);
   });
+
+  it("should replace the previous review rather than open more columns and boxes", async () => {
+    await updateTestID();
+    await browser.executeWorkbench(async (vscode) => {
+      await vscode.commands.executeCommand("workbench.action.closeAllGroups");
+    });
+    await openReviewFor("PLACE_ORDER_STEAK");
+    await openReviewFor("PLACE_ORDER_CHICKEN");
+
+    const layout = await browser.executeWorkbench((vscode) => ({
+      columns: vscode.window.tabGroups.all.length,
+      boxes: vscode.window.visibleTextEditors
+        .filter((editor) => editor.document.uri.scheme === "requirement-info")
+        .map((editor) => editor.document.getText()),
+    }));
+    expect(layout.columns).toBe(2);
+    expect(layout.boxes).toHaveLength(1);
+    expect(layout.boxes[0]).toContain("PLACE_ORDER_CHICKEN");
+  });
 });

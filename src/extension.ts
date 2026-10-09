@@ -158,6 +158,7 @@ import {
   fetchRequirementCoverageData,
   openSourceFileWithHighlight,
   openTstScriptAtTest,
+  reviewInProgress,
 } from "./requirements/testReview";
 
 import {
@@ -1586,6 +1587,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
       // Use the test node ID directly from the test explorer
       const testId = args.id;
+      const switchingTests = reviewInProgress();
 
       // Open source file with requirement highlighting
       await openSourceFileWithHighlight(
@@ -1600,9 +1602,11 @@ function configureExtension(context: vscode.ExtensionContext) {
       const scriptPath = testNode.enviroPath + ".tst";
       await openTstScriptAtTest(testNode, scriptPath);
 
-      vscode.window.showWarningMessage(
-        `You are currently in Review Mode for the requirement test ${testName}. Only coverage for this test is shown. To exit Review Mode, close the requirement description box in the source file.`
-      );
+      if (!switchingTests) {
+        vscode.window.showWarningMessage(
+          `You are currently in Review Mode for the requirement test ${testName}. Only coverage for this test is shown. To exit Review Mode, close the requirement description box in the source file.`
+        );
+      }
     }
   );
 

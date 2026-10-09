@@ -93,9 +93,13 @@ export function highlightCriticalLines(
 
 // Every review box gets its own URI: VS Code keeps serving a document that is
 // already open instead of asking the provider again.
-const reviewBoxes = new Map<string, string>();
+let reviewBox: { uri: string; text: string; shown: boolean } | undefined;
 let reviewBoxProvider: vscode.Disposable | undefined;
 let reviewBoxCount = 0;
+
+export function reviewInProgress(): boolean {
+  return reviewBox !== undefined;
+}
 
 /**
  * Shows the requirement info box as a peek window
@@ -112,20 +116,25 @@ export async function showRequirementPeekBox(
       "requirement-info",
       {
         provideTextDocumentContent: (uri) =>
-          reviewBoxes.get(uri.toString()) ?? "",
+          uri.toString() === reviewBox?.uri ? reviewBox.text : "",
       }
     );
-    // The review ends when no review box is visible any more
+    // The review ends when its box, once shown, is closed
     const reviewEnd = vscode.window.onDidChangeVisibleTextEditors(
       async (editors) => {
-        const boxVisible = editors.some(
-          (editor) => editor.document.uri.scheme === "requirement-info"
-        );
-        if (reviewBoxes.size === 0 || boxVisible) {
+        if (!reviewBox) {
           return;
         }
+        const uri = reviewBox.uri;
+        if (editors.some((editor) => editor.document.uri.toString() === uri)) {
+          reviewBox.shown = true;
+          return;
+        }
+        if (!reviewBox.shown) {
+          return;
+        }
+        reviewBox = undefined;
         disposeCriticalLineDecorations();
-        reviewBoxes.clear();
         await exitReviewMode();
         updateDisplayedCoverage();
       }
@@ -139,9 +148,17 @@ export async function showRequirementPeekBox(
     path: reqData.title,
     query: String(reviewBoxCount),
   });
-  reviewBoxes.set(virtualDocUri.toString(), createRequirementInfoBox(reqData));
+  reviewBox = {
+    uri: virtualDocUri.toString(),
+    text: createRequirementInfoBox(reqData),
+    shown: false,
+  };
 
   await vscode.workspace.openTextDocument(virtualDocUri);
+
+  // Asked again at the same position, peekLocations closes the previous box
+  // instead of replacing it.
+  await vscode.commands.executeCommand("closeReferenceSearch");
 
   // Show peek window
   await vscode.commands.executeCommand(
@@ -185,6 +202,10 @@ export async function openSourceFileWithHighlight(
   testId: string,
   enviroPath: string
 ): Promise<void> {
+  // This review replaces any previous one, so that one's box closing must not
+  // end this review.
+  reviewBox = undefined;
+
   const sourceFileUri = vscode.Uri.file(sourceFilePath);
   const document = await vscode.workspace.openTextDocument(sourceFileUri);
 
@@ -196,6 +217,7 @@ export async function openSourceFileWithHighlight(
 
   // Open document
   const editor = await vscode.window.showTextDocument(document, {
+    viewColumn: vscode.ViewColumn.One,
     preview: false,
     preserveFocus: false,
     selection: new vscode.Range(peekPosition, peekPosition),
@@ -244,7 +266,7 @@ export async function openTstScriptAtTest(
   const selection = new vscode.Range(position, position);
 
   await vscode.window.showTextDocument(tstDocument, {
-    viewColumn: vscode.ViewColumn.Beside,
+    viewColumn: vscode.ViewColumn.Two,
     selection: selection,
     preview: false,
     preserveFocus: false,
