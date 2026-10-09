@@ -11,10 +11,10 @@ import { logCliError } from "./requirementsLog";
 import { runReqs2xTool } from "./processRunner";
 import { TESTS2CHECK_EXECUTABLE_PATH } from "./requirementsExecutables";
 import {
-  createRequirementInfoBox,
   parseTests2checkResult,
   RequirementData,
   reviewLineColors,
+  reviewMarkdown,
 } from "./testReviewData";
 
 /**
@@ -91,95 +91,60 @@ export function highlightCriticalLines(
   editor.setDecorations(activeCoveredDecoration, ranges(covered));
 }
 
-// Every review box gets its own URI: VS Code keeps serving a document that is
-// already open instead of asking the provider again.
-let reviewBox: { uri: string; text: string; shown: boolean } | undefined;
-let reviewBoxProvider: vscode.Disposable | undefined;
-let reviewBoxCount = 0;
+let reviewComments: vscode.CommentController | undefined;
+let reviewThread: vscode.CommentThread | undefined;
 
 export function reviewInProgress(): boolean {
-  return reviewBox !== undefined;
+  return reviewThread !== undefined;
 }
 
 /**
- * Shows the requirement info box as a peek window
- * Automatically clears highlights when the peek window is closed
+ * Shows the review as a comment thread on the given line, replacing the
+ * previous review's thread.
  */
-export async function showRequirementPeekBox(
+function showReviewThread(
   sourceFileUri: vscode.Uri,
-  peekPosition: vscode.Position,
+  line: number,
   reqData: RequirementData,
   context: vscode.ExtensionContext
-): Promise<void> {
-  if (!reviewBoxProvider) {
-    reviewBoxProvider = vscode.workspace.registerTextDocumentContentProvider(
-      "requirement-info",
-      {
-        provideTextDocumentContent: (uri) =>
-          uri.toString() === reviewBox?.uri ? reviewBox.text : "",
-      }
+): void {
+  if (!reviewComments) {
+    reviewComments = vscode.comments.createCommentController(
+      "vectorcastTestReview",
+      "Requirements Test Review"
     );
-    // The review ends when its box, once shown, is closed
-    const reviewEnd = vscode.window.onDidChangeVisibleTextEditors(
-      async (editors) => {
-        if (!reviewBox) {
-          return;
-        }
-        const uri = reviewBox.uri;
-        if (editors.some((editor) => editor.document.uri.toString() === uri)) {
-          reviewBox.shown = true;
-          return;
-        }
-        if (!reviewBox.shown) {
-          return;
-        }
-        reviewBox = undefined;
-        disposeCriticalLineDecorations();
-        await exitReviewMode();
-        updateDisplayedCoverage();
-      }
-    );
-    context.subscriptions.push(reviewBoxProvider, reviewEnd);
+    context.subscriptions.push(reviewComments);
   }
+  reviewThread?.dispose();
 
-  reviewBoxCount += 1;
-  const virtualDocUri = vscode.Uri.from({
-    scheme: "requirement-info",
-    path: reqData.title,
-    query: String(reviewBoxCount),
-  });
-  reviewBox = {
-    uri: virtualDocUri.toString(),
-    text: createRequirementInfoBox(reqData),
-    shown: false,
-  };
-
-  await vscode.workspace.openTextDocument(virtualDocUri);
-
-  // Asked again at the same position, peekLocations closes the previous box
-  // instead of replacing it.
-  await vscode.commands.executeCommand("closeReferenceSearch");
-
-  // Show peek window
-  await vscode.commands.executeCommand(
-    "editor.action.peekLocations",
+  const body = new vscode.MarkdownString(reviewMarkdown(reqData));
+  body.supportThemeIcons = true;
+  reviewThread = reviewComments.createCommentThread(
     sourceFileUri,
-    peekPosition,
-    [new vscode.Location(virtualDocUri, new vscode.Position(0, 0))],
-    "peek"
+    new vscode.Range(line, 0, line, 0),
+    [
+      {
+        body,
+        mode: vscode.CommentMode.Preview,
+        author: { name: "tests2check (AI)" },
+      },
+    ]
   );
+  reviewThread.label = `Requirements review: ${reqData.title}`;
+  reviewThread.canReply = false;
+  reviewThread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
+}
 
-  // Disable line numbers in peek window
-  setTimeout(() => {
-    for (const editor of vscode.window.visibleTextEditors) {
-      if (editor.document.uri.scheme === "requirement-info") {
-        editor.options = {
-          ...editor.options,
-          lineNumbers: vscode.TextEditorLineNumbersStyle.Off,
-        };
-      }
-    }
-  }, 0);
+/**
+ * Ends the review: removes its comment and highlights and shows the coverage
+ * of all tests again.
+ */
+export async function endReview(): Promise<void> {
+  reviewThread?.dispose();
+  reviewThread = undefined;
+  disposeCriticalLineDecorations();
+  await exitReviewMode();
+  updateDisplayedCoverage();
 }
 
 /**
@@ -202,15 +167,11 @@ export async function openSourceFileWithHighlight(
   testId: string,
   enviroPath: string
 ): Promise<void> {
-  // This review replaces any previous one, so that one's box closing must not
-  // end this review.
-  reviewBox = undefined;
-
   const sourceFileUri = vscode.Uri.file(sourceFilePath);
   const document = await vscode.workspace.openTextDocument(sourceFileUri);
 
   // Position cursor near the requirement line
-  const peekPosition = new vscode.Position(
+  const reviewPosition = new vscode.Position(
     Math.max(0, reqData.lineNumber - 1),
     0
   );
@@ -220,7 +181,7 @@ export async function openSourceFileWithHighlight(
     viewColumn: vscode.ViewColumn.One,
     preview: false,
     preserveFocus: false,
-    selection: new vscode.Range(peekPosition, peekPosition),
+    selection: new vscode.Range(reviewPosition, reviewPosition),
   });
 
   // Enter review mode BEFORE applying decorations
@@ -229,8 +190,7 @@ export async function openSourceFileWithHighlight(
   // Apply the green highlight to critical lines
   highlightCriticalLines(editor, document, reqData);
 
-  // Show the peek box
-  await showRequirementPeekBox(sourceFileUri, peekPosition, reqData, context);
+  showReviewThread(sourceFileUri, reviewPosition.line, reqData, context);
 
   // Update coverage decorations to show review mode coverage
   await updateDisplayedCoverage();

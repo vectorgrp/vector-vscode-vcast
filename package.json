@@ -244,6 +244,12 @@
         "title": "Open Requirements Coverage Review"
       },
       {
+        "command": "vectorcastTestExplorer.closeTestReview",
+        "category": "VectorCAST Test Explorer",
+        "title": "Close Review",
+        "icon": "$(close)"
+      },
+      {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
         "category": "VectorCAST Test Explorer",
         "title": "Insert Basis Path Tests"
@@ -1018,6 +1024,10 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.closeTestReview",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.insertBasisPathTests",
           "when": "never"
         },
@@ -1112,6 +1122,13 @@
         {
           "command": "vectorcastTestExplorer.testLLMConfiguration",
           "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "vectorcastTestExplorer.closeTestReview",
+          "group": "inline",
+          "when": "commentController == vectorcastTestReview"
         }
       ],
       "view/title": [

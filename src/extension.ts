@@ -157,6 +157,7 @@ import {
 import {
   fetchRequirementCoverageData,
   openSourceFileWithHighlight,
+  endReview,
   openTstScriptAtTest,
   reviewInProgress,
 } from "./requirements/testReview";
@@ -1604,13 +1605,19 @@ function configureExtension(context: vscode.ExtensionContext) {
 
       if (!switchingTests) {
         vscode.window.showWarningMessage(
-          `You are currently in Review Mode for the requirement test ${testName}. Only coverage for this test is shown. To exit Review Mode, close the requirement description box in the source file.`
+          `You are currently in Review Mode for the requirement test ${testName}. Only coverage for this test is shown. To exit Review Mode, close the review comment in the source file.`
         );
       }
     }
   );
 
-  context.subscriptions.push(openReqsCoverageReview);
+  context.subscriptions.push(
+    openReqsCoverageReview,
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.closeTestReview",
+      endReview
+    )
+  );
 
   let showRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.showRequirements",

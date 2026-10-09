@@ -58,16 +58,13 @@ async function clicast(...args: string[]) {
   });
 }
 
-// The text of the visible review box for this test, or "" if there is none.
-async function reviewBoxText(testName: string): Promise<string> {
-  return browser.executeWorkbench((vscode, name: string) => {
-    const box = vscode.window.visibleTextEditors.find(
-      (editor) =>
-        editor.document.uri.scheme === "requirement-info" &&
-        editor.document.getText().includes(name)
-    );
-    return box ? box.document.getText() : "";
-  }, testName);
+// The text of the review comment for this test, or "" if there is none.
+async function reviewCommentText(testName: string): Promise<string> {
+  for (const thread of await $$(".review-widget")) {
+    const text = await thread.getText();
+    if (text.includes(testName)) return text;
+  }
+  return "";
 }
 
 async function visibleEditors(): Promise<string> {
@@ -97,12 +94,12 @@ async function openReviewFor(testName: string) {
 
   try {
     await browser.waitUntil(
-      async () => (await reviewBoxText(testName)).includes("AI JUSTIFICATION"),
+      async () => (await reviewCommentText(testName)).includes("Verdict:"),
       { timeout: 240_000 }
     );
   } catch {
     throw new Error(
-      `No review box for ${testName}; visible: ${await visibleEditors()}`
+      `No review comment for ${testName}; visible: ${await visibleEditors()}`
     );
   }
 }
@@ -200,8 +197,8 @@ describe("Requirements test review", () => {
     await updateTestID();
     await openReviewFor("PLACE_ORDER_STEAK");
 
-    expect(await reviewBoxText("PLACE_ORDER_STEAK")).toContain(
-      "AI JUSTIFICATION: Exercises"
+    expect(await reviewCommentText("PLACE_ORDER_STEAK")).toContain(
+      "Verdict: Exercises"
     );
     const sourceOpen = await browser.executeWorkbench((vscode) =>
       vscode.window.visibleTextEditors.some((editor) =>
@@ -209,20 +206,24 @@ describe("Requirements test review", () => {
       )
     );
     expect(sourceOpen).toBe(true);
-    await browser.keys(Key.Escape);
+
+    await (await $("aria/Close Review")).click();
+    await browser.waitUntil(
+      async () => (await $$(".review-widget")).length === 0,
+      { timeout: TIMEOUT }
+    );
   });
 
   it("should flag a test traced to a requirement it does not exercise", async () => {
     await updateTestID();
     await openReviewFor("PLACE_ORDER_CHICKEN");
 
-    expect(await reviewBoxText("PLACE_ORDER_CHICKEN")).toContain(
-      "AI JUSTIFICATION: Does not"
+    expect(await reviewCommentText("PLACE_ORDER_CHICKEN")).toContain(
+      "Verdict: Does not"
     );
-    await browser.keys(Key.Escape);
   });
 
-  it("should replace the previous review rather than open more columns and boxes", async () => {
+  it("should replace the previous review rather than open more columns and comments", async () => {
     await updateTestID();
     await browser.executeWorkbench(async (vscode) => {
       await vscode.commands.executeCommand("workbench.action.closeAllGroups");
@@ -230,14 +231,12 @@ describe("Requirements test review", () => {
     await openReviewFor("PLACE_ORDER_STEAK");
     await openReviewFor("PLACE_ORDER_CHICKEN");
 
-    const layout = await browser.executeWorkbench((vscode) => ({
-      columns: vscode.window.tabGroups.all.length,
-      boxes: vscode.window.visibleTextEditors
-        .filter((editor) => editor.document.uri.scheme === "requirement-info")
-        .map((editor) => editor.document.getText()),
-    }));
-    expect(layout.columns).toBe(2);
-    expect(layout.boxes).toHaveLength(1);
-    expect(layout.boxes[0]).toContain("PLACE_ORDER_CHICKEN");
+    const columns = await browser.executeWorkbench(
+      (vscode) => vscode.window.tabGroups.all.length
+    );
+    expect(columns).toBe(2);
+    const comments = await $$(".review-widget");
+    expect(comments).toHaveLength(1);
+    expect(await comments[0].getText()).toContain("PLACE_ORDER_CHICKEN");
   });
 });

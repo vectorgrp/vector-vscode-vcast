@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
 import {
-  createRequirementInfoBox,
   parseTests2checkResult,
   reviewLineColors,
+  reviewMarkdown,
 } from "../../src/requirements/testReviewData";
 
 // The snake_case keys mirror the JSON printed by tests2check,
@@ -44,11 +44,11 @@ describe("tests2check result parsing", () => {
       caveats: ["Judged against the full linked requirement"],
     });
 
-    const box = createRequirementInfoBox(data);
-    expect(box).toContain("AI JUSTIFICATION: Exercises");
-    expect(box).toContain("The test runs line 11 and checks the total.");
-    expect(box).toContain("- checked by: manager.total");
-    expect(box).toContain("- caveat: Judged against the full linked");
+    const markdown = reviewMarkdown(data);
+    expect(markdown).toContain("$(pass) Verdict: Exercises");
+    expect(markdown).toContain("The test runs line 11 and checks the total.");
+    expect(markdown).toContain("- `manager.total`");
+    expect(markdown).toContain("- Judged against the full linked requirement");
   });
 
   test("shows only the description without a justification", () => {
@@ -61,7 +61,20 @@ describe("tests2check result parsing", () => {
     );
 
     expect(data.justification).toBeUndefined();
-    expect(createRequirementInfoBox(data)).not.toContain("AI JUSTIFICATION");
+    expect(reviewMarkdown(data)).not.toContain("Verdict");
+  });
+
+  test("shows text from the test as written, not as Markdown or icons", () => {
+    const data = parseTests2checkResult(
+      coverageResult,
+      "TEST_1",
+      "manager",
+      "Checks *both* totals $(alert)",
+      5
+    );
+    expect(reviewMarkdown(data)).toContain(
+      "Checks \\*both\\* totals \\$\\(alert\\)"
+    );
   });
 });
 

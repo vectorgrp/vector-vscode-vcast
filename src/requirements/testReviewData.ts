@@ -72,54 +72,6 @@ export function parseTests2checkResult(
 }
 
 /**
- * Wraps a single line of text into an array of lines, each <= maxWidth chars
- */
-function wrapText(text: string, maxWidth: number): string[] {
-  if (text.length <= maxWidth) {
-    return [text];
-  }
-
-  const lines: string[] = [];
-  const words = text.split(" ");
-  let current = "";
-
-  for (const word of words) {
-    // Word itself is longer than maxWidth — hard break it
-    if (word.length > maxWidth) {
-      if (current) {
-        lines.push(current);
-        current = "";
-      }
-      let remaining = word;
-      while (remaining.length > maxWidth) {
-        lines.push(remaining.slice(0, maxWidth));
-        remaining = remaining.slice(maxWidth);
-      }
-      current = remaining;
-      continue;
-    }
-
-    const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length <= maxWidth) {
-      current = candidate;
-    } else {
-      lines.push(current);
-      current = word;
-    }
-  }
-
-  if (current) {
-    lines.push(current);
-  }
-
-  return lines;
-}
-
-/**
- * Creates a formatted text box containing requirement information.
- * Guarantees nothing escapes the box — title and description are both wrapped.
- */
-/**
  * The 1-based lines a review colors within the requirement's span: green where
  * the test ran the line, red where the line is expected but the test missed it.
  */
@@ -142,65 +94,46 @@ export function reviewLineColors(reqData: RequirementData): {
   return { covered, uncovered };
 }
 
-export function createRequirementInfoBox(reqData: RequirementData): string {
-  const BOX_WIDTH = 66; // total inner width (between the ║ borders)
-  const PADDING = 2; // spaces on each side inside the border
-  const TEXT_WIDTH = BOX_WIDTH - PADDING * 2; // usable text width = 62
+const VERDICT_ICONS: Record<string, string> = {
+  Exercises: "pass",
+  Partially: "warning",
+  "Does not": "error",
+  Inconclusive: "question",
+};
 
-  const topBorder = "╔" + "═".repeat(BOX_WIDTH) + "╗";
-  const midBorder = "╠" + "═".repeat(BOX_WIDTH) + "╣";
-  const bottomBorder = "╚" + "═".repeat(BOX_WIDTH) + "╝";
-  const divider = "║  " + "─".repeat(TEXT_WIDTH) + "  ║";
+// Text from the test or tests2check must not be read as Markdown or icons.
+function escapeMarkdown(text: string): string {
+  return text.replace(/[\\`*_{}[\]()#+\-!~|<>$]/g, "\\$&");
+}
 
-  const formatLine = (text = ""): string => {
-    // Should never exceed TEXT_WIDTH after wrapping
-    const safe = text.length > TEXT_WIDTH ? text.slice(0, TEXT_WIDTH) : text;
-    return "║  " + safe.padEnd(TEXT_WIDTH) + "  ║";
-  };
-
-  // Wraps a block of text (may contain \n) and returns boxed lines
-  const formatBlock = (text: string): string[] => {
-    const lines: string[] = [];
-
-    for (const paragraph of text.split(/\r?\n/)) {
-      if (!paragraph.trim()) {
-        lines.push(formatLine());
-        continue;
-      }
-      for (const wrapped of wrapText(paragraph, TEXT_WIDTH)) {
-        lines.push(formatLine(wrapped));
-      }
-    }
-
-    return lines;
-  };
-
+/**
+ * The review comment: the verdict, its argument, the assertions that check the
+ * outcome and the caveats when tests2check judged the test, then the test's
+ * description.
+ */
+export function reviewMarkdown(reqData: RequirementData): string {
+  const parts: string[] = [];
   const justification = reqData.justification;
-  const justificationLines = justification
-    ? [
-        midBorder,
-        ...formatBlock(`AI JUSTIFICATION: ${justification.verdict}`),
-        divider,
-        ...formatBlock(justification.argument),
-        ...justification.checkingAssertions.flatMap((name) =>
-          formatBlock(`- checked by: ${name}`)
-        ),
-        ...justification.caveats.flatMap((caveat) =>
-          formatBlock(`- caveat: ${caveat}`)
-        ),
-      ]
-    : [];
-
-  return [
-    "",
-    topBorder,
-    ...formatBlock(reqData.title),
-    midBorder,
-    formatLine("DESCRIPTION"),
-    divider,
-    ...formatBlock(reqData.description),
-    ...justificationLines,
-    bottomBorder,
-    "",
-  ].join("\n");
+  if (justification) {
+    const icon = VERDICT_ICONS[justification.verdict] ?? "info";
+    parts.push(
+      `#### $(${icon}) Verdict: ${escapeMarkdown(justification.verdict)}`,
+      escapeMarkdown(justification.argument)
+    );
+    if (justification.checkingAssertions.length) {
+      const names = justification.checkingAssertions.map((n) => `- \`${n}\``);
+      parts.push(`**Checked by**\n\n${names.join("\n")}`);
+    }
+    if (justification.caveats.length) {
+      const caveats = justification.caveats.map(
+        (c) => `- ${escapeMarkdown(c)}`
+      );
+      parts.push(`**Caveats**\n\n${caveats.join("\n")}`);
+    }
+  }
+  parts.push(
+    "**Test description**",
+    escapeMarkdown(reqData.description) || "_None_"
+  );
+  return parts.join("\n\n");
 }
