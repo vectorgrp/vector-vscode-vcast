@@ -37,7 +37,6 @@ describe("tests2check result parsing", () => {
     const data = parseTests2checkResult(coverageResult, "TEST_1", "manager", 5);
 
     expect(data.expectedLines).toEqual([10, 11]);
-    expect(data.actualLines).toEqual([10]);
     expect(data.justification).toEqual({
       verdict: "PASS",
       checkedBehavior: '"This test validates that the total increases."',
@@ -51,6 +50,9 @@ describe("tests2check result parsing", () => {
         '**Checked behavior**\n\n"This test validates that the total increases."',
         "**Explanation**\n\nThe test runs line 11 and checks the total.",
         "**Checked by**\n\n- `manager.total`",
+        "**Highlighted lines**\n\nThe code the requirement needs: green where " +
+          "this test ran it, red where it did not. The gutter shows this " +
+          "test's coverage of the whole file.",
       ].join("\n\n")
     );
   });
@@ -121,6 +123,31 @@ describe("review line colors", () => {
       covered: [11, 12],
       uncovered: [],
     });
+  });
+
+  test("leaves a line the test ran but the requirement does not need uncolored", () => {
+    const data = parseTests2checkResult(
+      {
+        ...coverageResult,
+        expected_coverage: {
+          "FR-1": [
+            {
+              unit: "manager",
+              path: "/src/manager.c",
+              lines: [10, 12],
+              ran_lines: [10],
+            },
+          ],
+        },
+        actual_coverage: [
+          { unit: "manager", path: "/src/manager.c", lines: [10, 11] },
+        ],
+      },
+      "TEST_1",
+      "manager",
+      5
+    );
+    expect(reviewLineColors(data)).toEqual({ covered: [11], uncovered: [13] });
   });
 
   test("marks every expected line red when the test ran none of them", () => {

@@ -1523,7 +1523,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
       if (!fs.existsSync(TESTS2CHECK_EXECUTABLE_PATH)) {
         vscode.window.showErrorMessage(
-          "The installed Reqs2X does not include tests2check, which the Requirements Coverage Review needs."
+          "The installed Reqs2X does not include tests2check, which checking tests against requirements needs."
         );
         return;
       }
@@ -1531,7 +1531,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       const testNode: testNodeType = getTestNode(args.id);
       if (!testNode) {
         vscode.window.showWarningMessage(
-          `Failed to retrieve node test data for ${args.id}. Aborting Test Review.`
+          `Failed to retrieve node test data for ${args.id}. Aborting the requirements check.`
         );
         return;
       }
@@ -1543,7 +1543,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
       if (!envData?.unitData || !envRGWPath || !testName) {
         vscode.window.showWarningMessage(
-          "Failed to retrieve environment test data. Aborting Test Review."
+          "Failed to retrieve environment test data. Aborting the requirements check."
         );
         return;
       }
@@ -1604,7 +1604,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
       if (!switchingTests) {
         vscode.window.showWarningMessage(
-          `You are currently in Review Mode for the requirement test ${testName}. Only coverage for this test is shown. To exit Review Mode, close the review comment in the source file.`
+          `Only ${testName}'s coverage is shown while its requirements check is open. Close the comment to see all coverage again.`
         );
       }
     }

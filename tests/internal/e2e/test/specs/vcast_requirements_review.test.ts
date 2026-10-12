@@ -90,7 +90,7 @@ async function openReviewFor(testName: string) {
 
   const contextMenu = await testHandle.openContextMenu();
   await contextMenu.select("VectorCAST");
-  await (await $("aria/Open Requirements Coverage Review")).click();
+  await (await $("aria/Check Test Against Requirements")).click();
 
   try {
     await browser.waitUntil(
@@ -104,7 +104,7 @@ async function openReviewFor(testName: string) {
   }
 }
 
-describe("Requirements test review", () => {
+describe("Requirements check", () => {
   let workbench: Workbench;
   let bottomBar: BottomBarPanel;
 
@@ -207,7 +207,7 @@ describe("Requirements test review", () => {
     );
     expect(sourceOpen).toBe(true);
 
-    await (await $("aria/Close Review")).click();
+    await (await $("aria/Close Requirements Check")).click();
     await browser.waitUntil(
       async () => (await $$(".review-widget")).length === 0,
       { timeout: TIMEOUT }

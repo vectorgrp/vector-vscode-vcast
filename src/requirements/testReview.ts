@@ -64,8 +64,8 @@ function lineToRange(
 }
 
 /**
- * Highlights critical lines individually based on coverage status
- * Uses test-specific actualLines from tests2check rather than global coverage
+ * Highlights the code the requirement needs, by whether this test ran it
+ * (tests2check's ran_lines, not the coverage of all tests)
  */
 export function highlightCriticalLines(
   editor: vscode.TextEditor,
@@ -111,7 +111,7 @@ function showReviewThread(
   if (!reviewComments) {
     reviewComments = vscode.comments.createCommentController(
       "vectorcastTestReview",
-      "Requirements Test Review"
+      "Requirements Check"
     );
     context.subscriptions.push(reviewComments);
   }
@@ -130,7 +130,7 @@ function showReviewThread(
       },
     ]
   );
-  reviewThread.label = `Requirements review: ${reqData.title}`;
+  reviewThread.label = `Requirements check: ${reqData.title}`;
   reviewThread.canReply = false;
   reviewThread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
 }
@@ -247,7 +247,7 @@ export async function fetchRequirementCoverageData(
   return vscode.window.withProgress<RequirementData | null>(
     {
       location: vscode.ProgressLocation.Notification,
-      title: "Reviewing requirement test",
+      title: "Checking test against requirements",
       cancellable: false,
     },
     async () => {
@@ -280,7 +280,7 @@ export async function fetchRequirementCoverageData(
         // -t matches test names across the whole environment.
         if (results.length > 1) {
           vscode.window.showInformationMessage(
-            `More than one test in this environment is named ${testName}, so the review cannot tell which one to show.`
+            `More than one test in this environment is named ${testName}, so the requirements check cannot tell which one to check.`
           );
           return null;
         }

@@ -1,7 +1,5 @@
 // Kept free of the vscode module so the parsing and rendering can be unit tested.
 
-const path = require("path");
-
 export interface Justification {
   verdict: string;
   checkedBehavior: string;
@@ -12,12 +10,9 @@ export interface Justification {
 export interface RequirementData {
   title: string;
   lineNumber: number;
-  importantLineStart: number;
-  importantLineEnd: number;
   expectedLines: number[];
   // The expected lines whose VectorCAST statement the test ran.
   ranLines: number[];
-  actualLines: number[];
   justification: Justification;
 }
 
@@ -32,12 +27,6 @@ export function parseTests2checkResult(
   functionStartLine: number
 ): RequirementData {
   const expectedCoverage = testResult.expected_coverage || {};
-  const actualCoverage = testResult.actual_coverage || [];
-
-  const unitCoverage = actualCoverage.find((cov: any) => {
-    const covUnitBase = path.basename(cov.unit, path.extname(cov.unit));
-    return covUnitBase === unitName || cov.unit === unitName;
-  });
 
   // A test can be linked to several requirements: expect the lines of all of them.
   const expectedLines: number[] = [];
@@ -51,17 +40,11 @@ export function parseTests2checkResult(
     }
   }
 
-  const minLine = expectedLines.length ? Math.min(...expectedLines) : 0;
-  const maxLine = expectedLines.length ? Math.max(...expectedLines) : 0;
-
   return {
     title: testResult.name || testName,
     lineNumber: functionStartLine,
-    importantLineStart: minLine + 1,
-    importantLineEnd: maxLine + 1,
     expectedLines,
     ranLines,
-    actualLines: unitCoverage?.lines || [],
     justification: {
       verdict: testResult.verdict,
       checkedBehavior: testResult.checked_behavior,
@@ -72,26 +55,21 @@ export function parseTests2checkResult(
 }
 
 /**
- * The 1-based lines a review colors within the requirement's span: green where
- * the test ran the line, red where the line is expected but the test missed it.
+ * The 1-based lines a requirements check colors: only the code the requirement
+ * needs, green where the test ran it and red where it did not. Every other line
+ * the test ran shows in the coverage gutter only.
  */
 export function reviewLineColors(reqData: RequirementData): {
   covered: number[];
   uncovered: number[];
 } {
-  const ran = new Set(
-    [...reqData.actualLines, ...reqData.ranLines].map((line) => line + 1)
-  );
-  const expected = new Set(reqData.expectedLines.map((line) => line + 1));
+  const ran = new Set(reqData.ranLines);
   const covered: number[] = [];
   const uncovered: number[] = [];
-  for (
-    let line = reqData.importantLineStart;
-    line <= reqData.importantLineEnd;
-    line++
-  ) {
-    if (ran.has(line)) covered.push(line);
-    else if (expected.has(line)) uncovered.push(line);
+  for (const line of [...new Set(reqData.expectedLines)].sort(
+    (a, b) => a - b
+  )) {
+    (ran.has(line) ? covered : uncovered).push(line + 1);
   }
   return { covered, uncovered };
 }
@@ -107,8 +85,9 @@ function escapeMarkdown(text: string): string {
 }
 
 /**
- * The review comment: the verdict, then the same labelled blocks tests2check
- * prints: the checked behavior, the explanation and the checking assertions.
+ * The requirements check comment: the verdict, then the same labelled blocks
+ * tests2check prints (the checked behavior, the explanation and the checking
+ * assertions), then what the highlighted lines mean.
  */
 export function reviewMarkdown(reqData: RequirementData): string {
   const justification = reqData.justification;
@@ -122,5 +101,10 @@ export function reviewMarkdown(reqData: RequirementData): string {
     const names = justification.checkedBy.map((n) => `- \`${n}\``);
     parts.push(`**Checked by**\n\n${names.join("\n")}`);
   }
+  parts.push(
+    "**Highlighted lines**\n\nThe code the requirement needs: green where this " +
+      "test ran it, red where it did not. The gutter shows this test's coverage " +
+      "of the whole file."
+  );
   return parts.join("\n\n");
 }

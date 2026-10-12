@@ -241,12 +241,12 @@
       {
         "command": "vectorcastTestExplorer.openReqsCoverageReview",
         "category": "VectorCAST Test Explorer",
-        "title": "Open Requirements Coverage Review"
+        "title": "Check Test Against Requirements"
       },
       {
         "command": "vectorcastTestExplorer.closeTestReview",
         "category": "VectorCAST Test Explorer",
-        "title": "Close Review",
+        "title": "Close Requirements Check",
         "icon": "$(close)"
       },
       {
@@ -504,7 +504,7 @@
           "vectorcastTestExplorer.reqs2x.enableRequirementsCoverageReview": {
             "order": 2,
             "type": "boolean",
-            "description": "Enable the Requirements Coverage Review for tests linked to requirements (requires a Reqs2X distribution that includes tests2check)",
+            "description": "Enable checking tests linked to requirements against those requirements (requires a Reqs2X distribution that includes tests2check)",
             "default": false
           },
           "vectorcastTestExplorer.reqs2x.decomposeRequirements": {
