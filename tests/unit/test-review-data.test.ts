@@ -51,8 +51,8 @@ describe("tests2check result parsing", () => {
         "**Explanation**\n\nThe test runs line 11 and checks the total.",
         "**Checked by**\n\n- `manager.total`",
         "**Highlighted lines**\n\nThe code the requirement needs: green where " +
-          "this test ran it, red where it did not. The gutter shows this " +
-          "test's coverage of the whole file.",
+          "this test ran it, red where it did not. The gutter shows, for this " +
+          "test only, which lines in the file ran (green) and which did not (red).",
       ].join("\n\n")
     );
   });

@@ -103,8 +103,8 @@ export function reviewMarkdown(reqData: RequirementData): string {
   }
   parts.push(
     "**Highlighted lines**\n\nThe code the requirement needs: green where this " +
-      "test ran it, red where it did not. The gutter shows this test's coverage " +
-      "of the whole file."
+      "test ran it, red where it did not. The gutter shows, for this test only, " +
+      "which lines in the file ran (green) and which did not (red)."
   );
   return parts.join("\n\n");
 }
