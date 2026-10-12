@@ -31,7 +31,7 @@ const coverageResult = {
     ],
   },
   actual_coverage: [{ unit: "manager", path: "/src/manager.c", lines: [10] }],
-  argument,
+  ...argument,
 };
 
 describe("tests2check result parsing", () => {
@@ -67,13 +67,10 @@ describe("tests2check result parsing", () => {
     const data = parseTests2checkResult(
       {
         ...coverageResult,
-        argument: {
-          ...argument,
-          verdict: "FAIL",
-          reason,
-          argument: "",
-          checking_assertions: [],
-        },
+        verdict: "FAIL",
+        reason,
+        argument: "",
+        checking_assertions: [],
       },
       "TEST_1",
       "manager",

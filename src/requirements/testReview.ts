@@ -255,7 +255,17 @@ export async function fetchRequirementCoverageData(
       try {
         const { stdout } = await runReqs2xTool({
           exe: TESTS2CHECK_EXECUTABLE_PATH,
-          args: ["-e", enviroPath, gatewayPath, "-t", testName, "-F", "--json"],
+          // The review needs the result even when the test passes.
+          args: [
+            "-e",
+            enviroPath,
+            gatewayPath,
+            "-t",
+            testName,
+            "-F",
+            "--json",
+            "--no-failures-only",
+          ],
           llm: true,
           captureOutput: true,
         });

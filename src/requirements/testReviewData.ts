@@ -57,7 +57,6 @@ export function parseTests2checkResult(
   const minLine = expectedLines.length ? Math.min(...expectedLines) : 0;
   const maxLine = expectedLines.length ? Math.max(...expectedLines) : 0;
 
-  const argument = testResult.argument;
   return {
     title: testResult.name || testName,
     description: notes,
@@ -68,11 +67,11 @@ export function parseTests2checkResult(
     ranLines,
     actualLines: unitCoverage?.lines || [],
     justification: {
-      verdict: argument.verdict,
-      reason: argument.reason,
-      argument: argument.argument,
-      checkingAssertions: argument.checking_assertions,
-      caveats: argument.caveats,
+      verdict: testResult.verdict,
+      reason: testResult.reason,
+      argument: testResult.argument,
+      checkingAssertions: testResult.checking_assertions,
+      caveats: testResult.caveats,
     },
   };
 }
