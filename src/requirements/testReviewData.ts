@@ -4,15 +4,13 @@ const path = require("path");
 
 export interface Justification {
   verdict: string;
-  reason: string | null;
-  argument: string;
-  checkingAssertions: string[];
-  caveats: string[];
+  checkedBehavior: string;
+  explanation: string;
+  checkedBy: string[];
 }
 
 export interface RequirementData {
   title: string;
-  description: string;
   lineNumber: number;
   importantLineStart: number;
   importantLineEnd: number;
@@ -31,7 +29,6 @@ export function parseTests2checkResult(
   testResult: any,
   testName: string,
   unitName: string,
-  notes: string,
   functionStartLine: number
 ): RequirementData {
   const expectedCoverage = testResult.expected_coverage || {};
@@ -59,7 +56,6 @@ export function parseTests2checkResult(
 
   return {
     title: testResult.name || testName,
-    description: notes,
     lineNumber: functionStartLine,
     importantLineStart: minLine + 1,
     importantLineEnd: maxLine + 1,
@@ -68,10 +64,9 @@ export function parseTests2checkResult(
     actualLines: unitCoverage?.lines || [],
     justification: {
       verdict: testResult.verdict,
-      reason: testResult.reason,
-      argument: testResult.argument,
-      checkingAssertions: testResult.checking_assertions,
-      caveats: testResult.caveats,
+      checkedBehavior: testResult.checked_behavior,
+      explanation: testResult.explanation,
+      checkedBy: testResult.checked_by,
     },
   };
 }
@@ -112,33 +107,20 @@ function escapeMarkdown(text: string): string {
 }
 
 /**
- * The review comment: the verdict and, for a FAIL, its reason, the argument,
- * the assertions that check the outcome and the caveats, then the test's
- * description.
+ * The review comment: the verdict, then the same labelled blocks tests2check
+ * prints: the checked behavior, the explanation and the checking assertions.
  */
 export function reviewMarkdown(reqData: RequirementData): string {
   const justification = reqData.justification;
   const icon = VERDICT_ICONS[justification.verdict] ?? "info";
   const parts = [
     `#### $(${icon}) Verdict: ${escapeMarkdown(justification.verdict)}`,
+    `**Checked behavior**\n\n${escapeMarkdown(justification.checkedBehavior)}`,
+    `**Explanation**\n\n${escapeMarkdown(justification.explanation)}`,
   ];
-  if (justification.reason) {
-    parts.push(`**${escapeMarkdown(justification.reason)}**`);
-  }
-  if (justification.argument) {
-    parts.push(escapeMarkdown(justification.argument));
-  }
-  if (justification.checkingAssertions.length) {
-    const names = justification.checkingAssertions.map((n) => `- \`${n}\``);
+  if (justification.checkedBy.length) {
+    const names = justification.checkedBy.map((n) => `- \`${n}\``);
     parts.push(`**Checked by**\n\n${names.join("\n")}`);
   }
-  if (justification.caveats.length) {
-    const caveats = justification.caveats.map((c) => `- ${escapeMarkdown(c)}`);
-    parts.push(`**Caveats**\n\n${caveats.join("\n")}`);
-  }
-  parts.push(
-    "**Test description**",
-    escapeMarkdown(reqData.description) || "_None_"
-  );
   return parts.join("\n\n");
 }

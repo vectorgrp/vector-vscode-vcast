@@ -242,7 +242,6 @@ export async function fetchRequirementCoverageData(
   gatewayPath: string,
   testName: string,
   unitName: string,
-  notes: string,
   functionStartLine: number = 0
 ): Promise<RequirementData | null> {
   return vscode.window.withProgress<RequirementData | null>(
@@ -290,7 +289,6 @@ export async function fetchRequirementCoverageData(
           results[0],
           testName,
           unitName,
-          notes,
           functionStartLine
         );
       } catch (err) {

@@ -1578,7 +1578,6 @@ function configureExtension(context: vscode.ExtensionContext) {
         envRGWPath,
         testName,
         unitName,
-        testNode.notes,
         lineNumber
       );
       if (!reqData) return;

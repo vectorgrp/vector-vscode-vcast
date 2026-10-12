@@ -9,13 +9,11 @@ import {
 // so we'll disable the strictCamelCase check here.
 /* eslint-disable @typescript-eslint/naming-convention */
 
-const argument = {
+const judgment = {
   verdict: "PASS",
-  reason: null,
-  basis: "test-description",
-  argument: "The test runs line 11 and checks the total.",
-  checking_assertions: ["manager.total"],
-  caveats: ["Judged against the full linked requirement"],
+  checked_behavior: '"This test validates that the total increases."',
+  explanation: "The test runs line 11 and checks the total.",
+  checked_by: ["manager.total"],
 };
 
 const coverageResult = {
@@ -31,64 +29,59 @@ const coverageResult = {
     ],
   },
   actual_coverage: [{ unit: "manager", path: "/src/manager.c", lines: [10] }],
-  ...argument,
+  ...judgment,
 };
 
 describe("tests2check result parsing", () => {
-  test("shows the verdict, argument, checking assertions and caveats", () => {
-    const data = parseTests2checkResult(
-      coverageResult,
-      "TEST_1",
-      "manager",
-      "This test validates that ...",
-      5
-    );
+  test("shows the verdict and the same blocks as tests2check", () => {
+    const data = parseTests2checkResult(coverageResult, "TEST_1", "manager", 5);
 
     expect(data.expectedLines).toEqual([10, 11]);
     expect(data.actualLines).toEqual([10]);
     expect(data.justification).toEqual({
       verdict: "PASS",
-      reason: null,
-      argument: "The test runs line 11 and checks the total.",
-      checkingAssertions: ["manager.total"],
-      caveats: ["Judged against the full linked requirement"],
+      checkedBehavior: '"This test validates that the total increases."',
+      explanation: "The test runs line 11 and checks the total.",
+      checkedBy: ["manager.total"],
     });
 
-    const markdown = reviewMarkdown(data);
-    expect(markdown).toContain("$(pass) Verdict: PASS");
-    expect(markdown).toContain("The test runs line 11 and checks the total.");
-    expect(markdown).toContain("- `manager.total`");
-    expect(markdown).toContain("- Judged against the full linked requirement");
+    expect(reviewMarkdown(data)).toBe(
+      [
+        "#### $(pass) Verdict: PASS",
+        '**Checked behavior**\n\n"This test validates that the total increases."',
+        "**Explanation**\n\nThe test runs line 11 and checks the total.",
+        "**Checked by**\n\n- `manager.total`",
+      ].join("\n\n")
+    );
   });
 
-  test("shows a FAIL with its reason", () => {
-    const reason =
-      "The test does not run the code that implements the requirement.";
+  test("shows a FAIL without a Checked by block", () => {
     const data = parseTests2checkResult(
       {
         ...coverageResult,
         verdict: "FAIL",
-        reason,
-        argument: "",
-        checking_assertions: [],
+        explanation:
+          "The test does not run the code that implements the requirement.",
+        checked_by: [],
       },
       "TEST_1",
       "manager",
-      "This test validates that ...",
       5
     );
     const markdown = reviewMarkdown(data);
     expect(markdown).toContain("$(error) Verdict: FAIL");
-    expect(markdown).toContain(`**${reason}**`);
+    expect(markdown).toContain("**Explanation**\n\nThe test does not run");
     expect(markdown).not.toContain("Checked by");
   });
 
   test("shows text from the test as written, not as Markdown or icons", () => {
     const data = parseTests2checkResult(
-      coverageResult,
+      {
+        ...coverageResult,
+        checked_behavior: '"Checks *both* totals $(alert)"',
+      },
       "TEST_1",
       "manager",
-      "Checks *both* totals $(alert)",
       5
     );
     expect(reviewMarkdown(data)).toContain(
@@ -99,13 +92,7 @@ describe("tests2check result parsing", () => {
 
 describe("review line colors", () => {
   test("marks expected lines the test ran green and the rest red", () => {
-    const data = parseTests2checkResult(
-      coverageResult,
-      "TEST_1",
-      "manager",
-      "",
-      5
-    );
+    const data = parseTests2checkResult(coverageResult, "TEST_1", "manager", 5);
     expect(reviewLineColors(data)).toEqual({ covered: [11], uncovered: [12] });
   });
 
@@ -128,7 +115,6 @@ describe("review line colors", () => {
       },
       "TEST_1",
       "manager",
-      "",
       5
     );
     expect(reviewLineColors(data)).toEqual({
@@ -155,7 +141,6 @@ describe("review line colors", () => {
       },
       "TEST_1",
       "manager",
-      "",
       5
     );
     expect(reviewLineColors(data)).toEqual({
