@@ -9,15 +9,24 @@ import {
 // so we'll disable the strictCamelCase check here.
 /* eslint-disable @typescript-eslint/naming-convention */
 
-const judgment = {
-  verdict: "PASS",
-  checked_behavior: '"This test validates that the total increases."',
-  explanation: "The test runs line 11 and checks the total.",
-  checked_by: ["manager.total"],
-};
+// One requirement's judgment as tests2check reports it.
+function check(key: string, fields: Record<string, unknown> = {}) {
+  return {
+    key,
+    title: "t",
+    description: `The system shall do ${key}.`,
+    verdict: "PASS",
+    checked_behavior: '"This test validates that the total increases."',
+    explanation: "The test runs line 11 and checks the total.",
+    checked_by: ["manager.total"],
+    ...fields,
+  };
+}
 
 const coverageResult = {
   name: "TEST_1",
+  verdict: "PASS",
+  requirements: [check("FR-1")],
   expected_coverage: {
     "FR-1": [
       {
@@ -29,58 +38,79 @@ const coverageResult = {
     ],
   },
   actual_coverage: [{ unit: "manager", path: "/src/manager.c", lines: [10] }],
-  ...judgment,
 };
 
+const LEGEND =
+  "**Highlighted lines**\n\nThe code the requirements need: green where " +
+  "this test ran it, red where it did not. The gutter shows, for this " +
+  "test only, which lines in the file ran (green) and which did not (red).";
+
 describe("tests2check result parsing", () => {
-  test("shows the verdict and the same blocks as tests2check", () => {
+  test("shows the verdict and each requirement's blocks as tests2check does", () => {
     const data = parseTests2checkResult(coverageResult, "TEST_1", "manager", 5);
 
     expect(data.expectedLines).toEqual([10, 11]);
-    expect(data.justification).toEqual({
-      verdict: "PASS",
-      checkedBehavior: '"This test validates that the total increases."',
-      explanation: "The test runs line 11 and checks the total.",
-      checkedBy: ["manager.total"],
-    });
+    expect(data.verdict).toBe("PASS");
+    expect(data.requirements).toEqual([
+      {
+        key: "FR-1",
+        description: "The system shall do FR-1.",
+        verdict: "PASS",
+        checkedBehavior: '"This test validates that the total increases."',
+        explanation: "The test runs line 11 and checks the total.",
+        checkedBy: ["manager.total"],
+      },
+    ]);
 
     expect(reviewMarkdown(data)).toBe(
       [
         "#### $(pass) Verdict: PASS",
+        "##### $(pass) PASS: FR\\-1",
+        "The system shall do FR\\-1.",
         '**Checked behavior**\n\n"This test validates that the total increases."',
         "**Explanation**\n\nThe test runs line 11 and checks the total.",
         "**Checked by**\n\n- `manager.total`",
-        "**Highlighted lines**\n\nThe code the requirement needs: green where " +
-          "this test ran it, red where it did not. The gutter shows, for this " +
-          "test only, which lines in the file ran (green) and which did not (red).",
+        LEGEND,
       ].join("\n\n")
     );
   });
 
-  test("shows a FAIL without a Checked by block", () => {
+  test("shows each requirement with its own verdict", () => {
     const data = parseTests2checkResult(
       {
         ...coverageResult,
         verdict: "FAIL",
-        explanation:
-          "The test does not run the code that implements the requirement.",
-        checked_by: [],
+        requirements: [
+          check("FR-1"),
+          check("FR-2", {
+            verdict: "FAIL",
+            explanation:
+              "The test does not run the code that implements the requirement.",
+            checked_by: [],
+          }),
+        ],
       },
       "TEST_1",
       "manager",
       5
     );
     const markdown = reviewMarkdown(data);
-    expect(markdown).toContain("$(error) Verdict: FAIL");
-    expect(markdown).toContain("**Explanation**\n\nThe test does not run");
-    expect(markdown).not.toContain("Checked by");
+    expect(markdown).toContain("#### $(error) Verdict: FAIL");
+    expect(markdown).toContain("##### $(pass) PASS: FR\\-1");
+    expect(markdown).toContain("##### $(error) FAIL: FR\\-2");
+    expect(markdown.split("Checked by").length).toBe(2); // only FR-1's
+    expect(markdown.indexOf("FR\\-1")).toBeLessThan(markdown.indexOf("FR\\-2"));
   });
 
   test("shows text from the test as written, not as Markdown or icons", () => {
     const data = parseTests2checkResult(
       {
         ...coverageResult,
-        checked_behavior: '"Checks *both* totals $(alert)"',
+        requirements: [
+          check("FR-1", {
+            checked_behavior: '"Checks *both* totals $(alert)"',
+          }),
+        ],
       },
       "TEST_1",
       "manager",

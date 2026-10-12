@@ -1,6 +1,9 @@
 // Kept free of the vscode module so the parsing and rendering can be unit tested.
 
-export interface Justification {
+// One linked requirement as tests2check judged it.
+export interface RequirementCheck {
+  key: string;
+  description: string;
   verdict: string;
   checkedBehavior: string;
   explanation: string;
@@ -13,7 +16,8 @@ export interface RequirementData {
   expectedLines: number[];
   // The expected lines whose VectorCAST statement the test ran.
   ranLines: number[];
-  justification: Justification;
+  verdict: string;
+  requirements: RequirementCheck[];
 }
 
 /**
@@ -45,12 +49,15 @@ export function parseTests2checkResult(
     lineNumber: functionStartLine,
     expectedLines,
     ranLines,
-    justification: {
-      verdict: testResult.verdict,
-      checkedBehavior: testResult.checked_behavior,
-      explanation: testResult.explanation,
-      checkedBy: testResult.checked_by,
-    },
+    verdict: testResult.verdict,
+    requirements: testResult.requirements.map((req: any) => ({
+      key: req.key,
+      description: req.description,
+      verdict: req.verdict,
+      checkedBehavior: req.checked_behavior,
+      explanation: req.explanation,
+      checkedBy: req.checked_by,
+    })),
   };
 }
 
@@ -84,25 +91,33 @@ function escapeMarkdown(text: string): string {
   return text.replace(/[\\`*_{}[\]()#+\-!~|<>$]/g, "\\$&");
 }
 
+const icon = (verdict: string) => VERDICT_ICONS[verdict] ?? "info";
+
 /**
- * The requirements check comment: the verdict, then the same labelled blocks
- * tests2check prints (the checked behavior, the explanation and the checking
- * assertions), then what the highlighted lines mean.
+ * The requirements check comment: the verdict, then each linked requirement with
+ * its own verdict and the labelled blocks tests2check prints (the checked
+ * behavior, the explanation and the checking assertions), then what the
+ * highlighted lines mean.
  */
 export function reviewMarkdown(reqData: RequirementData): string {
-  const justification = reqData.justification;
-  const icon = VERDICT_ICONS[justification.verdict] ?? "info";
   const parts = [
-    `#### $(${icon}) Verdict: ${escapeMarkdown(justification.verdict)}`,
-    `**Checked behavior**\n\n${escapeMarkdown(justification.checkedBehavior)}`,
-    `**Explanation**\n\n${escapeMarkdown(justification.explanation)}`,
+    `#### $(${icon(reqData.verdict)}) Verdict: ${escapeMarkdown(reqData.verdict)}`,
   ];
-  if (justification.checkedBy.length) {
-    const names = justification.checkedBy.map((n) => `- \`${n}\``);
-    parts.push(`**Checked by**\n\n${names.join("\n")}`);
+  for (const req of reqData.requirements) {
+    parts.push(
+      `##### $(${icon(req.verdict)}) ${escapeMarkdown(req.verdict)}: ` +
+        escapeMarkdown(req.key),
+      escapeMarkdown(req.description),
+      `**Checked behavior**\n\n${escapeMarkdown(req.checkedBehavior)}`,
+      `**Explanation**\n\n${escapeMarkdown(req.explanation)}`
+    );
+    if (req.checkedBy.length) {
+      const names = req.checkedBy.map((n) => `- \`${n}\``);
+      parts.push(`**Checked by**\n\n${names.join("\n")}`);
+    }
   }
   parts.push(
-    "**Highlighted lines**\n\nThe code the requirement needs: green where this " +
+    "**Highlighted lines**\n\nThe code the requirements need: green where this " +
       "test ran it, red where it did not. The gutter shows, for this test only, " +
       "which lines in the file ran (green) and which did not (red)."
   );
