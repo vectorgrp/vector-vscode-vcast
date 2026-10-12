@@ -16,6 +16,8 @@ export interface RequirementData {
   importantLineStart: number;
   importantLineEnd: number;
   expectedLines: number[];
+  // The expected lines whose VectorCAST statement the test ran.
+  ranLines: number[];
   actualLines: number[];
   justification?: Justification;
 }
@@ -41,9 +43,13 @@ export function parseTests2checkResult(
 
   // A test can be linked to several requirements: expect the lines of all of them.
   const expectedLines: number[] = [];
+  const ranLines: number[] = [];
   for (const locations of Object.values(expectedCoverage)) {
     for (const location of locations as any[]) {
-      if (location.unit === unitName) expectedLines.push(...location.lines);
+      if (location.unit === unitName) {
+        expectedLines.push(...location.lines);
+        ranLines.push(...location.ran_lines);
+      }
     }
   }
 
@@ -58,6 +64,7 @@ export function parseTests2checkResult(
     importantLineStart: minLine + 1,
     importantLineEnd: maxLine + 1,
     expectedLines,
+    ranLines,
     actualLines: unitCoverage?.lines || [],
     // Only present when tests2check ran with --justification.
     justification: argument
@@ -79,7 +86,9 @@ export function reviewLineColors(reqData: RequirementData): {
   covered: number[];
   uncovered: number[];
 } {
-  const actual = new Set(reqData.actualLines.map((line) => line + 1));
+  const ran = new Set(
+    [...reqData.actualLines, ...reqData.ranLines].map((line) => line + 1)
+  );
   const expected = new Set(reqData.expectedLines.map((line) => line + 1));
   const covered: number[] = [];
   const uncovered: number[] = [];
@@ -88,7 +97,7 @@ export function reviewLineColors(reqData: RequirementData): {
     line <= reqData.importantLineEnd;
     line++
   ) {
-    if (actual.has(line)) covered.push(line);
+    if (ran.has(line)) covered.push(line);
     else if (expected.has(line)) uncovered.push(line);
   }
   return { covered, uncovered };

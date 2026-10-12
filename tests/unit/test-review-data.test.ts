@@ -12,7 +12,14 @@ import {
 const coverageResult = {
   name: "TEST_1",
   expected_coverage: {
-    "FR-1": [{ unit: "manager", path: "/src/manager.c", lines: [10, 11] }],
+    "FR-1": [
+      {
+        unit: "manager",
+        path: "/src/manager.c",
+        lines: [10, 11],
+        ran_lines: [10],
+      },
+    ],
   },
   actual_coverage: [{ unit: "manager", path: "/src/manager.c", lines: [10] }],
 };
@@ -90,9 +97,50 @@ describe("review line colors", () => {
     expect(reviewLineColors(data)).toEqual({ covered: [11], uncovered: [12] });
   });
 
+  test("marks an expected line green when tests2check says it ran", () => {
+    // A case label VectorCAST never marks: tests2check counts it as run when
+    // the statement after it ran.
+    const data = parseTests2checkResult(
+      {
+        ...coverageResult,
+        expected_coverage: {
+          "FR-1": [
+            {
+              unit: "manager",
+              path: "/src/manager.c",
+              lines: [10, 11],
+              ran_lines: [10, 11],
+            },
+          ],
+        },
+      },
+      "TEST_1",
+      "manager",
+      "",
+      5
+    );
+    expect(reviewLineColors(data)).toEqual({
+      covered: [11, 12],
+      uncovered: [],
+    });
+  });
+
   test("marks every expected line red when the test ran none of them", () => {
     const data = parseTests2checkResult(
-      { ...coverageResult, actual_coverage: [] },
+      {
+        ...coverageResult,
+        expected_coverage: {
+          "FR-1": [
+            {
+              unit: "manager",
+              path: "/src/manager.c",
+              lines: [10, 11],
+              ran_lines: [],
+            },
+          ],
+        },
+        actual_coverage: [],
+      },
       "TEST_1",
       "manager",
       "",
