@@ -501,12 +501,6 @@
             "type": "string",
             "description": "Path to folder containing Reqs2X executables (reqs2tests, code2reqs and panreq), if unset search for the executables in the main VectorCAST installation folder instead"
           },
-          "vectorcastTestExplorer.reqs2x.enableRequirementsCoverageReview": {
-            "order": 2,
-            "type": "boolean",
-            "description": "Enable checking tests linked to requirements against those requirements (requires a Reqs2X distribution that includes tests2check)",
-            "default": false
-          },
           "vectorcastTestExplorer.reqs2x.decomposeRequirements": {
             "type": "boolean",
             "order": 3,
@@ -1363,7 +1357,7 @@
       {
         "command": "vectorcastTestExplorer.openReqsCoverageReview",
         "group": "5_reqs@8",
-        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.testNodesWithRequirements && vectorcastTestExplorer.reqs2xFeatureEnabled && config.vectorcastTestExplorer.reqs2x.enableRequirementsCoverageReview"
+        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.testNodesWithRequirements && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",

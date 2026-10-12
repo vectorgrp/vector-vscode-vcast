@@ -150,10 +150,7 @@ import {
 } from "./requirements/rgwIo";
 import { generateRequirementsHtml } from "./requirements/webviews/template";
 import type { FromWebview, ToWebview } from "./requirements/webviews/messages";
-import {
-  panreqSupportsOnlyUntraced,
-  TESTS2CHECK_EXECUTABLE_PATH,
-} from "./requirements/requirementsExecutables";
+import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
 import {
   fetchRequirementCoverageData,
   openSourceFileWithHighlight,
@@ -1520,13 +1517,6 @@ function configureExtension(context: vscode.ExtensionContext) {
     "vectorcastTestExplorer.openReqsCoverageReview",
     async (args: any) => {
       if (!args) return;
-
-      if (!fs.existsSync(TESTS2CHECK_EXECUTABLE_PATH)) {
-        vscode.window.showErrorMessage(
-          "The installed Reqs2X does not include tests2check, which checking tests against requirements needs."
-        );
-        return;
-      }
 
       const testNode: testNodeType = getTestNode(args.id);
       if (!testNode) {

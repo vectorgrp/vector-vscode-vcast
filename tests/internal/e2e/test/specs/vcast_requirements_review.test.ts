@@ -162,7 +162,6 @@ describe("Requirements check", () => {
       },
       {
         "reqs2x.enableReqs2xFeature": true,
-        "reqs2x.enableRequirementsCoverageReview": true,
         "reqs2x.installationLocation": process.env.REQS2TESTS_RESOURCES,
         "reqs2x.provider": "azure_openai",
         "reqs2x.azure.apiKey": process.env.OPENAI_API_KEY,
