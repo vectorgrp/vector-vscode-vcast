@@ -193,12 +193,12 @@ describe("Requirements test review", () => {
     await testingView?.openView();
   });
 
-  it("should show the justification for a test that exercises its requirement", async () => {
+  it("should pass a test that checks its requirement", async () => {
     await updateTestID();
     await openReviewFor("PLACE_ORDER_STEAK");
 
     expect(await reviewCommentText("PLACE_ORDER_STEAK")).toContain(
-      "Verdict: Exercises"
+      "Verdict: PASS"
     );
     const sourceOpen = await browser.executeWorkbench((vscode) =>
       vscode.window.visibleTextEditors.some((editor) =>
@@ -214,12 +214,12 @@ describe("Requirements test review", () => {
     );
   });
 
-  it("should flag a test traced to a requirement it does not exercise", async () => {
+  it("should fail a test traced to a requirement it does not check", async () => {
     await updateTestID();
     await openReviewFor("PLACE_ORDER_CHICKEN");
 
     expect(await reviewCommentText("PLACE_ORDER_CHICKEN")).toContain(
-      "Verdict: Does not"
+      "Verdict: FAIL"
     );
   });
 

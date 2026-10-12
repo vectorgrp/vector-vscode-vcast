@@ -255,15 +255,7 @@ export async function fetchRequirementCoverageData(
       try {
         const { stdout } = await runReqs2xTool({
           exe: TESTS2CHECK_EXECUTABLE_PATH,
-          args: [
-            "-e",
-            enviroPath,
-            gatewayPath,
-            "-f",
-            testName,
-            "--json",
-            "--justification",
-          ],
+          args: ["-e", enviroPath, gatewayPath, "-t", testName, "-F", "--json"],
           llm: true,
           captureOutput: true,
         });
@@ -276,7 +268,7 @@ export async function fetchRequirementCoverageData(
           return null;
         }
 
-        // -f matches test names across the whole environment.
+        // -t matches test names across the whole environment.
         if (results.length > 1) {
           vscode.window.showInformationMessage(
             `More than one test in this environment is named ${testName}, so the review cannot tell which one to show.`

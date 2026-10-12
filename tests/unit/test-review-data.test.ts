@@ -9,6 +9,15 @@ import {
 // so we'll disable the strictCamelCase check here.
 /* eslint-disable @typescript-eslint/naming-convention */
 
+const argument = {
+  verdict: "PASS",
+  reason: null,
+  basis: "test-description",
+  argument: "The test runs line 11 and checks the total.",
+  checking_assertions: ["manager.total"],
+  caveats: ["Judged against the full linked requirement"],
+};
+
 const coverageResult = {
   name: "TEST_1",
   expected_coverage: {
@@ -22,20 +31,13 @@ const coverageResult = {
     ],
   },
   actual_coverage: [{ unit: "manager", path: "/src/manager.c", lines: [10] }],
-};
-
-const argument = {
-  verdict: "Exercises",
-  basis: "test-description",
-  argument: "The test runs line 11 and checks the total.",
-  checking_assertions: ["manager.total"],
-  caveats: ["Judged against the full linked requirement"],
+  argument,
 };
 
 describe("tests2check result parsing", () => {
-  test("shows the justification when tests2check produced one", () => {
+  test("shows the verdict, argument, checking assertions and caveats", () => {
     const data = parseTests2checkResult(
-      { ...coverageResult, argument },
+      coverageResult,
       "TEST_1",
       "manager",
       "This test validates that ...",
@@ -45,30 +47,43 @@ describe("tests2check result parsing", () => {
     expect(data.expectedLines).toEqual([10, 11]);
     expect(data.actualLines).toEqual([10]);
     expect(data.justification).toEqual({
-      verdict: "Exercises",
+      verdict: "PASS",
+      reason: null,
       argument: "The test runs line 11 and checks the total.",
       checkingAssertions: ["manager.total"],
       caveats: ["Judged against the full linked requirement"],
     });
 
     const markdown = reviewMarkdown(data);
-    expect(markdown).toContain("$(pass) Verdict: Exercises");
+    expect(markdown).toContain("$(pass) Verdict: PASS");
     expect(markdown).toContain("The test runs line 11 and checks the total.");
     expect(markdown).toContain("- `manager.total`");
     expect(markdown).toContain("- Judged against the full linked requirement");
   });
 
-  test("shows only the description without a justification", () => {
+  test("shows a FAIL with its reason", () => {
+    const reason =
+      "The test does not run the code that implements the requirement.";
     const data = parseTests2checkResult(
-      coverageResult,
+      {
+        ...coverageResult,
+        argument: {
+          ...argument,
+          verdict: "FAIL",
+          reason,
+          argument: "",
+          checking_assertions: [],
+        },
+      },
       "TEST_1",
       "manager",
       "This test validates that ...",
       5
     );
-
-    expect(data.justification).toBeUndefined();
-    expect(reviewMarkdown(data)).not.toContain("Verdict");
+    const markdown = reviewMarkdown(data);
+    expect(markdown).toContain("$(error) Verdict: FAIL");
+    expect(markdown).toContain(`**${reason}**`);
+    expect(markdown).not.toContain("Checked by");
   });
 
   test("shows text from the test as written, not as Markdown or icons", () => {

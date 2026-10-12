@@ -4,6 +4,7 @@ const path = require("path");
 
 export interface Justification {
   verdict: string;
+  reason: string | null;
   argument: string;
   checkingAssertions: string[];
   caveats: string[];
@@ -19,7 +20,7 @@ export interface RequirementData {
   // The expected lines whose VectorCAST statement the test ran.
   ranLines: number[];
   actualLines: number[];
-  justification?: Justification;
+  justification: Justification;
 }
 
 /**
@@ -66,15 +67,13 @@ export function parseTests2checkResult(
     expectedLines,
     ranLines,
     actualLines: unitCoverage?.lines || [],
-    // Only present when tests2check ran with --justification.
-    justification: argument
-      ? {
-          verdict: argument.verdict,
-          argument: argument.argument || "",
-          checkingAssertions: argument.checking_assertions || [],
-          caveats: argument.caveats || [],
-        }
-      : undefined,
+    justification: {
+      verdict: argument.verdict,
+      reason: argument.reason,
+      argument: argument.argument,
+      checkingAssertions: argument.checking_assertions,
+      caveats: argument.caveats,
+    },
   };
 }
 
@@ -104,10 +103,8 @@ export function reviewLineColors(reqData: RequirementData): {
 }
 
 const VERDICT_ICONS: Record<string, string> = {
-  Exercises: "pass",
-  Partially: "warning",
-  "Does not": "error",
-  Inconclusive: "question",
+  PASS: "pass",
+  FAIL: "error",
 };
 
 // Text from the test or tests2check must not be read as Markdown or icons.
@@ -116,29 +113,29 @@ function escapeMarkdown(text: string): string {
 }
 
 /**
- * The review comment: the verdict, its argument, the assertions that check the
- * outcome and the caveats when tests2check judged the test, then the test's
+ * The review comment: the verdict and, for a FAIL, its reason, the argument,
+ * the assertions that check the outcome and the caveats, then the test's
  * description.
  */
 export function reviewMarkdown(reqData: RequirementData): string {
-  const parts: string[] = [];
   const justification = reqData.justification;
-  if (justification) {
-    const icon = VERDICT_ICONS[justification.verdict] ?? "info";
-    parts.push(
-      `#### $(${icon}) Verdict: ${escapeMarkdown(justification.verdict)}`,
-      escapeMarkdown(justification.argument)
-    );
-    if (justification.checkingAssertions.length) {
-      const names = justification.checkingAssertions.map((n) => `- \`${n}\``);
-      parts.push(`**Checked by**\n\n${names.join("\n")}`);
-    }
-    if (justification.caveats.length) {
-      const caveats = justification.caveats.map(
-        (c) => `- ${escapeMarkdown(c)}`
-      );
-      parts.push(`**Caveats**\n\n${caveats.join("\n")}`);
-    }
+  const icon = VERDICT_ICONS[justification.verdict] ?? "info";
+  const parts = [
+    `#### $(${icon}) Verdict: ${escapeMarkdown(justification.verdict)}`,
+  ];
+  if (justification.reason) {
+    parts.push(`**${escapeMarkdown(justification.reason)}**`);
+  }
+  if (justification.argument) {
+    parts.push(escapeMarkdown(justification.argument));
+  }
+  if (justification.checkingAssertions.length) {
+    const names = justification.checkingAssertions.map((n) => `- \`${n}\``);
+    parts.push(`**Checked by**\n\n${names.join("\n")}`);
+  }
+  if (justification.caveats.length) {
+    const caveats = justification.caveats.map((c) => `- ${escapeMarkdown(c)}`);
+    parts.push(`**Caveats**\n\n${caveats.join("\n")}`);
   }
   parts.push(
     "**Test description**",
