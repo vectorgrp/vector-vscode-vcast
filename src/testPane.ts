@@ -159,6 +159,7 @@ function addTestNodes(
   parentNodeForCache: testNodeType
 ) {
   const testsWithRequirements: string[] = [];
+  const testsWithoutRequirements: string[] = [];
   for (let testIndex = 0; testIndex < testList.length; testIndex++) {
     // we save the current test status to be used by updateStatusForNode
     let testData: testDataType = {
@@ -194,10 +195,12 @@ function addTestNodes(
 
     globalTestStatusArray[testNodeID] = testData;
 
-    // Empty list --> No requirements --> Button should not appear on that Test Node.
     // Compound-only tests do not run on their own, so they have nothing to review.
-    if (testNodeForCache.requirements !== "[]" && !testData.compoundOnly) {
-      testsWithRequirements.push(testNodeID);
+    if (!testData.compoundOnly) {
+      (testNodeForCache.requirements === "[]"
+        ? testsWithoutRequirements
+        : testsWithRequirements
+      ).push(testNodeID);
     }
 
     // currently we only use the Uri and Range for Coded Tests
@@ -249,6 +252,12 @@ function addTestNodes(
     "setContext",
     "vectorcastTestExplorer.testNodesWithRequirements",
     [...testNodesWithRequirements.values()].flat()
+  );
+  testNodesWithoutRequirements.set(parentNodeID, testsWithoutRequirements);
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.testNodesWithoutRequirements",
+    [...testNodesWithoutRequirements.values()].flat()
   );
 
   addTestNodeToCache(parentNodeID, parentNodeForCache);
@@ -717,8 +726,9 @@ export function makeEnviroNodeID(buildDirectory: string): string {
 }
 
 let vcastHasCodedTestsList: string[] = [];
-// key is the parent node ID, value its tests that are linked to requirements
+// key is the parent node ID, value its tests that are (not) linked to requirements
 let testNodesWithRequirements: Map<string, string[]> = new Map();
+let testNodesWithoutRequirements: Map<string, string[]> = new Map();
 
 // Global cache for workspace-wide env data
 // Used to avoid redundant API calls during refresh

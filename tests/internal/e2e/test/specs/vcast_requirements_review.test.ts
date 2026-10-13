@@ -21,6 +21,7 @@ const run = promisify(exec);
 const reviewDir = path.join(__dirname, "..", "vcastTutorial", "review_c");
 
 // Both tests are traced to the steak requirement; only the first orders steak.
+// The third test is linked to no requirement.
 const requirementsCsv = `Key,ID,Module,Title,Description,Function
 Place_Order.2,Place_Order.2,manager,Steak adds $14.00,The system shall increase the check total by $14.00 when steak is selected as the entree in the order.,Place_Order
 `;
@@ -50,6 +51,12 @@ TEST.VALUE:uut_prototype_stubs.Get_Table_Record.return.Check_Total:0.0
 TEST.EXPECTED:uut_prototype_stubs.Update_Table_Record.Data.Check_Total:10.0
 ${notes}
 TEST.END
+TEST.NEW
+TEST.NAME:PLACE_ORDER_UNLINKED
+TEST.VALUE:manager.Place_Order.Table:1
+TEST.VALUE:manager.Place_Order.Seat:0
+TEST.VALUE:manager.Place_Order.Order.Entree:STEAK
+TEST.END
 `;
 
 async function clicast(...args: string[]) {
@@ -75,14 +82,14 @@ async function visibleEditors(): Promise<string> {
   );
 }
 
-async function openReviewFor(testName: string) {
+async function openVectorcastMenuFor(testName: string) {
   const vcastTestingViewContent = await getViewContent("Testing");
   let testHandle: TreeItem;
   for (const section of await vcastTestingViewContent.getSections()) {
     const subprogram = await findSubprogram("manager", section);
     if (subprogram) {
       await subprogram.expand();
-      testHandle = await getTestHandle(subprogram, "Place_Order", testName, 2);
+      testHandle = await getTestHandle(subprogram, "Place_Order", testName, 3);
       if (testHandle) break;
     }
   }
@@ -90,6 +97,10 @@ async function openReviewFor(testName: string) {
 
   const contextMenu = await testHandle.openContextMenu();
   await contextMenu.select("VectorCAST");
+}
+
+async function openReviewFor(testName: string) {
+  await openVectorcastMenuFor(testName);
   await (await $("aria/Check Test Against Requirements")).click();
 
   try {
@@ -190,6 +201,27 @@ describe("Requirements check", () => {
     );
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
+  });
+
+  it("should grey out the requirements check for a test without linked requirements", async () => {
+    await updateTestID();
+    await openVectorcastMenuFor("PLACE_ORDER_UNLINKED");
+
+    const item = await $(
+      "aria/Check Test Against Requirements (No Linked Requirements)"
+    );
+    // The label is a span inside the menu entry, which carries the state.
+    const disabled = await browser.execute(
+      (label: any) =>
+        label.closest(".action-item")?.getAttribute("aria-disabled"),
+      item
+    );
+    expect(disabled).toBe("true");
+    expect(await $("aria/Check Test Against Requirements").isExisting()).toBe(
+      false
+    );
+    await browser.keys([Key.Escape]);
+    await browser.keys([Key.Escape]);
   });
 
   it("should pass a test that checks its requirement", async () => {
