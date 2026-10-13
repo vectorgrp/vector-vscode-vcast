@@ -126,7 +126,9 @@ function showReviewThread(
       {
         body,
         mode: vscode.CommentMode.Preview,
-        author: { name: "AI-generated. Review before relying on it." },
+        author: {
+          name: "AI-generated requirements check. Review before relying on it.",
+        },
       },
     ]
   );
