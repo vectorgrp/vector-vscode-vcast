@@ -96,7 +96,7 @@ function findTestItemRecursively(
   }
   let found: vscode.TestItem | undefined;
   item.children.forEach((child) => {
-    found ??= findTestItemRecursively(item, targetId);
+    found ??= findTestItemRecursively(child, targetId);
   });
   return found;
 }
