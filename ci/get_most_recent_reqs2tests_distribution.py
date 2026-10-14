@@ -69,7 +69,8 @@ BASE_URL = "https://artifactory.vi.vector.int/artifactory"
 # Reqs2X distributions are published from main. Demo releases are published
 # separately and are not fetched here; pass R2T_RELEASE_URL_LIN/WIN to test a
 # specific build.
-BRANCH = os.getenv("R2T_RELEASE_BRANCH", "main")
+# The workflow passes an empty string when it is not started by hand.
+BRANCH = os.getenv("R2T_RELEASE_BRANCH") or "main"
 logging.info(f"Using R2T_RELEASE_BRANCH: {BRANCH}")
 PATH = f"rds-build-packages-generic-dev/code2reqs2tests/distributions/{BRANCH}"
 API_STORAGE_URL = f"{BASE_URL}/api/storage/{PATH}"
