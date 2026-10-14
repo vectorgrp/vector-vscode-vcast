@@ -98,7 +98,7 @@ describe("tests2check result parsing", () => {
     expect(markdown).toContain("#### $(error) Verdict: FAIL");
     expect(markdown).toContain("##### $(pass) PASS: FR\\-1");
     expect(markdown).toContain("##### $(error) FAIL: FR\\-2");
-    expect(markdown.split("Checked by").length).toBe(2); // only FR-1's
+    expect(markdown.split("Checked by").length).toBe(2); // Only FR-1's
     expect(markdown.indexOf("FR\\-1")).toBeLessThan(markdown.indexOf("FR\\-2"));
   });
 
