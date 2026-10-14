@@ -68,7 +68,6 @@ import {
   setGlobalProjectIsOpenedChecker,
   setGlobalCompilerAndTestsuites,
   loadTestScriptButton,
-  runTests,
 } from "./testPane";
 
 import {
@@ -200,7 +199,6 @@ import {
 import fs = require("fs");
 import {
   compilerTagList,
-  findTestItemInController,
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
 import { getNonce, resolveWebviewBase } from "./webviewUtils";
@@ -693,18 +691,8 @@ function configureExtension(context: vscode.ExtensionContext) {
           enviroPath,
           testNode.functionName || testNode.unitName || null
         );
-        if (!generated) return;
-
-        // The requirements test review compares coverage, so run the tests and
-        // refresh to show its button on the new ones.
-        const testItem = findTestItemInController(testNode.enviroNodeID);
-        if (testItem) {
-          const request = new vscode.TestRunRequest([testItem]);
-          await runTests(request, new vscode.CancellationTokenSource().token);
-        } else {
-          vectorMessage(`TestItem for ${testNode.enviroNodeID} not found`);
-        }
-        await refreshAllExtensionData();
+        // Show the new tests, and which of them can be checked against requirements.
+        if (generated) await refreshAllExtensionData();
       }
     }
   );
