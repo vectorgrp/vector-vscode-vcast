@@ -687,12 +687,10 @@ function configureExtension(context: vscode.ExtensionContext) {
       if (args) {
         const testNode: testNodeType = getTestNode(args.id);
         const enviroPath = testNode.enviroPath;
-        const generated = await generateTestsFromRequirements(
+        await generateTestsFromRequirements(
           enviroPath,
           testNode.functionName || testNode.unitName || null
         );
-        // Show the new tests, and which of them can be checked against requirements.
-        if (generated) await refreshAllExtensionData();
       }
     }
   );
