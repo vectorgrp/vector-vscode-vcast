@@ -150,7 +150,6 @@ export async function endReview(): Promise<void> {
   reviewThread = undefined;
   disposeCriticalLineDecorations();
   await exitReviewMode();
-  updateDisplayedCoverage();
 }
 
 /**

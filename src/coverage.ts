@@ -189,14 +189,12 @@ export async function updateCOVdecorations() {
 
     // In review mode, show only the selected test's coverage for the target file
     const coverageData =
-      reviewModeActive &&
-      reviewModeTestId &&
-      reviewModeFilePath === forceLowerCaseDriveLetter(filePath)
+      review?.filePath === forceLowerCaseDriveLetter(filePath)
         ? getCoverageDataForFileAndTest(
             filePath,
-            reviewModeTestId,
-            reviewModeEnviroPath,
-            reviewModePerTestCoverage
+            review.testId,
+            review.enviroPath,
+            review.perTestCoverage
           )
         : getCoverageDataForFile(filePath);
 
@@ -346,17 +344,16 @@ export async function updateDisplayedCoverage() {
   if (coverageOn) await updateCOVdecorations();
 }
 
-// Review mode state ////////////////////////////////////////////////
-let reviewModeActive: boolean = false;
-let reviewModeTestId: string | null = null;
-let reviewModeFilePath: string | null = null;
-let reviewModeEnviroPath: string = "";
-let reviewModePerTestCoverage: Record<string, Record<string, string>> = {};
-/////////////////////////////////////////////////////////////////////
-
-export function isReviewModeActive(): boolean {
-  return reviewModeActive;
-}
+// The requirements check in progress, whose test alone shows its coverage
+// in the checked source file.
+let review:
+  | {
+      testId: string;
+      filePath: string;
+      enviroPath: string;
+      perTestCoverage: Record<string, Record<string, string>>;
+    }
+  | undefined;
 
 export async function enterReviewMode(
   testId: string,
@@ -370,21 +367,19 @@ export async function enterReviewMode(
     ([path]) =>
       forceLowerCaseDriveLetter(path) === forceLowerCaseDriveLetter(filePath)
   );
-  reviewModePerTestCoverage = (forThisFile?.[1] ?? {}) as Record<
-    string,
-    Record<string, string>
-  >;
-  reviewModeActive = true;
-  reviewModeTestId = testId;
-  reviewModeFilePath = forceLowerCaseDriveLetter(filePath);
-  reviewModeEnviroPath = enviroPath;
+  review = {
+    testId,
+    filePath: forceLowerCaseDriveLetter(filePath),
+    enviroPath,
+    perTestCoverage: (forThisFile?.[1] ?? {}) as Record<
+      string,
+      Record<string, string>
+    >,
+  };
 }
 
 export async function exitReviewMode(): Promise<void> {
-  reviewModeActive = false;
-  reviewModeTestId = null;
-  reviewModeFilePath = null;
-  reviewModePerTestCoverage = {};
+  review = undefined;
 
   // Refresh normal coverage display
   if (coverageOn) {

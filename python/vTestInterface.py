@@ -595,19 +595,9 @@ def _resultCoversMcdcDecision(mcdc, result_id):
         for condition in mcdc.conditions:
             if condition.is_branch:
                 # This is the T/F branch for the decision itself
-                nc = condition.num_conditions
-                total_branches += nc
-                try:
-                    if result_id in {r.id for r in condition.get_true_results()}:
-                        covered_branches += 1
-                except Exception:
-                    pass
-                if nc >= 2:
-                    try:
-                        if result_id in {r.id for r in condition.get_false_results()}:
-                            covered_branches += 1
-                    except Exception:
-                        pass
+                covered, total = _resultCoversBranch(condition, result_id)
+                covered_branches += covered
+                total_branches += total
             else:
                 # This is an actual MCDC condition — check its pairs
                 try:
@@ -645,104 +635,45 @@ def _classifyResultForLine(
     """
 
     if coverageKind == CoverageKind.statement:
-        # Statement-only: hitting the line means covered (binary)
         return "covered"
 
-    elif coverageKind == CoverageKind.statementBranch:
-        # Statement + Branch
-        branches = branches_by_line.get(line_number)
-        if branches:
-            total_dirs = 0
-            covered_dirs = 0
-            for branch in branches:
-                c, t = _resultCoversBranch(branch, result_id)
-                covered_dirs += c
-                total_dirs += t
-            if total_dirs == 0:
-                return "covered"
-            elif covered_dirs == total_dirs:
-                return "covered"
-            elif covered_dirs > 0:
-                return "partiallyCovered"
-            else:
-                # Result hit the line (is in line.results) but covered
-                # no branch directions — still a statement hit on a branch line.
-                # The aggregate handler classifies this as uncovered (red)
-                # because no branches are covered, so we follow suit.
-                return None
-        else:
-            # Pure statement line, no branches — hitting it means covered
-            return "covered"
+    # With statement coverage, running a line is an objective of its own, so a
+    # line without branch or MCDC objectives counts as covered; without it, such
+    # a line is not coverable.
+    lineWithoutObjectives = (
+        "covered"
+        if coverageKind in (CoverageKind.statementBranch, CoverageKind.statementMcdc)
+        else None
+    )
 
-    elif coverageKind == CoverageKind.branch:
-        # Branch-only (no statement coverage)
-        if line_number in functionLineSet:
-            # Function header lines are filtered out for branch-only
+    if coverageKind in (CoverageKind.statementBranch, CoverageKind.branch):
+        # Function header lines are filtered out for branch-only
+        if coverageKind == CoverageKind.branch and line_number in functionLineSet:
             return None
         branches = branches_by_line.get(line_number)
-        if branches:
-            total_dirs = 0
-            covered_dirs = 0
-            for branch in branches:
-                c, t = _resultCoversBranch(branch, result_id)
-                covered_dirs += c
-                total_dirs += t
-            if total_dirs == 0:
-                return None
-            elif covered_dirs == total_dirs:
-                return "covered"
-            elif covered_dirs > 0:
-                return "partiallyCovered"
-            else:
-                return None
-        else:
-            # Non-branch line in branch-only mode — not coverable
-            return None
-
-    elif coverageKind == CoverageKind.statementMcdc:
-        # Statement + MCDC
+        if not branches:
+            return lineWithoutObjectives
+        counts = [_resultCoversBranch(branch, result_id) for branch in branches]
+        covered = sum(c for c, _ in counts)
+        total = sum(t for _, t in counts)
+    elif coverageKind in (CoverageKind.statementMcdc, CoverageKind.mcdc):
         mcdc = mcdc_by_line.get(line_number)
-        if mcdc is not None:
-            # MCDC decision line — check branches + pairs
-            cp, tp, cb, tb = _resultCoversMcdcDecision(mcdc, result_id)
-            total = tp + tb
-            covered = cp + cb
-            if total == 0:
-                # No coverable branches/pairs on this decision
-                return "covered"
-            elif covered == total:
-                return "covered"
-            elif covered > 0:
-                return "partiallyCovered"
-            else:
-                # Result hit the statement but no branch/pair coverage
-                # Aggregate handler treats this as uncovered for MCDC lines
-                return None
-        else:
-            # Non-MCDC statement line — hitting means covered
-            return "covered"
+        if mcdc is None:
+            return lineWithoutObjectives
+        cp, tp, cb, tb = _resultCoversMcdcDecision(mcdc, result_id)
+        covered = cp + cb
+        total = tp + tb
+    else:
+        # Unknown coverage kind
+        return None
 
-    elif coverageKind == CoverageKind.mcdc:
-        # MCDC-only (no statement coverage)
-        mcdc = mcdc_by_line.get(line_number)
-        if mcdc is not None:
-            cp, tp, cb, tb = _resultCoversMcdcDecision(mcdc, result_id)
-            total = tp + tb
-            covered = cp + cb
-            if total == 0:
-                return None
-            elif covered == total:
-                return "covered"
-            elif covered > 0:
-                return "partiallyCovered"
-            else:
-                return None
-        else:
-            # Non-MCDC line in MCDC-only mode — not coverable
-            return None
-
-    # Unknown coverage kind
-    return None
+    if total == 0:
+        return lineWithoutObjectives
+    if covered == total:
+        return "covered"
+    # A result that hit the line but covered none of its objectives is
+    # uncovered (red), as in the aggregate handler.
+    return "partiallyCovered" if covered > 0 else None
 
 
 def getPerTestCoverageData(sourceObject):

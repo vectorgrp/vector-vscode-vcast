@@ -189,15 +189,13 @@ function addTestNodes(
     testNodeForCache.testName = testName;
     testNodeForCache.testFile = testData.testFile;
     testNodeForCache.testStartLine = testData.testStartLine;
-    testNodeForCache.notes = testData.notes;
-    testNodeForCache.requirements = testData.requirements;
     addTestNodeToCache(testNodeID, testNodeForCache);
 
     globalTestStatusArray[testNodeID] = testData;
 
     // Compound-only tests do not run on their own, so they have nothing to review.
     if (!testData.compoundOnly) {
-      (testNodeForCache.requirements === "[]"
+      (testData.requirements === "[]"
         ? testsWithoutRequirements
         : testsWithRequirements
       ).push(testNodeID);

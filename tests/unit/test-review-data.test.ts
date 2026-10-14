@@ -13,7 +13,6 @@ import {
 function check(key: string, fields: Record<string, unknown> = {}) {
   return {
     key,
-    title: "t",
     description: `The system shall do ${key}.`,
     verdict: "PASS",
     checked_behavior: '"This test validates that the total increases."',
@@ -37,7 +36,7 @@ const coverageResult = {
       },
     ],
   },
-  actual_coverage: [{ unit: "manager", path: "/src/manager.c", lines: [10] }],
+  actual_coverage: [{ path: "/src/manager.c", lines: [10] }],
 };
 
 const LEGEND =
