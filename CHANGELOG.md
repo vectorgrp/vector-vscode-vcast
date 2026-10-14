@@ -2,10 +2,10 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
-## [1.0.36] - 2026-10-06
+## [1.0.36] - 2026-10-14
 
 ### Added
-- Added a Test Review for Requirement Tests, with an AI verdict on whether the test exercises its requirement
+- **Check Test Against Requirements** in the test context menu: runs the test, then shows an AI-generated PASS/FAIL for each linked requirement, with the lines it needs highlighted.
 
 ## [1.0.35] - 2026-09-21
 
