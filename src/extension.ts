@@ -1570,6 +1570,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         unitName,
         lineNumber
       );
+      // tests2check executed the test, so its status and coverage changed.
+      await updateDataForEnvironment(enviroPath);
       if (!reqData) return;
 
       // Close sidebar for more screen space

@@ -7,6 +7,10 @@ import {
   exitReviewMode,
   updateDisplayedCoverage,
 } from "../coverage";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../../src-common/vcastServer";
 import { logCliError } from "./requirementsLog";
 import { runReqs2xTool } from "./processRunner";
 import { TESTS2CHECK_EXECUTABLE_PATH } from "./requirementsExecutables";
@@ -236,8 +240,9 @@ export async function openTstScriptAtTest(
 }
 
 /**
- * Runs tests2check for one test and returns what the review shows, or null
- * (after telling the user why) when there is nothing to review.
+ * Runs tests2check for one test, which executes it, and returns what the
+ * review shows, or null (after telling the user why) when there is nothing to
+ * review.
  */
 export async function fetchRequirementCoverageData(
   enviroPath: string,
@@ -253,6 +258,9 @@ export async function fetchRequirementCoverageData(
       cancellable: false,
     },
     async () => {
+      // tests2check executes the test with clicast, so in server mode the
+      // server must not hold the environment open meanwhile.
+      if (globalEnviroDataServerActive) await closeConnection(enviroPath);
       try {
         const { stdout } = await runReqs2xTool({
           exe: TESTS2CHECK_EXECUTABLE_PATH,
