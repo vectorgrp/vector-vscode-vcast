@@ -163,7 +163,9 @@ export function disposeCriticalLineDecorations(): void {
 }
 
 /**
- * Opens the source file with requirement highlighting
+ * Opens the source file with requirement highlighting. Returns whether the
+ * gutter shows the test's own coverage; if that could not be read it keeps
+ * showing the coverage of all tests.
  */
 export async function openSourceFileWithHighlight(
   sourceFilePath: string,
@@ -171,7 +173,7 @@ export async function openSourceFileWithHighlight(
   context: vscode.ExtensionContext,
   testId: string,
   enviroPath: string
-): Promise<void> {
+): Promise<boolean> {
   const sourceFileUri = vscode.Uri.file(sourceFilePath);
   const document = await vscode.workspace.openTextDocument(sourceFileUri);
 
@@ -189,16 +191,29 @@ export async function openSourceFileWithHighlight(
     selection: new vscode.Range(reviewPosition, reviewPosition),
   });
 
-  // Enter review mode BEFORE applying decorations
-  await enterReviewMode(testId, sourceFilePath, enviroPath);
-
-  // Apply the green highlight to critical lines
-  highlightCriticalLines(editor, document, reqData);
-
-  showReviewThread(sourceFileUri, reviewPosition.line, reqData, context);
-
-  // Update coverage decorations to show review mode coverage
-  await updateDisplayedCoverage();
+  // The comment's close button is the only way out of review mode, so the
+  // comment comes first, and a failure anywhere ends the review again rather
+  // than leaving the gutter on one test's coverage.
+  try {
+    showReviewThread(sourceFileUri, reviewPosition.line, reqData, context);
+    highlightCriticalLines(editor, document, reqData);
+    const perTestCoverageShown = await enterReviewMode(
+      testId,
+      sourceFilePath,
+      enviroPath
+    );
+    if (!perTestCoverageShown) {
+      vscode.window.showWarningMessage(
+        "The coverage of this test alone could not be read, so the gutter keeps showing the coverage of all tests. See the VectorCAST Test Explorer log for the reason."
+      );
+    }
+    // Update coverage decorations to show review mode coverage
+    await updateDisplayedCoverage();
+    return perTestCoverageShown;
+  } catch (error) {
+    await endReview();
+    throw error;
+  }
 }
 
 /**

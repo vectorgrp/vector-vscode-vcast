@@ -1568,7 +1568,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       const switchingTests = reviewInProgress();
 
       // Open source file with requirement highlighting
-      await openSourceFileWithHighlight(
+      const perTestCoverageShown = await openSourceFileWithHighlight(
         matchingUnit.path,
         reqData,
         context,
@@ -1580,7 +1580,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       const scriptPath = testNode.enviroPath + ".tst";
       await openTstScriptAtTest(testNode, scriptPath);
 
-      if (!switchingTests) {
+      if (!switchingTests && perTestCoverageShown) {
         vscode.window.showWarningMessage(
           `Only ${testName}'s coverage is shown while its requirements check is open. Close the comment to see all coverage again.`
         );

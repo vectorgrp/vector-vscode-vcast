@@ -30,7 +30,8 @@ export function parseTests2checkResult(
   unitName: string,
   functionStartLine: number
 ): RequirementData {
-  const expectedCoverage = testResult.expected_coverage || {};
+  // A tests2check that leaves a field out or null must not break the review.
+  const expectedCoverage = testResult.expected_coverage ?? {};
 
   // A test can be linked to several requirements: expect the lines of all of them.
   const expectedLines: number[] = [];
@@ -38,8 +39,8 @@ export function parseTests2checkResult(
   for (const locations of Object.values(expectedCoverage)) {
     for (const location of locations as any[]) {
       if (location.unit === unitName) {
-        expectedLines.push(...location.lines);
-        ranLines.push(...location.ran_lines);
+        expectedLines.push(...(location.lines ?? []));
+        ranLines.push(...(location.ran_lines ?? []));
       }
     }
   }
@@ -49,14 +50,14 @@ export function parseTests2checkResult(
     lineNumber: functionStartLine,
     expectedLines,
     ranLines,
-    verdict: testResult.verdict,
-    requirements: testResult.requirements.map((req: any) => ({
-      key: req.key,
-      description: req.description,
-      verdict: req.verdict,
-      checkedBehavior: req.checked_behavior,
-      explanation: req.explanation,
-      checkedBy: req.checked_by,
+    verdict: testResult.verdict ?? "",
+    requirements: (testResult.requirements ?? []).map((req: any) => ({
+      key: req.key ?? "",
+      description: req.description ?? "",
+      verdict: req.verdict ?? "",
+      checkedBehavior: req.checked_behavior ?? "",
+      explanation: req.explanation ?? "",
+      checkedBy: req.checked_by ?? [],
     })),
   };
 }

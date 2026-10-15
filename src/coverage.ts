@@ -355,14 +355,24 @@ let review:
     }
   | undefined;
 
+/**
+ * Shows only the given test's coverage in the given file. Returns false, with
+ * the gutter left on the coverage of all tests, when the per-test coverage
+ * could not be read (the reason is in the message pane): an empty result must
+ * not pass for "this test ran nothing".
+ */
 export async function enterReviewMode(
   testId: string,
   filePath: string,
   enviroPath: string
-): Promise<void> {
+): Promise<boolean> {
   // Fetched per review rather than with the environment data, which would
   // compute it for every test on every environment load.
-  const perTestCoverage = (await getPerTestCoverageFromAPI(enviroPath)) ?? {};
+  const perTestCoverage = await getPerTestCoverageFromAPI(enviroPath);
+  if (perTestCoverage == null) {
+    review = undefined;
+    return false;
+  }
   const forThisFile = Object.entries(perTestCoverage).find(
     ([path]) =>
       forceLowerCaseDriveLetter(path) === forceLowerCaseDriveLetter(filePath)
@@ -376,6 +386,7 @@ export async function enterReviewMode(
       Record<string, string>
     >,
   };
+  return true;
 }
 
 export async function exitReviewMode(): Promise<void> {

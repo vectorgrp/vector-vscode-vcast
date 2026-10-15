@@ -506,22 +506,18 @@ def _buildResultNameCache(sourceObject):
     Returns: dict {result_id: "unit.function.testname"}
     """
     cache = {}
-    try:
-        for result in sourceObject.cover_data.results:
-            test_case = result.unit_test
-            if test_case:
-                name = (
-                    f"{test_case.unit_display_name}"
-                    f".{test_case.function_display_name}"
-                    f".{test_case.name}"
-                )
-                cache[result.id] = name
-            else:
-                # Fallback for non-unit-test results (e.g. cover-only or imported)
-                cache[result.id] = result.name
-    except Exception:
-        # If the API doesn't support this (older DataAPI versions), return empty
-        pass
+    for result in sourceObject.cover_data.results:
+        test_case = result.unit_test
+        if test_case:
+            name = (
+                f"{test_case.unit_display_name}"
+                f".{test_case.function_display_name}"
+                f".{test_case.name}"
+            )
+            cache[result.id] = name
+        else:
+            # Fallback for non-unit-test results (e.g. cover-only or imported)
+            cache[result.id] = result.name
     return cache
 
 
@@ -536,17 +532,14 @@ def _buildBranchAndMcdcByLine(sourceObject):
     """
     branches_by_line = {}
     mcdc_by_line = {}
-    try:
-        for instrumented_file in sourceObject.cover_data.instrumented_files:
-            for lis_data in instrumented_file.iterate_coverage():
-                line_num_str = lis_data.line_number
-                if not line_num_str:
-                    continue
-                line_num = int(line_num_str)
-                if lis_data.branch is not None:
-                    branches_by_line.setdefault(line_num, []).append(lis_data.branch)
-    except Exception:
-        pass
+    for instrumented_file in sourceObject.cover_data.instrumented_files:
+        for lis_data in instrumented_file.iterate_coverage():
+            line_num_str = lis_data.line_number
+            if not line_num_str:
+                continue
+            line_num = int(line_num_str)
+            if lis_data.branch is not None:
+                branches_by_line.setdefault(line_num, []).append(lis_data.branch)
     # Not lis_data.mcdc: that is a single MCDCCondition, not the decision
     for decision in sourceObject.cover_data.mcdc_decisions:
         if decision.num_conditions:
@@ -563,19 +556,10 @@ def _resultCoversBranch(branch, result_id):
     """
     total = branch.num_conditions
     covered = 0
-    try:
-        true_ids = {result.id for result in branch.get_true_results()}
-        if result_id in true_ids:
-            covered += 1
-    except Exception:
-        pass
-    if total >= 2:
-        try:
-            false_ids = {result.id for result in branch.get_false_results()}
-            if result_id in false_ids:
-                covered += 1
-        except Exception:
-            pass
+    if result_id in {result.id for result in branch.get_true_results()}:
+        covered += 1
+    if total >= 2 and result_id in {result.id for result in branch.get_false_results()}:
+        covered += 1
     return covered, total
 
 
@@ -731,8 +715,10 @@ def getPerTestCoverageData(sourceObject):
     the line, "partiallyCovered" when it covers some but not all (branch
     directions or MCDC condition values).
 
-    Returns an empty dict if the source is not instrumented, the file
-    doesn't exist on disk, or the API doesn't support per-result queries.
+    Returns an empty dict if the source is not instrumented, the file doesn't
+    exist on disk, or no test has run. An error while reading the data is
+    raised, not swallowed: the extension reports it, where a partial result
+    would show as the test having run nothing.
     """
     perTestCoverage = {}
     if not (sourceObject and sourceObject.is_instrumented):
@@ -766,32 +752,28 @@ def getPerTestCoverageData(sourceObject):
         for function in sourceObject.cover_data.functions:
             functionLineSet.add(function.start_line)
 
-    try:
-        for line in sourceObject.iterate_coverage():
-            lineResults = line.results
-            if not lineResults:
+    for line in sourceObject.iterate_coverage():
+        lineResults = line.results
+        if not lineResults:
+            continue
+        line_num = line.line_number
+        testStatuses = {}
+        for result in lineResults:
+            name = resultNameCache.get(result.id)
+            if not name:
                 continue
-            line_num = line.line_number
-            testStatuses = {}
-            for result in lineResults:
-                name = resultNameCache.get(result.id)
-                if not name:
-                    continue
-                status = _classifyResultForLine(
-                    result.id,
-                    line,
-                    coverageKind,
-                    branches_by_line,
-                    mcdc_by_line,
-                    functionLineSet,
-                )
-                if status:
-                    testStatuses[name] = status
-            if testStatuses:
-                perTestCoverage[str(line_num)] = testStatuses
-    except Exception:
-        # Gracefully degrade if APIs are not available
-        pass
+            status = _classifyResultForLine(
+                result.id,
+                line,
+                coverageKind,
+                branches_by_line,
+                mcdc_by_line,
+                functionLineSet,
+            )
+            if status:
+                testStatuses[name] = status
+        if testStatuses:
+            perTestCoverage[str(line_num)] = testStatuses
 
     return perTestCoverage
 

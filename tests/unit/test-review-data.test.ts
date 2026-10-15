@@ -101,6 +101,31 @@ describe("tests2check result parsing", () => {
     expect(markdown.indexOf("FR\\-1")).toBeLessThan(markdown.indexOf("FR\\-2"));
   });
 
+  test("tolerates fields tests2check leaves out", () => {
+    // An older tests2check without ran_lines, and a requirement with
+    // only a verdict: the review still shows what there is.
+    const data = parseTests2checkResult(
+      {
+        name: "TEST_1",
+        verdict: "FAIL",
+        requirements: [{ key: "FR-1", verdict: "FAIL" }],
+        expected_coverage: {
+          "FR-1": [
+            { unit: "manager", path: "/src/manager.c", lines: [10, 11] },
+          ],
+        },
+      },
+      "TEST_1",
+      "manager",
+      5
+    );
+    expect(data.expectedLines).toEqual([10, 11]);
+    expect(data.ranLines).toEqual([]);
+    const markdown = reviewMarkdown(data);
+    expect(markdown).toContain("##### $(error) FAIL: FR\\-1");
+    expect(markdown).not.toContain("Checked by");
+  });
+
   test("shows text from the test as written, not as Markdown or icons", () => {
     const data = parseTests2checkResult(
       {
