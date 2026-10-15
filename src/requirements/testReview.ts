@@ -269,14 +269,14 @@ export async function fetchRequirementCoverageData(
     {
       location: vscode.ProgressLocation.Notification,
       title: "Checking test against requirements",
-      cancellable: false,
+      cancellable: true,
     },
-    async () => {
+    async (_progress, cancellationToken) => {
       // tests2check executes the test with clicast, so in server mode the
       // server must not hold the environment open meanwhile.
       if (globalEnviroDataServerActive) await closeConnection(enviroPath);
       try {
-        const { stdout } = await runReqs2xTool({
+        const { stdout, cancelled } = await runReqs2xTool({
           exe: TESTS2CHECK_EXECUTABLE_PATH,
           // The review needs the result even when the test passes.
           args: [
@@ -291,7 +291,9 @@ export async function fetchRequirementCoverageData(
           ],
           llm: true,
           captureOutput: true,
+          cancellationToken,
         });
+        if (cancelled) return null;
 
         const results = JSON.parse(stdout ?? "");
         if (!Array.isArray(results) || results.length === 0) {
