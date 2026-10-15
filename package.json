@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.35",
+  "version": "1.0.36",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -237,6 +237,23 @@
         "command": "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
         "category": "VectorCAST Test Explorer",
         "title": "Open Source File under Test"
+      },
+      {
+        "command": "vectorcastTestExplorer.openReqsCoverageReview",
+        "category": "VectorCAST Test Explorer",
+        "title": "Check Test Against Requirements"
+      },
+      {
+        "command": "vectorcastTestExplorer.reqsCoverageReviewWithoutRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Check Test Against Requirements (No Linked Requirements)",
+        "enablement": "false"
+      },
+      {
+        "command": "vectorcastTestExplorer.closeTestReview",
+        "category": "VectorCAST Test Explorer",
+        "title": "Close Requirements Check",
+        "icon": "$(close)"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
@@ -1003,6 +1020,18 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.openReqsCoverageReview",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.reqsCoverageReviewWithoutRequirements",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.closeTestReview",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.insertBasisPathTests",
           "when": "never"
         },
@@ -1097,6 +1126,13 @@
         {
           "command": "vectorcastTestExplorer.testLLMConfiguration",
           "when": "vectorcastTestExplorer.reqs2xFeatureEnabled"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "vectorcastTestExplorer.closeTestReview",
+          "group": "inline",
+          "when": "commentController == vectorcastTestReview"
         }
       ],
       "view/title": [
@@ -1327,6 +1363,16 @@
         "command": "vectorcastTestExplorer.openSourceFileFromTestpaneCommand",
         "group": "1_open@2",
         "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList"
+      },
+      {
+        "command": "vectorcastTestExplorer.openReqsCoverageReview",
+        "group": "5_reqs@8",
+        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.testNodesWithRequirements && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
+      },
+      {
+        "command": "vectorcastTestExplorer.reqsCoverageReviewWithoutRequirements",
+        "group": "5_reqs@8",
+        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.testNodesWithoutRequirements && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",

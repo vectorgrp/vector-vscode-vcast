@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import traceback
+from types import SimpleNamespace
 import re
 
 """
@@ -60,6 +61,7 @@ modeChoices = [
     "report",
     "mcdcReport",
     "mcdcLines",
+    "perTestCoverage",
     "parseCBT",
     "rebuild",
 ]
@@ -156,6 +158,7 @@ def generateTestInfo(enviroPath, test):
     testInfo["time"] = getTime(test.start_time)
     testInfo["status"] = textStatus(test.status)
     testInfo["passfail"] = getPassFailString(test)
+    testInfo["requirements"] = str(test.requirements)
 
     # New to support coded tests in vc24
     if vpythonHasCodedTestSupport() and test.coded_tests_file:
@@ -294,14 +297,12 @@ def getTestDataVCAST(api, enviroPath):
     return testList
 
 
-def getUnitData(api):
+def getSourceFiles(api):
     """
-    This function will return info about the units in an environment
+    Yields (sourcePath, sourceObject, isInstrumented) for every source file
+    of the environment that has a path
     """
-    unitList = list()
-
-    sourceObjects = api.SourceFile.all()
-    for sourceObject in sourceObjects:
+    for sourceObject in api.SourceFile.all():
         # display_path and is_instrumented are delegated through cover_data, so
         # they raise AttributeError whenever coverage has not been initialized
         # (cover_data is None), which is common for Ada environments and for
@@ -317,6 +318,16 @@ def getUnitData(api):
             isInstrumented = sourceObject.is_instrumented
         except AttributeError:
             isInstrumented = False
+        yield sourcePath, sourceObject, isInstrumented
+
+
+def getUnitData(api):
+    """
+    This function will return info about the units in an environment
+    """
+    unitList = list()
+
+    for sourcePath, sourceObject, isInstrumented in getSourceFiles(api):
         if isInstrumented:
             covered, uncovered, partiallyCovered, checksum = getCoverageData(
                 sourceObject
@@ -484,6 +495,287 @@ def getCoverageKind(sourceObject):
         return CoverageKind.branch
     else:
         return CoverageKind.ignore
+
+
+def _buildResultNameCache(sourceObject):
+    """
+    Pre-builds a mapping from Result.id to test case identifier string.
+    This avoids repeated result.unit_test lookups when the same Result
+    appears on many lines during per-test coverage collection.
+
+    Returns: dict {result_id: "unit.function.testname"}
+    """
+    cache = {}
+    for result in sourceObject.cover_data.results:
+        test_case = result.unit_test
+        if test_case:
+            name = (
+                f"{test_case.unit_display_name}"
+                f".{test_case.function_display_name}"
+                f".{test_case.name}"
+            )
+            cache[result.id] = name
+        else:
+            # Fallback for non-unit-test results (e.g. cover-only or imported)
+            cache[result.id] = result.name
+    return cache
+
+
+def _buildBranchAndMcdcByLine(sourceObject):
+    """
+    Maps source line numbers to their Branch objects (from the LIS data) and
+    their MCDCDecision objects (by start line, as getMCDCLineDic does).
+
+    Returns: (branches_by_line, mcdc_by_line)
+      branches_by_line: {int line_number: [Branch, ...]}
+      mcdc_by_line:     {int line_number: [MCDCDecision, ...]}
+    """
+    branches_by_line = {}
+    mcdc_by_line = {}
+    for instrumented_file in sourceObject.cover_data.instrumented_files:
+        for lis_data in instrumented_file.iterate_coverage():
+            line_num_str = lis_data.line_number
+            if not line_num_str:
+                continue
+            line_num = int(line_num_str)
+            if lis_data.branch is not None:
+                branches_by_line.setdefault(line_num, []).append(lis_data.branch)
+    # Not lis_data.mcdc: that is a single MCDCCondition, not the decision
+    for decision in sourceObject.cover_data.mcdc_decisions:
+        if decision.num_conditions:
+            mcdc_by_line.setdefault(decision.start_line, []).append(decision)
+    return branches_by_line, mcdc_by_line
+
+
+def _resultCoversBranch(branch, result_id):
+    """
+    Checks how many of the branch's directions (T/F) are covered by a
+    specific result.  Returns (covered_count, total_count).
+
+    A Branch has num_conditions == 1 (T-only or F-only) or 2 (both T and F).
+    """
+    total = branch.num_conditions
+    covered = 0
+    if result_id in {result.id for result in branch.get_true_results()}:
+        covered += 1
+    if total >= 2 and result_id in {result.id for result in branch.get_false_results()}:
+        covered += 1
+    return covered, total
+
+
+def _resultCoversMcdcDecision(decision, result_id):
+    """
+    How many of the decision's condition values (each condition True and False)
+    a result produced: (covered, total).  An MCDC pair needs two runs, so one test
+    covers a decision only by making every condition both True and False.
+    """
+    covered = total = 0
+    for condition in decision.conditions:
+        covered += result_id in {result.id for result in condition.get_true_results()}
+        covered += result_id in {result.id for result in condition.get_false_results()}
+        total += 2
+    return covered, total
+
+
+def _classifyResultForLine(
+    result_id,
+    line,
+    coverageKind,
+    branches_by_line,
+    mcdc_by_line,
+    functionLineList,
+):
+    """
+    Classifies a single result's coverage on a single line with the coverage
+    gutter's own handlers, so a line is colored by the same rule in the review
+    gutter as in the coverage gutter. The line's metrics are rebuilt as if this
+    result were the only test: it ran the line's statements, and the branch
+    directions it took (or, for the MC/DC kinds, the condition values it
+    produced) are its covered objectives.
+
+    Returns "covered", "partiallyCovered", or None when the line is not
+    coverable for this coverage kind (e.g. a function header, or a continuation
+    line of a condition) or the result covered none of its objectives.
+    """
+    line_number = line.line_number
+    if coverageKind in (CoverageKind.statementMcdc, CoverageKind.mcdc):
+        objectiveCounts = [
+            _resultCoversMcdcDecision(decision, result_id)
+            for decision in mcdc_by_line.get(line_number, [])
+        ]
+    else:
+        objectiveCounts = [
+            _resultCoversBranch(branch, result_id)
+            for branch in branches_by_line.get(line_number, [])
+        ]
+    covered = 0
+    total = 0
+    for coveredObjectives, totalObjectives in objectiveCounts:
+        covered += coveredObjectives
+        total += totalObjectives
+
+    # The decision state the MC/DC handlers read from getMCDCLineDic, here from
+    # this result's condition values instead of the pairs of all tests
+    mcdc_line_dic = {}
+    if objectiveCounts and coverageKind in (
+        CoverageKind.statementMcdc,
+        CoverageKind.mcdc,
+    ):
+        if covered == total:
+            state = coverageGutter.MCDCLineCoverage.covered
+        elif covered > 0:
+            state = coverageGutter.MCDCLineCoverage.partially_covered
+        else:
+            state = coverageGutter.MCDCLineCoverage.uncovered
+        mcdc_line_dic = {"": {line_number: state}}
+
+    # One result cannot annotate anything, and its objectives are counted as
+    # plain branches
+    statements = line.metrics.statements
+    resultLine = SimpleNamespace(
+        line_number=line_number,
+        metrics=SimpleNamespace(
+            statements=statements,
+            max_covered_statements=statements,
+            max_annotations_statements=0,
+            branches=total,
+            max_covered_branches=covered,
+            max_annotations_branches=0,
+            mcdc_branches=0,
+            max_covered_mcdc_branches=0,
+            max_annotations_mcdc_branches=0,
+        ),
+    )
+
+    coveredString = partiallyCoveredString = uncoveredString = ""
+    if coverageKind == CoverageKind.statement:
+        coveredString, uncoveredString = coverageGutter.handleStatementCoverage(
+            resultLine, coveredString, uncoveredString
+        )
+    elif coverageKind == CoverageKind.mcdc:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleMcdcCoverage(
+                "",
+                mcdc_line_dic,
+                resultLine,
+                coveredString,
+                partiallyCoveredString,
+                uncoveredString,
+            )
+        )
+    elif coverageKind == CoverageKind.statementMcdc:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleStatementMcdcCoverage(
+                "",
+                mcdc_line_dic,
+                resultLine,
+                coveredString,
+                partiallyCoveredString,
+                uncoveredString,
+            )
+        )
+    elif coverageKind == CoverageKind.statementBranch:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleStatementBranchCoverage(
+                resultLine, coveredString, partiallyCoveredString, uncoveredString
+            )
+        )
+    elif coverageKind == CoverageKind.branch:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleBranchCoverage(
+                resultLine,
+                functionLineList,
+                coveredString,
+                partiallyCoveredString,
+                uncoveredString,
+            )
+        )
+
+    if coveredString:
+        return "covered"
+    if partiallyCoveredString:
+        return "partiallyCovered"
+    # Uncovered (ran the line but covered none of its objectives) and not
+    # coverable are both left out: the extension paints every coverable line
+    # without a status red.
+    return None
+
+
+def getPerTestCoverageData(sourceObject):
+    """
+    Returns a dict mapping line numbers to dicts of test case coverage
+    statuses.  Uses SourceLine.results and Branch/MCDC per-result APIs
+    from the DataAPI to determine coverage classification per test.
+
+    Format: {"lineNum": {"unit.function.testname": "covered"|"partiallyCovered", ...}, ...}
+    Only lines with at least one covering test are included, and only lines
+    the coverage gutter colors too (not function headers or the continuation
+    lines of a condition).
+    Status is "covered" when the test covers all coverable objectives on
+    the line, "partiallyCovered" when it covers some but not all (branch
+    directions or MCDC condition values).
+
+    Returns an empty dict if the source is not instrumented, the file doesn't
+    exist on disk, or no test has run. An error while reading the data is
+    raised, not swallowed: the extension reports it, where a partial result
+    would show as the test having run nothing.
+    """
+    perTestCoverage = {}
+    if not (sourceObject and sourceObject.is_instrumented):
+        return perTestCoverage
+
+    if not os.path.exists(sourceObject.path):
+        return perTestCoverage
+
+    resultNameCache = _buildResultNameCache(sourceObject)
+    if not resultNameCache:
+        return perTestCoverage
+
+    coverageKind = getCoverageKind(sourceObject)
+    if coverageKind == CoverageKind.ignore:
+        return perTestCoverage
+
+    # Pre-build branch/MCDC-by-line mappings for non-statement-only kinds
+    branches_by_line = {}
+    mcdc_by_line = {}
+    if coverageKind in (
+        CoverageKind.branch,
+        CoverageKind.statementBranch,
+        CoverageKind.mcdc,
+        CoverageKind.statementMcdc,
+    ):
+        branches_by_line, mcdc_by_line = _buildBranchAndMcdcByLine(sourceObject)
+
+    # Build function start line set for branch-only filtering
+    functionLineSet = set()
+    if coverageKind == CoverageKind.branch:
+        for function in sourceObject.cover_data.functions:
+            functionLineSet.add(function.start_line)
+
+    for line in sourceObject.iterate_coverage():
+        lineResults = line.results
+        if not lineResults:
+            continue
+        line_num = line.line_number
+        testStatuses = {}
+        for result in lineResults:
+            name = resultNameCache.get(result.id)
+            if not name:
+                continue
+            status = _classifyResultForLine(
+                result.id,
+                line,
+                coverageKind,
+                branches_by_line,
+                mcdc_by_line,
+                functionLineSet,
+            )
+            if status:
+                testStatuses[name] = status
+        if testStatuses:
+            perTestCoverage[str(line_num)] = testStatuses
+
+    return perTestCoverage
 
 
 def getCoverageData(sourceObject):
@@ -982,6 +1274,20 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
         api.close()
         returnObject = topLevel
+
+    elif mode == "perTestCoverage":
+        try:
+            api = UnitTestApi(pathToUse)
+        except Exception as err:
+            raise UsageError(err)
+        # Only the requirements test review needs this, so it is not part of
+        # getEnviroData, which runs on every environment load
+        returnObject = {
+            sourcePath: getPerTestCoverageData(sourceObject)
+            for sourcePath, sourceObject, isInstrumented in getSourceFiles(api)
+            if isInstrumented
+        }
+        api.close()
 
     elif mode == "executeTest":
         try:

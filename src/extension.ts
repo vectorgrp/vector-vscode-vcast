@@ -131,6 +131,7 @@ import {
 
 import {
   clearVcastRepositoryInConfig,
+  findRelevantRequirementGateway,
   resolveRequirementsGatewayInnerDir,
 } from "./requirements/rgwPath";
 import {
@@ -149,6 +150,13 @@ import {
 import { generateRequirementsHtml } from "./requirements/webviews/template";
 import type { FromWebview, ToWebview } from "./requirements/webviews/messages";
 import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
+import {
+  fetchRequirementCoverageData,
+  openSourceFileWithHighlight,
+  endReview,
+  openTstScriptAtTest,
+  reviewInProgress,
+} from "./requirements/testReview";
 
 import {
   exportRequirements,
@@ -1490,6 +1498,103 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(openSourceFileFromTestpaneCommand);
+
+  let openReqsCoverageReview = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.openReqsCoverageReview",
+    async (args: any) => {
+      if (!args) return;
+
+      const testNode: testNodeType = getTestNode(args.id);
+      if (!testNode) {
+        vscode.window.showWarningMessage(
+          `Failed to retrieve node test data for ${args.id}. Aborting the requirements check.`
+        );
+        return;
+      }
+
+      const { enviroPath, unitName, functionName } = testNode;
+      const envData = await getEnvironmentData(enviroPath);
+      const envRGWPath = findRelevantRequirementGateway(enviroPath);
+      const testName = testNode.testName;
+
+      if (!envData?.unitData || !envRGWPath || !testName) {
+        vscode.window.showWarningMessage(
+          "Failed to retrieve environment test data. Aborting the requirements check."
+        );
+        return;
+      }
+
+      // Find the matching unit's source file
+      const matchingUnit = envData.unitData.find((unit: { path: string }) => {
+        if (!unit.path) return false;
+        const unitBaseName = path.basename(unit.path, path.extname(unit.path));
+        return unitBaseName === unitName;
+      });
+
+      if (!matchingUnit?.path) {
+        vscode.window.showWarningMessage(
+          `Could not find source file for unit: ${unitName}`
+        );
+        return;
+      }
+
+      // Determine the line number to open at
+      let lineNumber = 0;
+      if (functionName && matchingUnit.functionList) {
+        for (const func of matchingUnit.functionList) {
+          if (func.name === functionName && func.startLine !== undefined) {
+            lineNumber = func.startLine;
+            break;
+          }
+        }
+      }
+
+      const reqData = await fetchRequirementCoverageData(
+        enviroPath,
+        envRGWPath,
+        testName,
+        unitName,
+        lineNumber
+      );
+      // tests2check executed the test, so its status and coverage changed.
+      await updateDataForEnvironment(enviroPath);
+      if (!reqData) return;
+
+      // Close sidebar for more screen space
+      await vscode.commands.executeCommand("workbench.action.closeSidebar");
+
+      // Use the test node ID directly from the test explorer
+      const testId = args.id;
+      const switchingTests = reviewInProgress();
+
+      // Open source file with requirement highlighting
+      const perTestCoverageShown = await openSourceFileWithHighlight(
+        matchingUnit.path,
+        reqData,
+        context,
+        testId,
+        enviroPath
+      );
+
+      // Open TST script beside source file
+      const scriptPath = testNode.enviroPath + ".tst";
+      await openTstScriptAtTest(testNode, scriptPath);
+
+      if (!switchingTests && perTestCoverageShown) {
+        vscode.window.showWarningMessage(
+          `Only ${testName}'s coverage is shown while its requirements check is open. Close the comment to see all coverage again.`
+        );
+      }
+    }
+  );
+
+  context.subscriptions.push(
+    openReqsCoverageReview,
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.closeTestReview",
+      endReview
+    )
+  );
 
   let showRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.showRequirements",

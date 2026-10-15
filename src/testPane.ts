@@ -158,6 +158,8 @@ function addTestNodes(
   parentNodeID: string,
   parentNodeForCache: testNodeType
 ) {
+  const testsWithRequirements: string[] = [];
+  const testsWithoutRequirements: string[] = [];
   for (let testIndex = 0; testIndex < testList.length; testIndex++) {
     // we save the current test status to be used by updateStatusForNode
     let testData: testDataType = {
@@ -165,6 +167,7 @@ function addTestNodes(
       passfail: testList[testIndex].passfail,
       time: testList[testIndex].time,
       notes: testList[testIndex].notes,
+      requirements: testList[testIndex].requirements,
       resultFilePath: "",
       stdout: "",
       compoundOnly: testList[testIndex].compoundOnly,
@@ -189,6 +192,14 @@ function addTestNodes(
     addTestNodeToCache(testNodeID, testNodeForCache);
 
     globalTestStatusArray[testNodeID] = testData;
+
+    // Compound-only tests do not run on their own, so they have nothing to review.
+    if (!testData.compoundOnly) {
+      (testData.requirements === "[]"
+        ? testsWithoutRequirements
+        : testsWithRequirements
+      ).push(testNodeID);
+    }
 
     // currently we only use the Uri and Range for Coded Tests
     let testURI: vscode.Uri | undefined = undefined;
@@ -232,6 +243,19 @@ function addTestNodes(
     "setContext",
     "vectorcastTestExplorer.vcastHasCodedTestsList",
     vcastHasCodedTestsList
+  );
+
+  testNodesWithRequirements.set(parentNodeID, testsWithRequirements);
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.testNodesWithRequirements",
+    [...testNodesWithRequirements.values()].flat()
+  );
+  testNodesWithoutRequirements.set(parentNodeID, testsWithoutRequirements);
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.testNodesWithoutRequirements",
+    [...testNodesWithoutRequirements.values()].flat()
   );
 
   addTestNodeToCache(parentNodeID, parentNodeForCache);
@@ -700,6 +724,9 @@ export function makeEnviroNodeID(buildDirectory: string): string {
 }
 
 let vcastHasCodedTestsList: string[] = [];
+// key is the parent node ID, value its tests that are (not) linked to requirements
+let testNodesWithRequirements: Map<string, string[]> = new Map();
+let testNodesWithoutRequirements: Map<string, string[]> = new Map();
 
 // Global cache for workspace-wide env data
 // Used to avoid redundant API calls during refresh

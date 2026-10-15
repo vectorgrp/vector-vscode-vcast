@@ -6,10 +6,16 @@ import {
 } from "vscode";
 import {
   getCoverageDataForFile,
+  getCoverageDataForFileAndTest,
   getListOfFilesToDecorate,
 } from "./vcastTestInterface";
 
-import { getRangeOption, isSupportedSourceFile } from "./utilities";
+import { getPerTestCoverageFromAPI } from "./vcastAdapter";
+import {
+  forceLowerCaseDriveLetter,
+  getRangeOption,
+  isSupportedSourceFile,
+} from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 import {
@@ -181,8 +187,16 @@ export async function updateCOVdecorations() {
   if (activeEditor && isSupportedSourceFile(activeEditor.document.uri.fsPath)) {
     const filePath = url.fileURLToPath(activeEditor.document.uri.toString());
 
-    // this returns the cached coverage data for this file
-    const coverageData = getCoverageDataForFile(filePath);
+    // In review mode, show only the selected test's coverage for the target file
+    const coverageData =
+      review?.filePath === forceLowerCaseDriveLetter(filePath)
+        ? getCoverageDataForFileAndTest(
+            filePath,
+            review.testId,
+            review.enviroPath,
+            review.perTestCoverage
+          )
+        : getCoverageDataForFile(filePath);
 
     if (coverageData.hasCoverageData) {
       // there is coverage data and it matches the file checksum
@@ -328,4 +342,58 @@ export async function toggleCoverageAction() {
 
 export async function updateDisplayedCoverage() {
   if (coverageOn) await updateCOVdecorations();
+}
+
+// The requirements check in progress, whose test alone shows its coverage
+// in the checked source file.
+let review:
+  | {
+      testId: string;
+      filePath: string;
+      enviroPath: string;
+      perTestCoverage: Record<string, Record<string, string>>;
+    }
+  | undefined;
+
+/**
+ * Shows only the given test's coverage in the given file. Returns false, with
+ * the gutter left on the coverage of all tests, when the per-test coverage
+ * could not be read (the reason is in the message pane): an empty result must
+ * not pass for "this test ran nothing".
+ */
+export async function enterReviewMode(
+  testId: string,
+  filePath: string,
+  enviroPath: string
+): Promise<boolean> {
+  // Fetched per review rather than with the environment data, which would
+  // compute it for every test on every environment load.
+  const perTestCoverage = await getPerTestCoverageFromAPI(enviroPath);
+  if (perTestCoverage == null) {
+    review = undefined;
+    return false;
+  }
+  const forThisFile = Object.entries(perTestCoverage).find(
+    ([path]) =>
+      forceLowerCaseDriveLetter(path) === forceLowerCaseDriveLetter(filePath)
+  );
+  review = {
+    testId,
+    filePath: forceLowerCaseDriveLetter(filePath),
+    enviroPath,
+    perTestCoverage: (forThisFile?.[1] ?? {}) as Record<
+      string,
+      Record<string, string>
+    >,
+  };
+  return true;
+}
+
+export async function exitReviewMode(): Promise<void> {
+  review = undefined;
+
+  // Refresh normal coverage display
+  if (coverageOn) {
+    await updateCOVdecorations();
+  }
 }
