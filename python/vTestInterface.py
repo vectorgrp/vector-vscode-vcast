@@ -526,12 +526,12 @@ def _buildResultNameCache(sourceObject):
 
 def _buildBranchAndMcdcByLine(sourceObject):
     """
-    Iterates the InstrumentedFile's LIS data to build mappings from
-    source line numbers to Branch and MCDCDecision objects.
+    Maps source line numbers to their Branch objects (from the LIS data) and
+    their MCDCDecision objects (by start line, as getMCDCLineDic does).
 
     Returns: (branches_by_line, mcdc_by_line)
       branches_by_line: {int line_number: [Branch, ...]}
-      mcdc_by_line:     {int line_number: MCDCDecision}
+      mcdc_by_line:     {int line_number: [MCDCDecision, ...]}
     """
     branches_by_line = {}
     mcdc_by_line = {}
@@ -544,10 +544,12 @@ def _buildBranchAndMcdcByLine(sourceObject):
                 line_num = int(line_num_str)
                 if lis_data.branch is not None:
                     branches_by_line.setdefault(line_num, []).append(lis_data.branch)
-                if lis_data.mcdc is not None:
-                    mcdc_by_line[line_num] = lis_data.mcdc
     except Exception:
         pass
+    # Not lis_data.mcdc: that is a single MCDCCondition, not the decision
+    for decision in sourceObject.cover_data.mcdc_decisions:
+        if decision.num_conditions:
+            mcdc_by_line.setdefault(decision.start_line, []).append(decision)
     return branches_by_line, mcdc_by_line
 
 
@@ -576,45 +578,18 @@ def _resultCoversBranch(branch, result_id):
     return covered, total
 
 
-def _resultCoversMcdcDecision(mcdc, result_id):
+def _resultCoversMcdcDecision(decision, result_id):
     """
-    Checks how a specific result covers an MCDC decision.
-    Returns (covered_pairs, total_pairs, covered_branches, total_branches).
-
-    For per-result MCDC coverage, we check:
-      1. Branch directions of the decision (T/F via mcdc.branch or mcdc.conditions
-         where is_branch==True)
-      2. Independence pairs for each condition
+    How many of the decision's condition values (each condition True and False)
+    a result produced: (covered, total).  An MCDC pair needs two runs, so one test
+    covers a decision only by making every condition both True and False.
     """
-    covered_pairs = 0
-    total_pairs = 0
-    covered_branches = 0
-    total_branches = 0
-
-    try:
-        for condition in mcdc.conditions:
-            if condition.is_branch:
-                # This is the T/F branch for the decision itself
-                covered, total = _resultCoversBranch(condition, result_id)
-                covered_branches += covered
-                total_branches += total
-            else:
-                # This is an actual MCDC condition — check its pairs
-                try:
-                    for pair in condition.covered_pairs:
-                        total_pairs += 1
-                        try:
-                            pair_result_ids = {r.id for r in pair.get_results()}
-                            if result_id in pair_result_ids:
-                                covered_pairs += 1
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
-    return covered_pairs, total_pairs, covered_branches, total_branches
+    covered = total = 0
+    for condition in decision.conditions:
+        covered += result_id in {r.id for r in condition.get_true_results()}
+        covered += result_id in {r.id for r in condition.get_false_results()}
+        total += 2
+    return covered, total
 
 
 def _classifyResultForLine(
@@ -657,12 +632,12 @@ def _classifyResultForLine(
         covered = sum(c for c, _ in counts)
         total = sum(t for _, t in counts)
     elif coverageKind in (CoverageKind.statementMcdc, CoverageKind.mcdc):
-        mcdc = mcdc_by_line.get(line_number)
-        if mcdc is None:
+        decisions = mcdc_by_line.get(line_number)
+        if not decisions:
             return lineWithoutObjectives
-        cp, tp, cb, tb = _resultCoversMcdcDecision(mcdc, result_id)
-        covered = cp + cb
-        total = tp + tb
+        counts = [_resultCoversMcdcDecision(d, result_id) for d in decisions]
+        covered = sum(c for c, _ in counts)
+        total = sum(t for _, t in counts)
     else:
         # Unknown coverage kind
         return None
@@ -686,7 +661,7 @@ def getPerTestCoverageData(sourceObject):
     Only lines with at least one covering test are included.
     Status is "covered" when the test covers all coverable objectives on
     the line, "partiallyCovered" when it covers some but not all (branch
-    directions or MCDC pairs).
+    directions or MCDC condition values).
 
     Returns an empty dict if the source is not instrumented, the file
     doesn't exist on disk, or the API doesn't support per-result queries.
