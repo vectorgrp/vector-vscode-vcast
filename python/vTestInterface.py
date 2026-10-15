@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import traceback
+from types import SimpleNamespace
 import re
 
 """
@@ -563,14 +564,14 @@ def _resultCoversBranch(branch, result_id):
     total = branch.num_conditions
     covered = 0
     try:
-        true_ids = {r.id for r in branch.get_true_results()}
+        true_ids = {result.id for result in branch.get_true_results()}
         if result_id in true_ids:
             covered += 1
     except Exception:
         pass
     if total >= 2:
         try:
-            false_ids = {r.id for r in branch.get_false_results()}
+            false_ids = {result.id for result in branch.get_false_results()}
             if result_id in false_ids:
                 covered += 1
         except Exception:
@@ -586,69 +587,134 @@ def _resultCoversMcdcDecision(decision, result_id):
     """
     covered = total = 0
     for condition in decision.conditions:
-        covered += result_id in {r.id for r in condition.get_true_results()}
-        covered += result_id in {r.id for r in condition.get_false_results()}
+        covered += result_id in {result.id for result in condition.get_true_results()}
+        covered += result_id in {result.id for result in condition.get_false_results()}
         total += 2
     return covered, total
 
 
 def _classifyResultForLine(
     result_id,
-    line_number,
+    line,
     coverageKind,
     branches_by_line,
     mcdc_by_line,
-    functionLineSet,
+    functionLineList,
 ):
     """
-    Classifies a single result's coverage on a single line.
-    Returns "covered", "partiallyCovered", or None (if the result
-    doesn't meaningfully cover the line for this coverage kind).
+    Classifies a single result's coverage on a single line with the coverage
+    gutter's own handlers, so a line is colored by the same rule in the review
+    gutter as in the coverage gutter. The line's metrics are rebuilt as if this
+    result were the only test: it ran the line's statements, and the branch
+    directions it took (or, for the MC/DC kinds, the condition values it
+    produced) are its covered objectives.
 
-    Mirrors the classification logic in coverageGutter.py but for
-    a single result instead of aggregate metrics.
+    Returns "covered", "partiallyCovered", or None when the line is not
+    coverable for this coverage kind (e.g. a function header, or a continuation
+    line of a condition) or the result covered none of its objectives.
     """
+    line_number = line.line_number
+    if coverageKind in (CoverageKind.statementMcdc, CoverageKind.mcdc):
+        objectiveCounts = [
+            _resultCoversMcdcDecision(decision, result_id)
+            for decision in mcdc_by_line.get(line_number, [])
+        ]
+    else:
+        objectiveCounts = [
+            _resultCoversBranch(branch, result_id)
+            for branch in branches_by_line.get(line_number, [])
+        ]
+    covered = 0
+    total = 0
+    for coveredObjectives, totalObjectives in objectiveCounts:
+        covered += coveredObjectives
+        total += totalObjectives
 
-    if coverageKind == CoverageKind.statement:
-        return "covered"
+    # The decision state the MC/DC handlers read from getMCDCLineDic, here from
+    # this result's condition values instead of the pairs of all tests
+    mcdc_line_dic = {}
+    if objectiveCounts and coverageKind in (
+        CoverageKind.statementMcdc,
+        CoverageKind.mcdc,
+    ):
+        if covered == total:
+            state = coverageGutter.MCDCLineCoverage.covered
+        elif covered > 0:
+            state = coverageGutter.MCDCLineCoverage.partially_covered
+        else:
+            state = coverageGutter.MCDCLineCoverage.uncovered
+        mcdc_line_dic = {"": {line_number: state}}
 
-    # With statement coverage, running a line is an objective of its own, so a
-    # line without branch or MCDC objectives counts as covered; without it, such
-    # a line is not coverable.
-    lineWithoutObjectives = (
-        "covered"
-        if coverageKind in (CoverageKind.statementBranch, CoverageKind.statementMcdc)
-        else None
+    # One result cannot annotate anything, and its objectives are counted as
+    # plain branches
+    statements = line.metrics.statements
+    resultLine = SimpleNamespace(
+        line_number=line_number,
+        metrics=SimpleNamespace(
+            statements=statements,
+            max_covered_statements=statements,
+            max_annotations_statements=0,
+            branches=total,
+            max_covered_branches=covered,
+            max_annotations_branches=0,
+            mcdc_branches=0,
+            max_covered_mcdc_branches=0,
+            max_annotations_mcdc_branches=0,
+        ),
     )
 
-    if coverageKind in (CoverageKind.statementBranch, CoverageKind.branch):
-        # Function header lines are filtered out for branch-only
-        if coverageKind == CoverageKind.branch and line_number in functionLineSet:
-            return None
-        branches = branches_by_line.get(line_number)
-        if not branches:
-            return lineWithoutObjectives
-        counts = [_resultCoversBranch(branch, result_id) for branch in branches]
-        covered = sum(c for c, _ in counts)
-        total = sum(t for _, t in counts)
-    elif coverageKind in (CoverageKind.statementMcdc, CoverageKind.mcdc):
-        decisions = mcdc_by_line.get(line_number)
-        if not decisions:
-            return lineWithoutObjectives
-        counts = [_resultCoversMcdcDecision(d, result_id) for d in decisions]
-        covered = sum(c for c, _ in counts)
-        total = sum(t for _, t in counts)
-    else:
-        # Unknown coverage kind
-        return None
+    coveredString = partiallyCoveredString = uncoveredString = ""
+    if coverageKind == CoverageKind.statement:
+        coveredString, uncoveredString = coverageGutter.handleStatementCoverage(
+            resultLine, coveredString, uncoveredString
+        )
+    elif coverageKind == CoverageKind.mcdc:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleMcdcCoverage(
+                "",
+                mcdc_line_dic,
+                resultLine,
+                coveredString,
+                partiallyCoveredString,
+                uncoveredString,
+            )
+        )
+    elif coverageKind == CoverageKind.statementMcdc:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleStatementMcdcCoverage(
+                "",
+                mcdc_line_dic,
+                resultLine,
+                coveredString,
+                partiallyCoveredString,
+                uncoveredString,
+            )
+        )
+    elif coverageKind == CoverageKind.statementBranch:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleStatementBranchCoverage(
+                resultLine, coveredString, partiallyCoveredString, uncoveredString
+            )
+        )
+    elif coverageKind == CoverageKind.branch:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleBranchCoverage(
+                resultLine,
+                functionLineList,
+                coveredString,
+                partiallyCoveredString,
+                uncoveredString,
+            )
+        )
 
-    if total == 0:
-        return lineWithoutObjectives
-    if covered == total:
+    if coveredString:
         return "covered"
-    # A result that hit the line but covered none of its objectives is
-    # uncovered (red), as in the aggregate handler.
-    return "partiallyCovered" if covered > 0 else None
+    if partiallyCoveredString:
+        return "partiallyCovered"
+    # Uncovered (ran the line but covered none of its objectives) and not
+    # coverable are both left out: the extension paints every coverable line
+    # without a status red.
+    return None
 
 
 def getPerTestCoverageData(sourceObject):
@@ -658,7 +724,9 @@ def getPerTestCoverageData(sourceObject):
     from the DataAPI to determine coverage classification per test.
 
     Format: {"lineNum": {"unit.function.testname": "covered"|"partiallyCovered", ...}, ...}
-    Only lines with at least one covering test are included.
+    Only lines with at least one covering test are included, and only lines
+    the coverage gutter colors too (not function headers or the continuation
+    lines of a condition).
     Status is "covered" when the test covers all coverable objectives on
     the line, "partiallyCovered" when it covers some but not all (branch
     directions or MCDC condition values).
@@ -711,7 +779,7 @@ def getPerTestCoverageData(sourceObject):
                     continue
                 status = _classifyResultForLine(
                     result.id,
-                    line_num,
+                    line,
                     coverageKind,
                     branches_by_line,
                     mcdc_by_line,
