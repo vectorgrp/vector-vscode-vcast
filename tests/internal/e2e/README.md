@@ -17,7 +17,7 @@ Inside `internal/e2e/test/wdio.conf.ts`, we can specify some configuration param
 
 ### Prerequisites:
 
-You should have `npm>=8.0` and `node>=16.9`. The following instructions were tested on `Ubuntu 20.04.4 LTS` with `npm==8.19.2` and `node==16.18.1`.
+You should have `node>=18.12` and [pnpm](https://pnpm.io) available. The pinned pnpm version is declared in the `packageManager` field of `package.json`; run `corepack enable` once and the correct pnpm will be used automatically.
 
 You must have VectorCAST installed and licensed, and the installation directory
 must either be on the **system PATH**, or set using the extension option: **Vectorcast Installation Location**
@@ -43,16 +43,16 @@ Make sure `VECTORCAST_DIR` points to your VectorCAST installation location.
 If behind a corporate proxy: Make sure to set `NODE_EXTRA_CA_CERTS` to point to your certificate bundle.
 
 1)  
-    Install npm dependencies by running `npm install` inside `internal/e2e` folder
+    Install dependencies by running `pnpm install` inside `internal/e2e` folder
 
 2) 
-    Make sure the extension is built by running `npm run package` in the root of the repository
+    Make sure the extension is built by running `pnpm run package` in the root of the repository
    
     The build script will create `vectorcasttestexplorer-<version>.vsix`, as well as `out/extension.js` and `out/server.js`. End-to-end tests are run directly on `out/extension.js` and `out/server.js`, together with necessary resources like `.svg` files.
 
 
 3) 
-    Inside `internal/e2e` folder, run ```npm test``` to execute end-to-end tests. 
+    Inside `internal/e2e` folder, run ```pnpm test``` to execute end-to-end tests. 
 
     End-to-end tests are executed using `WebdriverIO` framework and its `wdio-vscode-service` ( https://webdriver.io/docs/wdio-vscode-service/ ). The `wdio-vscode-service` simplifies automating interactions with VS-Code UI and verifying the produced states. The interactions being tested will be logged to standard output. Tests take approximately 4 minutes to execute.
 
@@ -94,7 +94,7 @@ Please note that groups represent tests for certain features and test files with
 4) Choose `Smart` as debug configuration. This will result in debugger only attaching to scripts that are not inside `node_modules` folder
 5) Set breakpoints at desired locations in `internal/e2e/test/specs/vcast.test.ts` or `internal/e2e/test/test_utils/vcast_utils.ts`
 6) Open a `JavaScript Debug Terminal` in `VS-Code`
-7) Inside the opened terminal, navigate to `internal/e2e` and run ```npx wdio run test/wdio.conf.ts --spec ./test/specs/vcast.test.ts```
+7) Inside the opened terminal, navigate to `internal/e2e` and run ```pnpm exec wdio run test/wdio.conf.ts --spec ./test/specs/vcast.test.ts```
 
 The `JavaScript Debugger` will automatically attach to the scripts being run and stop at any breakpoints previously added by user.
 
