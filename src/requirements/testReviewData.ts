@@ -82,9 +82,10 @@ export function reviewLineColors(reqData: RequirementData): {
   return { covered, uncovered };
 }
 
-const VERDICT_ICONS: Record<string, string> = {
-  PASS: "pass",
-  FAIL: "error",
+// Emoji keep their colour in a comment, where theme icons take the text's.
+const VERDICT_MARKS: Record<string, string> = {
+  PASS: "✅",
+  FAIL: "❌",
 };
 
 // Text from the test or tests2check must not be read as Markdown or icons.
@@ -92,7 +93,7 @@ function escapeMarkdown(text: string): string {
   return text.replace(/[\\`*_{}[\]()#+\-!~|<>$]/g, "\\$&");
 }
 
-const icon = (verdict: string) => VERDICT_ICONS[verdict] ?? "info";
+const mark = (verdict: string) => VERDICT_MARKS[verdict] ?? "ℹ️";
 
 /**
  * The requirements check comment: the verdict, then each linked requirement with
@@ -102,11 +103,11 @@ const icon = (verdict: string) => VERDICT_ICONS[verdict] ?? "info";
  */
 export function reviewMarkdown(reqData: RequirementData): string {
   const parts = [
-    `#### $(${icon(reqData.verdict)}) Verdict: ${escapeMarkdown(reqData.verdict)}`,
+    `#### ${mark(reqData.verdict)} Verdict: ${escapeMarkdown(reqData.verdict)}`,
   ];
   for (const req of reqData.requirements) {
     parts.push(
-      `##### $(${icon(req.verdict)}) ${escapeMarkdown(req.verdict)}: ` +
+      `##### ${mark(req.verdict)} ${escapeMarkdown(req.verdict)}: ` +
         escapeMarkdown(req.key),
       escapeMarkdown(req.description),
       `**Checked behavior**\n\n${escapeMarkdown(req.checkedBehavior)}`,

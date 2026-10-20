@@ -64,8 +64,8 @@ describe("tests2check result parsing", () => {
 
     expect(reviewMarkdown(data)).toBe(
       [
-        "#### $(pass) Verdict: PASS",
-        "##### $(pass) PASS: FR\\-1",
+        "#### ✅ Verdict: PASS",
+        "##### ✅ PASS: FR\\-1",
         "The system shall do FR\\-1.",
         '**Checked behavior**\n\n"This test validates that the total increases."',
         "**Explanation**\n\nThe test runs line 11 and checks the total.",
@@ -95,9 +95,9 @@ describe("tests2check result parsing", () => {
       5
     );
     const markdown = reviewMarkdown(data);
-    expect(markdown).toContain("#### $(error) Verdict: FAIL");
-    expect(markdown).toContain("##### $(pass) PASS: FR\\-1");
-    expect(markdown).toContain("##### $(error) FAIL: FR\\-2");
+    expect(markdown).toContain("#### ❌ Verdict: FAIL");
+    expect(markdown).toContain("##### ✅ PASS: FR\\-1");
+    expect(markdown).toContain("##### ❌ FAIL: FR\\-2");
     expect(markdown.split("Checked by").length).toBe(2); // Only FR-1's
     expect(markdown.indexOf("FR\\-1")).toBeLessThan(markdown.indexOf("FR\\-2"));
   });
@@ -123,7 +123,7 @@ describe("tests2check result parsing", () => {
     expect(data.expectedLines).toEqual([10, 11]);
     expect(data.ranLines).toEqual([]);
     const markdown = reviewMarkdown(data);
-    expect(markdown).toContain("##### $(error) FAIL: FR\\-1");
+    expect(markdown).toContain("##### ❌ FAIL: FR\\-1");
     expect(markdown).not.toContain("Checked by");
   });
 

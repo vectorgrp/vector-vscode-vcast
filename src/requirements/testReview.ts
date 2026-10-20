@@ -123,7 +123,6 @@ function showReviewThread(
   reviewThread?.dispose();
 
   const body = new vscode.MarkdownString(reviewMarkdown(reqData));
-  body.supportThemeIcons = true;
   reviewThread = reviewComments.createCommentThread(
     sourceFileUri,
     new vscode.Range(line, 0, line, 0),
