@@ -160,7 +160,6 @@ export interface testDataType {
   resultFilePath: string;
   stdout: string;
   notes: string;
-  requirements: any;
   compoundOnly: boolean;
   testFile: string;
   testStartLine: number;

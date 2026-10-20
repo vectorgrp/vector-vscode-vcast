@@ -15,6 +15,7 @@ import { logCliError } from "./requirementsLog";
 import { runReqs2xTool } from "./processRunner";
 import { TESTS2CHECK_EXECUTABLE_PATH } from "./requirementsExecutables";
 import {
+  lastToolError,
   parseTests2checkResult,
   RequirementData,
   reviewLineColors,
@@ -276,7 +277,7 @@ export async function fetchRequirementCoverageData(
       // server must not hold the environment open meanwhile.
       if (globalEnviroDataServerActive) await closeConnection(enviroPath);
       try {
-        const { stdout, cancelled } = await runReqs2xTool({
+        const { stdout, stderr, exitCode, cancelled } = await runReqs2xTool({
           exe: TESTS2CHECK_EXECUTABLE_PATH,
           // The review needs the result even when the test passes.
           args: [
@@ -291,9 +292,18 @@ export async function fetchRequirementCoverageData(
           ],
           llm: true,
           captureOutput: true,
+          allowNonZeroExit: true,
           cancellationToken,
         });
         if (cancelled) return null;
+        if (exitCode !== 0) {
+          // tests2check says why, e.g. that the test is linked to no requirement.
+          vscode.window.showWarningMessage(
+            `Cannot check ${testName}: ${lastToolError(stderr ?? "")}`
+          );
+          logCliError(stderr ?? "");
+          return null;
+        }
 
         const results = JSON.parse(stdout ?? "");
         if (!Array.isArray(results) || results.length === 0) {

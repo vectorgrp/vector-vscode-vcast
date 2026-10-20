@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  lastToolError,
   parseTests2checkResult,
   reviewLineColors,
   reviewMarkdown,
@@ -228,6 +229,37 @@ describe("review line colors", () => {
       covered: [],
       uncovered: [11, 12],
     });
+  });
+});
+describe("lastToolError", () => {
+  const message =
+    "None of the selected tests is linked to a requirement. Tests are linked with TEST.REQUIREMENT_KEY.";
+
+  test("joins the error's wrapped lines", () => {
+    expect(
+      lastToolError(
+        "ERROR: None of the selected tests is linked to a requirement. Tests are linked  \nwith TEST.REQUIREMENT_KEY.\n"
+      )
+    ).toBe(message);
+  });
+
+  test("takes only the last error of a debug log", () => {
+    expect(
+      lastToolError(
+        [
+          "2026-10-20T17:48:53.16 [DEBUG]: Using VectorCAST vpython",
+          "        taskName: Task-1",
+          "2026-10-20T17:48:53.38 [ERROR]: None of the selected tests is linked to a",
+          "requirement. Tests are linked with TEST.REQUIREMENT_KEY.",
+          "        taskName: None",
+          "",
+        ].join("\n")
+      )
+    ).toBe(message);
+  });
+
+  test("is the whole output when nothing was logged as an error", () => {
+    expect(lastToolError("Traceback ...\n")).toBe("Traceback ...");
   });
 });
 /* eslint-enable @typescript-eslint/naming-convention */

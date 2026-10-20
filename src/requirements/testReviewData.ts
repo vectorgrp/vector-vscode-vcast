@@ -124,3 +124,27 @@ export function reviewMarkdown(reqData: RequirementData): string {
   );
   return parts.join("\n\n");
 }
+
+// Where a Reqs2X tool's log starts a record, as at info ("ERROR: ...") and at
+// debug level ("<time> [ERROR]: ...").
+const LOG_RECORD = /^(?:\S+ )?\[?(?:DEBUG|INFO|WARNING|ERROR|CRITICAL)\]?:\s*/;
+
+/**
+ * The last error a Reqs2X tool logged, as one line: without its level and the
+ * line breaks the console wraps it at, or all of ``stderr`` if it logged none.
+ */
+export function lastToolError(stderr: string): string {
+  const lines = stderr.split("\n");
+  const start = lines
+    .map((line) => /^(?:\S+ )?\[?ERROR\]?:/.test(line))
+    .lastIndexOf(true);
+  if (start < 0) return stderr.trim();
+
+  const message = [lines[start].replace(LOG_RECORD, "")];
+  for (const line of lines.slice(start + 1)) {
+    // A blank line, an indented detail or the next record ends the message.
+    if (!line.trim() || /^\s/.test(line) || LOG_RECORD.test(line)) break;
+    message.push(line);
+  }
+  return message.join(" ").replace(/\s+/g, " ").trim();
+}

@@ -203,25 +203,25 @@ describe("Requirements check", () => {
     await testingView?.openView();
   });
 
-  it("should grey out the requirements check for a test without linked requirements", async () => {
+  it("should say why a test without linked requirements cannot be checked", async () => {
     await updateTestID();
     await openVectorcastMenuFor("PLACE_ORDER_UNLINKED");
+    await (await $("aria/Check Test Against Requirements")).click();
 
-    const item = await $(
-      "aria/Check Test Against Requirements (No Linked Requirements)"
+    const reason =
+      "Cannot check PLACE_ORDER_UNLINKED: None of the selected tests is linked to a requirement.";
+    await browser.waitUntil(
+      async () => {
+        for (const notification of await workbench.getNotifications()) {
+          if ((await notification.getMessage()).includes(reason)) {
+            await notification.dismiss();
+            return true;
+          }
+        }
+        return false;
+      },
+      { timeout: 120_000, timeoutMsg: `No notification: ${reason}` }
     );
-    // The label is a span inside the menu entry, which carries the state.
-    const disabled = await browser.execute(
-      (label: any) =>
-        label.closest(".action-item")?.getAttribute("aria-disabled"),
-      item
-    );
-    expect(disabled).toBe("true");
-    expect(await $("aria/Check Test Against Requirements").isExisting()).toBe(
-      false
-    );
-    await browser.keys([Key.Escape]);
-    await browser.keys([Key.Escape]);
   });
 
   it("should pass a test that checks its requirement", async () => {

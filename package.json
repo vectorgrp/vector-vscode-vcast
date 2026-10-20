@@ -244,12 +244,6 @@
         "title": "Check Test Against Requirements"
       },
       {
-        "command": "vectorcastTestExplorer.reqsCoverageReviewWithoutRequirements",
-        "category": "VectorCAST Test Explorer",
-        "title": "Check Test Against Requirements (No Linked Requirements)",
-        "enablement": "false"
-      },
-      {
         "command": "vectorcastTestExplorer.closeTestReview",
         "category": "VectorCAST Test Explorer",
         "title": "Close Requirements Check",
@@ -1024,10 +1018,6 @@
           "when": "never"
         },
         {
-          "command": "vectorcastTestExplorer.reqsCoverageReviewWithoutRequirements",
-          "when": "never"
-        },
-        {
           "command": "vectorcastTestExplorer.closeTestReview",
           "when": "never"
         },
@@ -1367,12 +1357,7 @@
       {
         "command": "vectorcastTestExplorer.openReqsCoverageReview",
         "group": "5_reqs@8",
-        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.testNodesWithRequirements && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
-      },
-      {
-        "command": "vectorcastTestExplorer.reqsCoverageReviewWithoutRequirements",
-        "group": "5_reqs@8",
-        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && testId in vectorcastTestExplorer.testNodesWithoutRequirements && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
+        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && !(testId =~ /.* \\[compound only\\]$/) && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
