@@ -74,6 +74,17 @@ async function reviewCommentText(testName: string): Promise<string> {
   return "";
 }
 
+// The messages of the problems the batch requirements check listed.
+async function requirementsCheckProblems(): Promise<string[]> {
+  return browser.executeWorkbench((vscode) =>
+    vscode.languages
+      .getDiagnostics()
+      .flatMap(([, diagnostics]) => diagnostics)
+      .filter((diagnostic) => diagnostic.source === "Requirements check")
+      .map((diagnostic) => diagnostic.message)
+  );
+}
+
 async function visibleEditors(): Promise<string> {
   return browser.executeWorkbench((vscode) =>
     vscode.window.visibleTextEditors
@@ -101,7 +112,7 @@ async function openVectorcastMenuFor(testName: string) {
 
 async function openReviewFor(testName: string) {
   await openVectorcastMenuFor(testName);
-  await (await $("aria/Check Test Against Requirements")).click();
+  await (await $("aria/Check Against Requirements")).click();
 
   try {
     await browser.waitUntil(
@@ -206,7 +217,7 @@ describe("Requirements check", () => {
   it("should say why a test without linked requirements cannot be checked", async () => {
     await updateTestID();
     await openVectorcastMenuFor("PLACE_ORDER_UNLINKED");
-    await (await $("aria/Check Test Against Requirements")).click();
+    await (await $("aria/Check Against Requirements")).click();
 
     const reason =
       "Cannot check PLACE_ORDER_UNLINKED: None of the selected tests is linked to a requirement.";
@@ -269,5 +280,55 @@ describe("Requirements check", () => {
     const comments = await $$(".review-widget");
     expect(comments).toHaveLength(1);
     expect(await comments[0].getText()).toContain("PLACE_ORDER_CHICKEN");
+  });
+  it("should list the requirements the tests of a unit fail as problems", async () => {
+    await updateTestID();
+    const vcastTestingViewContent = await getViewContent("Testing");
+    let unit: TreeItem | undefined;
+    for (const section of await vcastTestingViewContent.getSections()) {
+      unit = await findSubprogram("manager", section);
+      if (unit) break;
+    }
+    if (!unit) throw new Error("Unit manager not found");
+    const contextMenu = await unit.openContextMenu();
+    await contextMenu.select("VectorCAST");
+    await (await $("aria/Check Against Requirements")).click();
+
+    await browser.waitUntil(
+      async () => (await requirementsCheckProblems()).length > 0,
+      // One run checks two tests.
+      { timeout: 2 * TIMEOUT, timeoutMsg: "The check listed no problems" }
+    );
+    const problems = await requirementsCheckProblems();
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("PLACE_ORDER_CHICKEN fails Place_Order.2");
+
+    // Its quick fix shows the stored check without running it again.
+    await browser.executeWorkbench(async (vscode) => {
+      const [[uri, [problem]]] = vscode.languages
+        .getDiagnostics()
+        .filter(([, diagnostics]) =>
+          diagnostics.some((d) => d.source === "Requirements check")
+        );
+      const actions: any[] = await vscode.commands.executeCommand(
+        "vscode.executeCodeActionProvider",
+        uri,
+        problem.range
+      );
+      const show = actions.find((action) =>
+        action.title.includes("PLACE_ORDER_CHICKEN")
+      );
+      await vscode.commands.executeCommand(
+        show.command.command,
+        ...show.command.arguments
+      );
+    });
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("PLACE_ORDER_CHICKEN")).includes(
+          "Verdict: FAIL"
+        ),
+      { timeout: TIMEOUT, timeoutMsg: "The quick fix showed no check" }
+    );
   });
 });
