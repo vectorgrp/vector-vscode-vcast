@@ -50,6 +50,7 @@ import {
   getEnviroPathFromID,
   getTestNode,
   testNodeType,
+  testNodeCache,
 } from "./testData";
 
 import {
@@ -151,12 +152,28 @@ import { generateRequirementsHtml } from "./requirements/webviews/template";
 import type { FromWebview, ToWebview } from "./requirements/webviews/messages";
 import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
 import {
-  fetchRequirementCoverageData,
-  openSourceFileWithHighlight,
   endReview,
+  fetchRequirementChecks,
+  fetchRequirementCoverageData,
+  FOCUS_REVIEW_TEST_COMMAND,
+  FocusChoice,
+  focusReviewTest,
+  openReview,
+  pickReviewFocus,
   openTstScriptAtTest,
+  registerReviewHover,
+  revealCheckReport,
   reviewInProgress,
+  ReviewTarget,
+  setFocusChoices,
+  showCheckReport,
 } from "./requirements/testReview";
+import {
+  countVerdicts,
+  parseTests2checkResult,
+  RequirementData,
+} from "./requirements/testReviewData";
+import type { ReportGroup } from "./requirements/testReviewReport";
 
 import {
   exportRequirements,
@@ -1499,100 +1516,338 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(openSourceFileFromTestpaneCommand);
 
+  // The requirements gateway of an environment, or undefined after telling
+  // the user that there is none.
+  function requirementsGatewayFor(enviroPath: string): string | undefined {
+    const gateway = findRelevantRequirementGateway(enviroPath) ?? undefined;
+    if (!gateway) {
+      vscode.window.showWarningMessage(
+        `No requirements gateway was found for ${enviroPath}, so there are no requirements to check against.`
+      );
+    }
+    return gateway;
+  }
+
+  // Where a function lives: the source file of its unit and the line it
+  // starts at (0 when unknown), or undefined after telling the user that the
+  // unit's source file could not be found.
+  async function sourceOfFunction(
+    enviroPath: string,
+    unitName: string,
+    functionName: string,
+    envData?: any
+  ): Promise<{ sourcePath: string; functionStartLine: number } | undefined> {
+    envData ??= await getEnvironmentData(enviroPath);
+    const matchingUnit = envData?.unitData?.find((unit: { path: string }) => {
+      if (!unit.path) return false;
+      const unitBaseName = path.basename(unit.path, path.extname(unit.path));
+      return unitBaseName === unitName;
+    });
+    if (!matchingUnit?.path) {
+      vscode.window.showWarningMessage(
+        `Could not find source file for unit: ${unitName}`
+      );
+      return undefined;
+    }
+    const func = matchingUnit.functionList?.find(
+      (candidate: { name: string; startLine?: number }) =>
+        candidate.name === functionName && candidate.startLine !== undefined
+    );
+    return {
+      sourcePath: matchingUnit.path,
+      functionStartLine: func?.startLine ?? 0,
+    };
+  }
+
+  // Shows a requirements check: the source file with the lines the
+  // requirements need highlighted and the reviewed tests' coverage, and for
+  // one test its script beside it.
+  async function showReview(target: ReviewTarget, scriptOf?: testNodeType) {
+    // Close sidebar for more screen space
+    await vscode.commands.executeCommand("workbench.action.closeSidebar");
+    const switchingTests = reviewInProgress();
+
+    const perTestCoverageShown = await openReview(target, context);
+
+    // Open TST script beside source file
+    if (scriptOf) {
+      await openTstScriptAtTest(scriptOf, target.enviroPath + ".tst");
+    }
+
+    if (!switchingTests && perTestCoverageShown) {
+      vscode.window.showWarningMessage(
+        `Only the coverage of ${target.title} is shown while its requirements check is open. Close the comment to see all coverage again.`
+      );
+    }
+  }
+
+  // One test's review.
+  async function showTestReview(
+    testNode: testNodeType,
+    testId: string,
+    sourcePath: string,
+    reqData: RequirementData
+  ) {
+    await showReview(
+      {
+        title: testNode.testName,
+        lineNumber: reqData.lineNumber,
+        sourcePath,
+        enviroPath: testNode.enviroPath,
+        tests: [{ testId, data: reqData }],
+      },
+      testNode
+    );
+  }
+
   let openReqsCoverageReview = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openReqsCoverageReview",
     async (args: any) => {
       if (!args) return;
 
       const testNode: testNodeType = getTestNode(args.id);
-      if (!testNode) {
+      if (!testNode?.testName) {
         vscode.window.showWarningMessage(
           `Failed to retrieve node test data for ${args.id}. Aborting the requirements check.`
         );
         return;
       }
-
-      const { enviroPath, unitName, functionName } = testNode;
-      const envData = await getEnvironmentData(enviroPath);
-      const envRGWPath = findRelevantRequirementGateway(enviroPath);
-      const testName = testNode.testName;
-
-      if (!envData?.unitData || !envRGWPath || !testName) {
-        vscode.window.showWarningMessage(
-          "Failed to retrieve environment test data. Aborting the requirements check."
-        );
-        return;
-      }
-
-      // Find the matching unit's source file
-      const matchingUnit = envData.unitData.find((unit: { path: string }) => {
-        if (!unit.path) return false;
-        const unitBaseName = path.basename(unit.path, path.extname(unit.path));
-        return unitBaseName === unitName;
-      });
-
-      if (!matchingUnit?.path) {
-        vscode.window.showWarningMessage(
-          `Could not find source file for unit: ${unitName}`
-        );
-        return;
-      }
-
-      // Determine the line number to open at
-      let lineNumber = 0;
-      if (functionName && matchingUnit.functionList) {
-        for (const func of matchingUnit.functionList) {
-          if (func.name === functionName && func.startLine !== undefined) {
-            lineNumber = func.startLine;
-            break;
-          }
-        }
-      }
+      const { enviroPath, unitName, functionName, testName } = testNode;
+      const gatewayPath = requirementsGatewayFor(enviroPath);
+      if (!gatewayPath) return;
+      const source = await sourceOfFunction(enviroPath, unitName, functionName);
+      if (!source) return;
 
       const reqData = await fetchRequirementCoverageData(
         enviroPath,
-        envRGWPath,
+        gatewayPath,
         testName,
         unitName,
-        lineNumber
+        source.functionStartLine
       );
       // tests2check executed the test, so its status and coverage changed.
       await updateDataForEnvironment(enviroPath);
       if (!reqData) return;
 
-      // Close sidebar for more screen space
-      await vscode.commands.executeCommand("workbench.action.closeSidebar");
-
-      // Use the test node ID directly from the test explorer
-      const testId = args.id;
-      const switchingTests = reviewInProgress();
-
-      // Open source file with requirement highlighting
-      const perTestCoverageShown = await openSourceFileWithHighlight(
-        matchingUnit.path,
-        reqData,
-        context,
-        testId,
-        enviroPath
-      );
-
-      // Open TST script beside source file
-      const scriptPath = testNode.enviroPath + ".tst";
-      await openTstScriptAtTest(testNode, scriptPath);
-
-      if (!switchingTests && perTestCoverageShown) {
-        vscode.window.showWarningMessage(
-          `Only ${testName}'s coverage is shown while its requirements check is open. Close the comment to see all coverage again.`
-        );
-      }
+      setFocusChoices([]);
+      await showTestReview(testNode, args.id, source.sourcePath, reqData);
     }
   );
 
+  // The test node a tests2check result is about, when exactly one test of
+  // the checked scope has its name (VectorCAST makes names unique only per
+  // function; tests2check says the unit and function when it knows them).
+  function testNodeIdOf(
+    scopeNode: testNodeType,
+    result: any
+  ): string | undefined {
+    const name: string | undefined = result?.test?.name ?? result?.name;
+    if (!name) return undefined;
+    const unit: string = result?.test?.unit ?? scopeNode.unitName;
+    const func: string = result?.test?.subprogram ?? scopeNode.functionName;
+    const prefix =
+      `${scopeNode.enviroNodeID}|` +
+      (unit ? `${unit}.` + (func ? `${func}.` : "") : "");
+    const candidates: string[] = [];
+    for (const id of testNodeCache.keys()) {
+      if (
+        typeof id === "string" &&
+        id.startsWith(prefix) &&
+        getTestNode(id)?.testName === name
+      )
+        candidates.push(id);
+    }
+    return candidates.length === 1 ? candidates[0] : undefined;
+  }
+
+  let checkTestsAgainstRequirements = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.checkTestsAgainstRequirements",
+    async (args: any) => {
+      if (!args) return;
+      const scopeNode: testNodeType = getTestNode(args.id);
+      if (!scopeNode) return;
+      const { enviroPath } = scopeNode;
+      const gatewayPath = requirementsGatewayFor(enviroPath);
+      if (!gatewayPath) return;
+      const scope =
+        scopeNode.functionName || scopeNode.unitName || scopeNode.enviroName;
+
+      const results = await fetchRequirementChecks(
+        enviroPath,
+        gatewayPath,
+        {
+          unitName: scopeNode.unitName || undefined,
+          functionName: scopeNode.functionName || undefined,
+        },
+        `the tests of ${scope}`
+      );
+      // tests2check executed the tests, so their status and coverage changed.
+      await updateDataForEnvironment(enviroPath);
+      if (!results) return;
+
+      // One group per function, in the order tests2check reported them. The
+      // source lookup is per function, and once per function.
+      const envData = await getEnvironmentData(enviroPath);
+      const groups = new Map<string, ReportGroup>();
+      const sources = new Map<
+        string,
+        Awaited<ReturnType<typeof sourceOfFunction>>
+      >();
+      const sourceOf = new Map<string, string>();
+      const reviewData = new Map<string, RequirementData>();
+      for (const result of results) {
+        const testId = testNodeIdOf(scopeNode, result);
+        const testNode = testId ? getTestNode(testId) : undefined;
+        const unitName: string =
+          testNode?.unitName ?? result?.test?.unit ?? scopeNode.unitName ?? "";
+        const functionName: string =
+          testNode?.functionName ??
+          result?.test?.subprogram ??
+          scopeNode.functionName ??
+          "";
+        const title: string = result?.test?.name ?? result?.name ?? "?";
+        const key = `${unitName}.${functionName}`;
+        if (unitName && functionName && !sources.has(key)) {
+          sources.set(
+            key,
+            await sourceOfFunction(enviroPath, unitName, functionName, envData)
+          );
+        }
+        const source = sources.get(key);
+        const data = parseTests2checkResult(
+          result,
+          title,
+          unitName,
+          source?.functionStartLine ?? 0
+        );
+        // The review opens only for a test whose node and source are known.
+        const reviewable = testNode && source ? testId : undefined;
+        if (reviewable && source) {
+          sourceOf.set(reviewable, source.sourcePath);
+          reviewData.set(reviewable, data);
+        }
+        let group = groups.get(key);
+        if (!group) {
+          group = { unitName, functionName, tests: [] };
+          groups.set(key, group);
+        }
+        group.tests.push({ testId: reviewable, data });
+      }
+
+      // What the review can show: each unit, each function (the tests of
+      // either reviewed together, their requirements' lines combined and
+      // their coverage as one) and each test on its own.
+      const choices: FocusChoice[] = [];
+      const groupTarget = (
+        unitName: string,
+        functionName?: string
+      ): ReviewTarget | undefined => {
+        const reviewed = [...groups.entries()].filter(
+          ([key, group]) =>
+            group.unitName === unitName &&
+            (!functionName || group.functionName === functionName) &&
+            sources.get(key)
+        );
+        if (reviewed.length === 0) return undefined;
+        const source = sources.get(reviewed[0][0])!;
+        return {
+          title: functionName ? `${unitName}.${functionName}` : unitName,
+          lineNumber: functionName
+            ? source.functionStartLine
+            : Math.min(
+                ...reviewed.map(([key]) => sources.get(key)!.functionStartLine)
+              ),
+          sourcePath: source.sourcePath,
+          enviroPath,
+          tests: reviewed.flatMap(([, group]) => group.tests),
+        };
+      };
+      for (const unitName of new Set(
+        [...groups.values()].map((group) => group.unitName)
+      )) {
+        const target = groupTarget(unitName);
+        if (target)
+          choices.push({
+            kind: "unit",
+            label: unitName,
+            description: countVerdicts(target.tests.map((t) => t.data.verdict)),
+            target,
+          });
+      }
+      for (const group of groups.values()) {
+        const target = groupTarget(group.unitName, group.functionName);
+        if (target)
+          choices.push({
+            kind: "function",
+            label: `${group.unitName}.${group.functionName}`,
+            description: countVerdicts(target.tests.map((t) => t.data.verdict)),
+            target,
+          });
+      }
+      for (const [testId, data] of reviewData) {
+        const testNode = getTestNode(testId);
+        const sourcePath = sourceOf.get(testId);
+        if (testNode && sourcePath)
+          choices.push({
+            kind: "test",
+            label: data.title,
+            description: data.verdict,
+            target: {
+              title: testNode.testName,
+              lineNumber: data.lineNumber,
+              sourcePath,
+              enviroPath,
+              tests: [{ testId, data }],
+            },
+            scriptOf: testNode,
+          });
+      }
+      setFocusChoices(choices);
+
+      const show = async (choice: FocusChoice | undefined) => {
+        if (choice) await showReview(choice.target, choice.scriptOf);
+      };
+      showCheckReport(context, scope, [...groups.values()], {
+        openReview: (testId) =>
+          show(
+            choices.find(
+              (choice) =>
+                choice.kind === "test" &&
+                choice.target.tests[0].testId === testId
+            )
+          ),
+        openGroupReview: (unitName, functionName) =>
+          show(
+            choices.find(
+              (choice) =>
+                choice.kind === (functionName ? "function" : "unit") &&
+                choice.target.title ===
+                  (functionName ? `${unitName}.${functionName}` : unitName)
+            )
+          ),
+      });
+    }
+  );
+
+  registerReviewHover(context);
   context.subscriptions.push(
     openReqsCoverageReview,
+    checkTestsAgainstRequirements,
     vscode.commands.registerCommand(
       "vectorcastTestExplorer.closeTestReview",
       endReview
+    ),
+    // From the links of a review's line hovers.
+    vscode.commands.registerCommand(
+      FOCUS_REVIEW_TEST_COMMAND,
+      (testId: string) => focusReviewTest(testId, context)
+    ),
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.showRequirementsCheckReport",
+      revealCheckReport
+    ),
+    vscode.commands.registerCommand("vectorcastTestExplorer.focusReview", () =>
+      pickReviewFocus(context)
     )
   );
 

@@ -1,10 +1,14 @@
 import { describe, expect, test } from "vitest";
 import {
+  countVerdicts,
+  groupMarkdown,
   lastToolError,
+  lineHoverMarkdown,
   parseTests2checkResult,
   reviewLineColors,
   reviewMarkdown,
 } from "../../src/requirements/testReviewData";
+import { checkReportHtml } from "../../src/requirements/testReviewReport";
 
 // The snake_case keys mirror the JSON printed by tests2check,
 // so we'll disable the strictCamelCase check here.
@@ -260,6 +264,182 @@ describe("lastToolError", () => {
 
   test("is the whole output when nothing was logged as an error", () => {
     expect(lastToolError("Traceback ...\n")).toBe("Traceback ...");
+  });
+});
+describe("a review of several tests", () => {
+  const steak = parseTests2checkResult(
+    { ...coverageResult, name: "STEAK" },
+    "STEAK",
+    "manager",
+    5
+  );
+  const chicken = parseTests2checkResult(
+    {
+      ...coverageResult,
+      name: "CHICKEN",
+      verdict: "FAIL",
+      requirements: [check("FR-1", { verdict: "FAIL", checked_by: [] })],
+      expected_coverage: {
+        "FR-1": [
+          {
+            unit: "manager",
+            path: "/src/manager.c",
+            lines: [10, 11, 12],
+            ran_lines: [11],
+          },
+        ],
+      },
+    },
+    "CHICKEN",
+    "manager",
+    5
+  );
+  const tests = [
+    { testId: "vcast:/env|manager.Place_Order.STEAK", data: steak },
+    { data: chicken },
+  ];
+
+  test("colors a line green when any of the tests ran it", () => {
+    expect(reviewLineColors([steak, chicken])).toEqual({
+      covered: [11, 12],
+      uncovered: [13],
+    });
+  });
+
+  test("tabulates the tests and their requirements in the comment", () => {
+    const markdown = groupMarkdown("manager.Place_Order", tests);
+    expect(markdown).toContain("#### ❌ manager.Place\\_Order");
+    expect(markdown).toContain("1 passed, 1 failed");
+    expect(markdown).toContain('<table width="100%">');
+    expect(markdown).toContain('width="56%"');
+    expect(markdown).toContain(
+      '<td style="color:var(--vscode-testing-iconPassed);"><b>✅ PASS</b></td><td>STEAK</td><td>✅ FR-1</td>'
+    );
+    expect(markdown).toContain(
+      '<td style="color:var(--vscode-testing-iconFailed);"><b>❌ FAIL</b></td><td>CHICKEN</td><td>❌ FR-1</td>'
+    );
+    expect(markdown).toContain("**Hover** a line");
+  });
+
+  test("says on hover which tests ran a line, linking the known ones", () => {
+    const hover = lineHoverMarkdown(
+      [
+        { title: "STEAK", status: "covered", testId: tests[0].testId },
+        { title: "CHICKEN", status: "partiallyCovered" },
+      ],
+      "ext.focus"
+    );
+    expect(hover).toContain("**Ran by** [STEAK](command:ext.focus?");
+    expect(hover).toContain(
+      encodeURIComponent(JSON.stringify([tests[0].testId]))
+    );
+    expect(hover).toContain(", CHICKEN (partially)");
+    expect(hover).not.toContain("Needed");
+  });
+
+  test("has no hover for a line no reviewed test ran", () => {
+    expect(lineHoverMarkdown([], "ext.focus")).toBeUndefined();
+  });
+});
+
+describe("the batch check report", () => {
+  const passed = parseTests2checkResult(coverageResult, "TEST_1", "manager", 5);
+  const failed = parseTests2checkResult(
+    {
+      ...coverageResult,
+      name: "TEST_2 <b>",
+      verdict: "FAIL",
+      requirements: [
+        check("FR-2", {
+          verdict: "FAIL",
+          explanation: "No assertion checks the outcome & the total.",
+          checked_by: [],
+        }),
+      ],
+    },
+    "TEST_2",
+    "manager",
+    5
+  );
+  const html = checkReportHtml({
+    scope: "manager",
+    groups: [
+      {
+        unitName: "manager",
+        functionName: "Place_Order",
+        tests: [
+          { testId: "vcast:/env|manager.Place_Order.TEST_1", data: passed },
+          { data: failed },
+        ],
+      },
+      {
+        unitName: "manager",
+        functionName: "Clear_Table",
+        tests: [
+          { testId: "vcast:/env|manager.Clear_Table.TEST_1", data: passed },
+        ],
+      },
+    ],
+    nonce: "n0nce",
+    cspSource: "vscode-resource:",
+  });
+
+  test("counts the verdicts", () => {
+    expect(countVerdicts(["PASS", "FAIL", "PASS"])).toBe("2 passed, 1 failed");
+    expect(countVerdicts(["PASS", ""])).toBe("1 passed, 0 failed, 1 undecided");
+  });
+
+  const counts = (passed: number, failed: number) =>
+    `<span class="passed">${passed} passed</span>, <span class="failed">${failed} failed</span>`;
+
+  test("nests collapsed functions under collapsed units, each with colored counts", () => {
+    expect(html).toContain("Requirements check: manager");
+    expect(html).toContain(counts(2, 1));
+    const unit = html.indexOf('<details class="unit">');
+    const placeOrder = html.indexOf("Place_Order");
+    const clearTable = html.indexOf("Clear_Table");
+    expect(unit).toBeGreaterThan(-1);
+    expect(placeOrder).toBeGreaterThan(unit);
+    expect(clearTable).toBeGreaterThan(placeOrder);
+    expect(html.slice(unit, placeOrder)).toContain("manager");
+    expect(html.slice(unit, placeOrder)).toContain(counts(2, 1));
+    expect(html.slice(placeOrder, clearTable)).toContain(counts(1, 1));
+    expect(html.slice(placeOrder, clearTable)).toContain("TEST_2");
+    expect(html.slice(clearTable)).toContain(counts(1, 0));
+    expect(html.match(/<details class="function">/g)).toHaveLength(2);
+    expect(html).not.toContain(" open>");
+  });
+
+  test("shows each requirement's blocks", () => {
+    expect(html).toContain("FR-2");
+    expect(html).toContain("No assertion checks the outcome &amp; the total.");
+  });
+
+  test("opens the review only for tests found in the test tree", () => {
+    expect(html).toContain(
+      'data-test-id="vcast:/env|manager.Place_Order.TEST_1"'
+    );
+    expect(html.match(/class="open"/g)).toHaveLength(2);
+  });
+
+  test("reviews a unit or a function as a whole", () => {
+    expect(html).toContain(
+      'class="open group" data-unit="manager">Review unit'
+    );
+    expect(html).toContain(
+      'class="open group" data-unit="manager" data-function="Place_Order">Review function'
+    );
+    expect(html).toContain("open-group-review");
+  });
+
+  test("escapes text from the test", () => {
+    expect(html).toContain("TEST_2 &lt;b&gt;");
+    expect(html).not.toContain("<b>");
+  });
+
+  test("only runs its own script", () => {
+    expect(html).toContain("script-src 'nonce-n0nce'");
+    expect(html).toContain('<script nonce="n0nce">');
   });
 });
 /* eslint-enable @typescript-eslint/naming-convention */

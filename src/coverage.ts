@@ -6,7 +6,7 @@ import {
 } from "vscode";
 import {
   getCoverageDataForFile,
-  getCoverageDataForFileAndTest,
+  getCoverageDataForFileAndTests,
   getListOfFilesToDecorate,
 } from "./vcastTestInterface";
 
@@ -187,12 +187,12 @@ export async function updateCOVdecorations() {
   if (activeEditor && isSupportedSourceFile(activeEditor.document.uri.fsPath)) {
     const filePath = url.fileURLToPath(activeEditor.document.uri.toString());
 
-    // In review mode, show only the selected test's coverage for the target file
+    // In review mode, show only the reviewed tests' coverage for the target file
     const coverageData =
       review?.filePath === forceLowerCaseDriveLetter(filePath)
-        ? getCoverageDataForFileAndTest(
+        ? getCoverageDataForFileAndTests(
             filePath,
-            review.testId,
+            review.testIds,
             review.enviroPath,
             review.perTestCoverage
           )
@@ -344,11 +344,11 @@ export async function updateDisplayedCoverage() {
   if (coverageOn) await updateCOVdecorations();
 }
 
-// The requirements check in progress, whose test alone shows its coverage
+// The requirements check in progress, whose tests alone show their coverage
 // in the checked source file.
 let review:
   | {
-      testId: string;
+      testIds: string[];
       filePath: string;
       enviroPath: string;
       perTestCoverage: Record<string, Record<string, string>>;
@@ -356,19 +356,24 @@ let review:
   | undefined;
 
 /**
- * Shows only the given test's coverage in the given file. Returns false, with
+ * Shows only the given tests' coverage in the given file. Returns false, with
  * the gutter left on the coverage of all tests, when the per-test coverage
  * could not be read (the reason is in the message pane): an empty result must
- * not pass for "this test ran nothing".
+ * not pass for "these tests ran nothing".
  */
 export async function enterReviewMode(
-  testId: string,
+  testIds: string[],
   filePath: string,
   enviroPath: string
 ): Promise<boolean> {
   // Fetched per review rather than with the environment data, which would
-  // compute it for every test on every environment load.
-  const perTestCoverage = await getPerTestCoverageFromAPI(enviroPath);
+  // compute it for every test on every environment load. The reviewed tests
+  // are named so that each line also gets their status as one ("*").
+  const prefix = `vcast:${enviroPath}|`;
+  const perTestCoverage = await getPerTestCoverageFromAPI(
+    enviroPath,
+    testIds.map((id) => (id.startsWith(prefix) ? id.slice(prefix.length) : id))
+  );
   if (perTestCoverage == null) {
     review = undefined;
     return false;
@@ -378,7 +383,7 @@ export async function enterReviewMode(
       forceLowerCaseDriveLetter(path) === forceLowerCaseDriveLetter(filePath)
   );
   review = {
-    testId,
+    testIds,
     filePath: forceLowerCaseDriveLetter(filePath),
     enviroPath,
     perTestCoverage: (forThisFile?.[1] ?? {}) as Record<
@@ -387,6 +392,23 @@ export async function enterReviewMode(
     >,
   };
   return true;
+}
+
+/**
+ * The reviewed tests that ran the given 1-based line of the reviewed file,
+ * as "unit.function.test" with "covered" or "partiallyCovered".
+ */
+export function reviewedTestsOnLine(
+  line: number
+): { name: string; status: string }[] {
+  if (!review) return [];
+  const wanted = new Set(review.testIds);
+  return Object.entries(review.perTestCoverage[String(line)] ?? {})
+    .filter(
+      ([name]) =>
+        name !== "*" && wanted.has(`vcast:${review!.enviroPath}|${name}`)
+    )
+    .map(([name, status]) => ({ name, status }));
 }
 
 export async function exitReviewMode(): Promise<void> {

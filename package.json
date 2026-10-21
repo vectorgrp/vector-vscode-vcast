@@ -36,6 +36,9 @@
     "workspaceContains:**/*.vcm"
   ],
   "contributes": {
+    "configurationDefaults": {
+      "comments.openView": "never"
+    },
     "viewsWelcome": [
       {
         "view": "testing",
@@ -244,10 +247,21 @@
         "title": "Check Test Against Requirements"
       },
       {
+        "command": "vectorcastTestExplorer.checkTestsAgainstRequirements",
+        "category": "VectorCAST Test Explorer",
+        "title": "Check Tests Against Requirements"
+      },
+      {
         "command": "vectorcastTestExplorer.closeTestReview",
         "category": "VectorCAST Test Explorer",
         "title": "Close Requirements Check",
         "icon": "$(close)"
+      },
+      {
+        "command": "vectorcastTestExplorer.focusReview",
+        "category": "VectorCAST Test Explorer",
+        "title": "Focus Requirements Check On...",
+        "icon": "$(target)"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
@@ -1018,7 +1032,15 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.checkTestsAgainstRequirements",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.closeTestReview",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.focusReview",
           "when": "never"
         },
         {
@@ -1120,8 +1142,13 @@
       ],
       "comments/commentThread/title": [
         {
+          "command": "vectorcastTestExplorer.focusReview",
+          "group": "inline@1",
+          "when": "commentController == vectorcastTestReview && vectorcastTestExplorer.reviewFocusChoices"
+        },
+        {
           "command": "vectorcastTestExplorer.closeTestReview",
-          "group": "inline",
+          "group": "inline@2",
           "when": "commentController == vectorcastTestReview"
         }
       ],
@@ -1357,7 +1384,12 @@
       {
         "command": "vectorcastTestExplorer.openReqsCoverageReview",
         "group": "5_reqs@8",
-        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && !(testId =~ /.* \\[compound only\\]$/) && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
+        "when": "testId =~ /^vcast:[^|]+\\|[^.]+\\.[^.]+\\..+$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && !(testId =~ /.* \\[compound only\\]$/) && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
+      },
+      {
+        "command": "vectorcastTestExplorer.checkTestsAgainstRequirements",
+        "group": "5_reqs@9",
+        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^vcast:[^|]+\\|[^.]+\\.[^.]+\\..+$/) && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",

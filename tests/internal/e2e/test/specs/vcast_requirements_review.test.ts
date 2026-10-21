@@ -11,6 +11,7 @@ import {
 import { Key } from "webdriverio";
 import {
   findSubprogram,
+  findSubprogramMethod,
   getTestHandle,
   getViewContent,
   updateTestID,
@@ -82,20 +83,24 @@ async function visibleEditors(): Promise<string> {
   );
 }
 
-async function openVectorcastMenuFor(testName: string) {
+// The VectorCAST submenu of the test, or of the Place_Order function when
+// no test name is given.
+async function openVectorcastMenuFor(testName?: string) {
   const vcastTestingViewContent = await getViewContent("Testing");
-  let testHandle: TreeItem;
+  let handle: TreeItem;
   for (const section of await vcastTestingViewContent.getSections()) {
     const subprogram = await findSubprogram("manager", section);
     if (subprogram) {
       await subprogram.expand();
-      testHandle = await getTestHandle(subprogram, "Place_Order", testName, 3);
-      if (testHandle) break;
+      handle = testName
+        ? await getTestHandle(subprogram, "Place_Order", testName, 3)
+        : await findSubprogramMethod(subprogram, "Place_Order");
+      if (handle) break;
     }
   }
-  if (!testHandle) throw new Error(`Test ${testName} not found`);
+  if (!handle) throw new Error(`${testName ?? "Place_Order"} not found`);
 
-  const contextMenu = await testHandle.openContextMenu();
+  const contextMenu = await handle.openContextMenu();
   await contextMenu.select("VectorCAST");
 }
 
@@ -269,5 +274,64 @@ describe("Requirements check", () => {
     const comments = await $$(".review-widget");
     expect(comments).toHaveLength(1);
     expect(await comments[0].getText()).toContain("PLACE_ORDER_CHICKEN");
+  });
+
+  it("should check every linked test of a function at once and report the verdicts by function", async () => {
+    await updateTestID();
+    await (await $("aria/Close Requirements Check")).click();
+    await browser.executeWorkbench(async (vscode) => {
+      await vscode.commands.executeCommand("workbench.action.closeAllGroups");
+    });
+
+    await openVectorcastMenuFor();
+    await (await $("aria/Check Tests Against Requirements")).click();
+
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: 480_000 }
+    );
+    const webview = (await workbench.getAllWebviews())[0];
+    await webview.open();
+    const report = await $("body").getText();
+    expect(report).toContain("Requirements check: Place_Order");
+    expect(report).toContain("manager 1 passed, 1 failed");
+    expect(report).toContain("Place_Order 1 passed, 1 failed");
+    expect(report).toContain("PLACE_ORDER_STEAK");
+    expect(report).toContain("PLACE_ORDER_CHICKEN");
+    // The unlinked test has nothing to check, so it is not in the report.
+    expect(report).not.toContain("PLACE_ORDER_UNLINKED");
+
+    // Each verdict opens the single-test review.
+    await (await $("details*=PLACE_ORDER_CHICKEN").$("button.open")).click();
+    await webview.close();
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("PLACE_ORDER_CHICKEN")).includes(
+          "Verdict: FAIL"
+        ),
+      { timeout: TIMEOUT }
+    );
+  });
+
+  it("should review all tests of a function together from the report", async () => {
+    await updateTestID();
+    await browser.executeWorkbench(async (vscode) => {
+      await vscode.commands.executeCommand(
+        "vectorcastTestExplorer.showRequirementsCheckReport"
+      );
+    });
+    const webview = (await workbench.getAllWebviews())[0];
+    await webview.open();
+    await (await $("details.function > summary button.group")).click();
+    await webview.close();
+
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("Place_Order")).includes("1 passed, 1 failed"),
+      { timeout: TIMEOUT }
+    );
+    const thread = await reviewCommentText("Place_Order");
+    expect(thread).toContain("PASS: PLACE_ORDER_STEAK");
+    expect(thread).toContain("FAIL: PLACE_ORDER_CHICKEN");
   });
 });

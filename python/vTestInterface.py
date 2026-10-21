@@ -546,38 +546,43 @@ def _buildBranchAndMcdcByLine(sourceObject):
     return branches_by_line, mcdc_by_line
 
 
-def _resultCoversBranch(branch, result_id):
+def _resultCoversBranch(branch, result_ids):
     """
-    Checks how many of the branch's directions (T/F) are covered by a
-    specific result.  Returns (covered_count, total_count).
+    Checks how many of the branch's directions (T/F) are covered by any of
+    the given results.  Returns (covered_count, total_count).
 
     A Branch has num_conditions == 1 (T-only or F-only) or 2 (both T and F).
     """
     total = branch.num_conditions
     covered = 0
-    if result_id in {result.id for result in branch.get_true_results()}:
+    if result_ids & {result.id for result in branch.get_true_results()}:
         covered += 1
-    if total >= 2 and result_id in {result.id for result in branch.get_false_results()}:
+    if total >= 2 and result_ids & {result.id for result in branch.get_false_results()}:
         covered += 1
     return covered, total
 
 
-def _resultCoversMcdcDecision(decision, result_id):
+def _resultCoversMcdcDecision(decision, result_ids):
     """
     How many of the decision's condition values (each condition True and False)
-    a result produced: (covered, total).  An MCDC pair needs two runs, so one test
-    covers a decision only by making every condition both True and False.
+    the given results produced between them: (covered, total).  An MCDC pair
+    needs two runs, so one test covers a decision only by making every
+    condition both True and False; several tests cover it together.
     """
     covered = total = 0
     for condition in decision.conditions:
-        covered += result_id in {result.id for result in condition.get_true_results()}
-        covered += result_id in {result.id for result in condition.get_false_results()}
+        covered += bool(
+            result_ids & {result.id for result in condition.get_true_results()}
+        )
+        covered += bool(
+            result_ids & {result.id for result in condition.get_false_results()}
+        )
         total += 2
     return covered, total
 
 
 def _classifyResultForLine(
-    result_id,
+    result_ids,
     line,
     coverageKind,
     branches_by_line,
@@ -585,12 +590,13 @@ def _classifyResultForLine(
     functionLineList,
 ):
     """
-    Classifies a single result's coverage on a single line with the coverage
-    gutter's own handlers, so a line is colored by the same rule in the review
-    gutter as in the coverage gutter. The line's metrics are rebuilt as if this
-    result were the only test: it ran the line's statements, and the branch
-    directions it took (or, for the MC/DC kinds, the condition values it
-    produced) are its covered objectives.
+    Classifies the coverage of a set of results (one test's, or those of the
+    tests reviewed together) on a single line with the coverage gutter's own
+    handlers, so a line is colored by the same rule in the review gutter as in
+    the coverage gutter. The line's metrics are rebuilt as if these results
+    were the only tests: they ran the line's statements, and the branch
+    directions they took (or, for the MC/DC kinds, the condition values they
+    produced between them) are their covered objectives.
 
     Returns "covered", "partiallyCovered", or None when the line is not
     coverable for this coverage kind (e.g. a function header, or a continuation
@@ -599,12 +605,12 @@ def _classifyResultForLine(
     line_number = line.line_number
     if coverageKind in (CoverageKind.statementMcdc, CoverageKind.mcdc):
         objectiveCounts = [
-            _resultCoversMcdcDecision(decision, result_id)
+            _resultCoversMcdcDecision(decision, result_ids)
             for decision in mcdc_by_line.get(line_number, [])
         ]
     else:
         objectiveCounts = [
-            _resultCoversBranch(branch, result_id)
+            _resultCoversBranch(branch, result_ids)
             for branch in branches_by_line.get(line_number, [])
         ]
     covered = 0
@@ -700,7 +706,7 @@ def _classifyResultForLine(
     return None
 
 
-def getPerTestCoverageData(sourceObject):
+def getPerTestCoverageData(sourceObject, combinedTests=None):
     """
     Returns a dict mapping line numbers to dicts of test case coverage
     statuses.  Uses SourceLine.results and Branch/MCDC per-result APIs
@@ -713,6 +719,12 @@ def getPerTestCoverageData(sourceObject):
     Status is "covered" when the test covers all coverable objectives on
     the line, "partiallyCovered" when it covers some but not all (branch
     directions or MCDC condition values).
+
+    With combinedTests, a list of "unit.function.testname", each line those
+    tests ran also gets a "*" entry: their status as one, so two tests that
+    between them take both directions of a branch, or complete an MC/DC pair,
+    cover it. One test alone cannot, so this is not the merge of their own
+    statuses.
 
     Returns an empty dict if the source is not instrumented, the file doesn't
     exist on disk, or no test has run. An error while reading the data is
@@ -751,6 +763,12 @@ def getPerTestCoverageData(sourceObject):
         for function in sourceObject.cover_data.functions:
             functionLineSet.add(function.start_line)
 
+    combinedIds = {
+        resultId
+        for resultId, name in resultNameCache.items()
+        if combinedTests and name in combinedTests
+    }
+
     for line in sourceObject.iterate_coverage():
         lineResults = line.results
         if not lineResults:
@@ -762,7 +780,7 @@ def getPerTestCoverageData(sourceObject):
             if not name:
                 continue
             status = _classifyResultForLine(
-                result.id,
+                {result.id},
                 line,
                 coverageKind,
                 branches_by_line,
@@ -771,6 +789,18 @@ def getPerTestCoverageData(sourceObject):
             )
             if status:
                 testStatuses[name] = status
+        lineCombinedIds = combinedIds & {result.id for result in lineResults}
+        if lineCombinedIds:
+            status = _classifyResultForLine(
+                lineCombinedIds,
+                line,
+                coverageKind,
+                branches_by_line,
+                mcdc_by_line,
+                functionLineSet,
+            )
+            if status:
+                testStatuses["*"] = status
         if testStatuses:
             perTestCoverage[str(line_num)] = testStatuses
 
@@ -1279,10 +1309,13 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             api = UnitTestApi(pathToUse)
         except Exception as err:
             raise UsageError(err)
+        # The tests reviewed together, whose combined status each line gets
+        jsonOptions = processOptions(options)
+        combinedTests = jsonOptions.get("tests") if jsonOptions else None
         # Only the requirements test review needs this, so it is not part of
         # getEnviroData, which runs on every environment load
         returnObject = {
-            sourcePath: getPerTestCoverageData(sourceObject)
+            sourcePath: getPerTestCoverageData(sourceObject, combinedTests)
             for sourcePath, sourceObject, isInstrumented in getSourceFiles(api)
             if isInstrumented
         }

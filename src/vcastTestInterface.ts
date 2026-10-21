@@ -290,16 +290,18 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
 }
 
 //////////////////////////////////////////////////////////////////////
-export function getCoverageDataForFileAndTest(
+export function getCoverageDataForFileAndTests(
   filePath: string,
-  testId: string,
+  testIds: string[],
   enviroPath: string,
   perTestCoverage: Record<string, Record<string, string>> // "lineNum" -> {"unit.func.test": "covered"|"partiallyCovered", ...}
 ): coverageSummaryType {
-  // Returns coverage data for a specific test case on a specific file.
-  // Uses the test's environment's perTestCoverage to determine which lines the
-  // test covers and whether coverage is full or partial (for branch/MCDC
-  // environments). Lines not covered by this test are marked as uncovered.
+  // Returns coverage data for a set of test cases on a specific file.
+  // Uses the tests' environment's perTestCoverage to determine which lines the
+  // tests cover and whether coverage is full or partial (for branch/MCDC
+  // environments): a line is covered when any of the tests covers it, and
+  // partially covered when some only partially cover it. Lines not covered by
+  // any of these tests are marked as uncovered.
 
   let returnData: coverageSummaryType = {
     hasCoverageData: false,
@@ -332,14 +334,26 @@ export function getCoverageDataForFileAndTest(
     for (const line of enviroData.partiallyCovered) allCoverableLines.add(line);
   }
 
-  // Lines covered by this specific test, if its environment matches the file
+  // Lines covered by these tests, if their environment matches the file
   // Python produces short names like "unit.function.testname";
   // compose the full test node ID to match the VS Code test explorer format
+  const wanted = new Set(testIds);
   if (dataForThisFile.enviroList.get(enviroPath)?.crc32Checksum == checksum) {
     for (const [lineStr, testStatusMap] of Object.entries(perTestCoverage)) {
+      // The tests' status as one, when Python was told which tests these are:
+      // together they can take both directions of a branch or complete an
+      // MC/DC pair, which none of them does alone.
+      const combined = testStatusMap["*"];
+      if (combined !== undefined) {
+        (combined === "partiallyCovered"
+          ? partiallyCoveredByTest
+          : coveredByTest
+        ).add(Number(lineStr));
+        continue;
+      }
       for (const [testName, status] of Object.entries(testStatusMap)) {
         const fullTestNodeId = `vcast:${enviroPath}|${testName}`;
-        if (fullTestNodeId === testId) {
+        if (wanted.has(fullTestNodeId)) {
           const lineNum = Number(lineStr);
           if (status === "partiallyCovered") {
             partiallyCoveredByTest.add(lineNum);
@@ -359,7 +373,10 @@ export function getCoverageDataForFileAndTest(
 
   returnData.hasCoverageData = true;
   returnData.covered = [...coveredByTest];
-  returnData.partiallyCovered = [...partiallyCoveredByTest];
+  // A line one test covers and another only partially is covered.
+  returnData.partiallyCovered = [...partiallyCoveredByTest].filter(
+    (line) => !coveredByTest.has(line)
+  );
   // Uncovered = all coverable lines minus those covered or partially covered
   returnData.uncovered = [...allCoverableLines].filter(
     (line) => !coveredByTest.has(line) && !partiallyCoveredByTest.has(line)

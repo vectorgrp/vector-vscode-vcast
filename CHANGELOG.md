@@ -6,6 +6,7 @@ All notable changes to the "vectorcastTestExplorer" extension will be documented
 
 ### Added
 - **Check Test Against Requirements** in the test context menu: runs the test, then shows an AI-generated PASS/FAIL for each linked requirement, with the lines it needs highlighted.
+- **Check Tests Against Requirements** on an environment, unit or function: checks every linked test under it at once and reports the verdicts grouped by function, from which each test's review opens.
 
 ## [1.0.35] - 2026-09-21
 

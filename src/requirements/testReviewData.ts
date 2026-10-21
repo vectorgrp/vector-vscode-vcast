@@ -62,24 +62,45 @@ export function parseTests2checkResult(
   };
 }
 
+// A checked test as a review shows it; the node ID is known when the test
+// was found in the test tree.
+export interface ReviewedTest {
+  testId?: string;
+  data: RequirementData;
+}
+
 /**
- * The 1-based lines a requirements check colors: only the code the requirement
- * needs, green where the test ran it and red where it did not. Every other line
- * the test ran shows in the coverage gutter only.
+ * The 1-based lines a requirements check colors: only the code the
+ * requirements need, green where the test ran it and red where it did not.
+ * For several tests (a function's or a unit's), the lines all their
+ * requirements need, green where any of the tests ran it. Every other line
+ * the tests ran shows in the coverage gutter only.
  */
-export function reviewLineColors(reqData: RequirementData): {
+export function reviewLineColors(input: RequirementData | RequirementData[]): {
   covered: number[];
   uncovered: number[];
 } {
-  const ran = new Set(reqData.ranLines);
+  const tests = Array.isArray(input) ? input : [input];
+  const ran = new Set(tests.flatMap((test) => test.ranLines));
+  const expected = new Set(tests.flatMap((test) => test.expectedLines));
   const covered: number[] = [];
   const uncovered: number[] = [];
-  for (const line of [...new Set(reqData.expectedLines)].sort(
-    (a, b) => a - b
-  )) {
+  for (const line of [...expected].sort((a, b) => a - b)) {
     (ran.has(line) ? covered : uncovered).push(line + 1);
   }
   return { covered, uncovered };
+}
+
+// "1 passed, 1 failed"
+export function countVerdicts(verdicts: string[]): string {
+  const passed = verdicts.filter((v) => v === "PASS").length;
+  const failed = verdicts.filter((v) => v === "FAIL").length;
+  const undecided = verdicts.length - passed - failed;
+  return [
+    `${passed} passed`,
+    `${failed} failed`,
+    ...(undecided ? [`${undecided} undecided`] : []),
+  ].join(", ");
 }
 
 // Emoji keep their colour in a comment, where theme icons take the text's.
@@ -124,6 +145,97 @@ export function reviewMarkdown(reqData: RequirementData): string {
       "which lines in the file ran (green) and which did not (red)."
   );
   return parts.join("\n\n");
+}
+
+// Text inside the comment's HTML table must not be read as HTML.
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// The only styling VS Code keeps in a comment's HTML: colors from the theme.
+const VERDICT_STYLES: Record<string, string> = {
+  PASS: ' style="color:var(--vscode-testing-iconPassed);"',
+  FAIL: ' style="color:var(--vscode-testing-iconFailed);"',
+};
+const HEADER_STYLE =
+  ' style="background-color:var(--vscode-sideBarSectionHeader-background);"';
+
+/**
+ * The comment of a function's or unit's review: the counts, then a table
+ * with one row per test (its verdict, its name, its requirements' verdicts;
+ * fixed column widths, so a long name wraps inside its cell), then what the
+ * highlighted lines and the gutter mean for several tests. The table is
+ * HTML: a Markdown table gets no column widths in a comment.
+ */
+export function groupMarkdown(title: string, tests: ReviewedTest[]): string {
+  const verdicts = tests.map((test) => test.data.verdict);
+  const overall = verdicts.includes("FAIL")
+    ? "FAIL"
+    : verdicts.every((verdict) => verdict === "PASS")
+      ? "PASS"
+      : "";
+  const th = (width: string, text: string) =>
+    `<th align="left" width="${width}"${HEADER_STYLE}>${text}</th>`;
+  const rows = tests.map(({ data }) => {
+    const requirements = data.requirements
+      .map((req) => `${mark(req.verdict)} ${escapeHtml(req.key)}`)
+      .join("<br>");
+    return (
+      `<tr><td${VERDICT_STYLES[data.verdict] ?? ""}><b>${mark(data.verdict)} ${escapeHtml(data.verdict)}</b></td>` +
+      `<td>${escapeHtml(data.title)}</td><td>${requirements}</td></tr>`
+    );
+  });
+  return [
+    `#### ${mark(overall)} ${escapeMarkdown(title)} &nbsp;&nbsp; ${countVerdicts(verdicts)}`,
+    [
+      '<table width="100%">',
+      `<thead><tr>${th("14%", "Verdict")}${th("56%", "Test")}${th("30%", "Requirements")}</tr></thead>`,
+      "<tbody>",
+      ...rows,
+      "</tbody>",
+      "</table>",
+    ].join("\n"),
+    "**Lines**: green = needed by a requirement and run by one of these " +
+      "tests, red = needed but run by none. **Gutter**: the coverage of these " +
+      "tests together. **Hover** a line for the tests that ran it.",
+  ].join("\n\n");
+}
+
+// A test that ran a line, as the environment's per-test coverage says.
+export interface LineRunner {
+  title: string;
+  status: string;
+  testId?: string;
+}
+
+/**
+ * What a hover on a line of a reviewed file says: which of the reviewed
+ * tests ran it, each a link (`focusCommand` with the test's node ID) to that
+ * test's own review. Undefined when none did.
+ */
+export function lineHoverMarkdown(
+  ran: LineRunner[],
+  focusCommand: string
+): string | undefined {
+  if (ran.length === 0) return undefined;
+  const link = (runner: LineRunner) =>
+    runner.testId
+      ? `[${escapeMarkdown(runner.title)}](command:${focusCommand}?${encodeURIComponent(JSON.stringify([runner.testId]))} "Review this test alone")`
+      : escapeMarkdown(runner.title);
+  return (
+    "**Ran by** " +
+    ran
+      .map(
+        (runner) =>
+          link(runner) +
+          (runner.status === "partiallyCovered" ? " (partially)" : "")
+      )
+      .join(", ")
+  );
 }
 
 // Where a Reqs2X tool's log starts a record, as at info ("ERROR: ...") and at
