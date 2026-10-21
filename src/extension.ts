@@ -131,6 +131,7 @@ import {
 
 import {
   clearVcastRepositoryInConfig,
+  findRelevantRequirementGateway,
   resolveRequirementsGatewayInnerDir,
 } from "./requirements/rgwPath";
 import {
@@ -150,10 +151,11 @@ import { generateRequirementsHtml } from "./requirements/webviews/template";
 import type { FromWebview, ToWebview } from "./requirements/webviews/messages";
 import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
 import {
-  checkTestAgainstRequirements,
-  checkTestsBelowAgainstRequirements,
+  fetchRequirementCoverageData,
+  openSourceFileWithHighlight,
   endReview,
-  registerRequirementsProblems,
+  openTstScriptAtTest,
+  reviewInProgress,
 } from "./requirements/testReview";
 
 import {
@@ -1510,16 +1512,81 @@ function configureExtension(context: vscode.ExtensionContext) {
         return;
       }
 
-      // A test is checked and shown; the tests below any other node are
-      // checked and their failures listed.
-      if (testNode.testName) {
-        await checkTestAgainstRequirements(context, args.id, testNode);
-      } else {
-        await checkTestsBelowAgainstRequirements(testNode);
+      const { enviroPath, unitName, functionName } = testNode;
+      const envData = await getEnvironmentData(enviroPath);
+      const envRGWPath = findRelevantRequirementGateway(enviroPath);
+      const testName = testNode.testName;
+
+      if (!envData?.unitData || !envRGWPath || !testName) {
+        vscode.window.showWarningMessage(
+          "Failed to retrieve environment test data. Aborting the requirements check."
+        );
+        return;
+      }
+
+      // Find the matching unit's source file
+      const matchingUnit = envData.unitData.find((unit: { path: string }) => {
+        if (!unit.path) return false;
+        const unitBaseName = path.basename(unit.path, path.extname(unit.path));
+        return unitBaseName === unitName;
+      });
+
+      if (!matchingUnit?.path) {
+        vscode.window.showWarningMessage(
+          `Could not find source file for unit: ${unitName}`
+        );
+        return;
+      }
+
+      // Determine the line number to open at
+      let lineNumber = 0;
+      if (functionName && matchingUnit.functionList) {
+        for (const func of matchingUnit.functionList) {
+          if (func.name === functionName && func.startLine !== undefined) {
+            lineNumber = func.startLine;
+            break;
+          }
+        }
+      }
+
+      const reqData = await fetchRequirementCoverageData(
+        enviroPath,
+        envRGWPath,
+        testName,
+        unitName,
+        lineNumber
+      );
+      // tests2check executed the test, so its status and coverage changed.
+      await updateDataForEnvironment(enviroPath);
+      if (!reqData) return;
+
+      // Close sidebar for more screen space
+      await vscode.commands.executeCommand("workbench.action.closeSidebar");
+
+      // Use the test node ID directly from the test explorer
+      const testId = args.id;
+      const switchingTests = reviewInProgress();
+
+      // Open source file with requirement highlighting
+      const perTestCoverageShown = await openSourceFileWithHighlight(
+        matchingUnit.path,
+        reqData,
+        context,
+        testId,
+        enviroPath
+      );
+
+      // Open TST script beside source file
+      const scriptPath = testNode.enviroPath + ".tst";
+      await openTstScriptAtTest(testNode, scriptPath);
+
+      if (!switchingTests && perTestCoverageShown) {
+        vscode.window.showWarningMessage(
+          `Only ${testName}'s coverage is shown while its requirements check is open. Close the comment to see all coverage again.`
+        );
       }
     }
   );
-  registerRequirementsProblems(context);
 
   context.subscriptions.push(
     openReqsCoverageReview,

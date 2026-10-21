@@ -1,9 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
-  findTestLine,
   lastToolError,
   parseTests2checkResult,
-  requirementFailures,
   reviewLineColors,
   reviewMarkdown,
 } from "../../src/requirements/testReviewData";
@@ -231,64 +229,6 @@ describe("review line colors", () => {
       covered: [],
       uncovered: [11, 12],
     });
-  });
-});
-describe("findTestLine", () => {
-  const script = [
-    "-- Test Case Script",
-    "TEST.UNIT:manager",
-    "TEST.SUBPROGRAM:Place_Order",
-    "TEST.NEW",
-    "TEST.NAME:SAME",
-    "TEST.END",
-    "TEST.SUBPROGRAM:Clear_Table",
-    "TEST.NEW",
-    "TEST.NAME:SAME",
-    "TEST.END",
-    "TEST.NEW",
-    "TEST.NAME:SAME_LONGER",
-    "TEST.END",
-  ].join("\n");
-
-  test("finds the test under its own subprogram", () => {
-    expect(findTestLine(script, "manager", "Clear_Table", "SAME")).toBe(8);
-  });
-
-  test("takes only the whole name", () => {
-    expect(findTestLine(script, "manager", "Clear_Table", "SAME_LONGER")).toBe(
-      11
-    );
-  });
-
-  test("falls back to the first test with the name, then the top", () => {
-    expect(findTestLine(script, "manager", "Other", "SAME")).toBe(4);
-    expect(findTestLine(script, "manager", "Clear_Table", "NONE")).toBe(0);
-  });
-});
-
-describe("requirementFailures", () => {
-  test("lists each failing requirement of each test", () => {
-    const results = [
-      {
-        name: "T1",
-        unit: "manager",
-        subprogram: "Place_Order",
-        requirements: [
-          check("FR-1"),
-          check("FR-2", { verdict: "FAIL", explanation: "Not run." }),
-        ],
-      },
-      { name: "T2", unit: "manager", subprogram: "f", requirements: [] },
-    ];
-    expect(requirementFailures(results)).toEqual([
-      {
-        unit: "manager",
-        subprogram: "Place_Order",
-        name: "T1",
-        key: "FR-2",
-        explanation: "Not run.",
-      },
-    ]);
   });
 });
 describe("lastToolError", () => {

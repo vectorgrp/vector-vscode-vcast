@@ -126,61 +126,6 @@ export function reviewMarkdown(reqData: RequirementData): string {
   return parts.join("\n\n");
 }
 
-/**
- * The 0-based line of a test's TEST.NAME in a test script: the one under its
- * unit and subprogram, as VectorCAST names tests uniquely only there, else the
- * first with its name, else the top.
- */
-export function findTestLine(
-  tstContent: string,
-  unit: string,
-  subprogram: string,
-  name: string
-): number {
-  let currentUnit = "";
-  let currentSubprogram = "";
-  let firstWithName: number | undefined;
-  const lines = tstContent.split("\n");
-  for (const [index, rawLine] of lines.entries()) {
-    const line = rawLine.trim();
-    if (line.startsWith("TEST.UNIT:")) {
-      currentUnit = line.slice("TEST.UNIT:".length);
-    } else if (line.startsWith("TEST.SUBPROGRAM:")) {
-      currentSubprogram = line.slice("TEST.SUBPROGRAM:".length);
-    } else if (line === `TEST.NAME:${name}`) {
-      if (currentUnit === unit && currentSubprogram === subprogram)
-        return index;
-      firstWithName ??= index;
-    }
-  }
-
-  return firstWithName ?? 0;
-}
-
-// One requirement a test fails, as a batch check lists it.
-export interface RequirementFailure {
-  unit: string;
-  subprogram: string;
-  name: string;
-  key: string;
-  explanation: string;
-}
-
-/** Every requirement each test in a `tests2check --json` result fails. */
-export function requirementFailures(results: any[]): RequirementFailure[] {
-  return results.flatMap((test) =>
-    (test.requirements ?? [])
-      .filter((req: any) => req.verdict === "FAIL")
-      .map((req: any) => ({
-        unit: test.unit ?? "",
-        subprogram: test.subprogram ?? "",
-        name: test.name ?? "",
-        key: req.key ?? "",
-        explanation: req.explanation ?? "",
-      }))
-  );
-}
-
 // Where a Reqs2X tool's log starts a record, as at info ("ERROR: ...") and at
 // debug level ("<time> [ERROR]: ...").
 const LOG_RECORD = /^(?:\S+ )?\[?(?:DEBUG|INFO|WARNING|ERROR|CRITICAL)\]?:\s*/;

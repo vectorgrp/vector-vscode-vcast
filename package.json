@@ -241,7 +241,7 @@
       {
         "command": "vectorcastTestExplorer.openReqsCoverageReview",
         "category": "VectorCAST Test Explorer",
-        "title": "Check Against Requirements"
+        "title": "Check Test Against Requirements"
       },
       {
         "command": "vectorcastTestExplorer.closeTestReview",
@@ -1357,7 +1357,7 @@
       {
         "command": "vectorcastTestExplorer.openReqsCoverageReview",
         "group": "5_reqs@8",
-        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && !(testId =~ /.* \\[compound only\\]$/) && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
+        "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && !(testId =~ /.* \\[compound only\\]$/) && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
