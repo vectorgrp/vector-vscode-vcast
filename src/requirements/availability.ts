@@ -112,7 +112,10 @@ export function setupRequirementsFileWatchers(
   rgwWatcher.onDidDelete(refresh, null, context.subscriptions);
   context.subscriptions.push(rgwWatcher);
 
-  const cfgWatcher = vscode.workspace.createFileSystemWatcher("**/CCAST_.CFG");
+  // ADACAST_.CFG holds an Ada environment's gateway
+  const cfgWatcher = vscode.workspace.createFileSystemWatcher(
+    "**/{CCAST_,ADACAST_}.CFG"
+  );
   cfgWatcher.onDidChange(refresh, null, context.subscriptions);
   cfgWatcher.onDidCreate(refresh, null, context.subscriptions);
   cfgWatcher.onDidDelete(refresh, null, context.subscriptions);

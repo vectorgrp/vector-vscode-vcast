@@ -3,11 +3,17 @@ import { dumpTestScriptFile } from "../vcastAdapter";
 import { convertTestScriptContents } from "../vcastUtilities";
 import { getTestNode, testNodeType } from "../testData";
 import {
+  getCoverageDataForFile,
+  globalTestStatusArray,
+} from "../vcastTestInterface";
+import {
   enterReviewMode,
   exitReviewMode,
+  linesRanByReviewedTests,
   reviewedTestsOnLine,
   updateDisplayedCoverage,
 } from "../coverage";
+import { findTestItem, runTests } from "../testPane";
 import {
   closeConnection,
   globalEnviroDataServerActive,
@@ -21,6 +27,7 @@ import {
   lineHoverMarkdown,
   LineRunner,
   parseTests2checkResult,
+  ranLinesFromCoverage,
   RequirementData,
   ReviewedTest,
   reviewLineColors,
@@ -111,6 +118,8 @@ export interface ReviewTarget {
   sourcePath: string;
   enviroPath: string;
   tests: ReviewedTest[];
+  // Runs the check that produced this review again
+  rerun?: () => Promise<void>;
 }
 
 // The command a hover's test links run: this test's review alone.
@@ -144,17 +153,7 @@ function showReviewThread(
   }
   reviewThread?.dispose();
 
-  const content =
-    target.tests.length === 1
-      ? reviewMarkdown(target.tests[0].data)
-      : groupMarkdown(target.title, target.tests);
-  const body = new vscode.MarkdownString(
-    focusLineMarkdown(target.title) + content
-  );
-  body.supportThemeIcons = true;
-  // The group comment's table
-  body.supportHtml = true;
-  body.isTrusted = { enabledCommands: [FOCUS_COMMAND] };
+  const body = commentBody(target);
   // VS Code opens its Comments view the first time it shows a thread with
   // comments unless comments.openView says otherwise; the extension sets that
   // default to "never" (package.json), since the review should only jump to
@@ -166,7 +165,7 @@ function showReviewThread(
     new vscode.Range(line, 0, line, 0),
     []
   );
-  reviewThread.label = `Requirements check: ${target.title}`;
+  reviewThread.label = threadLabel(target);
   reviewThread.canReply = false;
   reviewThread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
   reviewThread.comments = [
@@ -178,6 +177,248 @@ function showReviewThread(
       },
     },
   ];
+}
+
+function commentBody(target: ReviewTarget): vscode.MarkdownString {
+  const content =
+    target.tests.length === 1
+      ? reviewMarkdown(target.tests[0].data)
+      : groupMarkdown(target.title, target.tests);
+  const body = new vscode.MarkdownString(
+    staleLineMarkdown(target) + focusLineMarkdown(target.title) + content
+  );
+  body.supportThemeIcons = true;
+  // The group comment's table
+  body.supportHtml = true;
+  body.isTrusted = {
+    enabledCommands: [FOCUS_COMMAND, RERUN_COMMAND, REFRESH_COMMAND],
+  };
+  return body;
+}
+
+function threadLabel(target: ReviewTarget): string {
+  const stale = target.tests.some(
+    (test) => test.testId && staleTests.has(test.testId)
+  );
+  return `Requirements check: ${target.title}${stale ? " (out of date)" : ""}`;
+}
+
+// ---- Out-of-date checks ------------------------------------------------
+
+// A test as its environment reported it when it was checked.
+interface TestSnapshot {
+  notes: string;
+  time: string;
+  status: string;
+  passfail: string;
+}
+
+const RERUN_COMMAND = "vectorcastTestExplorer.rerunRequirementsCheck";
+const REFRESH_COMMAND = "vectorcastTestExplorer.refreshReviewCoverage";
+let checkedTests = new Map<string, TestSnapshot>();
+let checkedEnviroPath: string | undefined;
+let staleTests = new Set<string>();
+// Tests whose lines and gutter were refreshed from a new run, while their
+// verdicts are still those of the last check.
+let coverageRefreshed = new Set<string>();
+
+function snapshotOf(testId: string): TestSnapshot | undefined {
+  const data = globalTestStatusArray[testId];
+  if (!data) return undefined;
+  return {
+    notes: data.notes ?? "",
+    time: data.time ?? "",
+    status: data.status ?? "",
+    passfail: data.passfail ?? "",
+  };
+}
+
+/**
+ * Records what a check saw of its tests, to tell later whether the
+ * environment's test data changed under it. A batch check records all its
+ * tests and replaces the earlier record; a single check records its one test
+ * and keeps the others'.
+ */
+export function recordCheckedTests(
+  enviroPath: string,
+  testIds: string[],
+  replace: boolean
+): void {
+  if (replace || checkedEnviroPath !== enviroPath) {
+    checkedTests = new Map();
+    staleTests = new Set();
+    coverageRefreshed = new Set();
+  }
+  checkedEnviroPath = enviroPath;
+  for (const testId of testIds) {
+    const snapshot = snapshotOf(testId);
+    if (snapshot) checkedTests.set(testId, snapshot);
+    staleTests.delete(testId);
+    coverageRefreshed.delete(testId);
+  }
+}
+
+/**
+ * After the environment's test data was reloaded: the checked tests whose
+ * notes, run or result changed, or that are gone, are out of date, and the
+ * open review and report say so. Called by the test pane.
+ */
+export function markChangedTestsStale(enviroPath: string): void {
+  if (checkedEnviroPath !== enviroPath) return;
+  let changed = false;
+  for (const [testId, before] of checkedTests) {
+    if (staleTests.has(testId)) continue;
+    const now = snapshotOf(testId);
+    if (
+      !now ||
+      now.notes !== before.notes ||
+      now.time !== before.time ||
+      now.status !== before.status ||
+      now.passfail !== before.passfail
+    ) {
+      staleTests.add(testId);
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  if (reviewThread && currentReview) {
+    reviewThread.comments = [
+      { ...reviewThread.comments[0], body: commentBody(currentReview) },
+    ];
+    reviewThread.label = threadLabel(currentReview);
+  }
+  void reportPanel?.webview.postMessage({
+    type: "stale",
+    testIds: [...staleTests],
+  });
+}
+
+// A highlighted notice at the top of a review. A comment keeps theme colors
+// on an inline span only (a block's style is stripped), so the notice is a
+// paragraph whose text sits on a colored span; the Markdown in it (icons,
+// links) still renders.
+function noticeMarkdown(background: string, content: string): string {
+  return (
+    `<span style="background-color:var(--vscode-inputValidation-${background});">` +
+    `&nbsp;${content}&nbsp;</span>\n\n`
+  );
+}
+
+// A link in the button colors, like the one next to "Focus on". In a
+// paragraph the glyph is a text character, which sits on the baseline and so
+// in the middle of the colored box; a theme icon would hug its top.
+function textButton(glyph: string, command: string, tooltip: string): string {
+  const white = ' style="color:var(--vscode-button-foreground);"';
+  return `<span${SHOWN_STYLE}>&nbsp;[<span${white}>${glyph}</span>](command:${command} "${tooltip}")&nbsp;</span>`;
+}
+
+// The warning at the top of a review whose tests changed since the check,
+// or the note that their coverage was refreshed since, with buttons to
+// refresh the coverage or re-run the check right after the label.
+function staleLineMarkdown(target: ReviewTarget): string {
+  const rerun = target.rerun
+    ? ` ${textButton("\u25B6", RERUN_COMMAND, "Re-run the check: the slow way, with new verdicts")}`
+    : "";
+  const refresh = ` ${textButton("\u21BB", REFRESH_COMMAND, "Refresh the coverage only: run the tests again and update the lines and the gutter; the verdicts stay")}`;
+  const changed = target.tests.filter(
+    (test) => test.testId && staleTests.has(test.testId)
+  );
+  if (changed.length) {
+    const names = changed.map((test) => test.data.title).join(", ");
+    return noticeMarkdown(
+      "warningBackground",
+      `$(warning) **Out of date**${refresh}${rerun}&nbsp; ${names} changed since this check.`
+    );
+  }
+  const refreshed = target.tests.filter(
+    (test) => test.testId && coverageRefreshed.has(test.testId)
+  );
+  if (refreshed.length) {
+    const names = refreshed.map((test) => test.data.title).join(", ");
+    return noticeMarkdown(
+      "infoBackground",
+      `$(info) **Coverage refreshed**${rerun}: ${names} ran again and the lines and the gutter show the new coverage; the verdicts are still from the last check.`
+    );
+  }
+  return "";
+}
+
+/**
+ * The comment's "Refresh the coverage only" link: runs the reviewed tests
+ * the normal way, then recolors the requirements' lines and the gutter from
+ * their new coverage. The verdicts, which need tests2check, stay.
+ */
+export async function refreshReviewCoverage(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const review = currentReview;
+  if (!review) return;
+  const items = review.tests.flatMap((test) => {
+    const item = test.testId ? findTestItem(test.testId) : undefined;
+    return item ? [item] : [];
+  });
+  if (items.length === 0) {
+    vscode.window.showInformationMessage(
+      "None of the reviewed tests is in the test tree, so there is nothing to run."
+    );
+    return;
+  }
+  const cancellation = new vscode.CancellationTokenSource();
+  try {
+    await runTests(new vscode.TestRunRequest(items), cancellation.token);
+  } finally {
+    cancellation.dispose();
+  }
+
+  // The run reloaded the test data, which marked these tests out of date;
+  // with their coverage read anew they are current again, verdicts apart.
+  const testIds = items.map((item) => item.id);
+  recordCheckedTests(review.enviroPath, testIds, false);
+  for (const testId of testIds) coverageRefreshed.add(testId);
+
+  // Shows the review again, which reads the new per-test coverage, then
+  // recolors the requirements' lines from it.
+  await openReview(review, context);
+  const ran = linesRanByReviewedTests();
+  const summary = getCoverageDataForFile(review.sourcePath);
+  const coverable = new Set([
+    ...summary.covered,
+    ...summary.uncovered,
+    ...summary.partiallyCovered,
+  ]);
+  for (const test of review.tests) {
+    if (!test.testId || !ran.has(test.testId)) continue;
+    test.data.ranLines = ranLinesFromCoverage(
+      test.data.expectedLines,
+      ran.get(test.testId)!,
+      coverable
+    );
+  }
+  const editor = vscode.window.visibleTextEditors.find(
+    (candidate) =>
+      candidate.document.uri.fsPath.toLowerCase() ===
+      review.sourcePath.toLowerCase()
+  );
+  if (editor) {
+    highlightCriticalLines(
+      editor,
+      editor.document,
+      review.tests.map((test) => test.data)
+    );
+  }
+  if (reviewThread) {
+    reviewThread.comments = [
+      { ...reviewThread.comments[0], body: commentBody(review) },
+    ];
+    reviewThread.label = threadLabel(review);
+  }
+  // Whatever got the focus meanwhile, the reviewed file shows the new coverage.
+  await updateDisplayedCoverage();
+}
+
+/** The comment's re-run link. */
+export async function rerunReview(): Promise<void> {
+  await currentReview?.rerun?.();
 }
 
 // What the review can be focused on: the units, functions and tests of the
@@ -289,6 +530,24 @@ export async function endReview(): Promise<void> {
   setFocusChoices([]);
   disposeCriticalLineDecorations();
   await exitReviewMode();
+  await closeReviewScript();
+}
+
+// The test script the review opened beside the source, to close with it.
+let reviewScriptUri: vscode.Uri | undefined;
+
+async function closeReviewScript(): Promise<void> {
+  const uri = reviewScriptUri;
+  reviewScriptUri = undefined;
+  if (!uri) return;
+  const tabs = vscode.window.tabGroups.all
+    .flatMap((group) => group.tabs)
+    .filter(
+      (tab) =>
+        tab.input instanceof vscode.TabInputText &&
+        tab.input.uri.toString() === uri.toString()
+    );
+  if (tabs.length) await vscode.window.tabGroups.close(tabs, true);
 }
 
 /**
@@ -392,6 +651,7 @@ export async function focusReviewTest(
       sourcePath: currentReview.sourcePath,
       enviroPath: currentReview.enviroPath,
       tests: [test],
+      rerun: currentReview.rerun,
     },
     context
   );
@@ -474,6 +734,7 @@ export async function openTstScriptAtTest(
     preview: false,
     preserveFocus: false,
   });
+  reviewScriptUri = tstScriptUri;
 }
 
 /**
@@ -554,7 +815,8 @@ export async function fetchRequirementCoverageData(
   gatewayPath: string,
   testName: string,
   unitName: string,
-  functionStartLine: number = 0
+  functionStartLine: number = 0,
+  subunitFile?: string
 ): Promise<RequirementData | null> {
   const results = await runTests2check(
     enviroPath,
@@ -576,25 +838,30 @@ export async function fetchRequirementCoverageData(
     results[0],
     testName,
     unitName,
-    functionStartLine
+    functionStartLine,
+    subunitFile
   );
 }
 
 /**
- * Checks every linked test of the environment, or of the given unit or
- * function, and returns tests2check's results, or null (after telling the
- * user why) when there are none.
+ * Checks the linked tests among `testNames`, or every linked test of the
+ * environment when there are none, and returns tests2check's results, or null
+ * (after telling the user why) when there are none.
+ *
+ * Tests are picked by name, not with tests2check's -u/-s: those select the
+ * requirements traced to a unit or function, so they miss tests whose
+ * requirements carry no tracing (an imported gateway) and pick up tests
+ * elsewhere that are linked to this function's requirements.
  */
 export async function fetchRequirementChecks(
   enviroPath: string,
   gatewayPath: string,
-  scope: { unitName?: string; functionName?: string },
+  testNames: string[] | undefined,
   what: string
 ): Promise<any[] | null> {
-  const selector: string[] = [];
-  if (scope.unitName) selector.push("-u", scope.unitName);
-  if (scope.functionName) selector.push("-s", scope.functionName);
-  if (selector.length) selector.push("-F");
+  const selector = testNames?.length
+    ? ["-t", [...new Set(testNames)].join(";"), "-F"]
+    : [];
   return runTests2check(enviroPath, gatewayPath, selector, what);
 }
 
@@ -612,6 +879,8 @@ export interface CheckReportHandlers {
   openReview: (testId: string) => Promise<void>;
   // "Review" on a unit (no function name) or a function
   openGroupReview: (unitName: string, functionName?: string) => Promise<void>;
+  // "Re-run check" on an out-of-date report
+  rerun: () => Promise<void>;
 }
 
 /**
@@ -657,6 +926,7 @@ export function showCheckReport(
               ? message.functionName
               : undefined
           );
+        if (message?.type === "rerun") void reportHandlers.rerun();
       },
       undefined,
       context.subscriptions

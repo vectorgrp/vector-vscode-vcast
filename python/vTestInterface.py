@@ -506,18 +506,21 @@ def _buildResultNameCache(sourceObject):
     """
     cache = {}
     for result in sourceObject.cover_data.results:
-        test_case = result.unit_test
-        if test_case:
-            name = (
-                f"{test_case.unit_display_name}"
-                f".{test_case.function_display_name}"
-                f".{test_case.name}"
-            )
-            cache[result.id] = name
-        else:
-            # Fallback for non-unit-test results (e.g. cover-only or imported)
-            cache[result.id] = result.name
+        cache[result.id] = _resultName(result)
     return cache
+
+
+def _resultName(result):
+    """The test case identifier of a result: "unit.function.testname"."""
+    test_case = result.unit_test
+    if test_case:
+        return (
+            f"{test_case.unit_display_name}"
+            f".{test_case.function_display_name}"
+            f".{test_case.name}"
+        )
+    # Fallback for non-unit-test results (e.g. cover-only or imported)
+    return result.name
 
 
 def _buildBranchAndMcdcByLine(sourceObject):
@@ -738,9 +741,9 @@ def getPerTestCoverageData(sourceObject, combinedTests=None):
     if not os.path.exists(sourceObject.path):
         return perTestCoverage
 
+    # Ada environments list no results on the file, only on its lines, so
+    # results missing here are named from the lines below.
     resultNameCache = _buildResultNameCache(sourceObject)
-    if not resultNameCache:
-        return perTestCoverage
 
     coverageKind = getCoverageKind(sourceObject)
     if coverageKind == CoverageKind.ignore:
@@ -763,11 +766,7 @@ def getPerTestCoverageData(sourceObject, combinedTests=None):
         for function in sourceObject.cover_data.functions:
             functionLineSet.add(function.start_line)
 
-    combinedIds = {
-        resultId
-        for resultId, name in resultNameCache.items()
-        if combinedTests and name in combinedTests
-    }
+    combinedNames = set(combinedTests or [])
 
     for line in sourceObject.iterate_coverage():
         lineResults = line.results
@@ -776,7 +775,9 @@ def getPerTestCoverageData(sourceObject, combinedTests=None):
         line_num = line.line_number
         testStatuses = {}
         for result in lineResults:
-            name = resultNameCache.get(result.id)
+            if result.id not in resultNameCache:
+                resultNameCache[result.id] = _resultName(result)
+            name = resultNameCache[result.id]
             if not name:
                 continue
             status = _classifyResultForLine(
@@ -789,7 +790,11 @@ def getPerTestCoverageData(sourceObject, combinedTests=None):
             )
             if status:
                 testStatuses[name] = status
-        lineCombinedIds = combinedIds & {result.id for result in lineResults}
+        lineCombinedIds = {
+            result.id
+            for result in lineResults
+            if resultNameCache.get(result.id) in combinedNames
+        }
         if lineCombinedIds:
             status = _classifyResultForLine(
                 lineCombinedIds,
@@ -805,6 +810,116 @@ def getPerTestCoverageData(sourceObject, combinedTests=None):
             perTestCoverage[str(line_num)] = testStatuses
 
     return perTestCoverage
+
+
+def getSubunitPerTestCoverage(api, enviroPath, combinedTests=None):
+    """
+    The per-test coverage of an Ada environment's "separate" subunit files,
+    in the format of getPerTestCoverageData, keyed by the real subunit path.
+
+    Why: VectorCAST records a subunit's coverage against its parent's merged
+    listing, and the parent's line iterator stops at the parent file's end, so
+    getPerTestCoverageData never sees subunit lines. As severage_coverage does
+    for the normal gutter, each statement and decision is mapped to its real
+    file and line through the listing; here with the results of each test.
+    A line is "covered" when the tests ran it and covered all its decision's
+    objectives, "partiallyCovered" when they ran it but covered only some.
+    """
+    if not getattr(api.environment, "is_ada", False):
+        return {}
+    envDir = enviroPath[:-4] if enviroPath.lower().endswith(".vce") else enviroPath
+    subunits = set(severage_coverage.find_separate_sources(envDir))
+    if not subunits:
+        return {}
+    combinedNames = set(combinedTests or [])
+    doStatements, doBranch, doMcdc, _ = severage_coverage.coverage_flags(api)
+    perTest = {}
+
+    for unit in api.Unit.filter(is_uut=True):
+        try:
+            unit.load_coverage()
+        except Exception:
+            continue
+        sourceFile = unit.sourcefile
+        if not sourceFile or not sourceFile.path or not os.path.isfile(sourceFile.path):
+            continue
+        lisText, lineByIndex = severage_coverage.read_lis(unit)
+        mapping, _ = severage_coverage.align(
+            lisText, os.path.realpath(sourceFile.path), subunits
+        )
+
+        # real (path, line) -> {"ran": {result ids}, "objectives": [(object, kind)]}
+        lines = {}
+
+        def entry(target):
+            return lines.setdefault(target, {"ran": set(), "names": {}, "objectives": []})
+
+        if doStatements:
+            for function in unit.all_functions:
+                for statement in function.statements:
+                    if statement.lis_index is None:
+                        continue
+                    target = mapping.get(lineByIndex.get(tuple(statement.lis_index)))
+                    if target is None or os.path.realpath(target[0]) not in subunits:
+                        continue
+                    data = entry(target)
+                    for result in statement.results:
+                        data["ran"].add(result.id)
+                        data["names"][result.id] = _resultName(result)
+
+        fileCache = {}
+        decisions = []
+        if doMcdc:
+            decisions = [
+                (decision, "mcdc")
+                for decision in sourceFile.cover_data.mcdc_decisions
+                if decision.num_conditions
+            ]
+        elif doBranch:
+            decisions = [(branch, "branch") for branch in sourceFile.cover_data.branches]
+        for obj, kind in decisions:
+            target = severage_coverage.decision_real_line(
+                obj, lisText, lineByIndex, mapping, fileCache
+            )
+            if target is None or os.path.realpath(target[0]) not in subunits:
+                continue
+            entry(target)["objectives"].append((obj, kind))
+
+        def status(data, resultIds):
+            ran = bool(data["ran"] & resultIds)
+            covered = total = 0
+            for obj, kind in data["objectives"]:
+                count, size = (
+                    _resultCoversMcdcDecision(obj, resultIds)
+                    if kind == "mcdc"
+                    else _resultCoversBranch(obj, resultIds)
+                )
+                covered += count
+                total += size
+            if total and covered == total:
+                return "covered"
+            if covered or ran:
+                return "partiallyCovered" if total else "covered"
+            return None
+
+        for (path, line), data in lines.items():
+            statuses = {}
+            for resultId, name in data["names"].items():
+                lineStatus = status(data, {resultId})
+                if lineStatus:
+                    statuses[name] = lineStatus
+            combinedIds = {
+                resultId
+                for resultId, name in data["names"].items()
+                if name in combinedNames
+            }
+            if combinedIds:
+                lineStatus = status(data, combinedIds)
+                if lineStatus:
+                    statuses["*"] = lineStatus
+            if statuses:
+                perTest.setdefault(path, {})[str(line)] = statuses
+    return perTest
 
 
 def getCoverageData(sourceObject):
@@ -1319,6 +1434,8 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             for sourcePath, sourceObject, isInstrumented in getSourceFiles(api)
             if isInstrumented
         }
+        # Ada: the "separate" subunit files, which the loop above cannot see.
+        returnObject.update(getSubunitPerTestCoverage(api, pathToUse, combinedTests))
         api.close()
 
     elif mode == "executeTest":

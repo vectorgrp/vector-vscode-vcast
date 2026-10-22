@@ -160,6 +160,9 @@ import {
   focusReviewTest,
   openReview,
   pickReviewFocus,
+  recordCheckedTests,
+  refreshReviewCoverage,
+  rerunReview,
   openTstScriptAtTest,
   registerReviewHover,
   revealCheckReport,
@@ -1536,12 +1539,20 @@ function configureExtension(context: vscode.ExtensionContext) {
     unitName: string,
     functionName: string,
     envData?: any
-  ): Promise<{ sourcePath: string; functionStartLine: number } | undefined> {
+  ): Promise<
+    | { sourcePath: string; functionStartLine: number; subunit?: boolean }
+    | undefined
+  > {
     envData ??= await getEnvironmentData(enviroPath);
+    // Ada names are case-insensitive, and VectorCAST reports an Ada unit in
+    // capitals (MANAGER) while its file is manager.adb.
+    const sameName = (a: string, b: string) =>
+      a === b ||
+      (envData?.isAda === true && a.toLowerCase() === b.toLowerCase());
     const matchingUnit = envData?.unitData?.find((unit: { path: string }) => {
       if (!unit.path) return false;
       const unitBaseName = path.basename(unit.path, path.extname(unit.path));
-      return unitBaseName === unitName;
+      return sameName(unitBaseName, unitName);
     });
     if (!matchingUnit?.path) {
       vscode.window.showWarningMessage(
@@ -1551,12 +1562,47 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
     const func = matchingUnit.functionList?.find(
       (candidate: { name: string; startLine?: number }) =>
-        candidate.name === functionName && candidate.startLine !== undefined
+        sameName(candidate.name, functionName) &&
+        candidate.startLine !== undefined
     );
+    // Ada: a subprogram declared "is separate" has its body in a subunit
+    // file, where its lines and its coverage are; the review opens that file
+    // at the body's header rather than the parent's stub.
+    if (envData?.isAda) {
+      const subunit = findAdaSubunitBody(
+        envData.unitData,
+        matchingUnit.path,
+        functionName
+      );
+      if (subunit) return { ...subunit, subunit: true };
+    }
     return {
       sourcePath: matchingUnit.path,
       functionStartLine: func?.startLine ?? 0,
     };
+  }
+
+  // The subunit file ("separate (Parent)") holding a subprogram's body, and
+  // the 1-based line of its header there.
+  function findAdaSubunitBody(
+    unitData: { path: string }[],
+    parentPath: string,
+    functionName: string
+  ): { sourcePath: string; functionStartLine: number } | undefined {
+    const header = new RegExp(
+      `^\\s*(procedure|function)\\s+${functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+      "i"
+    );
+    for (const unit of unitData) {
+      if (!unit.path || unit.path === parentPath || !fs.existsSync(unit.path))
+        continue;
+      const lines: string[] = fs.readFileSync(unit.path, "utf8").split(/\r?\n/);
+      if (!lines.some((line) => /^\s*separate\s*\(/i.test(line))) continue;
+      const index = lines.findIndex((line) => header.test(line));
+      if (index >= 0)
+        return { sourcePath: unit.path, functionStartLine: index + 1 };
+    }
+    return undefined;
   }
 
   // Shows a requirements check: the source file with the lines the
@@ -1586,7 +1632,8 @@ function configureExtension(context: vscode.ExtensionContext) {
     testNode: testNodeType,
     testId: string,
     sourcePath: string,
-    reqData: RequirementData
+    reqData: RequirementData,
+    rerun?: () => Promise<void>
   ) {
     await showReview(
       {
@@ -1595,6 +1642,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         sourcePath,
         enviroPath: testNode.enviroPath,
         tests: [{ testId, data: reqData }],
+        rerun,
       },
       testNode
     );
@@ -1623,14 +1671,27 @@ function configureExtension(context: vscode.ExtensionContext) {
         gatewayPath,
         testName,
         unitName,
-        source.functionStartLine
+        source.functionStartLine,
+        source.subunit ? source.sourcePath : undefined
       );
       // tests2check executed the test, so its status and coverage changed.
       await updateDataForEnvironment(enviroPath);
       if (!reqData) return;
 
       setFocusChoices([]);
-      await showTestReview(testNode, args.id, source.sourcePath, reqData);
+      recordCheckedTests(enviroPath, [args.id], false);
+      await showTestReview(
+        testNode,
+        args.id,
+        source.sourcePath,
+        reqData,
+        async () => {
+          await vscode.commands.executeCommand(
+            "vectorcastTestExplorer.openReqsCoverageReview",
+            args
+          );
+        }
+      );
     }
   );
 
@@ -1643,16 +1704,20 @@ function configureExtension(context: vscode.ExtensionContext) {
   ): string | undefined {
     const name: string | undefined = result?.test?.name ?? result?.name;
     if (!name) return undefined;
-    const unit: string = result?.test?.unit ?? scopeNode.unitName;
-    const func: string = result?.test?.subprogram ?? scopeNode.functionName;
-    const prefix =
+    const unit: string =
+      result?.unit ?? result?.test?.unit ?? scopeNode.unitName;
+    const func: string =
+      result?.subprogram ?? result?.test?.subprogram ?? scopeNode.functionName;
+    // Case-insensitive: Ada names may come back in another case.
+    const prefix = (
       `${scopeNode.enviroNodeID}|` +
-      (unit ? `${unit}.` + (func ? `${func}.` : "") : "");
+      (unit ? `${unit}.` + (func ? `${func}.` : "") : "")
+    ).toLowerCase();
     const candidates: string[] = [];
     for (const id of testNodeCache.keys()) {
       if (
         typeof id === "string" &&
-        id.startsWith(prefix) &&
+        id.toLowerCase().startsWith(prefix) &&
         getTestNode(id)?.testName === name
       )
         candidates.push(id);
@@ -1672,13 +1737,27 @@ function configureExtension(context: vscode.ExtensionContext) {
       const scope =
         scopeNode.functionName || scopeNode.unitName || scopeNode.enviroName;
 
+      // The tests under the node in the test tree, for a unit or a function;
+      // none (every test) for the environment.
+      const inScope = (id: string) => id.startsWith(`${args.id}.`);
+      let testNames: string[] | undefined;
+      if (scopeNode.unitName) {
+        testNames = [...testNodeCache.keys()]
+          .filter((id) => typeof id === "string" && inScope(id))
+          .map((id) => getTestNode(id)?.testName)
+          .filter((name): name is string => !!name);
+        if (testNames.length === 0) {
+          vscode.window.showInformationMessage(
+            `${scope} has no tests to check.`
+          );
+          return;
+        }
+      }
+
       const results = await fetchRequirementChecks(
         enviroPath,
         gatewayPath,
-        {
-          unitName: scopeNode.unitName || undefined,
-          functionName: scopeNode.functionName || undefined,
-        },
+        testNames,
         `the tests of ${scope}`
       );
       // tests2check executed the tests, so their status and coverage changed.
@@ -1697,11 +1776,19 @@ function configureExtension(context: vscode.ExtensionContext) {
       const reviewData = new Map<string, RequirementData>();
       for (const result of results) {
         const testId = testNodeIdOf(scopeNode, result);
+        // -t matches names across the environment: a same-named test of
+        // another function was checked too, but is not shown.
+        if (testNames && !(testId && inScope(testId))) continue;
         const testNode = testId ? getTestNode(testId) : undefined;
         const unitName: string =
-          testNode?.unitName ?? result?.test?.unit ?? scopeNode.unitName ?? "";
+          testNode?.unitName ??
+          result?.unit ??
+          result?.test?.unit ??
+          scopeNode.unitName ??
+          "";
         const functionName: string =
           testNode?.functionName ??
+          result?.subprogram ??
           result?.test?.subprogram ??
           scopeNode.functionName ??
           "";
@@ -1718,7 +1805,8 @@ function configureExtension(context: vscode.ExtensionContext) {
           result,
           title,
           unitName,
-          source?.functionStartLine ?? 0
+          source?.functionStartLine ?? 0,
+          source?.subunit ? source.sourcePath : undefined
         );
         // The review opens only for a test whose node and source are known.
         const reviewable = testNode && source ? testId : undefined;
@@ -1733,6 +1821,20 @@ function configureExtension(context: vscode.ExtensionContext) {
         }
         group.tests.push({ testId: reviewable, data });
       }
+
+      if (groups.size === 0) {
+        vscode.window.showInformationMessage(
+          `No test of ${scope} is linked to a requirement, so there is nothing to check.`
+        );
+        return;
+      }
+      recordCheckedTests(enviroPath, [...reviewData.keys()], true);
+      const rerun = async (): Promise<void> => {
+        await vscode.commands.executeCommand(
+          "vectorcastTestExplorer.checkTestsAgainstRequirements",
+          args
+        );
+      };
 
       // What the review can show: each unit, each function (the tests of
       // either reviewed together, their requirements' lines combined and
@@ -1760,6 +1862,7 @@ function configureExtension(context: vscode.ExtensionContext) {
           sourcePath: source.sourcePath,
           enviroPath,
           tests: reviewed.flatMap(([, group]) => group.tests),
+          rerun,
         };
       };
       for (const unitName of new Set(
@@ -1798,6 +1901,7 @@ function configureExtension(context: vscode.ExtensionContext) {
               sourcePath,
               enviroPath,
               tests: [{ testId, data }],
+              rerun,
             },
             scriptOf: testNode,
           });
@@ -1825,6 +1929,7 @@ function configureExtension(context: vscode.ExtensionContext) {
                   (functionName ? `${unitName}.${functionName}` : unitName)
             )
           ),
+        rerun,
       });
     }
   );
@@ -1848,6 +1953,16 @@ function configureExtension(context: vscode.ExtensionContext) {
     ),
     vscode.commands.registerCommand("vectorcastTestExplorer.focusReview", () =>
       pickReviewFocus(context)
+    ),
+    // The comment's "Re-run the check" link
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.rerunRequirementsCheck",
+      rerunReview
+    ),
+    // The comment's "Refresh the coverage only" link
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.refreshReviewCoverage",
+      () => refreshReviewCoverage(context)
     )
   );
 

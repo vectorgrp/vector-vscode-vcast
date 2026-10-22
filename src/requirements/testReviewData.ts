@@ -20,6 +20,9 @@ export interface RequirementData {
   requirements: RequirementCheck[];
 }
 
+const baseName = (file: string) =>
+  file.replace(/\\/g, "/").split("/").pop()!.toLowerCase();
+
 /**
  * Turns one test's entry from `tests2check --json` into what the review shows.
  * Lines from tests2check are 0-based.
@@ -28,7 +31,10 @@ export function parseTests2checkResult(
   testResult: any,
   testName: string,
   unitName: string,
-  functionStartLine: number
+  functionStartLine: number,
+  // An Ada subunit file the review shows: only the lines in that file count,
+  // as the unit's other lines are in its parent body.
+  subunitFile?: string
 ): RequirementData {
   // A tests2check that leaves a field out or null must not break the review.
   const expectedCoverage = testResult.expected_coverage ?? {};
@@ -38,7 +44,15 @@ export function parseTests2checkResult(
   const ranLines: number[] = [];
   for (const locations of Object.values(expectedCoverage)) {
     for (const location of locations as any[]) {
-      if (location.unit === unitName) {
+      // Ada unit names are case-insensitive (MANAGER, manager.adb)
+      const inFile =
+        !subunitFile ||
+        !location.path ||
+        baseName(location.path) === baseName(subunitFile);
+      if (
+        String(location.unit).toLowerCase() === unitName.toLowerCase() &&
+        inFile
+      ) {
         expectedLines.push(...(location.lines ?? []));
         ranLines.push(...(location.ran_lines ?? []));
       }
@@ -203,6 +217,27 @@ export function groupMarkdown(title: string, tests: ReviewedTest[]): string {
       "tests, red = needed but run by none. **Gutter**: the coverage of these " +
       "tests together. **Hover** a line for the tests that ran it.",
   ].join("\n\n");
+}
+
+/**
+ * Which of a requirement's lines (0-based) a test ran, read from the gutter's
+ * data: the lines it marks as run by the test and the lines it can mark at all
+ * (both 1-based). Like tests2check, a line the gutter never marks, such as a
+ * case label or a continuation line, counts as run when the next markable
+ * line ran.
+ */
+export function ranLinesFromCoverage(
+  expectedLines: number[],
+  ranLines: Set<number>,
+  coverableLines: Set<number>
+): number[] {
+  const coverable = [...coverableLines].sort((a, b) => a - b);
+  return expectedLines.filter((expected) => {
+    const line = expected + 1;
+    if (coverableLines.has(line)) return ranLines.has(line);
+    const next = coverable.find((candidate) => candidate > line);
+    return next !== undefined && ranLines.has(next);
+  });
 }
 
 // A test that ran a line, as the environment's per-test coverage says.

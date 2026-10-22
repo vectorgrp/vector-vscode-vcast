@@ -5,6 +5,7 @@ import {
   lastToolError,
   lineHoverMarkdown,
   parseTests2checkResult,
+  ranLinesFromCoverage,
   reviewLineColors,
   reviewMarkdown,
 } from "../../src/requirements/testReviewData";
@@ -148,6 +149,23 @@ describe("tests2check result parsing", () => {
     expect(reviewMarkdown(data)).toContain(
       "Checks \\*both\\* totals \\$\\(alert\\)"
     );
+  });
+});
+
+describe("an Ada unit", () => {
+  test("takes the required lines whatever the case of the unit's name", () => {
+    const data = parseTests2checkResult(
+      {
+        ...coverageResult,
+        expected_coverage: {
+          "FR-1": [{ unit: "manager", path: "/src/manager.adb", lines: [10] }],
+        },
+      },
+      "PLACE_ORDER.001",
+      "MANAGER",
+      18
+    );
+    expect(data.expectedLines).toEqual([10]);
   });
 });
 
@@ -339,6 +357,26 @@ describe("a review of several tests", () => {
 
   test("has no hover for a line no reviewed test ran", () => {
     expect(lineHoverMarkdown([], "ext.focus")).toBeUndefined();
+  });
+});
+
+describe("recoloring the requirements' lines from a new run", () => {
+  // 1-based gutter data: lines 11 and 13 can be marked, the test ran 11.
+  const coverable = new Set([11, 13, 15]);
+  const ran = new Set([11]);
+
+  test("reads whether the test ran each required line", () => {
+    expect(ranLinesFromCoverage([10, 12], ran, coverable)).toEqual([10]);
+  });
+
+  test("counts an unmarkable line as run when the next markable line ran", () => {
+    // Line 12 (a case label) is never marked; its statement is on line 13.
+    expect(ranLinesFromCoverage([11], new Set([13]), coverable)).toEqual([11]);
+    expect(ranLinesFromCoverage([11], new Set([11]), coverable)).toEqual([]);
+  });
+
+  test("never counts a line after the last markable one", () => {
+    expect(ranLinesFromCoverage([20], ran, coverable)).toEqual([]);
   });
 });
 

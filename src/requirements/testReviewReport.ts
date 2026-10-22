@@ -68,7 +68,7 @@ function testHtml(check: CheckedTest): string {
   const open = check.testId
     ? `<button type="button" class="open" data-test-id="${escapeHtml(check.testId)}">Open review</button>`
     : "";
-  return `<details class="test">
+  return `<details class="test"${check.testId ? ` data-test-id="${escapeHtml(check.testId)}"` : ""}>
   <summary>${verdictHtml(data.verdict)} <span class="name">${escapeHtml(data.title)}</span> ${open}</summary>
   ${data.requirements.map(requirementHtml).join("\n")}
 </details>`;
@@ -172,6 +172,10 @@ export function checkReportHtml(options: {
     button.open { float: right; margin-left: 8px; border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
     button.open:hover { background: var(--vscode-button-hoverBackground); }
     button.open.group { font-weight: normal; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+    .stale-banner { margin: 8px 0 12px; padding: 6px 10px; border: 1px solid var(--vscode-editorWarning-foreground); border-radius: 4px; }
+    .stale-banner .mark, details.stale > summary::after { color: var(--vscode-editorWarning-foreground); }
+    details.stale > summary::after { content: " \u26A0 out of date"; font-weight: normal; }
+    button.rerun { margin-left: 12px; border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); font: inherit; }
     button.open { font: inherit; font-size: var(--vscode-font-size); }
     .passed { color: var(--vscode-testing-iconPassed); }
     .failed { color: var(--vscode-testing-iconFailed); }
@@ -185,6 +189,10 @@ export function checkReportHtml(options: {
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     document.addEventListener("click", (event) => {
+      if (event.target.closest("button.rerun")) {
+        vscode.postMessage({ type: "rerun" });
+        return;
+      }
       const button = event.target.closest("button.open");
       if (!button) return;
       event.preventDefault();
@@ -197,6 +205,39 @@ export function checkReportHtml(options: {
       } else {
         vscode.postMessage({ type: "open-review", testId: button.dataset.testId });
       }
+    });
+    // The extension says which checked tests changed since the check: a
+    // banner with a re-run button, and a mark on those tests and their headers.
+    window.addEventListener("message", (event) => {
+      const message = event.data;
+      if (!message || message.type !== "stale") return;
+      let count = 0;
+      for (const testId of message.testIds) {
+        const row = document.querySelector('details.test[data-test-id="' + CSS.escape(testId) + '"]');
+        if (!row) continue;
+        count += 1;
+        row.classList.add("stale");
+        row.closest("details.function")?.classList.add("stale");
+        row.closest("details.unit")?.classList.add("stale");
+      }
+      if (count === 0) return;
+      let banner = document.getElementById("stale-banner");
+      if (!banner) {
+        banner = document.createElement("p");
+        banner.id = "stale-banner";
+        banner.className = "stale-banner";
+        document.querySelector("h1").insertAdjacentElement("afterend", banner);
+      }
+      banner.textContent = "";
+      const mark = document.createElement("span");
+      mark.className = "mark";
+      mark.textContent = "\u26A0 ";
+      const text = document.createTextNode("Out of date: " + count + (count === 1 ? " test" : " tests") + " changed since this check.");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "rerun";
+      button.textContent = "Re-run check";
+      banner.append(mark, text, button);
     });
   </script>
 </body>

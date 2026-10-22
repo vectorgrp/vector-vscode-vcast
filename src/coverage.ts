@@ -182,6 +182,20 @@ export async function updateCOVdecorations() {
 
   let activeEditor = vscode.window.activeTextEditor;
 
+  // During a requirements check, focus is often in the review's comment or
+  // the test run's output rather than in a source editor; the reviewed file's
+  // editor is then the one to keep up to date.
+  if (
+    review &&
+    !(activeEditor && isSupportedSourceFile(activeEditor.document.uri.fsPath))
+  ) {
+    activeEditor = vscode.window.visibleTextEditors.find(
+      (editor) =>
+        forceLowerCaseDriveLetter(editor.document.uri.fsPath) ===
+        review!.filePath
+    );
+  }
+
   // Ada is not A VSCode supproted language. So we need to gate on file extension because
   // otherwise activeEditor.document.languageId would return "Plaintext".
   if (activeEditor && isSupportedSourceFile(activeEditor.document.uri.fsPath)) {
@@ -409,6 +423,25 @@ export function reviewedTestsOnLine(
         name !== "*" && wanted.has(`vcast:${review!.enviroPath}|${name}`)
     )
     .map(([name, status]) => ({ name, status }));
+}
+
+/**
+ * For each reviewed test (by node ID), the 1-based lines of the reviewed file
+ * it ran, as the environment's per-test coverage says.
+ */
+export function linesRanByReviewedTests(): Map<string, Set<number>> {
+  const ran = new Map<string, Set<number>>();
+  if (!review) return ran;
+  const wanted = new Set(review.testIds);
+  for (const [line, tests] of Object.entries(review.perTestCoverage)) {
+    for (const name of Object.keys(tests)) {
+      const testId = `vcast:${review.enviroPath}|${name}`;
+      if (name === "*" || !wanted.has(testId)) continue;
+      if (!ran.has(testId)) ran.set(testId, new Set());
+      ran.get(testId)!.add(Number(line));
+    }
+  }
+  return ran;
 }
 
 export async function exitReviewMode(): Promise<void> {

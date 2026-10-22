@@ -1586,6 +1586,23 @@ function shouldGenerateExecutionReport(testList: vcastTestItem[]): boolean {
 // this does the actual work of running the tests
 const { performance } = require("perf_hooks");
 
+/**
+ * The test tree's item with the given ID, wherever it is in the tree.
+ */
+export function findTestItem(id: string): vscode.TestItem | undefined {
+  const search = (
+    items: vscode.TestItemCollection
+  ): vscode.TestItem | undefined => {
+    let found: vscode.TestItem | undefined;
+    items.forEach((item) => {
+      if (found) return;
+      found = item.id === id ? item : search(item.children);
+    });
+    return found;
+  };
+  return search(globalController.items);
+}
+
 export async function runTests(
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken
@@ -2004,6 +2021,12 @@ export async function updateTestPane(enviroPath: string) {
   const enviroData: environmentNodeDataType = getEnviroNodeData(enviroPath);
   const parentTreeNode = getParentNodeForEnvironment(enviroData);
   await updateTestsForEnvironment(parentTreeNode, enviroData);
+
+  // An open requirements check of this environment may now be out of date.
+  // Lazy require to avoid an import cycle through requirements → testPane.
+  const { markChangedTestsStale } =
+    require("./requirements/testReview") as typeof import("./requirements/testReview");
+  markChangedTestsStale(enviroPath);
 }
 
 interface codedTestFileDataType {
