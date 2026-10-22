@@ -304,30 +304,54 @@ function noticeMarkdown(background: string, content: string): string {
   );
 }
 
-// A link in the button colors, like the one next to "Focus on". In a
-// paragraph the glyph is a text character, which sits on the baseline and so
-// in the middle of the colored box; a theme icon would hug its top.
-function textButton(glyph: string, command: string, tooltip: string): string {
-  const white = ' style="color:var(--vscode-button-foreground);"';
-  return `<span${SHOWN_STYLE}>&nbsp;[<span${white}>${glyph}</span>](command:${command} "${tooltip}")&nbsp;</span>`;
+// Our own button images: a comment cannot style a theme icon into a button,
+// but it shows images, and data: URIs are allowed. Each is a blue rounded box
+// (VS Code's default button blue) with a white symbol.
+const BUTTON_BOX = "<rect width='24' height='18' rx='3' fill='#0e639c'/>";
+const RERUN_TEST_SVG =
+  // a circular arrow around a run triangle: run the test again
+  `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='18' viewBox='0 0 24 18'>${BUTTON_BOX}` +
+  "<g fill='none' stroke='#fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'>" +
+  "<path d='M17.5 9a5.5 5.5 0 1 1-1.6-3.9'/><path d='M16.2 2.6v2.8h-2.8'/></g>" +
+  "<path d='M10.6 6.6v4.8l3.8-2.4z' fill='#fff'/></svg>";
+const RERUN_CHECK_SVG =
+  // a requirements page with a check mark: check the test against it again
+  `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='18' viewBox='0 0 24 18'>${BUTTON_BOX}` +
+  "<g fill='none' stroke='#fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'>" +
+  "<path d='M8 3h6l2.5 2.5V15H8z'/><path d='M14 3v2.5h2.5'/>" +
+  "<path d='M9.8 10.2l1.7 1.7 3-3.3'/></g></svg>";
+
+function imageButton(svg: string, command: string, tooltip: string): string {
+  const src = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+  // An HTML image, as only that keeps align: "middle" centers it on the
+  // caption's text instead of sitting it on the text's baseline.
+  return `[<img src="${src}" width="24" height="18" align="middle" alt="${tooltip}" title="${tooltip}">](command:${command} "${tooltip}")`;
 }
 
 // The warning at the top of a review whose tests changed since the check,
-// or the note that their coverage was refreshed since, with buttons to
-// refresh the coverage or re-run the check right after the label.
+// or the note that their coverage was refreshed since. Below it one line per
+// action, each button captioned with what it does: re-running the tests only
+// updates the coverage, re-running the check also gets new verdicts.
 function staleLineMarkdown(target: ReviewTarget): string {
-  const rerun = target.rerun
-    ? ` ${textButton("\u25B6", RERUN_COMMAND, "Re-run the check: the slow way, with new verdicts")}`
+  const rerunTests = `${imageButton(RERUN_TEST_SVG, REFRESH_COMMAND, "Run the tests again and update the lines and the gutter; the verdicts stay")} &nbsp;Re-run the test`;
+  const rerunCheck = target.rerun
+    ? `${imageButton(RERUN_CHECK_SVG, RERUN_COMMAND, "Check again with tests2check, with new verdicts; takes longer")} &nbsp;Re-run test check against requirements`
     : "";
-  const refresh = ` ${textButton("\u21BB", REFRESH_COMMAND, "Refresh the coverage only: run the tests again and update the lines and the gutter; the verdicts stay")}`;
+  const actions = (lines: string[]) =>
+    lines
+      .filter((line) => line)
+      .map((line) => `&nbsp;&nbsp;${line}\n\n`)
+      .join("");
   const changed = target.tests.filter(
     (test) => test.testId && staleTests.has(test.testId)
   );
   if (changed.length) {
     const names = changed.map((test) => test.data.title).join(", ");
-    return noticeMarkdown(
-      "warningBackground",
-      `$(warning) **Out of date**${refresh}${rerun}&nbsp; ${names} changed since this check.`
+    return (
+      noticeMarkdown(
+        "warningBackground",
+        `$(warning) **Out of date:** ${names} changed since this check.`
+      ) + actions([rerunTests, rerunCheck])
     );
   }
   const refreshed = target.tests.filter(
@@ -335,9 +359,11 @@ function staleLineMarkdown(target: ReviewTarget): string {
   );
   if (refreshed.length) {
     const names = refreshed.map((test) => test.data.title).join(", ");
-    return noticeMarkdown(
-      "infoBackground",
-      `$(info) **Coverage refreshed**${rerun}: ${names} ran again and the lines and the gutter show the new coverage; the verdicts are still from the last check.`
+    return (
+      noticeMarkdown(
+        "infoBackground",
+        `$(info) **Coverage refreshed:** ${names} ran again; the verdicts are still from the last check.`
+      ) + actions([rerunCheck])
     );
   }
   return "";
