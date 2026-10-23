@@ -430,9 +430,10 @@ describe("Requirements check", () => {
         (await reviewCommentText("Place_Order")).includes("1 passed, 1 failed"),
       { timeout: TIMEOUT }
     );
+    // The group comment's table: verdict, test, requirements per row.
     const thread = await reviewCommentText("Place_Order");
-    expect(thread).toContain("PASS: PLACE_ORDER_STEAK");
-    expect(thread).toContain("FAIL: PLACE_ORDER_CHICKEN");
+    expect(thread).toMatch(/PASS\s+PLACE_ORDER_STEAK\s+.*Place_Order\.2/);
+    expect(thread).toMatch(/FAIL\s+PLACE_ORDER_CHICKEN\s+.*Place_Order\.2/);
   });
 
   it("should focus the review on one of its tests and back on the function", async () => {
