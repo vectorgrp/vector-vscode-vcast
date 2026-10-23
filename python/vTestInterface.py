@@ -852,7 +852,9 @@ def getSubunitPerTestCoverage(api, enviroPath, combinedTests=None):
         lines = {}
 
         def entry(target):
-            return lines.setdefault(target, {"ran": set(), "names": {}, "objectives": []})
+            return lines.setdefault(
+                target, {"ran": set(), "names": {}, "objectives": []}
+            )
 
         if doStatements:
             for function in unit.all_functions:
@@ -876,7 +878,9 @@ def getSubunitPerTestCoverage(api, enviroPath, combinedTests=None):
                 if decision.num_conditions
             ]
         elif doBranch:
-            decisions = [(branch, "branch") for branch in sourceFile.cover_data.branches]
+            decisions = [
+                (branch, "branch") for branch in sourceFile.cover_data.branches
+            ]
         for obj, kind in decisions:
             target = severage_coverage.decision_real_line(
                 obj, lisText, lineByIndex, mapping, fileCache

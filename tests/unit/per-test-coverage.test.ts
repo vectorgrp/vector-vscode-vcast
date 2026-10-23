@@ -1,4 +1,3 @@
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { execFileSync, execSync } from "node:child_process";
 import {
   cpSync,
@@ -8,6 +7,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import process from "node:process";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 // The per-test coverage the requirements review reads: which tests ran a
 // line, how far each covers it, and ("*") how far the reviewed tests cover
@@ -17,39 +18,44 @@ import path from "node:path";
 // take the two directions of its second branch.
 
 const packagePath = process.env.PACKAGE_PATH ?? process.cwd();
-const sharedEnvDir = path.join(packagePath, "tests", "unit", "vcast");
-const envDir = path.join(sharedEnvDir, "per_test_coverage");
-const enviroPath = path.join(envDir, "PERTEST");
+const sharedEnvDirectory = path.join(packagePath, "tests", "unit", "vcast");
+const envDirectory = path.join(sharedEnvDirectory, "per_test_coverage");
+const enviroPath = path.join(envDirectory, "PERTEST");
 const clicast = execSync(
   process.platform === "win32" ? "where clicast" : "which clicast"
 )
   .toString()
   .trim();
-const vectorcastDir = path.dirname(clicast);
-const vpython = path.join(vectorcastDir, "vpython");
+const vectorcastDirectory = path.dirname(clicast);
+const vpython = path.join(vectorcastDirectory, "vpython");
 const interfaceScript = path.join(packagePath, "python", "vTestInterface.py");
 
-const TRUE_BRANCH = "unit.bar.BAR_TRUE";
-const FALSE_BRANCH = "unit.bar.BAR_FALSE";
+const trueBranch = "unit.bar.BAR_TRUE";
+const falseBranch = "unit.bar.BAR_FALSE";
 
 // {"<unit.cpp path>": {"<line>": {"<unit.function.test>": status, "*"?: status}}}
 function perTestCoverage(
   combinedTests?: string[]
 ): Record<string, Record<string, Record<string, string>>> {
-  const args = [
+  const arguments_ = [
     interfaceScript,
     "--mode=perTestCoverage",
     `--clicast=${clicast}`,
     `--path=${enviroPath}`,
   ];
   if (combinedTests) {
-    args.push(`--options=${JSON.stringify({ tests: combinedTests })}`);
+    arguments_.push(`--options=${JSON.stringify({ tests: combinedTests })}`);
   }
-  const output = execFileSync(vpython, args, {
-    env: { ...process.env, VECTORCAST_DIR: vectorcastDir },
+
+  const output = execFileSync(vpython, arguments_, {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    env: { ...process.env, VECTORCAST_DIR: vectorcastDirectory },
   }).toString();
-  // vpython prefixes the JSON with "ACTUAL-DATA" and banner lines.
-  return JSON.parse(output.slice(output.indexOf("{")));
+  // Vpython prefixes the JSON with "ACTUAL-DATA" and banner lines.
+  return JSON.parse(output.slice(output.indexOf("{"))) as Record<
+    string,
+    Record<string, Record<string, string>>
+  >;
 }
 
 function linesOfUnit(
@@ -61,19 +67,22 @@ function linesOfUnit(
 }
 
 beforeAll(() => {
-  rmSync(envDir, { recursive: true, force: true });
-  mkdirSync(envDir);
-  cpSync(path.join(sharedEnvDir, "unit.cpp"), path.join(envDir, "unit.cpp"));
+  rmSync(envDirectory, { recursive: true, force: true });
+  mkdirSync(envDirectory);
+  cpSync(
+    path.join(sharedEnvDirectory, "unit.cpp"),
+    path.join(envDirectory, "unit.cpp")
+  );
   writeFileSync(
-    path.join(envDir, "PERTEST.env"),
-    readFileSync(path.join(sharedEnvDir, "TEST.env"), "utf8").replace(
+    path.join(envDirectory, "PERTEST.env"),
+    readFileSync(path.join(sharedEnvDirectory, "TEST.env"), "utf8").replace(
       "ENVIRO.NAME: TEST",
       "ENVIRO.NAME: PERTEST"
     )
   );
-  // z=1 makes x+y > z true, z=10 makes it false: one direction each.
+  // Z=1 makes x+y > z true, z=10 makes it false: one direction each.
   writeFileSync(
-    path.join(envDir, "tests.tst"),
+    path.join(envDirectory, "tests.tst"),
     [
       "TEST.UNIT:unit",
       "TEST.SUBPROGRAM:bar",
@@ -89,7 +98,7 @@ beforeAll(() => {
     ].join("\n")
   );
   const run = (command: string) =>
-    execSync(`${clicast} -lc ${command}`, { cwd: envDir, stdio: "pipe" });
+    execSync(`${clicast} -lc ${command}`, { cwd: envDirectory, stdio: "pipe" });
   run("template GNU_CPP11_X");
   run("environment script run PERTEST.env");
   run("-e PERTEST test script run tests.tst");
@@ -97,21 +106,21 @@ beforeAll(() => {
 }, 180_000);
 
 afterAll(() => {
-  rmSync(envDir, { recursive: true, force: true });
+  rmSync(envDirectory, { recursive: true, force: true });
 });
 
 describe("per-test coverage for the requirements review", () => {
   test("names, per line, the tests that ran it and how far each covers it", () => {
     const lines = linesOfUnit(perTestCoverage());
-    // if (x + y > z): each test takes one direction only.
-    expect(lines["22"][TRUE_BRANCH]).toBe("partiallyCovered");
-    expect(lines["22"][FALSE_BRANCH]).toBe("partiallyCovered");
-    // return external_add(x, y): only the true-direction test ran it.
-    expect(lines["23"][TRUE_BRANCH]).toBe("covered");
-    expect(lines["23"]).not.toHaveProperty(FALSE_BRANCH);
-    // log_result(z): only the false-direction test ran it.
-    expect(lines["25"][FALSE_BRANCH]).toBe("covered");
-    expect(lines["25"]).not.toHaveProperty(TRUE_BRANCH);
+    // If (x + y > z): each test takes one direction only.
+    expect(lines["22"][trueBranch]).toBe("partiallyCovered");
+    expect(lines["22"][falseBranch]).toBe("partiallyCovered");
+    // Return external_add(x, y): only the true-direction test ran it.
+    expect(lines["23"][trueBranch]).toBe("covered");
+    expect(lines["23"]).not.toHaveProperty(falseBranch);
+    // Log_result(z): only the false-direction test ran it.
+    expect(lines["25"][falseBranch]).toBe("covered");
+    expect(lines["25"]).not.toHaveProperty(trueBranch);
     // Without reviewed tests there is no combined status.
     for (const statuses of Object.values(lines)) {
       expect(statuses).not.toHaveProperty("*");
@@ -119,10 +128,10 @@ describe("per-test coverage for the requirements review", () => {
   }, 60_000);
 
   test("classifies the reviewed tests together, not as a merge of their own statuses", () => {
-    const lines = linesOfUnit(perTestCoverage([TRUE_BRANCH, FALSE_BRANCH]));
+    const lines = linesOfUnit(perTestCoverage([trueBranch, falseBranch]));
     // Both directions between them: the branch is covered by the two.
     expect(lines["22"]["*"]).toBe("covered");
-    // if (x > loc.x) is false for both: still only one direction.
+    // If (x > loc.x) is false for both: still only one direction.
     expect(lines["19"]["*"]).toBe("partiallyCovered");
     // A line only one of them ran is covered by the two as well.
     expect(lines["23"]["*"]).toBe("covered");
@@ -130,7 +139,7 @@ describe("per-test coverage for the requirements review", () => {
   }, 60_000);
 
   test("gives one reviewed test only its own coverage", () => {
-    const lines = linesOfUnit(perTestCoverage([TRUE_BRANCH]));
+    const lines = linesOfUnit(perTestCoverage([trueBranch]));
     expect(lines["22"]["*"]).toBe("partiallyCovered");
     expect(lines["23"]["*"]).toBe("covered");
     // The other test's line has no combined status.
