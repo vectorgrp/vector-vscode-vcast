@@ -8,6 +8,9 @@ export default defineConfig(async () => {
 
   // Determine the files to exclude based on the tool version
   const excludeCodedTestFiles = toolVersion < 24 ? ["tests/unit/ct-*"] : [];
+  // The requirements review needs Reqs2X, which needs VectorCAST 25.
+  const excludeReviewFiles =
+    toolVersion < 25 ? ["tests/unit/per-test-coverage*"] : [];
 
   return {
     test: {
@@ -19,6 +22,7 @@ export default defineConfig(async () => {
         ...configDefaults.exclude,
         "tests/internal/e2e/test/specs/*",
         ...excludeCodedTestFiles,
+        ...excludeReviewFiles,
       ],
     },
   };

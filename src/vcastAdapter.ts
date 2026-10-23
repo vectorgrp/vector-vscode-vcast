@@ -654,35 +654,65 @@ export async function getDataForEnvironmentFromAPI(
   // what we get back is a JSON formatted string (if the command works)
   // that has two sub-fields: testData, and unitData
   vectorMessage("Processing environment data for: " + enviroPath);
+  return getEnvironmentJson(vcastCommandType.getEnviroData, enviroPath);
+}
 
-  let jsonData: any;
+// For every instrumented file of the environment, keyed by its path:
+// line number -> { "unit.function.test": "covered" | "partiallyCovered" }.
+// With `combinedTests` ("unit.function.test" names), each line those tests
+// ran also has "*": their status as one, which is not the merge of their own
+// statuses (two tests can complete a branch or an MC/DC pair together).
+export async function getPerTestCoverageFromAPI(
+  enviroPath: string,
+  combinedTests?: string[]
+): Promise<any> {
+  return getEnvironmentJson(
+    vcastCommandType.perTestCoverage,
+    enviroPath,
+    combinedTests ? { tests: combinedTests } : undefined
+  );
+}
+
+async function getEnvironmentJson(
+  command: vcastCommandType,
+  enviroPath: string,
+  options?: object
+): Promise<any> {
+  const optionString = options ? JSON.stringify(options) : undefined;
   if (globalEnviroDataServerActive) {
-    jsonData = await getEnviroDataFromServer(enviroPath);
-  } else {
-    jsonData = getEnviroDataFromPython(enviroPath);
+    return getEnvironmentJsonFromServer(command, enviroPath, optionString);
   }
-
-  return jsonData;
+  return getEnvironmentJsonFromPython(command, enviroPath, optionString);
 }
 
 // vPython Logic
-function getEnviroDataFromPython(enviroPath: string): any {
-  // This function will return the environment data for a single directory
+function getEnvironmentJsonFromPython(
+  command: vcastCommandType,
+  enviroPath: string,
+  optionString?: string
+): any {
+  // This function will return the command's data for a single directory
   // by calling vpython with the appropriate command
-  const commandToRun = getVcastInterfaceCommand(
-    vcastCommandType.getEnviroData,
-    enviroPath
-  );
+  let commandToRun = getVcastInterfaceCommand(command, enviroPath);
+  if (optionString) {
+    // Quoted for the shell like the MC/DC commands' options
+    commandToRun += ` --options="${optionString.replaceAll('"', '\\"')}"`;
+  }
   let jsonData = getJsonDataFromTestInterface(commandToRun, enviroPath);
   return jsonData;
 }
 
 // Server Logic
-async function getEnviroDataFromServer(enviroPath: string): Promise<any> {
+async function getEnvironmentJsonFromServer(
+  command: vcastCommandType,
+  enviroPath: string,
+  optionString?: string
+): Promise<any> {
   //
   const requestObject: clientRequestType = {
-    command: vcastCommandType.getEnviroData,
+    command: command,
     path: enviroPath,
+    ...(optionString ? { options: optionString } : {}),
   };
 
   let transmitResponse: transmitResponseType =

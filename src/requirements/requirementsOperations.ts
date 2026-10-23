@@ -12,6 +12,7 @@ import {
   reqs2testsSupportsDelta,
   reqs2xSupportedFlags,
   setupReqs2XExecutablePaths,
+  TESTS2CHECK_EXECUTABLE_PATH,
 } from "./requirementsExecutables";
 import { runReqs2xTool } from "./processRunner";
 import {
@@ -67,6 +68,13 @@ export function initializeReqs2X(context: vscode.ExtensionContext) {
     featureEnabled
   );
   void publishDeltaSupportContext(featureEnabled);
+  // Not every distribution ships tests2check; checking a test against its
+  // requirements is only offered when this one does.
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.tests2checkAvailable",
+    featureEnabled && fs.existsSync(TESTS2CHECK_EXECUTABLE_PATH)
+  );
 }
 
 // Hides the delta menu item when the installed reqs2tests predates --only-delta.
