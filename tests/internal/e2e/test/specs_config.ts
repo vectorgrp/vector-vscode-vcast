@@ -300,27 +300,13 @@ export function getSpecGroups(
       specs: [
         "./**/**/vcast_build_env_requirements.test.ts",
         "./**/**/vcast_requirements_tests.test.ts",
+        "./**/**/vcast_requirements_review.test.ts",
       ],
       env: {
         REQS2X_PCT_RELEASE: "True",
         VCAST_USE_PYTHON: "True",
         VCAST_REQS2X_LOG_LEVEL: "debug",
       },
-      params: {},
-    };
-
-    specGroups["requirements_review"] = {
-      specs: ["./**/**/vcast_requirements_review.test.ts"],
-      env: {
-        VCAST_USE_PYTHON: "True",
-        VCAST_REQS2X_LOG_LEVEL: "debug",
-      },
-      params: {},
-    };
-
-    specGroups["requirements_review_server"] = {
-      specs: ["./**/**/vcast_requirements_review.test.ts"],
-      env: { VCAST_REQS2X_LOG_LEVEL: "debug" },
       params: {},
     };
 

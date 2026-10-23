@@ -19,6 +19,19 @@ import {
 } from "../test_utils/vcast_utils";
 
 const run = promisify(exec);
+
+// Progress in the runner's log, to tell where a failing run got to.
+const step = (text: string) => console.log(`[requirements review] ${text}`);
+
+// The report's units, functions and tests start collapsed, and collapsed
+// content is neither in the page's text nor clickable: open everything.
+async function expandReport() {
+  await browser.execute(() => {
+    for (const details of document.querySelectorAll("details")) {
+      details.open = true;
+    }
+  });
+}
 const reviewDir = path.join(__dirname, "..", "vcastTutorial", "review_c");
 
 // Both tests are traced to the steak requirement; only the first orders steak.
@@ -86,6 +99,7 @@ async function visibleEditors(): Promise<string> {
 // The VectorCAST submenu of the test, or of the Place_Order function when
 // no test name is given.
 async function openVectorcastMenuFor(testName?: string) {
+  step(`opening the VectorCAST menu of ${testName ?? "Place_Order"}`);
   const vcastTestingViewContent = await getViewContent("Testing");
   let handle: TreeItem;
   for (const section of await vcastTestingViewContent.getSections()) {
@@ -107,6 +121,7 @@ async function openVectorcastMenuFor(testName?: string) {
 // "Focus Requirements Check On..." in the review's title, then the quick pick
 // entry whose name is typed.
 async function focusReviewOn(name: string) {
+  step(`focusing the review on ${name}`);
   await (await $("aria/Focus Requirements Check On...")).click();
   await (await $(".quick-input-widget")).waitForDisplayed({ timeout: TIMEOUT });
   await browser.keys(name);
@@ -120,6 +135,7 @@ async function focusReviewOn(name: string) {
 
 // The hover of the line of the reviewed source that contains `text`.
 async function hoverSourceLine(text: string): Promise<string> {
+  step(`hovering the source line with ${text}`);
   await browser.executeWorkbench(async (vscode, wanted: string) => {
     const editor = vscode.window.activeTextEditor;
     const line = editor.document
@@ -143,6 +159,7 @@ async function hoverSourceLine(text: string): Promise<string> {
 // Edits the test script the review opened beside the source, as a user
 // would, and saves it, which loads it into the environment.
 async function editReviewScript(replacements: [string, string][]) {
+  step(`editing the test script: ${JSON.stringify(replacements)}`);
   await browser.executeWorkbench(async (vscode, pairs: [string, string][]) => {
     const document = vscode.workspace.textDocuments.find((d) =>
       d.fileName.endsWith("TUTORIAL_C.tst")
@@ -167,6 +184,7 @@ async function editReviewScript(replacements: [string, string][]) {
 
 async function openReviewFor(testName: string) {
   await openVectorcastMenuFor(testName);
+  step(`checking ${testName} against requirements`);
   await (await $("aria/Check Test Against Requirements")).click();
 
   try {
@@ -345,14 +363,17 @@ describe("Requirements check", () => {
     });
 
     await openVectorcastMenuFor();
+    step("checking all tests of Place_Order against requirements");
     await (await $("aria/Check Tests Against Requirements")).click();
 
     await browser.waitUntil(
       async () => (await workbench.getAllWebviews()).length > 0,
       { timeout: 480_000 }
     );
+    step("report opened");
     const webview = (await workbench.getAllWebviews())[0];
     await webview.open();
+    await expandReport();
     const report = await $("body").getText();
     expect(report).toContain("Requirements check: Place_Order");
     expect(report).toContain("manager 1 passed, 1 failed");
@@ -363,6 +384,7 @@ describe("Requirements check", () => {
     expect(report).not.toContain("PLACE_ORDER_UNLINKED");
 
     // Each verdict opens the single-test review.
+    step("opening the review of PLACE_ORDER_CHICKEN from the report");
     await (await $("details*=PLACE_ORDER_CHICKEN").$("button.open")).click();
     await webview.close();
     await browser.waitUntil(
@@ -383,6 +405,8 @@ describe("Requirements check", () => {
     });
     const webview = (await workbench.getAllWebviews())[0];
     await webview.open();
+    await expandReport();
+    step("reviewing Place_Order as a whole from the report");
     await (await $("details.function > summary button.group")).click();
     await webview.close();
 
@@ -433,6 +457,7 @@ describe("Requirements check", () => {
     expect(hover).toContain("PLACE_ORDER_STEAK");
     expect(hover).not.toContain("PLACE_ORDER_CHICKEN");
 
+    step("opening PLACE_ORDER_STEAK from the hover");
     await (await $(".monaco-hover a*=PLACE_ORDER_STEAK")).click();
     await browser.waitUntil(
       async () =>
@@ -457,6 +482,7 @@ describe("Requirements check", () => {
 
     // The chicken test now orders steak and expects its price: it changed,
     // and it would check the steak requirement.
+    step("changing PLACE_ORDER_CHICKEN to order steak");
     await editReviewScript([
       ["Order.Entree:CHICKEN", "Order.Entree:STEAK"],
       ["Check_Total:10.0", "Check_Total:14.0"],
@@ -474,6 +500,7 @@ describe("Requirements check", () => {
     expect(comment).toContain("Re-run test check against requirements");
 
     // Re-running the test refreshes the coverage, not the verdict.
+    step("clicking Re-run the test");
     await (await $("a[title^='Run the tests again']")).click();
     await browser.waitUntil(
       async () =>
@@ -487,6 +514,7 @@ describe("Requirements check", () => {
     expect(comment).toContain("Verdict: FAIL");
 
     // Re-running the check judges the changed test anew: it passes now.
+    step("clicking Re-run test check against requirements");
     await (await $("a[title^='Check again with tests2check']")).click();
     await browser.waitUntil(
       async () =>
@@ -510,6 +538,7 @@ describe("Requirements check", () => {
       });
       const webview = (await workbench.getAllWebviews())[0];
       await webview.open();
+      await expandReport();
       return webview;
     };
 
@@ -521,6 +550,7 @@ describe("Requirements check", () => {
     expect(await $("details.test.stale").getText()).toContain(
       "PLACE_ORDER_CHICKEN"
     );
+    step("clicking Re-run check on the report");
     await (await $("button.rerun")).click();
     await webview.close();
 

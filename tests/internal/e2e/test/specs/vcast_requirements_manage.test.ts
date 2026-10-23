@@ -319,6 +319,12 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     const webview = (await workbench.getAllWebviews())[0];
     await webview.open();
+    // The report's sections start collapsed: open them to read and click.
+    await browser.execute(() => {
+      for (const details of document.querySelectorAll("details")) {
+        details.open = true;
+      }
+    });
     const report = await $("body").getText();
     expect(report).toContain("Requirements check: manager");
     expect(report).toMatch(/\d+ passed, \d+ failed/);
