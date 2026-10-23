@@ -323,9 +323,10 @@ const RERUN_CHECK_SVG =
 
 function imageButton(svg: string, command: string, tooltip: string): string {
   const src = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
-  // An HTML image, as only that keeps align: "middle" centers it on the
-  // caption's text instead of sitting it on the text's baseline.
-  return `[<img src="${src}" width="24" height="18" align="middle" alt="${tooltip}" title="${tooltip}">](command:${command} "${tooltip}")`;
+  // An HTML image, as only that keeps align. "absmiddle" centers it on the
+  // caption's text; "middle" would center it on the text's baseline, and
+  // without align it sits on the baseline.
+  return `[<img src="${src}" width="24" height="18" align="absmiddle" alt="${tooltip}" title="${tooltip}">](command:${command} "${tooltip}")`;
 }
 
 // The warning at the top of a review whose tests changed since the check,
