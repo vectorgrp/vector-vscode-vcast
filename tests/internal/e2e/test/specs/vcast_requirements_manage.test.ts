@@ -298,4 +298,44 @@ describe("vTypeCheck VS Code Extension", () => {
     );
     expect(vcastNotificationSourceElement).toBeDefined();
   });
+
+  it("should check the unit's generated tests against the requirements in the project", async () => {
+    await updateTestID();
+    // The requirements webview is still open; the report must be the only one.
+    await browser.executeWorkbench(async (vscode) => {
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    });
+
+    // The unit of the project's environment: every generated test under it.
+    await executeContextMenuAction(
+      3,
+      "manager",
+      true,
+      "Check Tests Against Requirements"
+    );
+    await browser.waitUntil(
+      async () => (await workbench.getAllWebviews()).length > 0,
+      { timeout: 900_000 }
+    );
+    const webview = (await workbench.getAllWebviews())[0];
+    await webview.open();
+    const report = await $("body").getText();
+    expect(report).toContain("Requirements check: manager");
+    expect(report).toMatch(/\d+ passed, \d+ failed/);
+    expect((await $$("details.test")).length).toBeGreaterThan(0);
+
+    // A test's review opens from the report for an environment in a project too.
+    await (await $("details.test button.open")).click();
+    await webview.close();
+    await browser.waitUntil(
+      async () => {
+        for (const thread of await $$(".review-widget")) {
+          if ((await thread.getText()).includes("Verdict:")) return true;
+        }
+        return false;
+      },
+      { timeout: TIMEOUT }
+    );
+    await (await $("aria/Close Requirements Check")).click();
+  });
 });

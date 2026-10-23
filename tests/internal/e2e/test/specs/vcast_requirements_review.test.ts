@@ -104,6 +104,67 @@ async function openVectorcastMenuFor(testName?: string) {
   await contextMenu.select("VectorCAST");
 }
 
+// "Focus Requirements Check On..." in the review's title, then the quick pick
+// entry whose name is typed.
+async function focusReviewOn(name: string) {
+  await (await $("aria/Focus Requirements Check On...")).click();
+  await (await $(".quick-input-widget")).waitForDisplayed({ timeout: TIMEOUT });
+  await browser.keys(name);
+  await browser.waitUntil(
+    async () =>
+      (await $(".quick-input-list .monaco-list-row").getText()).includes(name),
+    { timeout: TIMEOUT }
+  );
+  await browser.keys(Key.Enter);
+}
+
+// The hover of the line of the reviewed source that contains `text`.
+async function hoverSourceLine(text: string): Promise<string> {
+  await browser.executeWorkbench(async (vscode, wanted: string) => {
+    const editor = vscode.window.activeTextEditor;
+    const line = editor.document
+      .getText()
+      .split("\n")
+      .findIndex((l: string) => l.includes(wanted));
+    editor.revealRange(
+      new vscode.Range(line, 0, line, 0),
+      vscode.TextEditorRevealType.InCenter
+    );
+  }, text);
+  const token = await $(`.view-line*=${text}`).$("span");
+  await token.moveTo();
+  await browser.waitUntil(
+    async () => (await $(".monaco-hover").getText()).includes("Ran by"),
+    { timeout: TIMEOUT }
+  );
+  return $(".monaco-hover").getText();
+}
+
+// Edits the test script the review opened beside the source, as a user
+// would, and saves it, which loads it into the environment.
+async function editReviewScript(replacements: [string, string][]) {
+  await browser.executeWorkbench(async (vscode, pairs: [string, string][]) => {
+    const document = vscode.workspace.textDocuments.find((d) =>
+      d.fileName.endsWith("TUTORIAL_C.tst")
+    );
+    let text = document.getText();
+    for (const [from, to] of pairs) text = text.replace(from, to);
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(
+      document.uri,
+      new vscode.Range(0, 0, document.lineCount, 0),
+      text
+    );
+    await vscode.workspace.applyEdit(edit);
+    // The save handler loads the script of the active editor.
+    await vscode.window.showTextDocument(document, {
+      viewColumn: vscode.ViewColumn.Two,
+      preserveFocus: false,
+    });
+    await document.save();
+  }, replacements);
+}
+
 async function openReviewFor(testName: string) {
   await openVectorcastMenuFor(testName);
   await (await $("aria/Check Test Against Requirements")).click();
@@ -333,5 +394,147 @@ describe("Requirements check", () => {
     const thread = await reviewCommentText("Place_Order");
     expect(thread).toContain("PASS: PLACE_ORDER_STEAK");
     expect(thread).toContain("FAIL: PLACE_ORDER_CHICKEN");
+  });
+
+  it("should focus the review on one of its tests and back on the function", async () => {
+    await updateTestID();
+    await focusReviewOn("PLACE_ORDER_STEAK");
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("PLACE_ORDER_STEAK")).includes(
+          "Verdict: PASS"
+        ),
+      { timeout: TIMEOUT }
+    );
+    expect(await $$(".review-widget")).toHaveLength(1);
+    expect(await reviewCommentText("PLACE_ORDER_STEAK")).toContain(
+      "Focus on: PLACE_ORDER_STEAK"
+    );
+
+    // The swap icon next to "Focus on" opens the same picker.
+    await (await $("a[title^='Change the unit, function or test']")).click();
+    await (
+      await $(".quick-input-widget")
+    ).waitForDisplayed({ timeout: TIMEOUT });
+    await browser.keys("manager.Place_Order");
+    await browser.keys(Key.Enter);
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("Place_Order")).includes("1 passed, 1 failed"),
+      { timeout: TIMEOUT }
+    );
+  });
+
+  it("should say on hover which reviewed tests ran a line and open that test from it", async () => {
+    await updateTestID();
+    // Only the steak test runs the steak case.
+    const hover = await hoverSourceLine("COST_OF_STEAK");
+    expect(hover).toContain("Ran by");
+    expect(hover).toContain("PLACE_ORDER_STEAK");
+    expect(hover).not.toContain("PLACE_ORDER_CHICKEN");
+
+    await (await $(".monaco-hover a*=PLACE_ORDER_STEAK")).click();
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("PLACE_ORDER_STEAK")).includes(
+          "Focus on: PLACE_ORDER_STEAK"
+        ),
+      { timeout: TIMEOUT }
+    );
+    expect(await $$(".review-widget")).toHaveLength(1);
+  });
+
+  it("should flag a changed test, refresh its coverage and re-run its check", async () => {
+    await updateTestID();
+    await focusReviewOn("PLACE_ORDER_CHICKEN");
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("PLACE_ORDER_CHICKEN")).includes(
+          "Verdict: FAIL"
+        ),
+      { timeout: TIMEOUT }
+    );
+
+    // The chicken test now orders steak and expects its price: it changed,
+    // and it would check the steak requirement.
+    await editReviewScript([
+      ["Order.Entree:CHICKEN", "Order.Entree:STEAK"],
+      ["Check_Total:10.0", "Check_Total:14.0"],
+    ]);
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("PLACE_ORDER_CHICKEN")).includes(
+          "Out of date"
+        ),
+      { timeout: TIMEOUT }
+    );
+    let comment = await reviewCommentText("PLACE_ORDER_CHICKEN");
+    expect(comment).toContain("PLACE_ORDER_CHICKEN changed since this check");
+    expect(comment).toContain("Re-run the test");
+    expect(comment).toContain("Re-run test check against requirements");
+
+    // Re-running the test refreshes the coverage, not the verdict.
+    await (await $("a[title^='Run the tests again']")).click();
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("PLACE_ORDER_CHICKEN")).includes(
+          "Coverage refreshed"
+        ),
+      { timeout: TIMEOUT }
+    );
+    comment = await reviewCommentText("PLACE_ORDER_CHICKEN");
+    expect(comment).not.toContain("Out of date");
+    expect(comment).toContain("Verdict: FAIL");
+
+    // Re-running the check judges the changed test anew: it passes now.
+    await (await $("a[title^='Check again with tests2check']")).click();
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("PLACE_ORDER_CHICKEN")).includes(
+          "Verdict: PASS"
+        ),
+      { timeout: 240_000 }
+    );
+    comment = await reviewCommentText("PLACE_ORDER_CHICKEN");
+    expect(comment).not.toContain("Coverage refreshed");
+    expect(comment).not.toContain("Out of date");
+  });
+
+  it("should mark the changed test on the report and re-run the check from it", async () => {
+    await updateTestID();
+    const openReport = async () => {
+      await browser.executeWorkbench(async (vscode) => {
+        await vscode.commands.executeCommand(
+          "vectorcastTestExplorer.showRequirementsCheckReport"
+        );
+      });
+      const webview = (await workbench.getAllWebviews())[0];
+      await webview.open();
+      return webview;
+    };
+
+    // The report still shows the chicken test's old verdict.
+    let webview = await openReport();
+    let report = await $("body").getText();
+    expect(report).toContain("Out of date: 1 test changed since this check.");
+    expect(await $("details.test.stale").isExisting()).toBe(true);
+    expect(await $("details.test.stale").getText()).toContain(
+      "PLACE_ORDER_CHICKEN"
+    );
+    await (await $("button.rerun")).click();
+    await webview.close();
+
+    // The re-run replaces the report: both tests pass now, nothing is stale.
+    await browser.waitUntil(
+      async () => {
+        webview = await openReport();
+        report = await $("body").getText();
+        await webview.close();
+        return report.includes("2 passed, 0 failed");
+      },
+      { timeout: 480_000, interval: 10_000 }
+    );
+    expect(report).not.toContain("Out of date");
+    expect(report).not.toContain("changed since this check");
   });
 });
