@@ -256,8 +256,8 @@ describe("Requirements check", () => {
         }
       },
       {
-        "reqs2x.enableReqs2xFeature": true,
         "reqs2x.installationLocation": process.env.REQS2TESTS_RESOURCES,
+        "reqs2x.enableReqs2xFeature": true,
         "reqs2x.provider": "azure_openai",
         "reqs2x.azure.apiKey": process.env.OPENAI_API_KEY,
         "reqs2x.azure.baseUrl": process.env.AZURE_BASE_URL,
@@ -285,6 +285,21 @@ describe("Requirements check", () => {
     );
     const testingView = await activityBar.getViewControl("Testing");
     await testingView?.openView();
+
+    // In the requirements group the workspace already holds an environment
+    // from the earlier specs, so the extension activated at startup and
+    // scanned before the hook above built TUTORIAL_C: scan again.
+    step("refreshing the test tree so that TUTORIAL_C is picked up");
+    await browser.executeWorkbench(async (vscode) => {
+      await vscode.commands.executeCommand("testing.refreshTests");
+    });
+    await browser.waitUntil(
+      async () => await $("aria/TUTORIAL_C").isExisting(),
+      {
+        timeout: TIMEOUT,
+        timeoutMsg: "TUTORIAL_C did not appear in the test tree",
+      }
+    );
   });
 
   it("should say why a test without linked requirements cannot be checked", async () => {

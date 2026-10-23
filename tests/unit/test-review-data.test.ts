@@ -132,6 +132,70 @@ describe("tests2check result parsing", () => {
     expect(markdown).not.toContain("Checked by");
   });
 
+  test("tolerates a result with no name, verdict, coverage or requirement fields", () => {
+    const data = parseTests2checkResult(
+      { requirements: [{}] },
+      "TEST_1",
+      "manager",
+      5
+    );
+    expect(data.title).toBe("TEST_1");
+    expect(data.verdict).toBe("");
+    expect(data.expectedLines).toEqual([]);
+    expect(data.requirements).toEqual([
+      {
+        key: "",
+        description: "",
+        verdict: "",
+        checkedBehavior: "",
+        explanation: "",
+        checkedBy: [],
+      },
+    ]);
+    expect(
+      parseTests2checkResult({}, "TEST_1", "manager", 5).requirements
+    ).toEqual([]);
+  });
+
+  test("takes a location without lines as needing none", () => {
+    const data = parseTests2checkResult(
+      {
+        ...coverageResult,
+        expected_coverage: {
+          "FR-1": [{ unit: "manager", path: "/src/manager.c" }],
+        },
+      },
+      "TEST_1",
+      "manager",
+      5
+    );
+    expect(data.expectedLines).toEqual([]);
+    expect(data.ranLines).toEqual([]);
+  });
+
+  test("ignores the required lines of another unit", () => {
+    const data = parseTests2checkResult(
+      {
+        ...coverageResult,
+        expected_coverage: {
+          "FR-1": [
+            {
+              unit: "database",
+              path: "/src/database.c",
+              lines: [3],
+              ran_lines: [3],
+            },
+          ],
+        },
+      },
+      "TEST_1",
+      "manager",
+      5
+    );
+    expect(data.expectedLines).toEqual([]);
+    expect(data.ranLines).toEqual([]);
+  });
+
   test("shows text from the test as written, not as Markdown or icons", () => {
     const data = parseTests2checkResult(
       {
@@ -166,6 +230,75 @@ describe("an Ada unit", () => {
       18
     );
     expect(data.expectedLines).toEqual([10]);
+  });
+});
+
+describe("an Ada subunit file", () => {
+  const locations = (path: string | undefined) => ({
+    "FR-1": [
+      { unit: "calculator", path, lines: [3, 4], ran_lines: [3] },
+      {
+        unit: "calculator",
+        path: "/src/calculator-power.adb",
+        lines: [7],
+        ran_lines: [],
+      },
+    ],
+  });
+
+  test("takes only the required lines in that file", () => {
+    const data = parseTests2checkResult(
+      {
+        ...coverageResult,
+        expected_coverage: locations("/src/calculator-safe_divide.adb"),
+      },
+      "DIVIDE_OK",
+      "CALCULATOR",
+      2,
+      "C:\\src\\Calculator-Safe_Divide.adb"
+    );
+    expect(data.expectedLines).toEqual([3, 4]);
+    expect(data.ranLines).toEqual([3]);
+  });
+
+  test("keeps a required line whose file tests2check does not name", () => {
+    const data = parseTests2checkResult(
+      { ...coverageResult, expected_coverage: locations(undefined) },
+      "DIVIDE_OK",
+      "CALCULATOR",
+      2,
+      "/src/calculator-safe_divide.adb"
+    );
+    expect(data.expectedLines).toEqual([3, 4]);
+  });
+});
+
+describe("the group comment's overall mark", () => {
+  const withVerdict = (name: string, verdict: string) => ({
+    data: parseTests2checkResult(
+      { ...coverageResult, name, verdict },
+      name,
+      "manager",
+      5
+    ),
+  });
+
+  test("is a pass when every test passed", () => {
+    const markdown = groupMarkdown("manager.Place_Order", [
+      withVerdict("A", "PASS"),
+      withVerdict("B", "PASS"),
+    ]);
+    expect(markdown).toContain("#### ✅ manager.Place\\_Order");
+    expect(markdown).toContain("2 passed, 0 failed");
+  });
+
+  test("is undecided when no test failed but one has no verdict", () => {
+    const markdown = groupMarkdown("manager.Place_Order", [
+      withVerdict("A", "PASS"),
+      withVerdict("B", ""),
+    ]);
+    expect(markdown).toContain("#### ℹ️ manager.Place\\_Order");
+    expect(markdown).toContain("1 passed, 0 failed, 1 undecided");
   });
 });
 
@@ -473,6 +606,48 @@ describe("the batch check report", () => {
   test("escapes text from the test", () => {
     expect(html).toContain("TEST_2 &lt;b&gt;");
     expect(html).not.toContain("<b>");
+  });
+
+  test("offers no review of a unit or function whose tests are not in the tree", () => {
+    const page = checkReportHtml({
+      scope: "manager",
+      groups: [
+        {
+          unitName: "manager",
+          functionName: "Place_Order",
+          tests: [{ data: failed }],
+        },
+      ],
+      nonce: "n0nce",
+      cspSource: "vscode-resource:",
+    });
+    expect(page).not.toContain("Review function");
+    expect(page).not.toContain("Review unit");
+  });
+
+  test("counts and marks a test without a verdict as undecided", () => {
+    const undecided = parseTests2checkResult(
+      { ...coverageResult, name: "TEST_3", verdict: "" },
+      "TEST_3",
+      "manager",
+      5
+    );
+    const page = checkReportHtml({
+      scope: "manager",
+      groups: [
+        {
+          unitName: "manager",
+          functionName: "Place_Order",
+          tests: [{ data: passed }, { data: undecided }],
+        },
+      ],
+      nonce: "n0nce",
+      cspSource: "vscode-resource:",
+    });
+    expect(page).toContain("1 undecided");
+    expect(page).toContain(
+      '<span class="verdict other"><span class="mark">•</span> </span>'
+    );
   });
 
   test("only runs its own script", () => {
