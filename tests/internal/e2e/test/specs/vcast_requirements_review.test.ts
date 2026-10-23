@@ -136,13 +136,23 @@ async function focusReviewOn(name: string) {
 // The hover of the line of the reviewed source that contains `text`.
 async function hoverSourceLine(text: string): Promise<string> {
   step(`hovering the source line with ${text}`);
+  // The reviewed source, wherever it is: after a single-test review the
+  // test script beside it has the focus.
   await browser.executeWorkbench(async (vscode, wanted: string) => {
-    const editor = vscode.window.activeTextEditor;
+    const editor = vscode.window.visibleTextEditors.find((candidate) =>
+      candidate.document.fileName.endsWith("manager.c")
+    );
+    if (!editor) throw new Error("manager.c is not open");
     const line = editor.document
       .getText()
       .split("\n")
       .findIndex((l: string) => l.includes(wanted));
-    editor.revealRange(
+    if (line < 0) throw new Error(`${wanted} is not in manager.c`);
+    const shown = await vscode.window.showTextDocument(editor.document, {
+      viewColumn: editor.viewColumn,
+      preserveFocus: false,
+    });
+    shown.revealRange(
       new vscode.Range(line, 0, line, 0),
       vscode.TextEditorRevealType.InCenter
     );
