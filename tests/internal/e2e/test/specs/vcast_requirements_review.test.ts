@@ -570,6 +570,18 @@ describe("Requirements check", () => {
       return webview;
     };
 
+    // The check re-run by the previous test refreshed the report, so the
+    // chicken test changes again, on a value its requirement ignores.
+    step("changing the seat of PLACE_ORDER_CHICKEN");
+    await editReviewScript([["Seat:0", "Seat:1"]]);
+    await browser.waitUntil(
+      async () =>
+        (await reviewCommentText("PLACE_ORDER_CHICKEN")).includes(
+          "Out of date"
+        ),
+      { timeout: TIMEOUT }
+    );
+
     // The report still shows the chicken test's old verdict.
     let webview = await openReport();
     let report = await $("body").getText();
@@ -588,7 +600,10 @@ describe("Requirements check", () => {
         webview = await openReport();
         report = await $("body").getText();
         await webview.close();
-        return report.includes("2 passed, 0 failed");
+        return (
+          report.includes("2 passed, 0 failed") &&
+          !report.includes("Out of date")
+        );
       },
       { timeout: 480_000, interval: 10_000 }
     );
