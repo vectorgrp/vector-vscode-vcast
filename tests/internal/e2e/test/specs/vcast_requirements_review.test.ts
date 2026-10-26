@@ -484,7 +484,9 @@ describe("Requirements check", () => {
     expect(hover).not.toContain("PLACE_ORDER_CHICKEN");
 
     step("opening PLACE_ORDER_STEAK from the hover");
-    await (await $(".monaco-hover a*=PLACE_ORDER_STEAK")).click();
+    // Text selectors cannot follow a CSS combinator, so find the hover
+    // first and the link inside it.
+    await (await $(".monaco-hover").$("a*=PLACE_ORDER_STEAK")).click();
     await browser.waitUntil(
       async () =>
         (await reviewCommentText("PLACE_ORDER_STEAK")).includes(
