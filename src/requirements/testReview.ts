@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as vscode from "vscode";
 import { dumpTestScriptFile } from "../vcastAdapter";
 import { convertTestScriptContents } from "../vcastUtilities";
@@ -770,24 +771,32 @@ export async function openTstScriptAtTest(
 
   const tstScriptUri = vscode.Uri.file(scriptPath);
   const tstDocument = await vscode.workspace.openTextDocument(tstScriptUri);
+  const dumpedScript = fs.readFileSync(scriptPath, "utf8");
 
   // Find the test name line in the script
   let targetLine = 0;
   if (testNode.testName) {
-    const tstContent = tstDocument.getText();
-    targetLine = findTestNameLine(tstContent, testNode.testName);
+    targetLine = findTestNameLine(dumpedScript, testNode.testName);
   }
 
   // Open document and jump to test definition
   const position = new vscode.Position(targetLine, 0);
   const selection = new vscode.Range(position, position);
 
-  await vscode.window.showTextDocument(tstDocument, {
+  const editor = await vscode.window.showTextDocument(tstDocument, {
     viewColumn: vscode.ViewColumn.Two,
     selection: selection,
     preview: false,
     preserveFocus: false,
   });
+  // An open script still shows the test dumped before until VS Code notices
+  // the file changed, so it is reloaded from disk now; one with unsaved edits
+  // is left alone.
+  if (!tstDocument.isDirty && tstDocument.getText() !== dumpedScript) {
+    await vscode.commands.executeCommand("workbench.action.files.revert");
+    editor.selection = new vscode.Selection(position, position);
+    editor.revealRange(selection);
+  }
   reviewScriptUri = tstScriptUri;
 }
 

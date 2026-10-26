@@ -170,6 +170,18 @@ async function hoverSourceLine(text: string): Promise<string> {
 // would, and saves it, which loads it into the environment.
 async function editReviewScript(replacements: [string, string][]) {
   step(`editing the test script: ${JSON.stringify(replacements)}`);
+  // The open script shows the focused test once it holds the text to replace.
+  await browser.waitUntil(
+    async () =>
+      browser.executeWorkbench((vscode, pairs: [string, string][]) => {
+        const document = vscode.workspace.textDocuments.find((d) =>
+          d.fileName.endsWith("TUTORIAL_C.tst")
+        );
+        const text: string = document?.getText() ?? "";
+        return pairs.every(([from]) => text.includes(from));
+      }, replacements),
+    { timeout: TIMEOUT }
+  );
   await browser.executeWorkbench(async (vscode, pairs: [string, string][]) => {
     const document = vscode.workspace.textDocuments.find((d) =>
       d.fileName.endsWith("TUTORIAL_C.tst")
