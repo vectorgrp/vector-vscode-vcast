@@ -169,6 +169,7 @@ import {
   reviewInProgress,
   ReviewTarget,
   setFocusChoices,
+  choiceMatchingOpenReview,
   showCheckReport,
 } from "./requirements/testReview";
 import {
@@ -1906,6 +1907,10 @@ function configureExtension(context: vscode.ExtensionContext) {
             scriptOf: testNode,
           });
       }
+      // An open review of the same tests, as after its re-run link, shows
+      // the new verdicts; it is looked up before the new choices replace
+      // the old ones.
+      const reopen = choiceMatchingOpenReview(choices);
       setFocusChoices(choices);
 
       const show = async (choice: FocusChoice | undefined) => {
@@ -1931,6 +1936,7 @@ function configureExtension(context: vscode.ExtensionContext) {
           ),
         rerun,
       });
+      await show(reopen);
     }
   );
 

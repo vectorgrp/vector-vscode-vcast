@@ -465,6 +465,33 @@ const FOCUS_COMMAND = "vectorcastTestExplorer.focusReview";
 const FOCUS_CHOICES_CONTEXT = "vectorcastTestExplorer.reviewFocusChoices";
 let focusChoices: FocusChoice[] = [];
 
+/**
+ * The choice of a new check that shows what the open review shows: the same
+ * tests, preferably under the same title. Lets a re-run show the open review
+ * again with the new verdicts instead of leaving the old ones on screen.
+ */
+export function choiceMatchingOpenReview(
+  choices: FocusChoice[]
+): FocusChoice | undefined {
+  const review = currentReview;
+  if (!review) return undefined;
+  const testIdsOf = (target: ReviewTarget) =>
+    target.tests
+      .map((test) => test.testId ?? "")
+      .sort()
+      .join("\n");
+  const reviewed = testIdsOf(review);
+  const sameTests = choices.filter(
+    (choice) =>
+      choice.target.enviroPath === review.enviroPath &&
+      testIdsOf(choice.target) === reviewed
+  );
+  return (
+    sameTests.find((choice) => choice.target.title === review.title) ??
+    sameTests[0]
+  );
+}
+
 export function setFocusChoices(choices: FocusChoice[]): void {
   focusChoices = choices;
   void vscode.commands.executeCommand(
