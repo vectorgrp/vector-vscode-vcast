@@ -285,18 +285,20 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await bottomBar.maximize();
     const outputView = await bottomBar.openOutputView();
-    console.log(await outputView.getText());
 
-    // Making sure notifications are shown
-    const notifications = await $("aria/Notifications");
-    await notifications.click();
-
-    console.log("Notifications are shown");
-    // This will timeout if VectorCAST notification does not appear, resulting in a failed test
-    const vcastNotificationSourceElement = await $(
-      "aria/Successfully generated tests for the requirements!"
+    // Generating runs an LLM over the whole unit. The extension shows this
+    // notification only once the script is loaded and the test tree is
+    // refreshed, which the next step relies on. The output view cannot be
+    // polled instead: loading the script switches its channel.
+    await workbench.openNotificationsCenter();
+    await browser.waitUntil(
+      async () =>
+        $(
+          "aria/Successfully generated tests for the requirements!"
+        ).isExisting(),
+      { timeout: 900_000 }
     );
-    expect(vcastNotificationSourceElement).toBeDefined();
+    console.log(await outputView.getText());
   });
 
   it("should check the unit's generated tests against the requirements in the project", async () => {
