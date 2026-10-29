@@ -38,6 +38,16 @@ function countsHtml(verdicts: string[]): string {
   ].join(", ");
 }
 
+// "3 tests without a linked requirement were not checked.", when any were,
+// naming them on hover.
+function uncheckedHtml(unchecked: string[]): string {
+  const count = unchecked.length;
+  if (count === 0) return "";
+  const tests = count === 1 ? "1 test" : `${count} tests`;
+  const were = count === 1 ? "was" : "were";
+  return ` <span class="unchecked" title="${escapeHtml(unchecked.join("\n"))}">${tests} without a linked requirement ${were} not checked.</span>`;
+}
+
 // The verdict with a mark colored like the test explorer's icons.
 function verdictHtml(verdict: string): string {
   const kind =
@@ -120,19 +130,23 @@ function unitHtml(unitName: string, groups: ReportGroup[]): string {
 }
 
 /**
- * The page: the counts, then each unit and, under it, each function, both
- * collapsible, with the checked tests, each with its verdict and, per linked
- * requirement, what the single-test review shows. Everything starts
- * collapsed. "Open review" posts `{ type: "open-review", testId }`; a header's
- * "Review" posts `{ type: "open-group-review", unitName, functionName? }`.
+ * The page: the counts and how many tests of the scope were left out, then
+ * each unit and, under it, each function, both collapsible, with the checked
+ * tests, each with its verdict and, per linked requirement, what the
+ * single-test review shows. Everything starts collapsed. "Open review" posts
+ * `{ type: "open-review", testId }`; a header's "Review" posts
+ * `{ type: "open-group-review", unitName, functionName? }`.
  */
 export function checkReportHtml(options: {
   scope: string;
   groups: ReportGroup[];
+  // Tests of the scope that tests2check left out: those not linked to a
+  // requirement.
+  unchecked?: string[];
   nonce: string;
   cspSource: string;
 }): string {
-  const { scope, groups, nonce, cspSource } = options;
+  const { scope, groups, unchecked = [], nonce, cspSource } = options;
   const verdicts = groups.flatMap((group) =>
     group.tests.map((test) => test.data.verdict)
   );
@@ -153,6 +167,7 @@ export function checkReportHtml(options: {
     h1 { font-size: 1.3em; margin-bottom: 0; }
     .summary-line { color: var(--vscode-descriptionForeground); margin: 4px 0 12px; }
     .disclaimer { color: var(--vscode-descriptionForeground); font-style: italic; }
+    .unchecked { cursor: help; text-decoration: underline dotted; }
     details.unit { margin: 18px 0 0; }
     details.unit > summary { font-size: 1.15em; font-weight: 600; padding: 6px 8px; background: var(--vscode-sideBarSectionHeader-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; cursor: pointer; }
     details.function { margin: 10px 0 0 16px; }
@@ -184,7 +199,7 @@ export function checkReportHtml(options: {
 </head>
 <body>
   <h1>Requirements check: ${escapeHtml(scope)}</h1>
-  <p class="summary-line">${countsHtml(verdicts)}. <span class="disclaimer">AI-generated requirements check. Review before relying on it.</span></p>
+  <p class="summary-line">${countsHtml(verdicts)}.${uncheckedHtml(unchecked)} <span class="disclaimer">AI-generated requirements check. Review before relying on it.</span></p>
   ${[...units].map(([unitName, unitGroups]) => unitHtml(unitName, unitGroups)).join("\n")}
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();

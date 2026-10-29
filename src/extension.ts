@@ -1738,15 +1738,24 @@ function configureExtension(context: vscode.ExtensionContext) {
       const scope =
         scopeNode.functionName || scopeNode.unitName || scopeNode.enviroName;
 
-      // The tests under the node in the test tree, for a unit or a function;
-      // none (every test) for the environment.
-      const inScope = (id: string) => id.startsWith(`${args.id}.`);
+      // The tests under the node in the test tree. Those of a unit or a
+      // function are named to tests2check; the environment's are not (it
+      // checks every test), but are kept so the report can say which ones
+      // it left out.
+      const inScope = (id: string) =>
+        id.startsWith(
+          scopeNode.unitName ? `${args.id}.` : `${scopeNode.enviroNodeID}|`
+        );
+      const scopeTests = [...testNodeCache.keys()]
+        .filter((id): id is string => typeof id === "string" && inScope(id))
+        .map((id) => ({ id, node: getTestNode(id) }))
+        .filter(
+          (test): test is { id: string; node: testNodeType } =>
+            !!test.node?.testName
+        );
       let testNames: string[] | undefined;
       if (scopeNode.unitName) {
-        testNames = [...testNodeCache.keys()]
-          .filter((id) => typeof id === "string" && inScope(id))
-          .map((id) => getTestNode(id)?.testName)
-          .filter((name): name is string => !!name);
+        testNames = scopeTests.map(({ node }) => node.testName);
         if (testNames.length === 0) {
           vscode.window.showInformationMessage(
             `${scope} has no tests to check.`
@@ -1775,6 +1784,9 @@ function configureExtension(context: vscode.ExtensionContext) {
       >();
       const sourceOf = new Map<string, string>();
       const reviewData = new Map<string, RequirementData>();
+      // What tests2check reported on: by node when known, else by name.
+      const checkedIds = new Set<string>();
+      const checkedNames = new Set<string>();
       for (const result of results) {
         const testId = testNodeIdOf(scopeNode, result);
         // -t matches names across the environment: a same-named test of
@@ -1794,6 +1806,8 @@ function configureExtension(context: vscode.ExtensionContext) {
           scopeNode.functionName ??
           "";
         const title: string = result?.test?.name ?? result?.name ?? "?";
+        if (testId) checkedIds.add(testId);
+        else checkedNames.add(title);
         const key = `${unitName}.${functionName}`;
         if (unitName && functionName && !sources.has(key)) {
           sources.set(
@@ -1829,6 +1843,20 @@ function configureExtension(context: vscode.ExtensionContext) {
         );
         return;
       }
+      // tests2check skips the tests not linked to a requirement: those of
+      // the scope it did not report on, named relative to the scope.
+      const unchecked = scopeTests
+        .filter(
+          ({ id, node }) =>
+            !checkedIds.has(id) && !checkedNames.has(node.testName)
+        )
+        .map(({ node }) =>
+          [
+            ...(scopeNode.unitName ? [] : [node.unitName]),
+            ...(scopeNode.functionName ? [] : [node.functionName]),
+            node.testName,
+          ].join(".")
+        );
       recordCheckedTests(enviroPath, [...reviewData.keys()], true);
       const rerun = async (): Promise<void> => {
         await vscode.commands.executeCommand(
@@ -1916,7 +1944,7 @@ function configureExtension(context: vscode.ExtensionContext) {
       const show = async (choice: FocusChoice | undefined) => {
         if (choice) await showReview(choice.target, choice.scriptOf);
       };
-      showCheckReport(context, scope, [...groups.values()], {
+      showCheckReport(context, scope, [...groups.values()], unchecked, {
         openReview: (testId) =>
           show(
             choices.find(

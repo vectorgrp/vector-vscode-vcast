@@ -947,13 +947,15 @@ export interface CheckReportHandlers {
 }
 
 /**
- * Shows the verdicts of a batch check, grouped by function, in a webview;
- * its buttons call the handlers.
+ * Shows the verdicts of a batch check, grouped by function, in a webview,
+ * with the tests of the scope it left out (`unchecked`: those without a
+ * linked requirement); its buttons call the handlers.
  */
 export function showCheckReport(
   context: vscode.ExtensionContext,
   scope: string,
   groups: ReportGroup[],
+  unchecked: string[],
   handlers: CheckReportHandlers
 ): void {
   reportHandlers = handlers;
@@ -999,6 +1001,7 @@ export function showCheckReport(
   reportPanel.webview.html = checkReportHtml({
     scope,
     groups,
+    unchecked,
     nonce: getNonce(),
     cspSource: reportPanel.webview.cspSource,
   });

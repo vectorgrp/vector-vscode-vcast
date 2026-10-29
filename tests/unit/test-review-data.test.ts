@@ -654,5 +654,35 @@ describe("the batch check report", () => {
     expect(html).toContain("script-src 'nonce-n0nce'");
     expect(html).toContain('<script nonce="n0nce">');
   });
+
+  test("says how many tests it left out for lack of a linked requirement, and which on hover", () => {
+    const options = {
+      scope: "manager",
+      groups: [
+        {
+          unitName: "manager",
+          functionName: "Place_Order",
+          tests: [{ data: passed }],
+        },
+      ],
+      nonce: "n0nce",
+      cspSource: "vscode-resource:",
+    };
+    const three = checkReportHtml({
+      ...options,
+      unchecked: ["TEST_A", "TEST_B <b>", "Clear_Table.TEST_C"],
+    });
+    expect(three).toContain(
+      "3 tests without a linked requirement were not checked."
+    );
+    expect(three).toContain(
+      'class="unchecked" title="TEST_A\nTEST_B &lt;b&gt;\nClear_Table.TEST_C"'
+    );
+    expect(checkReportHtml({ ...options, unchecked: ["TEST_A"] })).toContain(
+      "1 test without a linked requirement was not checked."
+    );
+    expect(checkReportHtml(options)).not.toContain("not checked");
+    expect(html).not.toContain("not checked");
+  });
 });
 /* eslint-enable @typescript-eslint/naming-convention */

@@ -417,8 +417,16 @@ describe("Requirements check", () => {
     expect(report).toContain("Place_Order 1 passed, 1 failed");
     expect(report).toContain("PLACE_ORDER_STEAK");
     expect(report).toContain("PLACE_ORDER_CHICKEN");
-    // The unlinked test has nothing to check, so it is not in the report.
+    // The unlinked test has nothing to check, so it is not in the report,
+    // which says so.
     expect(report).not.toContain("PLACE_ORDER_UNLINKED");
+    expect(report).toContain(
+      "1 test without a linked requirement was not checked."
+    );
+    // Hovering the note names them.
+    expect(await $(".unchecked").getAttribute("title")).toBe(
+      "PLACE_ORDER_UNLINKED"
+    );
 
     // Each verdict opens the single-test review.
     step("opening the review of PLACE_ORDER_CHICKEN from the report");
