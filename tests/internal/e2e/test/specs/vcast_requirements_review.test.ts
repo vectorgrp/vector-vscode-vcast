@@ -35,7 +35,7 @@ async function expandReport() {
 const reviewDir = path.join(__dirname, "..", "vcastTutorial", "review_c");
 
 // Both tests are traced to the steak requirement; only the first orders steak.
-// The third test is linked to no requirement.
+// The third test is linked to no requirement to check the hover in the title.
 const requirementsCsv = `Key,ID,Module,Title,Description,Function
 Place_Order.2,Place_Order.2,manager,Steak adds $14.00,The system shall increase the check total by $14.00 when steak is selected as the entree in the order.,Place_Order
 `;
