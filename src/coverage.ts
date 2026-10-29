@@ -11,6 +11,7 @@ import {
 } from "./vcastTestInterface";
 
 import { getPerTestCoverageFromAPI } from "./vcastAdapter";
+import { makeTestNodeID } from "./testData";
 import {
   forceLowerCaseDriveLetter,
   getRangeOption,
@@ -362,7 +363,7 @@ export async function updateDisplayedCoverage() {
 // in the checked source file.
 let review:
   | {
-      testIds: string[];
+      testIds: Set<string>;
       filePath: string;
       enviroPath: string;
       perTestCoverage: Record<string, Record<string, string>>;
@@ -381,12 +382,14 @@ export async function enterReviewMode(
   enviroPath: string
 ): Promise<boolean> {
   // Fetched per review rather than with the environment data, which would
-  // compute it for every test on every environment load. The reviewed tests
-  // are named so that each line also gets their status as one ("*").
-  const prefix = `vcast:${enviroPath}|`;
+  // compute it for every test on every environment load, and for this file
+  // only. The reviewed tests are named so that each line also gets their
+  // status as one ("*").
+  const prefix = makeTestNodeID(enviroPath, "");
   const perTestCoverage = await getPerTestCoverageFromAPI(
     enviroPath,
-    testIds.map((id) => (id.startsWith(prefix) ? id.slice(prefix.length) : id))
+    testIds.map((id) => (id.startsWith(prefix) ? id.slice(prefix.length) : id)),
+    filePath
   );
   if (perTestCoverage == null) {
     review = undefined;
@@ -397,7 +400,7 @@ export async function enterReviewMode(
       forceLowerCaseDriveLetter(path) === forceLowerCaseDriveLetter(filePath)
   );
   review = {
-    testIds,
+    testIds: new Set(testIds),
     filePath: forceLowerCaseDriveLetter(filePath),
     enviroPath,
     perTestCoverage: (forThisFile?.[1] ?? {}) as Record<
@@ -408,21 +411,32 @@ export async function enterReviewMode(
   return true;
 }
 
-/**
- * The reviewed tests that ran the given 1-based line of the reviewed file,
- * as "unit.function.test" with "covered" or "partiallyCovered".
- */
-export function reviewedTestsOnLine(
-  line: number
-): { name: string; status: string }[] {
+// A reviewed test that ran a line: as the Python interface names it, by its
+// node ID, and with "covered" or "partiallyCovered".
+export interface ReviewedTestRun {
+  name: string;
+  testId: string;
+  status: string;
+}
+
+// The reviewed tests in one line's entry of the per-test coverage. Its "*"
+// entry is the tests' status as one, not a test.
+function reviewedTestsIn(tests: Record<string, string>): ReviewedTestRun[] {
   if (!review) return [];
-  const wanted = new Set(review.testIds);
-  return Object.entries(review.perTestCoverage[String(line)] ?? {})
-    .filter(
-      ([name]) =>
-        name !== "*" && wanted.has(`vcast:${review!.enviroPath}|${name}`)
-    )
-    .map(([name, status]) => ({ name, status }));
+  const { enviroPath, testIds } = review;
+  return Object.entries(tests).flatMap(([name, status]) => {
+    const testId = makeTestNodeID(enviroPath, name);
+    return name !== "*" && testIds.has(testId)
+      ? [{ name, testId, status }]
+      : [];
+  });
+}
+
+/**
+ * The reviewed tests that ran the given 1-based line of the reviewed file.
+ */
+export function reviewedTestsOnLine(line: number): ReviewedTestRun[] {
+  return reviewedTestsIn(review?.perTestCoverage[String(line)] ?? {});
 }
 
 /**
@@ -431,12 +445,8 @@ export function reviewedTestsOnLine(
  */
 export function linesRanByReviewedTests(): Map<string, Set<number>> {
   const ran = new Map<string, Set<number>>();
-  if (!review) return ran;
-  const wanted = new Set(review.testIds);
-  for (const [line, tests] of Object.entries(review.perTestCoverage)) {
-    for (const name of Object.keys(tests)) {
-      const testId = `vcast:${review.enviroPath}|${name}`;
-      if (name === "*" || !wanted.has(testId)) continue;
+  for (const [line, tests] of Object.entries(review?.perTestCoverage ?? {})) {
+    for (const { testId } of reviewedTestsIn(tests)) {
       if (!ran.has(testId)) ran.set(testId, new Set());
       ran.get(testId)!.add(Number(line));
     }

@@ -10,13 +10,20 @@ const fs = require("fs");
  * ADACAST_.CFG and links TEST.REQUIREMENT_KEY only through that one; a
  * CCAST_.CFG beside it is still read, as earlier versions wrote the gateway
  * there for Ada too.
+ *
+ * Telling an Ada environment apart reads its script, and the gateway is
+ * looked up for every environment on each focus of the window, so a reader
+ * (`existingOnly`) does so only where an ADACAST_.CFG exists to read.
  */
-function gatewayConfigPaths(enviroPath: string): string[] {
+function gatewayConfigPaths(
+  enviroPath: string,
+  existingOnly: boolean
+): string[] {
   const parentDir = path.dirname(enviroPath);
-  const names = builtEnviroIsAda(enviroPath)
-    ? ["ADACAST_.CFG", "CCAST_.CFG"]
-    : ["CCAST_.CFG"];
-  return names.map((name) => path.join(parentDir, name));
+  const adaConfig = path.join(parentDir, "ADACAST_.CFG");
+  const ada =
+    (!existingOnly || fs.existsSync(adaConfig)) && builtEnviroIsAda(enviroPath);
+  return [...(ada ? [adaConfig] : []), path.join(parentDir, "CCAST_.CFG")];
 }
 
 export const DEFAULT_RGW_SUBDIR = "rgw";
@@ -56,7 +63,7 @@ export function expandEnvVars(inputPath: string): string {
 export function findRelevantRequirementGateway(
   enviroPath: string
 ): string | null {
-  for (const configPath of gatewayConfigPaths(enviroPath)) {
+  for (const configPath of gatewayConfigPaths(enviroPath, true)) {
     if (!fs.existsSync(configPath)) continue;
 
     const configContent = fs.readFileSync(configPath, "utf-8");
@@ -110,7 +117,7 @@ export function setVcastRepositoryInConfig(
   enviroPath: string,
   gatewayPath: string
 ): void {
-  const configPath = gatewayConfigPaths(enviroPath)[0];
+  const configPath = gatewayConfigPaths(enviroPath, false)[0];
   const line = `VCAST_REPOSITORY: ${gatewayPath}`;
 
   let content = "";
@@ -130,7 +137,7 @@ export function setVcastRepositoryInConfig(
 
 /** Remove the VCAST_REPOSITORY line from the environment's configuration. */
 export function clearVcastRepositoryInConfig(enviroPath: string): void {
-  for (const configPath of gatewayConfigPaths(enviroPath)) {
+  for (const configPath of gatewayConfigPaths(enviroPath, true)) {
     if (!fs.existsSync(configPath)) continue;
 
     const content = fs.readFileSync(configPath, "utf-8");

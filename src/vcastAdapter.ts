@@ -657,19 +657,23 @@ export async function getDataForEnvironmentFromAPI(
   return getEnvironmentJson(vcastCommandType.getEnviroData, enviroPath);
 }
 
-// For every instrumented file of the environment, keyed by its path:
+// For every instrumented file of the environment, or for `filePath` alone,
+// keyed by its path:
 // line number -> { "unit.function.test": "covered" | "partiallyCovered" }.
 // With `combinedTests` ("unit.function.test" names), each line those tests
 // ran also has "*": their status as one, which is not the merge of their own
 // statuses (two tests can complete a branch or an MC/DC pair together).
 export async function getPerTestCoverageFromAPI(
   enviroPath: string,
-  combinedTests?: string[]
+  combinedTests?: string[],
+  filePath?: string
 ): Promise<any> {
   return getEnvironmentJson(
     vcastCommandType.perTestCoverage,
     enviroPath,
-    combinedTests ? { tests: combinedTests } : undefined
+    combinedTests || filePath
+      ? { tests: combinedTests, file: filePath }
+      : undefined
   );
 }
 

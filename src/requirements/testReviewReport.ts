@@ -1,36 +1,24 @@
 // The report of a requirements check of several tests, grouped by function,
 // as a webview page. Kept free of the vscode module so it can be unit tested.
 
-import { RequirementData } from "./testReviewData";
+import {
+  escapeHtml,
+  RequirementData,
+  ReviewedTest,
+  verdictCounts,
+} from "./testReviewData";
 
-export interface CheckedTest {
-  // The test's node in the test tree, when it could be found; it lets the
-  // report open the single-test review.
-  testId?: string;
-  data: RequirementData;
-}
-
-// The checked tests of one function.
+// The checked tests of one function. A test's node ID, when known, lets the
+// report open the single-test review.
 export interface ReportGroup {
   unitName: string;
   functionName: string;
-  tests: CheckedTest[];
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  tests: ReviewedTest[];
 }
 
 // "1 passed, 1 failed", passed and failed in the test explorer's colors.
 function countsHtml(verdicts: string[]): string {
-  const passed = verdicts.filter((v) => v === "PASS").length;
-  const failed = verdicts.filter((v) => v === "FAIL").length;
-  const undecided = verdicts.length - passed - failed;
+  const { passed, failed, undecided } = verdictCounts(verdicts);
   return [
     `<span class="passed">${passed} passed</span>`,
     `<span class="failed">${failed} failed</span>`,
@@ -48,11 +36,14 @@ function uncheckedHtml(unchecked: string[]): string {
   return ` <span class="unchecked" title="${escapeHtml(unchecked.join("\n"))}">${tests} without a linked requirement ${were} not checked.</span>`;
 }
 
-// The verdict with a mark colored like the test explorer's icons.
+// A verdict's CSS class and mark, colored like the test explorer's icons.
+const VERDICT_MARKS: Record<string, [kind: string, mark: string]> = {
+  PASS: ["pass", "✔"],
+  FAIL: ["fail", "✘"],
+};
+
 function verdictHtml(verdict: string): string {
-  const kind =
-    verdict === "PASS" ? "pass" : verdict === "FAIL" ? "fail" : "other";
-  const mark = kind === "pass" ? "✔" : kind === "fail" ? "✘" : "•";
+  const [kind, mark] = VERDICT_MARKS[verdict] ?? ["other", "•"];
   return `<span class="verdict ${kind}"><span class="mark">${mark}</span> ${escapeHtml(verdict)}</span>`;
 }
 
@@ -73,7 +64,7 @@ function requirementHtml(req: RequirementData["requirements"][number]): string {
 </section>`;
 }
 
-function testHtml(check: CheckedTest): string {
+function testHtml(check: ReviewedTest): string {
   const { data } = check;
   const open = check.testId
     ? `<button type="button" class="open" data-test-id="${escapeHtml(check.testId)}">Open review</button>`
@@ -84,16 +75,17 @@ function testHtml(check: CheckedTest): string {
 </details>`;
 }
 
-// A collapsible header with the counts of the tests under it and a button
-// that reviews them together, when any of them can be reviewed.
+// A collapsible header for a unit (no function name) or a function, with the
+// counts of the tests under it and a button that reviews them together, when
+// any of them can be reviewed.
 function headerHtml(
   kind: "unit" | "function",
-  name: string,
   unitName: string,
   functionName: string | undefined,
-  tests: CheckedTest[],
+  tests: ReviewedTest[],
   body: string
 ): string {
+  const name = functionName ?? unitName;
   const verdicts = tests.map((test) => test.data.verdict);
   const review = tests.some((test) => test.testId)
     ? `<button type="button" class="open group" data-unit="${escapeHtml(unitName)}"${
@@ -109,7 +101,6 @@ function headerHtml(
 function functionHtml(group: ReportGroup): string {
   return headerHtml(
     "function",
-    group.functionName,
     group.unitName,
     group.functionName,
     group.tests,
@@ -121,7 +112,6 @@ function functionHtml(group: ReportGroup): string {
 function unitHtml(unitName: string, groups: ReportGroup[]): string {
   return headerHtml(
     "unit",
-    unitName,
     unitName,
     undefined,
     groups.flatMap((group) => group.tests),

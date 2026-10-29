@@ -496,6 +496,11 @@ def getCoverageKind(sourceObject):
         return CoverageKind.ignore
 
 
+def _samePath(a, b):
+    """Whether two paths name the same file, as the extension compares them."""
+    return os.path.normcase(a) == os.path.normcase(b)
+
+
 def _buildResultNameCache(sourceObject):
     """
     Pre-builds a mapping from Result.id to test case identifier string.
@@ -584,6 +589,88 @@ def _resultCoversMcdcDecision(decision, result_ids):
     return covered, total
 
 
+def _runGutterHandler(
+    coverageKind,
+    unit,
+    mcdc_line_dic,
+    line,
+    functionLineList,
+    coveredString,
+    partiallyCoveredString,
+    uncoveredString,
+):
+    """
+    Adds a line to the coverage gutter's covered, partially covered and
+    uncovered line strings with the handler of its coverage kind, and returns
+    the three. The MC/DC kinds read the line's decision state from
+    mcdc_line_dic (by unit); the branch kind skips the function start lines.
+    """
+    if coverageKind == CoverageKind.statement:
+        coveredString, uncoveredString = coverageGutter.handleStatementCoverage(
+            line, coveredString, uncoveredString
+        )
+    elif coverageKind == CoverageKind.mcdc:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleMcdcCoverage(
+                unit,
+                mcdc_line_dic,
+                line,
+                coveredString,
+                partiallyCoveredString,
+                uncoveredString,
+            )
+        )
+    elif coverageKind == CoverageKind.statementMcdc:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleStatementMcdcCoverage(
+                unit,
+                mcdc_line_dic,
+                line,
+                coveredString,
+                partiallyCoveredString,
+                uncoveredString,
+            )
+        )
+    elif coverageKind == CoverageKind.statementBranch:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleStatementBranchCoverage(
+                line, coveredString, partiallyCoveredString, uncoveredString
+            )
+        )
+    elif coverageKind == CoverageKind.branch:
+        coveredString, partiallyCoveredString, uncoveredString = (
+            coverageGutter.handleBranchCoverage(
+                line,
+                functionLineList,
+                coveredString,
+                partiallyCoveredString,
+                uncoveredString,
+            )
+        )
+    return coveredString, partiallyCoveredString, uncoveredString
+
+
+def _lineStatuses(namesById, combinedNames, classify):
+    """
+    The coverage statuses of a line's results by test name, from classify
+    (a set of result ids -> "covered", "partiallyCovered" or None), plus "*"
+    for the results of the tests named in combinedNames, classified together.
+    """
+    statuses = {}
+    for resultId, name in namesById.items():
+        status = classify({resultId})
+        if status:
+            statuses[name] = status
+    combinedIds = {
+        resultId for resultId, name in namesById.items() if name in combinedNames
+    }
+    if combinedIds:
+        status = classify(combinedIds)
+        if status:
+            statuses["*"] = status
+    return statuses
+
+
 def _classifyResultForLine(
     result_ids,
     line,
@@ -655,49 +742,9 @@ def _classifyResultForLine(
         ),
     )
 
-    coveredString = partiallyCoveredString = uncoveredString = ""
-    if coverageKind == CoverageKind.statement:
-        coveredString, uncoveredString = coverageGutter.handleStatementCoverage(
-            resultLine, coveredString, uncoveredString
-        )
-    elif coverageKind == CoverageKind.mcdc:
-        coveredString, partiallyCoveredString, uncoveredString = (
-            coverageGutter.handleMcdcCoverage(
-                "",
-                mcdc_line_dic,
-                resultLine,
-                coveredString,
-                partiallyCoveredString,
-                uncoveredString,
-            )
-        )
-    elif coverageKind == CoverageKind.statementMcdc:
-        coveredString, partiallyCoveredString, uncoveredString = (
-            coverageGutter.handleStatementMcdcCoverage(
-                "",
-                mcdc_line_dic,
-                resultLine,
-                coveredString,
-                partiallyCoveredString,
-                uncoveredString,
-            )
-        )
-    elif coverageKind == CoverageKind.statementBranch:
-        coveredString, partiallyCoveredString, uncoveredString = (
-            coverageGutter.handleStatementBranchCoverage(
-                resultLine, coveredString, partiallyCoveredString, uncoveredString
-            )
-        )
-    elif coverageKind == CoverageKind.branch:
-        coveredString, partiallyCoveredString, uncoveredString = (
-            coverageGutter.handleBranchCoverage(
-                resultLine,
-                functionLineList,
-                coveredString,
-                partiallyCoveredString,
-                uncoveredString,
-            )
-        )
+    coveredString, partiallyCoveredString, _ = _runGutterHandler(
+        coverageKind, "", mcdc_line_dic, resultLine, functionLineList, "", "", ""
+    )
 
     if coveredString:
         return "covered"
@@ -760,11 +807,12 @@ def getPerTestCoverageData(sourceObject, combinedTests=None):
     ):
         branches_by_line, mcdc_by_line = _buildBranchAndMcdcByLine(sourceObject)
 
-    # Build function start line set for branch-only filtering
+    # The function start lines, which the branch kind must not take for branches
     functionLineSet = set()
     if coverageKind == CoverageKind.branch:
-        for function in sourceObject.cover_data.functions:
-            functionLineSet.add(function.start_line)
+        functionLineSet = {
+            function.start_line for function in sourceObject.cover_data.functions
+        }
 
     combinedNames = set(combinedTests or [])
 
@@ -772,42 +820,28 @@ def getPerTestCoverageData(sourceObject, combinedTests=None):
         lineResults = line.results
         if not lineResults:
             continue
-        line_num = line.line_number
-        testStatuses = {}
         for result in lineResults:
             if result.id not in resultNameCache:
                 resultNameCache[result.id] = _resultName(result)
-            name = resultNameCache[result.id]
-            if not name:
-                continue
-            status = _classifyResultForLine(
-                {result.id},
-                line,
-                coverageKind,
-                branches_by_line,
-                mcdc_by_line,
-                functionLineSet,
-            )
-            if status:
-                testStatuses[name] = status
-        lineCombinedIds = {
-            result.id
+        namesById = {
+            result.id: resultNameCache[result.id]
             for result in lineResults
-            if resultNameCache.get(result.id) in combinedNames
+            if resultNameCache[result.id]
         }
-        if lineCombinedIds:
-            status = _classifyResultForLine(
-                lineCombinedIds,
+        testStatuses = _lineStatuses(
+            namesById,
+            combinedNames,
+            lambda resultIds: _classifyResultForLine(
+                resultIds,
                 line,
                 coverageKind,
                 branches_by_line,
                 mcdc_by_line,
                 functionLineSet,
-            )
-            if status:
-                testStatuses["*"] = status
+            ),
+        )
         if testStatuses:
-            perTestCoverage[str(line_num)] = testStatuses
+            perTestCoverage[str(line.line_number)] = testStatuses
 
     return perTestCoverage
 
@@ -907,20 +941,11 @@ def getSubunitPerTestCoverage(api, enviroPath, combinedTests=None):
             return None
 
         for (path, line), data in lines.items():
-            statuses = {}
-            for resultId, name in data["names"].items():
-                lineStatus = status(data, {resultId})
-                if lineStatus:
-                    statuses[name] = lineStatus
-            combinedIds = {
-                resultId
-                for resultId, name in data["names"].items()
-                if name in combinedNames
-            }
-            if combinedIds:
-                lineStatus = status(data, combinedIds)
-                if lineStatus:
-                    statuses["*"] = lineStatus
+            statuses = _lineStatuses(
+                data["names"],
+                combinedNames,
+                lambda resultIds: status(data, resultIds),
+            )
             if statuses:
                 perTest.setdefault(path, {})[str(line)] = statuses
     return perTest
@@ -953,65 +978,18 @@ def getCoverageData(sourceObject):
         # iterate_coverage crashes if the file path doesn't exist
         if os.path.exists(sourceObject.path):
             for line in sourceObject.iterate_coverage():
-
-                # STATEMENT
-                if coverageKind == CoverageKind.statement:
-                    coveredString, uncoveredString = (
-                        coverageGutter.handleStatementCoverage(
-                            line,
-                            coveredString,
-                            uncoveredString,
-                        )
+                coveredString, partiallyCoveredString, uncoveredString = (
+                    _runGutterHandler(
+                        coverageKind,
+                        unit,
+                        mcdc_line_dic,
+                        line,
+                        functionLineList,
+                        coveredString,
+                        partiallyCoveredString,
+                        uncoveredString,
                     )
-
-                # MCDC
-                elif coverageKind == CoverageKind.mcdc:
-                    coveredString, partiallyCoveredString, uncoveredString = (
-                        coverageGutter.handleMcdcCoverage(
-                            unit,
-                            mcdc_line_dic,
-                            line,
-                            coveredString,
-                            partiallyCoveredString,
-                            uncoveredString,
-                        )
-                    )
-
-                # STATEMENT + MCDC
-                elif coverageKind == CoverageKind.statementMcdc:
-                    coveredString, partiallyCoveredString, uncoveredString = (
-                        coverageGutter.handleStatementMcdcCoverage(
-                            unit,
-                            mcdc_line_dic,
-                            line,
-                            coveredString,
-                            partiallyCoveredString,
-                            uncoveredString,
-                        )
-                    )
-
-                # STATEMENT + BRANCH
-                elif coverageKind == CoverageKind.statementBranch:
-                    coveredString, partiallyCoveredString, uncoveredString = (
-                        coverageGutter.handleStatementBranchCoverage(
-                            line,
-                            coveredString,
-                            partiallyCoveredString,
-                            uncoveredString,
-                        )
-                    )
-
-                # BRANCH
-                elif coverageKind == CoverageKind.branch:
-                    coveredString, partiallyCoveredString, uncoveredString = (
-                        coverageGutter.handleBranchCoverage(
-                            line,
-                            functionLineList,
-                            coveredString,
-                            partiallyCoveredString,
-                            uncoveredString,
-                        )
-                    )
+                )
 
             # print, but drop the last colon
             coveredString = coveredString[:-1]
@@ -1428,15 +1406,18 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
             api = UnitTestApi(pathToUse)
         except Exception as err:
             raise UsageError(err)
-        # The tests reviewed together, whose combined status each line gets
-        jsonOptions = processOptions(options)
-        combinedTests = jsonOptions.get("tests") if jsonOptions else None
+        # The tests reviewed together, whose combined status each line gets,
+        # and the reviewed file, when only its coverage is wanted
+        jsonOptions = processOptions(options) or {}
+        combinedTests = jsonOptions.get("tests")
+        wantedFile = jsonOptions.get("file")
         # Only the requirements test review needs this, so it is not part of
         # getEnviroData, which runs on every environment load
         returnObject = {
             sourcePath: getPerTestCoverageData(sourceObject, combinedTests)
             for sourcePath, sourceObject, isInstrumented in getSourceFiles(api)
             if isInstrumented
+            and (wantedFile is None or _samePath(sourcePath, wantedFile))
         }
         # Ada: the "separate" subunit files, which the loop above cannot see.
         returnObject.update(getSubunitPerTestCoverage(api, pathToUse, combinedTests))

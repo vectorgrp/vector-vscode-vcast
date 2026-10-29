@@ -21,7 +21,12 @@ import {
   errorLevel,
 } from "./messagePane";
 
-import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
+import {
+  getEnviroPathFromID,
+  getTestNode,
+  makeTestNodeID,
+  testNodeType,
+} from "./testData";
 
 import {
   enviroListAsMapType,
@@ -292,7 +297,7 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
 //////////////////////////////////////////////////////////////////////
 export function getCoverageDataForFileAndTests(
   filePath: string,
-  testIds: string[],
+  testIds: Iterable<string>,
   enviroPath: string,
   perTestCoverage: Record<string, Record<string, string>> // "lineNum" -> {"unit.func.test": "covered"|"partiallyCovered", ...}
 ): coverageSummaryType {
@@ -352,8 +357,7 @@ export function getCoverageDataForFileAndTests(
         continue;
       }
       for (const [testName, status] of Object.entries(testStatusMap)) {
-        const fullTestNodeId = `vcast:${enviroPath}|${testName}`;
-        if (wanted.has(fullTestNodeId)) {
+        if (wanted.has(makeTestNodeID(enviroPath, testName))) {
           const lineNum = Number(lineStr);
           if (status === "partiallyCovered") {
             partiallyCoveredByTest.add(lineNum);

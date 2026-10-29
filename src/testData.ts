@@ -107,6 +107,11 @@ export function getEnviroNodeIDFromID(nodeID: string): string {
   return testNodeCache.get(nodeID).enviroNodeID;
 }
 
+// The node ID of a test the Python interface names "unit.function.test".
+export function makeTestNodeID(enviroPath: string, testName: string): string {
+  return `vcast:${enviroPath}|${testName}`;
+}
+
 export function getEnviroPathFromID(nodeID: string): string {
   // Need to check first if the nodeID is in the cache, otherwise .get will throw an error
   const node = testNodeCache.get(nodeID);

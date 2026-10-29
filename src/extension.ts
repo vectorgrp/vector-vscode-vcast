@@ -163,7 +163,6 @@ import {
   recordCheckedTests,
   refreshReviewCoverage,
   rerunReview,
-  openTstScriptAtTest,
   registerReviewHover,
   revealCheckReport,
   reviewInProgress,
@@ -176,6 +175,7 @@ import {
   countVerdicts,
   parseTests2checkResult,
   RequirementData,
+  resultIdentity,
 } from "./requirements/testReviewData";
 import type { ReportGroup } from "./requirements/testReviewReport";
 
@@ -391,8 +391,15 @@ function resolveSourceLocation(
   if (!unitInfo) return null;
   let lineNumber = 0;
   if (functionName && Array.isArray(unitInfo.functionList)) {
+    // Ada names are case-insensitive: VectorCAST may report a subprogram in
+    // another case than its source declares it.
+    const sameName = (name: unknown) =>
+      name === functionName ||
+      (envData.isAda === true &&
+        typeof name === "string" &&
+        name.toLowerCase() === functionName.toLowerCase());
     const fn = unitInfo.functionList.find(
-      (f: any) => f?.name === functionName && f?.startLine !== undefined
+      (f: any) => sameName(f?.name) && f?.startLine !== undefined
     );
     if (fn) lineNumber = fn.startLine;
   }
@@ -1534,52 +1541,35 @@ function configureExtension(context: vscode.ExtensionContext) {
 
   // Where a function lives: the source file of its unit and the line it
   // starts at (0 when unknown), or undefined after telling the user that the
-  // unit's source file could not be found.
+  // unit's source file could not be found. For an Ada subprogram declared
+  // "is separate", the subunit file holding its body (also `subunitFile`).
   async function sourceOfFunction(
     enviroPath: string,
     unitName: string,
     functionName: string,
     envData?: any
   ): Promise<
-    | { sourcePath: string; functionStartLine: number; subunit?: boolean }
+    | { sourcePath: string; functionStartLine: number; subunitFile?: string }
     | undefined
   > {
     envData ??= await getEnvironmentData(enviroPath);
-    // Ada names are case-insensitive, and VectorCAST reports an Ada unit in
-    // capitals (MANAGER) while its file is manager.adb.
-    const sameName = (a: string, b: string) =>
-      a === b ||
-      (envData?.isAda === true && a.toLowerCase() === b.toLowerCase());
-    const matchingUnit = envData?.unitData?.find((unit: { path: string }) => {
-      if (!unit.path) return false;
-      const unitBaseName = path.basename(unit.path, path.extname(unit.path));
-      return sameName(unitBaseName, unitName);
-    });
-    if (!matchingUnit?.path) {
+    const located = resolveSourceLocation(envData, unitName, functionName);
+    if (!located) {
       vscode.window.showWarningMessage(
         `Could not find source file for unit: ${unitName}`
       );
       return undefined;
     }
-    const func = matchingUnit.functionList?.find(
-      (candidate: { name: string; startLine?: number }) =>
-        sameName(candidate.name, functionName) &&
-        candidate.startLine !== undefined
-    );
     // Ada: a subprogram declared "is separate" has its body in a subunit
     // file, where its lines and its coverage are; the review opens that file
     // at the body's header rather than the parent's stub.
-    if (envData?.isAda) {
-      const subunit = findAdaSubunitBody(
-        envData.unitData,
-        matchingUnit.path,
-        functionName
-      );
-      if (subunit) return { ...subunit, subunit: true };
-    }
+    const subunit = envData?.isAda
+      ? findAdaSubunitBody(envData.unitData, located.uri.fsPath, functionName)
+      : undefined;
+    if (subunit) return { ...subunit, subunitFile: subunit.sourcePath };
     return {
-      sourcePath: matchingUnit.path,
-      functionStartLine: func?.startLine ?? 0,
+      sourcePath: located.uri.fsPath,
+      functionStartLine: located.lineNumber,
     };
   }
 
@@ -1595,7 +1585,11 @@ function configureExtension(context: vscode.ExtensionContext) {
       "i"
     );
     for (const unit of unitData) {
-      if (!unit.path || unit.path === parentPath || !fs.existsSync(unit.path))
+      if (
+        !unit.path ||
+        vscode.Uri.file(unit.path).fsPath === parentPath ||
+        !fs.existsSync(unit.path)
+      )
         continue;
       const lines: string[] = fs.readFileSync(unit.path, "utf8").split(/\r?\n/);
       if (!lines.some((line) => /^\s*separate\s*\(/i.test(line))) continue;
@@ -1614,12 +1608,7 @@ function configureExtension(context: vscode.ExtensionContext) {
     await vscode.commands.executeCommand("workbench.action.closeSidebar");
     const switchingTests = reviewInProgress();
 
-    const perTestCoverageShown = await openReview(target, context);
-
-    // Open TST script beside source file
-    if (scriptOf) {
-      await openTstScriptAtTest(scriptOf, target.enviroPath + ".tst");
-    }
+    const perTestCoverageShown = await openReview(target, context, scriptOf);
 
     if (!switchingTests && perTestCoverageShown) {
       vscode.window.showWarningMessage(
@@ -1628,26 +1617,34 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   }
 
-  // One test's review.
-  async function showTestReview(
+  // The review of one test on its own, which opens its script beside the
+  // source, as a choice of the focus picker.
+  function testChoice(
     testNode: testNodeType,
     testId: string,
     sourcePath: string,
-    reqData: RequirementData,
-    rerun?: () => Promise<void>
-  ) {
-    await showReview(
-      {
+    data: RequirementData,
+    rerun: () => Promise<void>
+  ): FocusChoice {
+    return {
+      kind: "test",
+      label: data.title,
+      description: data.verdict,
+      target: {
         title: testNode.testName,
-        lineNumber: reqData.lineNumber,
+        lineNumber: data.lineNumber,
         sourcePath,
         enviroPath: testNode.enviroPath,
-        tests: [{ testId, data: reqData }],
+        tests: [{ testId, data }],
         rerun,
       },
-      testNode
-    );
+      scriptOf: testNode,
+    };
   }
+
+  // A unit's or a function's review, as the focus picker titles it.
+  const groupTitle = (unitName: string, functionName?: string) =>
+    functionName ? `${unitName}.${functionName}` : unitName;
 
   let openReqsCoverageReview = vscode.commands.registerCommand(
     "vectorcastTestExplorer.openReqsCoverageReview",
@@ -1673,7 +1670,7 @@ function configureExtension(context: vscode.ExtensionContext) {
         testName,
         unitName,
         source.functionStartLine,
-        source.subunit ? source.sourcePath : undefined
+        source.subunitFile
       );
       // tests2check executed the test, so its status and coverage changed.
       await updateDataForEnvironment(enviroPath);
@@ -1681,7 +1678,7 @@ function configureExtension(context: vscode.ExtensionContext) {
 
       setFocusChoices([]);
       recordCheckedTests(enviroPath, [args.id], false);
-      await showTestReview(
+      const choice = testChoice(
         testNode,
         args.id,
         source.sourcePath,
@@ -1693,38 +1690,9 @@ function configureExtension(context: vscode.ExtensionContext) {
           );
         }
       );
+      await showReview(choice.target, choice.scriptOf);
     }
   );
-
-  // The test node a tests2check result is about, when exactly one test of
-  // the checked scope has its name (VectorCAST makes names unique only per
-  // function; tests2check says the unit and function when it knows them).
-  function testNodeIdOf(
-    scopeNode: testNodeType,
-    result: any
-  ): string | undefined {
-    const name: string | undefined = result?.test?.name ?? result?.name;
-    if (!name) return undefined;
-    const unit: string =
-      result?.unit ?? result?.test?.unit ?? scopeNode.unitName;
-    const func: string =
-      result?.subprogram ?? result?.test?.subprogram ?? scopeNode.functionName;
-    // Case-insensitive: Ada names may come back in another case.
-    const prefix = (
-      `${scopeNode.enviroNodeID}|` +
-      (unit ? `${unit}.` + (func ? `${func}.` : "") : "")
-    ).toLowerCase();
-    const candidates: string[] = [];
-    for (const id of testNodeCache.keys()) {
-      if (
-        typeof id === "string" &&
-        id.toLowerCase().startsWith(prefix) &&
-        getTestNode(id)?.testName === name
-      )
-        candidates.push(id);
-    }
-    return candidates.length === 1 ? candidates[0] : undefined;
-  }
 
   let checkTestsAgainstRequirements = vscode.commands.registerCommand(
     "vectorcastTestExplorer.checkTestsAgainstRequirements",
@@ -1738,21 +1706,24 @@ function configureExtension(context: vscode.ExtensionContext) {
       const scope =
         scopeNode.functionName || scopeNode.unitName || scopeNode.enviroName;
 
-      // The tests under the node in the test tree. Those of a unit or a
-      // function are named to tests2check; the environment's are not (it
-      // checks every test), but are kept so the report can say which ones
-      // it left out.
-      const inScope = (id: string) =>
-        id.startsWith(
-          scopeNode.unitName ? `${args.id}.` : `${scopeNode.enviroNodeID}|`
-        );
-      const scopeTests = [...testNodeCache.keys()]
-        .filter((id): id is string => typeof id === "string" && inScope(id))
+      // The environment's tests in the test tree, and those under the node.
+      // A unit's or a function's are named to tests2check; the environment's
+      // are not (it checks every test), but are kept so the report can say
+      // which ones it left out.
+      const envTests = [...testNodeCache.keys()]
+        .filter(
+          (id): id is string =>
+            typeof id === "string" &&
+            id.startsWith(`${scopeNode.enviroNodeID}|`)
+        )
         .map((id) => ({ id, node: getTestNode(id) }))
         .filter(
           (test): test is { id: string; node: testNodeType } =>
             !!test.node?.testName
         );
+      const inScope = (id: string) =>
+        !scopeNode.unitName || id.startsWith(`${args.id}.`);
+      const scopeTests = envTests.filter(({ id }) => inScope(id));
       let testNames: string[] | undefined;
       if (scopeNode.unitName) {
         testNames = scopeTests.map(({ node }) => node.testName);
@@ -1774,6 +1745,34 @@ function configureExtension(context: vscode.ExtensionContext) {
       await updateDataForEnvironment(enviroPath);
       if (!results) return;
 
+      // The test node a tests2check result is about, when exactly one test
+      // has its name under the unit and function the result says (VectorCAST
+      // makes names unique only per function); the scope's unit and function
+      // stand in when it does not say.
+      const testNodeIdOf = (result: any): string | undefined => {
+        const identity = resultIdentity(result);
+        if (!identity.name) return undefined;
+        const unit = identity.unit ?? scopeNode.unitName;
+        const func = identity.subprogram ?? scopeNode.functionName;
+        // Case-insensitive: Ada names may come back in another case.
+        const prefix = (
+          `${scopeNode.enviroNodeID}|` +
+          (unit ? `${unit}.` + (func ? `${func}.` : "") : "")
+        ).toLowerCase();
+        const candidates = envTests.filter(
+          ({ id, node }) =>
+            id.toLowerCase().startsWith(prefix) &&
+            node.testName === identity.name
+        );
+        return candidates.length === 1 ? candidates[0].id : undefined;
+      };
+      const rerun = async (): Promise<void> => {
+        await vscode.commands.executeCommand(
+          "vectorcastTestExplorer.checkTestsAgainstRequirements",
+          args
+        );
+      };
+
       // One group per function, in the order tests2check reported them. The
       // source lookup is per function, and once per function.
       const envData = await getEnvironmentData(enviroPath);
@@ -1782,30 +1781,27 @@ function configureExtension(context: vscode.ExtensionContext) {
         string,
         Awaited<ReturnType<typeof sourceOfFunction>>
       >();
-      const sourceOf = new Map<string, string>();
-      const reviewData = new Map<string, RequirementData>();
+      // The checked tests the review can open: those whose node and source
+      // are known.
+      const testChoices: FocusChoice[] = [];
       // What tests2check reported on: by node when known, else by name.
       const checkedIds = new Set<string>();
       const checkedNames = new Set<string>();
       for (const result of results) {
-        const testId = testNodeIdOf(scopeNode, result);
+        const testId = testNodeIdOf(result);
         // -t matches names across the environment: a same-named test of
         // another function was checked too, but is not shown.
         if (testNames && !(testId && inScope(testId))) continue;
         const testNode = testId ? getTestNode(testId) : undefined;
+        const identity = resultIdentity(result);
         const unitName: string =
-          testNode?.unitName ??
-          result?.unit ??
-          result?.test?.unit ??
-          scopeNode.unitName ??
-          "";
+          testNode?.unitName ?? identity.unit ?? scopeNode.unitName ?? "";
         const functionName: string =
           testNode?.functionName ??
-          result?.subprogram ??
-          result?.test?.subprogram ??
+          identity.subprogram ??
           scopeNode.functionName ??
           "";
-        const title: string = result?.test?.name ?? result?.name ?? "?";
+        const title = identity.name ?? "?";
         if (testId) checkedIds.add(testId);
         else checkedNames.add(title);
         const key = `${unitName}.${functionName}`;
@@ -1821,20 +1817,21 @@ function configureExtension(context: vscode.ExtensionContext) {
           title,
           unitName,
           source?.functionStartLine ?? 0,
-          source?.subunit ? source.sourcePath : undefined
+          source?.subunitFile
         );
         // The review opens only for a test whose node and source are known.
-        const reviewable = testNode && source ? testId : undefined;
-        if (reviewable && source) {
-          sourceOf.set(reviewable, source.sourcePath);
-          reviewData.set(reviewable, data);
+        const reviewable = !!(testNode && source);
+        if (testNode && testId && source) {
+          testChoices.push(
+            testChoice(testNode, testId, source.sourcePath, data, rerun)
+          );
         }
         let group = groups.get(key);
         if (!group) {
           group = { unitName, functionName, tests: [] };
           groups.set(key, group);
         }
-        group.tests.push({ testId: reviewable, data });
+        group.tests.push({ testId: reviewable ? testId : undefined, data });
       }
 
       if (groups.size === 0) {
@@ -1857,84 +1854,61 @@ function configureExtension(context: vscode.ExtensionContext) {
             node.testName,
           ].join(".")
         );
-      recordCheckedTests(enviroPath, [...reviewData.keys()], true);
-      const rerun = async (): Promise<void> => {
-        await vscode.commands.executeCommand(
-          "vectorcastTestExplorer.checkTestsAgainstRequirements",
-          args
-        );
-      };
+      recordCheckedTests(
+        enviroPath,
+        testChoices.map((choice) => choice.target.tests[0].testId!),
+        true
+      );
 
       // What the review can show: each unit, each function (the tests of
       // either reviewed together, their requirements' lines combined and
       // their coverage as one) and each test on its own.
-      const choices: FocusChoice[] = [];
-      const groupTarget = (
+      const groupChoice = (
+        kind: "unit" | "function",
         unitName: string,
         functionName?: string
-      ): ReviewTarget | undefined => {
+      ): FocusChoice[] => {
         const reviewed = [...groups.entries()].filter(
           ([key, group]) =>
             group.unitName === unitName &&
             (!functionName || group.functionName === functionName) &&
             sources.get(key)
         );
-        if (reviewed.length === 0) return undefined;
+        if (reviewed.length === 0) return [];
         const source = sources.get(reviewed[0][0])!;
-        return {
-          title: functionName ? `${unitName}.${functionName}` : unitName,
-          lineNumber: functionName
-            ? source.functionStartLine
-            : Math.min(
-                ...reviewed.map(([key]) => sources.get(key)!.functionStartLine)
-              ),
-          sourcePath: source.sourcePath,
-          enviroPath,
-          tests: reviewed.flatMap(([, group]) => group.tests),
-          rerun,
-        };
-      };
-      for (const unitName of new Set(
-        [...groups.values()].map((group) => group.unitName)
-      )) {
-        const target = groupTarget(unitName);
-        if (target)
-          choices.push({
-            kind: "unit",
-            label: unitName,
-            description: countVerdicts(target.tests.map((t) => t.data.verdict)),
-            target,
-          });
-      }
-      for (const group of groups.values()) {
-        const target = groupTarget(group.unitName, group.functionName);
-        if (target)
-          choices.push({
-            kind: "function",
-            label: `${group.unitName}.${group.functionName}`,
-            description: countVerdicts(target.tests.map((t) => t.data.verdict)),
-            target,
-          });
-      }
-      for (const [testId, data] of reviewData) {
-        const testNode = getTestNode(testId);
-        const sourcePath = sourceOf.get(testId);
-        if (testNode && sourcePath)
-          choices.push({
-            kind: "test",
-            label: data.title,
-            description: data.verdict,
+        const tests = reviewed.flatMap(([, group]) => group.tests);
+        return [
+          {
+            kind,
+            label: groupTitle(unitName, functionName),
+            description: countVerdicts(tests.map((test) => test.data.verdict)),
             target: {
-              title: testNode.testName,
-              lineNumber: data.lineNumber,
-              sourcePath,
+              title: groupTitle(unitName, functionName),
+              lineNumber: functionName
+                ? source.functionStartLine
+                : Math.min(
+                    ...reviewed.map(
+                      ([key]) => sources.get(key)!.functionStartLine
+                    )
+                  ),
+              sourcePath: source.sourcePath,
               enviroPath,
-              tests: [{ testId, data }],
+              tests,
               rerun,
             },
-            scriptOf: testNode,
-          });
-      }
+          },
+        ];
+      };
+      const unitNames = new Set(
+        [...groups.values()].map((group) => group.unitName)
+      );
+      const choices: FocusChoice[] = [
+        ...[...unitNames].flatMap((unitName) => groupChoice("unit", unitName)),
+        ...[...groups.values()].flatMap((group) =>
+          groupChoice("function", group.unitName, group.functionName)
+        ),
+        ...testChoices,
+      ];
       // An open review of the same tests, as after its re-run link, shows
       // the new verdicts; it is looked up before the new choices replace
       // the old ones.
@@ -1958,8 +1932,7 @@ function configureExtension(context: vscode.ExtensionContext) {
             choices.find(
               (choice) =>
                 choice.kind === (functionName ? "function" : "unit") &&
-                choice.target.title ===
-                  (functionName ? `${unitName}.${functionName}` : unitName)
+                choice.target.title === groupTitle(unitName, functionName)
             )
           ),
         rerun,

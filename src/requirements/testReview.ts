@@ -23,10 +23,10 @@ import { logCliError } from "./requirementsLog";
 import { runReqs2xTool } from "./processRunner";
 import { TESTS2CHECK_EXECUTABLE_PATH } from "./requirementsExecutables";
 import {
+  escapeHtml,
   groupMarkdown,
   lastToolError,
   lineHoverMarkdown,
-  LineRunner,
   parseTests2checkResult,
   ranLinesFromCoverage,
   RequirementData,
@@ -36,21 +36,16 @@ import {
 } from "./testReviewData";
 import { checkReportHtml, ReportGroup } from "./testReviewReport";
 import { getNonce } from "../webviewUtils";
+import { getRangeOption } from "../utilities";
 
-/**
- * Finds the line number containing the test name in the TST script
- */
-export function findTestNameLine(tstContent: string, testName: string): number {
-  const lines = tstContent.split("\n");
+// The 0-based line of the test's TEST.NAME in the script, or the top of the
+// script when it has none.
+function findTestNameLine(tstContent: string, testName: string): number {
   const searchPattern = `TEST.NAME:${testName}`;
-
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].includes(searchPattern)) {
-      return i;
-    }
-  }
-
-  return 0; // Default to top of file if not found
+  const line = tstContent
+    .split("\n")
+    .findIndex((candidate) => candidate.includes(searchPattern));
+  return Math.max(0, line);
 }
 
 // Decoration Types for highlighted critical lines
@@ -70,27 +65,12 @@ function createCoverageDecoration(
 }
 
 /**
- * Converts a 1-based line number to a single-line vscode.Range
- */
-function lineToRange(
-  document: vscode.TextDocument,
-  lineNumber: number
-): vscode.Range {
-  const line = lineNumber - 1; // Convert to 0-based
-  return new vscode.Range(
-    new vscode.Position(line, 0),
-    new vscode.Position(line, document.lineAt(line).text.length)
-  );
-}
-
-/**
  * Highlights the code the requirements need, by whether the reviewed tests
  * ran it (tests2check's ran_lines, not the coverage of all tests)
  */
 export function highlightCriticalLines(
   editor: vscode.TextEditor,
-  document: vscode.TextDocument,
-  reqData: RequirementData | RequirementData[]
+  reqData: RequirementData[]
 ): void {
   // Dispose all previous decorations via shared helper
   disposeCriticalLineDecorations();
@@ -102,11 +82,12 @@ export function highlightCriticalLines(
     "rgba(87, 184, 89, 0.15)" // green bg
   );
 
+  // The decorations color whole lines, so the gutter's 1-based line ranges do.
   const { covered, uncovered } = reviewLineColors(reqData);
   const ranges = (lines: number[]) =>
     lines
-      .filter((line) => line <= document.lineCount)
-      .map((line) => lineToRange(document, line));
+      .filter((line) => line <= editor.document.lineCount)
+      .map((line) => getRangeOption(line - 1));
   editor.setDecorations(activeUncoveredDecoration, ranges(uncovered));
   editor.setDecorations(activeCoveredDecoration, ranges(covered));
 }
@@ -204,6 +185,21 @@ function threadLabel(target: ReviewTarget): string {
   return `Requirements check: ${target.title}${stale ? " (out of date)" : ""}`;
 }
 
+// Shows the open review's comment and label again, as its state is now.
+function refreshReviewThread(target: ReviewTarget): void {
+  if (!reviewThread) return;
+  reviewThread.comments = [
+    { ...reviewThread.comments[0], body: commentBody(target) },
+  ];
+  reviewThread.label = threadLabel(target);
+}
+
+// Whether a file is the reviewed one; case-insensitively, as a Windows path
+// may differ in its drive letter's case.
+function isReviewedFile(review: ReviewTarget, uri: vscode.Uri): boolean {
+  return uri.fsPath.toLowerCase() === review.sourcePath.toLowerCase();
+}
+
 // ---- Out-of-date checks ------------------------------------------------
 
 // A test as its environment reported it when it was checked.
@@ -282,12 +278,7 @@ export function markChangedTestsStale(enviroPath: string): void {
     }
   }
   if (!changed) return;
-  if (reviewThread && currentReview) {
-    reviewThread.comments = [
-      { ...reviewThread.comments[0], body: commentBody(currentReview) },
-    ];
-    reviewThread.label = threadLabel(currentReview);
-  }
+  if (currentReview) refreshReviewThread(currentReview);
   void reportPanel?.webview.postMessage({
     type: "stale",
     testIds: [...staleTests],
@@ -422,26 +413,16 @@ export async function refreshReviewCoverage(
       coverable
     );
   }
-  const editor = vscode.window.visibleTextEditors.find(
-    (candidate) =>
-      candidate.document.uri.fsPath.toLowerCase() ===
-      review.sourcePath.toLowerCase()
+  const editor = vscode.window.visibleTextEditors.find((candidate) =>
+    isReviewedFile(review, candidate.document.uri)
   );
   if (editor) {
     highlightCriticalLines(
       editor,
-      editor.document,
       review.tests.map((test) => test.data)
     );
   }
-  if (reviewThread) {
-    reviewThread.comments = [
-      { ...reviewThread.comments[0], body: commentBody(review) },
-    ];
-    reviewThread.label = threadLabel(review);
-  }
-  // Whatever got the focus meanwhile, the reviewed file shows the new coverage.
-  await updateDisplayedCoverage();
+  refreshReviewThread(review);
 }
 
 /** The comment's re-run link. */
@@ -513,14 +494,6 @@ const CHOICE_ICONS: Record<FocusChoice["kind"], string> = {
 const SHOWN_STYLE =
   ' style="color:var(--vscode-button-foreground);background-color:var(--vscode-button-background);"';
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 // What the review shows, as a heading, and a button-colored swap icon that
 // opens the picker; the title button alone is easy to miss.
 function focusLineMarkdown(shownTitle: string): string {
@@ -565,13 +538,7 @@ export async function pickReviewFocus(
     quickPick.show();
   });
   if (!picked) return;
-  await openReview(picked.target, context);
-  if (picked.scriptOf) {
-    await openTstScriptAtTest(
-      picked.scriptOf,
-      picked.target.enviroPath + ".tst"
-    );
-  }
+  await openReview(picked.target, context, picked.scriptOf);
 }
 
 /**
@@ -617,13 +584,15 @@ export function disposeCriticalLineDecorations(): void {
 
 /**
  * Opens the source file with the review's comment and highlighting, and the
- * reviewed tests' coverage in the gutter. Returns whether the gutter shows
- * that coverage; if it could not be read, or none of the tests was found in
- * the test tree, it keeps showing the coverage of all tests.
+ * reviewed tests' coverage in the gutter; for a single test (`scriptOf`), its
+ * script beside the source. Returns whether the gutter shows that coverage;
+ * if it could not be read, or none of the tests was found in the test tree,
+ * it keeps showing the coverage of all tests.
  */
 export async function openReview(
   target: ReviewTarget,
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
+  scriptOf?: testNodeType
 ): Promise<boolean> {
   const sourceFileUri = vscode.Uri.file(target.sourcePath);
   const document = await vscode.workspace.openTextDocument(sourceFileUri);
@@ -650,18 +619,17 @@ export async function openReview(
   // The comment's close button is the only way out of review mode, so the
   // comment comes first, and a failure anywhere ends the review again rather
   // than leaving the gutter on one test's coverage.
+  let perTestCoverageShown = false;
   try {
     showReviewThread(sourceFileUri, reviewPosition.line, target, context);
     currentReview = target;
     highlightCriticalLines(
       editor,
-      document,
       target.tests.map((test) => test.data)
     );
     const testIds = target.tests.flatMap((test) =>
       test.testId ? [test.testId] : []
     );
-    let perTestCoverageShown = false;
     if (testIds.length) {
       perTestCoverageShown = await enterReviewMode(
         testIds,
@@ -681,11 +649,12 @@ export async function openReview(
     }
     // Update coverage decorations to show review mode coverage
     await updateDisplayedCoverage();
-    return perTestCoverageShown;
   } catch (error) {
     await endReview();
     throw error;
   }
+  if (scriptOf) await openTstScriptAtTest(scriptOf);
+  return perTestCoverageShown;
 }
 
 /**
@@ -708,12 +677,9 @@ export async function focusReviewTest(
       tests: [test],
       rerun: currentReview.rerun,
     },
-    context
+    context,
+    getTestNode(testId)
   );
-  const testNode = getTestNode(testId);
-  if (testNode) {
-    await openTstScriptAtTest(testNode, currentReview.enviroPath + ".tst");
-  }
 }
 
 /**
@@ -727,16 +693,11 @@ export function registerReviewHover(context: vscode.ExtensionContext): void {
       {
         provideHover(document, position) {
           const review = currentReview;
-          if (
-            !review ||
-            document.uri.fsPath.toLowerCase() !==
-              review.sourcePath.toLowerCase()
-          )
+          if (!review || !isReviewedFile(review, document.uri)) {
             return undefined;
-          const line = position.line + 1;
-          const ran: LineRunner[] = reviewedTestsOnLine(line).map(
-            ({ name, status }) => {
-              const testId = `vcast:${review.enviroPath}|${name}`;
+          }
+          const ran = reviewedTestsOnLine(position.line + 1).map(
+            ({ name, testId, status }) => {
               const test = review.tests.find(
                 (candidate) => candidate.testId === testId
               );
@@ -755,12 +716,11 @@ export function registerReviewHover(context: vscode.ExtensionContext): void {
 }
 
 /**
- * Opens the TST script and jumps to the test definition
+ * Opens the environment's test script beside the source and jumps to the
+ * test's definition in it.
  */
-export async function openTstScriptAtTest(
-  testNode: testNodeType,
-  scriptPath: string
-): Promise<void> {
+async function openTstScriptAtTest(testNode: testNodeType): Promise<void> {
+  const scriptPath = testNode.enviroPath + ".tst";
   const commandStatus = await dumpTestScriptFile(testNode, scriptPath);
 
   if (commandStatus.errorCode !== 0) {

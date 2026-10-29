@@ -105,11 +105,33 @@ export function reviewLineColors(input: RequirementData | RequirementData[]): {
   return { covered, uncovered };
 }
 
-// "1 passed, 1 failed"
-export function countVerdicts(verdicts: string[]): string {
+// Which test a tests2check result is about, as the tool names it.
+export function resultIdentity(result: any): {
+  name?: string;
+  unit?: string;
+  subprogram?: string;
+} {
+  return {
+    name: result?.test?.name ?? result?.name,
+    unit: result?.unit ?? result?.test?.unit,
+    subprogram: result?.subprogram ?? result?.test?.subprogram,
+  };
+}
+
+// How many tests passed, failed or got no verdict.
+export function verdictCounts(verdicts: string[]): {
+  passed: number;
+  failed: number;
+  undecided: number;
+} {
   const passed = verdicts.filter((v) => v === "PASS").length;
   const failed = verdicts.filter((v) => v === "FAIL").length;
-  const undecided = verdicts.length - passed - failed;
+  return { passed, failed, undecided: verdicts.length - passed - failed };
+}
+
+// "1 passed, 1 failed"
+export function countVerdicts(verdicts: string[]): string {
+  const { passed, failed, undecided } = verdictCounts(verdicts);
   return [
     `${passed} passed`,
     `${failed} failed`,
@@ -161,13 +183,15 @@ export function reviewMarkdown(reqData: RequirementData): string {
   return parts.join("\n\n");
 }
 
-// Text inside the comment's HTML table must not be read as HTML.
-function escapeHtml(text: string): string {
+// Text from the test or tests2check put into HTML (the comment's table, the
+// report) must not be read as HTML.
+export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // The only styling VS Code keeps in a comment's HTML: colors from the theme.
