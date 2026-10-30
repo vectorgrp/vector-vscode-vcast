@@ -6,10 +6,17 @@ import {
 } from "vscode";
 import {
   getCoverageDataForFile,
+  getCoverageDataForFileAndTests,
   getListOfFilesToDecorate,
 } from "./vcastTestInterface";
 
-import { getRangeOption, isSupportedSourceFile } from "./utilities";
+import { getPerTestCoverageFromAPI } from "./vcastAdapter";
+import { makeTestNodeID } from "./testData";
+import {
+  forceLowerCaseDriveLetter,
+  getRangeOption,
+  isSupportedSourceFile,
+} from "./utilities";
 
 import { fileDecorator } from "./fileDecorator";
 import {
@@ -176,13 +183,35 @@ export async function updateCOVdecorations() {
 
   let activeEditor = vscode.window.activeTextEditor;
 
+  // During a requirements check, focus is often in the review's comment or
+  // the test run's output rather than in a source editor; the reviewed file's
+  // editor is then the one to keep up to date.
+  if (
+    review &&
+    !(activeEditor && isSupportedSourceFile(activeEditor.document.uri.fsPath))
+  ) {
+    activeEditor = vscode.window.visibleTextEditors.find(
+      (editor) =>
+        forceLowerCaseDriveLetter(editor.document.uri.fsPath) ===
+        review!.filePath
+    );
+  }
+
   // Ada is not A VSCode supproted language. So we need to gate on file extension because
   // otherwise activeEditor.document.languageId would return "Plaintext".
   if (activeEditor && isSupportedSourceFile(activeEditor.document.uri.fsPath)) {
     const filePath = url.fileURLToPath(activeEditor.document.uri.toString());
 
-    // this returns the cached coverage data for this file
-    const coverageData = getCoverageDataForFile(filePath);
+    // In review mode, show only the reviewed tests' coverage for the target file
+    const coverageData =
+      review?.filePath === forceLowerCaseDriveLetter(filePath)
+        ? getCoverageDataForFileAndTests(
+            filePath,
+            review.testIds,
+            review.enviroPath,
+            review.perTestCoverage
+          )
+        : getCoverageDataForFile(filePath);
 
     if (coverageData.hasCoverageData) {
       // there is coverage data and it matches the file checksum
@@ -328,4 +357,108 @@ export async function toggleCoverageAction() {
 
 export async function updateDisplayedCoverage() {
   if (coverageOn) await updateCOVdecorations();
+}
+
+// The requirements check in progress, whose tests alone show their coverage
+// in the checked source file.
+let review:
+  | {
+      testIds: Set<string>;
+      filePath: string;
+      enviroPath: string;
+      perTestCoverage: Record<string, Record<string, string>>;
+    }
+  | undefined;
+
+/**
+ * Shows only the given tests' coverage in the given file. Returns false, with
+ * the gutter left on the coverage of all tests, when the per-test coverage
+ * could not be read (the reason is in the message pane): an empty result must
+ * not pass for "these tests ran nothing".
+ */
+export async function enterReviewMode(
+  testIds: string[],
+  filePath: string,
+  enviroPath: string
+): Promise<boolean> {
+  // Fetched per review rather than with the environment data, which would
+  // compute it for every test on every environment load, and for this file
+  // only. The reviewed tests are named so that each line also gets their
+  // status as one ("*").
+  const prefix = makeTestNodeID(enviroPath, "");
+  const perTestCoverage = await getPerTestCoverageFromAPI(
+    enviroPath,
+    testIds.map((id) => (id.startsWith(prefix) ? id.slice(prefix.length) : id)),
+    filePath
+  );
+  if (perTestCoverage == null) {
+    review = undefined;
+    return false;
+  }
+  const forThisFile = Object.entries(perTestCoverage).find(
+    ([path]) =>
+      forceLowerCaseDriveLetter(path) === forceLowerCaseDriveLetter(filePath)
+  );
+  review = {
+    testIds: new Set(testIds),
+    filePath: forceLowerCaseDriveLetter(filePath),
+    enviroPath,
+    perTestCoverage: (forThisFile?.[1] ?? {}) as Record<
+      string,
+      Record<string, string>
+    >,
+  };
+  return true;
+}
+
+// A reviewed test that ran a line: as the Python interface names it, by its
+// node ID, and with "covered" or "partiallyCovered".
+export interface ReviewedTestRun {
+  name: string;
+  testId: string;
+  status: string;
+}
+
+// The reviewed tests in one line's entry of the per-test coverage. Its "*"
+// entry is the tests' status as one, not a test.
+function reviewedTestsIn(tests: Record<string, string>): ReviewedTestRun[] {
+  if (!review) return [];
+  const { enviroPath, testIds } = review;
+  return Object.entries(tests).flatMap(([name, status]) => {
+    const testId = makeTestNodeID(enviroPath, name);
+    return name !== "*" && testIds.has(testId)
+      ? [{ name, testId, status }]
+      : [];
+  });
+}
+
+/**
+ * The reviewed tests that ran the given 1-based line of the reviewed file.
+ */
+export function reviewedTestsOnLine(line: number): ReviewedTestRun[] {
+  return reviewedTestsIn(review?.perTestCoverage[String(line)] ?? {});
+}
+
+/**
+ * For each reviewed test (by node ID), the 1-based lines of the reviewed file
+ * it ran, as the environment's per-test coverage says.
+ */
+export function linesRanByReviewedTests(): Map<string, Set<number>> {
+  const ran = new Map<string, Set<number>>();
+  for (const [line, tests] of Object.entries(review?.perTestCoverage ?? {})) {
+    for (const { testId } of reviewedTestsIn(tests)) {
+      if (!ran.has(testId)) ran.set(testId, new Set());
+      ran.get(testId)!.add(Number(line));
+    }
+  }
+  return ran;
+}
+
+export async function exitReviewMode(): Promise<void> {
+  review = undefined;
+
+  // Refresh normal coverage display
+  if (coverageOn) {
+    await updateCOVdecorations();
+  }
 }

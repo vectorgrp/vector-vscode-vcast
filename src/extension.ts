@@ -50,6 +50,7 @@ import {
   getEnviroPathFromID,
   getTestNode,
   testNodeType,
+  testNodeCache,
 } from "./testData";
 
 import {
@@ -131,6 +132,7 @@ import {
 
 import {
   clearVcastRepositoryInConfig,
+  findRelevantRequirementGateway,
   resolveRequirementsGatewayInnerDir,
 } from "./requirements/rgwPath";
 import {
@@ -149,6 +151,33 @@ import {
 import { generateRequirementsHtml } from "./requirements/webviews/template";
 import type { FromWebview, ToWebview } from "./requirements/webviews/messages";
 import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
+import {
+  endReview,
+  fetchRequirementChecks,
+  fetchRequirementCoverageData,
+  FOCUS_REVIEW_TEST_COMMAND,
+  FocusChoice,
+  focusReviewTest,
+  openReview,
+  pickReviewFocus,
+  recordCheckedTests,
+  refreshReviewCoverage,
+  rerunReview,
+  registerReviewHover,
+  revealCheckReport,
+  reviewInProgress,
+  ReviewTarget,
+  setFocusChoices,
+  choiceMatchingOpenReview,
+  showCheckReport,
+} from "./requirements/testReview";
+import {
+  countVerdicts,
+  parseTests2checkResult,
+  RequirementData,
+  resultIdentity,
+} from "./requirements/testReviewData";
+import type { ReportGroup } from "./requirements/testReviewReport";
 
 import {
   exportRequirements,
@@ -362,8 +391,15 @@ function resolveSourceLocation(
   if (!unitInfo) return null;
   let lineNumber = 0;
   if (functionName && Array.isArray(unitInfo.functionList)) {
+    // Ada names are case-insensitive: VectorCAST may report a subprogram in
+    // another case than its source declares it.
+    const sameName = (name: unknown) =>
+      name === functionName ||
+      (envData.isAda === true &&
+        typeof name === "string" &&
+        name.toLowerCase() === functionName.toLowerCase());
     const fn = unitInfo.functionList.find(
-      (f: any) => f?.name === functionName && f?.startLine !== undefined
+      (f: any) => sameName(f?.name) && f?.startLine !== undefined
     );
     if (fn) lineNumber = fn.startLine;
   }
@@ -1490,6 +1526,452 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(openSourceFileFromTestpaneCommand);
+
+  // The requirements gateway of an environment, or undefined after telling
+  // the user that there is none.
+  function requirementsGatewayFor(enviroPath: string): string | undefined {
+    const gateway = findRelevantRequirementGateway(enviroPath) ?? undefined;
+    if (!gateway) {
+      vscode.window.showWarningMessage(
+        `No requirements gateway was found for ${enviroPath}, so there are no requirements to check against.`
+      );
+    }
+    return gateway;
+  }
+
+  // Where a function lives: the source file of its unit and the line it
+  // starts at (0 when unknown), or undefined after telling the user that the
+  // unit's source file could not be found. For an Ada subprogram declared
+  // "is separate", the subunit file holding its body (also `subunitFile`).
+  async function sourceOfFunction(
+    enviroPath: string,
+    unitName: string,
+    functionName: string,
+    envData?: any
+  ): Promise<
+    | { sourcePath: string; functionStartLine: number; subunitFile?: string }
+    | undefined
+  > {
+    envData ??= await getEnvironmentData(enviroPath);
+    const located = resolveSourceLocation(envData, unitName, functionName);
+    if (!located) {
+      vscode.window.showWarningMessage(
+        `Could not find source file for unit: ${unitName}`
+      );
+      return undefined;
+    }
+    // Ada: a subprogram declared "is separate" has its body in a subunit
+    // file, where its lines and its coverage are; the review opens that file
+    // at the body's header rather than the parent's stub.
+    const subunit = envData?.isAda
+      ? findAdaSubunitBody(envData.unitData, located.uri.fsPath, functionName)
+      : undefined;
+    if (subunit) return { ...subunit, subunitFile: subunit.sourcePath };
+    return {
+      sourcePath: located.uri.fsPath,
+      functionStartLine: located.lineNumber,
+    };
+  }
+
+  // The subunit file ("separate (Parent)") holding a subprogram's body, and
+  // the 1-based line of its header there.
+  function findAdaSubunitBody(
+    unitData: { path: string }[],
+    parentPath: string,
+    functionName: string
+  ): { sourcePath: string; functionStartLine: number } | undefined {
+    const header = new RegExp(
+      `^\\s*(procedure|function)\\s+${functionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+      "i"
+    );
+    for (const unit of unitData) {
+      if (
+        !unit.path ||
+        vscode.Uri.file(unit.path).fsPath === parentPath ||
+        !fs.existsSync(unit.path)
+      )
+        continue;
+      const lines: string[] = fs.readFileSync(unit.path, "utf8").split(/\r?\n/);
+      if (!lines.some((line) => /^\s*separate\s*\(/i.test(line))) continue;
+      const index = lines.findIndex((line) => header.test(line));
+      if (index >= 0)
+        return { sourcePath: unit.path, functionStartLine: index + 1 };
+    }
+    return undefined;
+  }
+
+  // Shows a requirements check: the source file with the lines the
+  // requirements need highlighted and the reviewed tests' coverage, and for
+  // one test its script beside it.
+  async function showReview(target: ReviewTarget, scriptOf?: testNodeType) {
+    // Close sidebar for more screen space
+    await vscode.commands.executeCommand("workbench.action.closeSidebar");
+    const switchingTests = reviewInProgress();
+
+    const perTestCoverageShown = await openReview(target, context, scriptOf);
+
+    if (!switchingTests && perTestCoverageShown) {
+      vscode.window.showWarningMessage(
+        `Only the coverage of ${target.title} is shown while its requirements check is open. Close the comment to see all coverage again.`
+      );
+    }
+  }
+
+  // The review of one test on its own, which opens its script beside the
+  // source, as a choice of the focus picker.
+  function testChoice(
+    testNode: testNodeType,
+    testId: string,
+    sourcePath: string,
+    data: RequirementData,
+    rerun: () => Promise<void>
+  ): FocusChoice {
+    return {
+      kind: "test",
+      label: data.title,
+      description: data.verdict,
+      target: {
+        title: testNode.testName,
+        lineNumber: data.lineNumber,
+        sourcePath,
+        enviroPath: testNode.enviroPath,
+        tests: [{ testId, data }],
+        rerun,
+      },
+      scriptOf: testNode,
+    };
+  }
+
+  // A unit's or a function's review, as the focus picker titles it.
+  const groupTitle = (unitName: string, functionName?: string) =>
+    functionName ? `${unitName}.${functionName}` : unitName;
+
+  let openReqsCoverageReview = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.openReqsCoverageReview",
+    async (args: any) => {
+      if (!args) return;
+
+      const testNode: testNodeType = getTestNode(args.id);
+      if (!testNode?.testName) {
+        vscode.window.showWarningMessage(
+          `Failed to retrieve node test data for ${args.id}. Aborting the requirements check.`
+        );
+        return;
+      }
+      const { enviroPath, unitName, functionName, testName } = testNode;
+      const gatewayPath = requirementsGatewayFor(enviroPath);
+      if (!gatewayPath) return;
+      const source = await sourceOfFunction(enviroPath, unitName, functionName);
+      if (!source) return;
+
+      const reqData = await fetchRequirementCoverageData(
+        enviroPath,
+        gatewayPath,
+        testName,
+        unitName,
+        source.functionStartLine,
+        source.subunitFile
+      );
+      // tests2check executed the test, so its status and coverage changed.
+      await updateDataForEnvironment(enviroPath);
+      if (!reqData) return;
+
+      setFocusChoices([]);
+      recordCheckedTests(enviroPath, [args.id], false);
+      const choice = testChoice(
+        testNode,
+        args.id,
+        source.sourcePath,
+        reqData,
+        async () => {
+          await vscode.commands.executeCommand(
+            "vectorcastTestExplorer.openReqsCoverageReview",
+            args
+          );
+        }
+      );
+      await showReview(choice.target, choice.scriptOf);
+    }
+  );
+
+  let checkTestsAgainstRequirements = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.checkTestsAgainstRequirements",
+    async (args: any) => {
+      if (!args) return;
+      const scopeNode: testNodeType = getTestNode(args.id);
+      if (!scopeNode) return;
+      const { enviroPath } = scopeNode;
+      const gatewayPath = requirementsGatewayFor(enviroPath);
+      if (!gatewayPath) return;
+      const scope =
+        scopeNode.functionName || scopeNode.unitName || scopeNode.enviroName;
+
+      // The environment's tests in the test tree, and those under the node.
+      // A unit's or a function's are named to tests2check; the environment's
+      // are not (it checks every test), but are kept so the report can say
+      // which ones it left out.
+      const envTests = [...testNodeCache.keys()]
+        .filter(
+          (id): id is string =>
+            typeof id === "string" &&
+            id.startsWith(`${scopeNode.enviroNodeID}|`)
+        )
+        .map((id) => ({ id, node: getTestNode(id) }))
+        .filter(
+          (test): test is { id: string; node: testNodeType } =>
+            !!test.node?.testName
+        );
+      const inScope = (id: string) =>
+        !scopeNode.unitName || id.startsWith(`${args.id}.`);
+      const scopeTests = envTests.filter(({ id }) => inScope(id));
+      let testNames: string[] | undefined;
+      if (scopeNode.unitName) {
+        testNames = scopeTests.map(({ node }) => node.testName);
+        if (testNames.length === 0) {
+          vscode.window.showInformationMessage(
+            `${scope} has no tests to check.`
+          );
+          return;
+        }
+      }
+
+      const results = await fetchRequirementChecks(
+        enviroPath,
+        gatewayPath,
+        testNames,
+        `the tests of ${scope}`
+      );
+      // tests2check executed the tests, so their status and coverage changed.
+      await updateDataForEnvironment(enviroPath);
+      if (!results) return;
+
+      // The test node a tests2check result is about, when exactly one test
+      // has its name under the unit and function the result says (VectorCAST
+      // makes names unique only per function); the scope's unit and function
+      // stand in when it does not say.
+      const testNodeIdOf = (result: any): string | undefined => {
+        const identity = resultIdentity(result);
+        if (!identity.name) return undefined;
+        const unit = identity.unit ?? scopeNode.unitName;
+        const func = identity.subprogram ?? scopeNode.functionName;
+        // Case-insensitive: Ada names may come back in another case.
+        const prefix = (
+          `${scopeNode.enviroNodeID}|` +
+          (unit ? `${unit}.` + (func ? `${func}.` : "") : "")
+        ).toLowerCase();
+        const candidates = envTests.filter(
+          ({ id, node }) =>
+            id.toLowerCase().startsWith(prefix) &&
+            node.testName === identity.name
+        );
+        return candidates.length === 1 ? candidates[0].id : undefined;
+      };
+      const rerun = async (): Promise<void> => {
+        await vscode.commands.executeCommand(
+          "vectorcastTestExplorer.checkTestsAgainstRequirements",
+          args
+        );
+      };
+
+      // One group per function, in the order tests2check reported them. The
+      // source lookup is per function, and once per function.
+      const envData = await getEnvironmentData(enviroPath);
+      const groups = new Map<string, ReportGroup>();
+      const sources = new Map<
+        string,
+        Awaited<ReturnType<typeof sourceOfFunction>>
+      >();
+      // The checked tests the review can open: those whose node and source
+      // are known.
+      const testChoices: FocusChoice[] = [];
+      // What tests2check reported on: by node when known, else by name.
+      const checkedIds = new Set<string>();
+      const checkedNames = new Set<string>();
+      for (const result of results) {
+        const testId = testNodeIdOf(result);
+        // -t matches names across the environment: a same-named test of
+        // another function was checked too, but is not shown.
+        if (testNames && !(testId && inScope(testId))) continue;
+        const testNode = testId ? getTestNode(testId) : undefined;
+        const identity = resultIdentity(result);
+        const unitName: string =
+          testNode?.unitName ?? identity.unit ?? scopeNode.unitName ?? "";
+        const functionName: string =
+          testNode?.functionName ??
+          identity.subprogram ??
+          scopeNode.functionName ??
+          "";
+        const title = identity.name ?? "?";
+        if (testId) checkedIds.add(testId);
+        else checkedNames.add(title);
+        const key = `${unitName}.${functionName}`;
+        if (unitName && functionName && !sources.has(key)) {
+          sources.set(
+            key,
+            await sourceOfFunction(enviroPath, unitName, functionName, envData)
+          );
+        }
+        const source = sources.get(key);
+        const data = parseTests2checkResult(
+          result,
+          title,
+          unitName,
+          source?.functionStartLine ?? 0,
+          source?.subunitFile
+        );
+        // The review opens only for a test whose node and source are known.
+        const reviewable = !!(testNode && source);
+        if (testNode && testId && source) {
+          testChoices.push(
+            testChoice(testNode, testId, source.sourcePath, data, rerun)
+          );
+        }
+        let group = groups.get(key);
+        if (!group) {
+          group = { unitName, functionName, tests: [] };
+          groups.set(key, group);
+        }
+        group.tests.push({ testId: reviewable ? testId : undefined, data });
+      }
+
+      if (groups.size === 0) {
+        vscode.window.showInformationMessage(
+          `No test of ${scope} is linked to a requirement, so there is nothing to check.`
+        );
+        return;
+      }
+      // tests2check skips the tests not linked to a requirement: those of
+      // the scope it did not report on, named relative to the scope.
+      const unchecked = scopeTests
+        .filter(
+          ({ id, node }) =>
+            !checkedIds.has(id) && !checkedNames.has(node.testName)
+        )
+        .map(({ node }) =>
+          [
+            ...(scopeNode.unitName ? [] : [node.unitName]),
+            ...(scopeNode.functionName ? [] : [node.functionName]),
+            node.testName,
+          ].join(".")
+        );
+      recordCheckedTests(
+        enviroPath,
+        testChoices.map((choice) => choice.target.tests[0].testId!),
+        true
+      );
+
+      // What the review can show: each unit, each function (the tests of
+      // either reviewed together, their requirements' lines combined and
+      // their coverage as one) and each test on its own.
+      const groupChoice = (
+        kind: "unit" | "function",
+        unitName: string,
+        functionName?: string
+      ): FocusChoice[] => {
+        const reviewed = [...groups.entries()].filter(
+          ([key, group]) =>
+            group.unitName === unitName &&
+            (!functionName || group.functionName === functionName) &&
+            sources.get(key)
+        );
+        if (reviewed.length === 0) return [];
+        const source = sources.get(reviewed[0][0])!;
+        const tests = reviewed.flatMap(([, group]) => group.tests);
+        return [
+          {
+            kind,
+            label: groupTitle(unitName, functionName),
+            description: countVerdicts(tests.map((test) => test.data.verdict)),
+            target: {
+              title: groupTitle(unitName, functionName),
+              lineNumber: functionName
+                ? source.functionStartLine
+                : Math.min(
+                    ...reviewed.map(
+                      ([key]) => sources.get(key)!.functionStartLine
+                    )
+                  ),
+              sourcePath: source.sourcePath,
+              enviroPath,
+              tests,
+              rerun,
+            },
+          },
+        ];
+      };
+      const unitNames = new Set(
+        [...groups.values()].map((group) => group.unitName)
+      );
+      const choices: FocusChoice[] = [
+        ...[...unitNames].flatMap((unitName) => groupChoice("unit", unitName)),
+        ...[...groups.values()].flatMap((group) =>
+          groupChoice("function", group.unitName, group.functionName)
+        ),
+        ...testChoices,
+      ];
+      // An open review of the same tests, as after its re-run link, shows
+      // the new verdicts; it is looked up before the new choices replace
+      // the old ones.
+      const reopen = choiceMatchingOpenReview(choices);
+      setFocusChoices(choices);
+
+      const show = async (choice: FocusChoice | undefined) => {
+        if (choice) await showReview(choice.target, choice.scriptOf);
+      };
+      showCheckReport(context, scope, [...groups.values()], unchecked, {
+        openReview: (testId) =>
+          show(
+            choices.find(
+              (choice) =>
+                choice.kind === "test" &&
+                choice.target.tests[0].testId === testId
+            )
+          ),
+        openGroupReview: (unitName, functionName) =>
+          show(
+            choices.find(
+              (choice) =>
+                choice.kind === (functionName ? "function" : "unit") &&
+                choice.target.title === groupTitle(unitName, functionName)
+            )
+          ),
+        rerun,
+      });
+      await show(reopen);
+    }
+  );
+
+  registerReviewHover(context);
+  context.subscriptions.push(
+    openReqsCoverageReview,
+    checkTestsAgainstRequirements,
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.closeTestReview",
+      endReview
+    ),
+    // From the links of a review's line hovers.
+    vscode.commands.registerCommand(
+      FOCUS_REVIEW_TEST_COMMAND,
+      (testId: string) => focusReviewTest(testId, context)
+    ),
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.showRequirementsCheckReport",
+      revealCheckReport
+    ),
+    vscode.commands.registerCommand("vectorcastTestExplorer.focusReview", () =>
+      pickReviewFocus(context)
+    ),
+    // The comment's "Re-run the check" link
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.rerunRequirementsCheck",
+      rerunReview
+    ),
+    // The comment's "Refresh the coverage only" link
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.refreshReviewCoverage",
+      () => refreshReviewCoverage(context)
+    )
+  );
 
   let showRequirementsCommand = vscode.commands.registerCommand(
     "vectorcastTestExplorer.showRequirements",

@@ -20,6 +20,9 @@ export let CODE2REQS_EXECUTABLE_PATH: string = "";
 export let REQS2TESTS_EXECUTABLE_PATH: string = "";
 export let PANREQ_EXECUTABLE_PATH: string = "";
 export let LLM2CHECK_EXECUTABLE_PATH: string = "";
+// Optional: not every distribution ships tests2check, so it is not in
+// NECESSARY_REQS2X_EXECUTABLES; callers check the file exists before running it.
+export let TESTS2CHECK_EXECUTABLE_PATH: string = "";
 
 /**
  * Resolve the on-disk directory containing the Reqs2X executables. Priority:
@@ -73,7 +76,7 @@ export function getAutoreqExecutableDirectory(
 }
 
 /**
- * Populate the four executable-path module bindings. Returns false if the
+ * Populate the executable-path module bindings. Returns false if the
  * binaries can't be located so the caller can disable the feature gracefully.
  */
 export function setupReqs2XExecutablePaths(
@@ -97,6 +100,10 @@ export function setupReqs2XExecutablePaths(
   LLM2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
     exeFilename("llm2check")
+  ).fsPath;
+  TESTS2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("tests2check")
   ).fsPath;
 
   // A different binary may have been resolved; drop the cached help output.

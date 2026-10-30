@@ -123,6 +123,11 @@ export interface RunReqs2xToolOptions {
   allowNonZeroExit?: boolean;
   /** Kill and reject after this many ms. Non-progress path only. */
   timeoutMs?: number;
+  /**
+   * Cancelling it kills the process and resolves `{ cancelled: true }`.
+   * Non-progress path only; the progress notification has its own button.
+   */
+  cancellationToken?: vscode.CancellationToken;
 }
 
 export interface RunReqs2xToolResult {
@@ -205,6 +210,9 @@ export async function runReqs2xTool(
   }
 
   // No progress notification: capture both streams and log them.
+  if (opts.cancellationToken?.isCancellationRequested) {
+    return { cancelled: true };
+  }
   const proc = await spawnWithVcastEnv(
     opts.exe,
     opts.args,
@@ -214,6 +222,12 @@ export async function runReqs2xTool(
   let stdout = "";
   let stderr = "";
   let exitCode: number | null = null;
+  let cancelled = false;
+  const cancellation = opts.cancellationToken?.onCancellationRequested(() => {
+    cancelled = true;
+    proc.kill();
+    logCliOperation(`${opts.exe}: cancelled by user`);
+  });
 
   await new Promise<void>((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -231,21 +245,23 @@ export async function runReqs2xTool(
     });
     proc.on("error", (err) => {
       if (timer) clearTimeout(timer);
+      cancellation?.dispose();
       reject(err);
     });
     proc.on("close", (code) => {
       if (timer) clearTimeout(timer);
+      cancellation?.dispose();
       exitCode = code;
       if (stdout.trim()) logCliOperation(`stdout: ${stdout.trim()}`);
       if (stderr.trim()) logCliOperation(`stderr: ${stderr.trim()}`);
       logCliOperation(`exit code: ${code}`);
-      if (code === 0 || opts.allowNonZeroExit) resolve();
+      if (cancelled || code === 0 || opts.allowNonZeroExit) resolve();
       else reject(new Error(`${opts.exe} exited with code ${code}: ${stderr}`));
     });
   });
 
   return {
-    cancelled: false,
+    cancelled,
     exitCode,
     ...(opts.captureOutput ? { stdout, stderr } : {}),
   };

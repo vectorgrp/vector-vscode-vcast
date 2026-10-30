@@ -21,7 +21,12 @@ import {
   errorLevel,
 } from "./messagePane";
 
-import { getEnviroPathFromID, getTestNode, testNodeType } from "./testData";
+import {
+  getEnviroPathFromID,
+  getTestNode,
+  makeTestNodeID,
+  testNodeType,
+} from "./testData";
 
 import {
   enviroListAsMapType,
@@ -285,6 +290,101 @@ export function getCoverageDataForFile(filePath: string): coverageSummaryType {
       returnData.statusString = "No Coverage Data";
     }
   }
+
+  return returnData;
+}
+
+//////////////////////////////////////////////////////////////////////
+export function getCoverageDataForFileAndTests(
+  filePath: string,
+  testIds: Iterable<string>,
+  enviroPath: string,
+  perTestCoverage: Record<string, Record<string, string>> // "lineNum" -> {"unit.func.test": "covered"|"partiallyCovered", ...}
+): coverageSummaryType {
+  // Returns coverage data for a set of test cases on a specific file.
+  // Uses the tests' environment's perTestCoverage to determine which lines the
+  // tests cover and whether coverage is full or partial (for branch/MCDC
+  // environments): a line is covered when any of the tests covers it, and
+  // partially covered when some only partially cover it. Lines not covered by
+  // any of these tests are marked as uncovered.
+
+  let returnData: coverageSummaryType = {
+    hasCoverageData: false,
+    statusString: "",
+    covered: [],
+    uncovered: [],
+    partiallyCovered: [],
+  };
+
+  const dataForThisFile = globalCoverageData.get(filePath);
+  if (!dataForThisFile || !dataForThisFile.hasCoverage) {
+    return returnData;
+  }
+
+  const checksum: number = getChecksum(filePath);
+
+  // Collect per-test coverage and aggregate coverable lines across all enviros
+  const coveredByTest = new Set<number>();
+  const partiallyCoveredByTest = new Set<number>();
+  const allCoverableLines = new Set<number>();
+
+  for (const enviroData of dataForThisFile.enviroList.values()) {
+    if (enviroData.crc32Checksum != checksum) {
+      continue;
+    }
+
+    // All coverable lines from aggregate data
+    for (const line of enviroData.covered) allCoverableLines.add(line);
+    for (const line of enviroData.uncovered) allCoverableLines.add(line);
+    for (const line of enviroData.partiallyCovered) allCoverableLines.add(line);
+  }
+
+  // Lines covered by these tests, if their environment matches the file
+  // Python produces short names like "unit.function.testname";
+  // compose the full test node ID to match the VS Code test explorer format
+  const wanted = new Set(testIds);
+  if (dataForThisFile.enviroList.get(enviroPath)?.crc32Checksum == checksum) {
+    for (const [lineStr, testStatusMap] of Object.entries(perTestCoverage)) {
+      // The tests' status as one, when Python was told which tests these are:
+      // together they can take both directions of a branch or complete an
+      // MC/DC pair, which none of them does alone.
+      const combined = testStatusMap["*"];
+      if (combined !== undefined) {
+        (combined === "partiallyCovered"
+          ? partiallyCoveredByTest
+          : coveredByTest
+        ).add(Number(lineStr));
+        continue;
+      }
+      for (const [testName, status] of Object.entries(testStatusMap)) {
+        if (wanted.has(makeTestNodeID(enviroPath, testName))) {
+          const lineNum = Number(lineStr);
+          if (status === "partiallyCovered") {
+            partiallyCoveredByTest.add(lineNum);
+          } else {
+            // "covered" or any other status defaults to covered
+            coveredByTest.add(lineNum);
+          }
+        }
+      }
+    }
+  }
+
+  if (allCoverableLines.size === 0) {
+    returnData.statusString = "Coverage Out of Date";
+    return returnData;
+  }
+
+  returnData.hasCoverageData = true;
+  returnData.covered = [...coveredByTest];
+  // A line one test covers and another only partially is covered.
+  returnData.partiallyCovered = [...partiallyCoveredByTest].filter(
+    (line) => !coveredByTest.has(line)
+  );
+  // Uncovered = all coverable lines minus those covered or partially covered
+  returnData.uncovered = [...allCoverableLines].filter(
+    (line) => !coveredByTest.has(line) && !partiallyCoveredByTest.has(line)
+  );
 
   return returnData;
 }
