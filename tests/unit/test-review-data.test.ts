@@ -6,6 +6,7 @@ import {
   lineHoverMarkdown,
   parseTests2checkResult,
   ranLinesFromCoverage,
+  resultIdentity,
   reviewLineColors,
   reviewMarkdown,
 } from "../../src/requirements/testReviewData";
@@ -510,6 +511,35 @@ describe("recoloring the requirements' lines from a new run", () => {
 
   test("never counts a line after the last markable one", () => {
     expect(ranLinesFromCoverage([20], ran, coverable)).toEqual([]);
+  });
+});
+
+describe("which test a tests2check result names", () => {
+  const identity = { name: "TEST_1", unit: "manager", subprogram: "add" };
+
+  test("reads the name, unit and subprogram from the result's test record", () => {
+    expect(resultIdentity({ test: identity })).toEqual(identity);
+  });
+
+  test("reads them from the result itself when it has no test record", () => {
+    expect(resultIdentity(identity)).toEqual(identity);
+  });
+
+  test("takes the test record's name and the result's unit and subprogram first", () => {
+    expect(
+      resultIdentity({
+        name: "outer",
+        unit: "manager",
+        subprogram: "add",
+        test: { name: "TEST_1", unit: "other", subprogram: "remove" },
+      })
+    ).toEqual(identity);
+  });
+
+  test("names nothing for a result without them or without a result", () => {
+    const none = { name: undefined, unit: undefined, subprogram: undefined };
+    expect(resultIdentity({})).toEqual(none);
+    expect(resultIdentity(undefined)).toEqual(none);
   });
 });
 
