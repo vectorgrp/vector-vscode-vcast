@@ -68,8 +68,10 @@ if all(os.path.exists(f) for f in DISTRIBUTION_NAMES):
 BASE_URL = "https://artifactory.vi.vector.int/artifactory"
 # Reqs2X distributions are published from main. Demo releases are published
 # separately and are not fetched here; pass R2T_RELEASE_URL_LIN/WIN to test a
-# specific build.
-BRANCH = os.getenv("R2T_RELEASE_BRANCH", "main")
+# specific build. The workflow sets R2T_RELEASE_BRANCH from a workflow_dispatch
+# input, so a push or pull_request run passes it as an empty string: fall back
+# to main for an empty value too, not only for an unset one.
+BRANCH = os.getenv("R2T_RELEASE_BRANCH") or "main"
 logging.info(f"Using R2T_RELEASE_BRANCH: {BRANCH}")
 PATH = f"rds-build-packages-generic-dev/code2reqs2tests/distributions/{BRANCH}"
 API_STORAGE_URL = f"{BASE_URL}/api/storage/{PATH}"
