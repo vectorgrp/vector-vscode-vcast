@@ -717,7 +717,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         const enviroPath = testNode.enviroPath;
         await generateTestsFromRequirements(
           enviroPath,
-          testNode.functionName || testNode.unitName || null
+          testNode.unitName || null,
+          testNode.functionName || null
         );
       }
     }
@@ -732,7 +733,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         const enviroPath = testNode.enviroPath;
         await generateTestsFromRequirements(
           enviroPath,
-          testNode.functionName || testNode.unitName || null,
+          testNode.unitName || null,
+          testNode.functionName || null,
           { onlyDelta: true }
         );
       }
