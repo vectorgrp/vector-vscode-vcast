@@ -9,6 +9,7 @@ import {
   PANREQ_EXECUTABLE_PATH,
   RECENT_REQS2TESTS_FLAGS,
   REQS2TESTS_EXECUTABLE_PATH,
+  reqs2testsEffortLevels,
   reqs2testsSupportsDelta,
   reqs2xSupportedFlags,
   setupReqs2XExecutablePaths,
@@ -204,7 +205,11 @@ export async function generateTestsFromRequirements(
   const funcDefs = config.get<boolean>("functionDefinitions", true);
   const allowUUTStubs = config.get<boolean>("enableUutStubbing", true);
   const batched = config.get<boolean>("batched", true);
-  const fastMode = config.get<boolean>("fastMode", false);
+  // Deprecated fastMode still wins while explicitly enabled.
+  const effort = config.get<boolean>("fastMode", false)
+    ? "low"
+    : config.get<string>("effort", "medium");
+  const flowAssertions = config.get<boolean>("flowAssertions", true);
   const deduplicate = config.get<boolean>("deduplicateTests", true);
   const allowPartial = config.get<boolean>("allowPartialTests", true);
   const exampleSources = config.get<string[]>(
@@ -236,13 +241,20 @@ export async function generateTestsFromRequirements(
     REQS2TESTS_EXECUTABLE_PATH,
     RECENT_REQS2TESTS_FLAGS
   );
+  const effortLevels = await reqs2testsEffortLevels();
 
   // Settings whose flag this Reqs2X lacks are dropped rather than passed, which
   // would fail the run. Only mention the ones actually asked for: on an
   // untouched default nothing is lost, because the CLI default matches.
   const ignored: string[] = [];
-  if (fastMode && !supported.has("--fast")) {
-    ignored.push("fast mode");
+  // Installations from between the two flags express "low" only as --fast.
+  let effortArgs: string[] = [];
+  if (effortLevels.includes(effort)) {
+    effortArgs = ["--effort", effort];
+  } else if (effort === "low" && supported.has("--fast")) {
+    effortArgs = ["--fast"];
+  } else if (effort !== "medium") {
+    ignored.push(`effort "${effort}"`);
   }
   if (maxTestExamples > 0) {
     if (
@@ -294,7 +306,11 @@ export async function generateTestsFromRequirements(
     ...(allowUUTStubs ? [] : ["--no-allow-uut-stubs"]),
     allowPartial ? "--allow-partial" : "--no-allow-partial",
     ...(deduplicate ? [] : ["--no-deduplicate"]),
-    ...(fastMode && supported.has("--fast") ? ["--fast"] : []),
+    ...effortArgs,
+    // An installation without --no-flow-assertions makes no flow assertions.
+    ...(!flowAssertions && supported.has("--no-flow-assertions")
+      ? ["--no-flow-assertions"]
+      : []),
     ...(options.onlyDelta ? ["--only-delta"] : []),
     ...exampleArgs,
     "--json-events",
