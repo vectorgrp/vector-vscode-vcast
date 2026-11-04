@@ -63,6 +63,13 @@ export function expandEnvVars(inputPath: string): string {
 export function findRelevantRequirementGateway(
   enviroPath: string
 ): string | null {
+  return findRequirementGatewayConfig(enviroPath)?.rawGatewayPath ?? null;
+}
+
+/** As above, plus the config file the gateway was found in. */
+export function findRequirementGatewayConfig(
+  enviroPath: string
+): { configPath: string; rawGatewayPath: string } | null {
   for (const configPath of gatewayConfigPaths(enviroPath, true)) {
     if (!fs.existsSync(configPath)) continue;
 
@@ -73,7 +80,7 @@ export function findRelevantRequirementGateway(
     const rawGatewayPath = gatewayMatch[1].trim();
     const gatewayPath = expandEnvVars(rawGatewayPath);
 
-    if (fs.existsSync(gatewayPath)) return rawGatewayPath;
+    if (fs.existsSync(gatewayPath)) return { configPath, rawGatewayPath };
   }
   return null;
 }

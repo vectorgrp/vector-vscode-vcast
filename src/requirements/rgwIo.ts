@@ -2,11 +2,13 @@ import * as os from "node:os";
 import {
   expandEnvVars,
   findRelevantRequirementGateway,
+  findRequirementGatewayConfig,
   RGW_INNER_DIR,
 } from "./rgwPath";
 import { readCsvSourcePath } from "./rgwSettings";
 import { runReqs2xTool } from "./processRunner";
 import { PANREQ_EXECUTABLE_PATH } from "./requirementsExecutables";
+import { clicastCommandToUse } from "../vcastInstallation";
 
 const path = require("path");
 const fs = require("fs");
@@ -236,14 +238,13 @@ export function readRGWBundle(enviroPath: string): RGWBundle | null {
 /**
  * Persist edits back into the RGW.
  *
- * Requirement bodies travel via the source CSV (kept in sync as the durable
- * external artifact): we serialize the updates to a temp JSON in panreq's
- * input shape and run panreq to overwrite the CSV. We then mirror the same
- * data into `requirements.json` ourselves — `clicast RGw Import` only adds
- * *new* requirements (it deliberately doesn't overwrite existing bodies, and
- * there's no `Reimport` subcommand).
+ * Requirement bodies travel via the source CSV: panreq rewrites it, and
+ * `clicast RGw Import` brings the changes into `requirements.json` and marks
+ * the tests linked to a changed requirement as needing review. The import
+ * never deletes, so removed requirements are deleted afterwards, and the
+ * stored (possibly truncated) titles are returned for the webview to show.
  *
- * Traceability is written directly. Done last so a panreq failure leaves
+ * Traceability is written directly. Done last so a failure leaves
  * on-disk state consistent (no fresh trace pointing at stale requirements).
  *
  * Throws RGWStaleWriteError if either file's mtime has advanced since the
@@ -257,7 +258,7 @@ export async function writeRGWBundle(
     traceability: RGWTraceabilityFile;
   },
   expected: Pick<RGWFileMtimes, "requirements" | "traceability">
-): Promise<RGWFileMtimes> {
+): Promise<Pick<RGWBundle, "requirements" | "traceability" | "mtimes">> {
   const files = rgwFilePaths(gatewayPath);
 
   const currentReqMtime = mtimeMsOrZero(files.requirements);
@@ -324,18 +325,45 @@ export async function writeRGWBundle(
     }
   }
 
-  // 2. Mirror the same data into requirements.json. Bucket key is normalized
-  //    to the current csv_path so consumers see a consistent source path.
-  const consolidated: Record<string, RGWRequirement> = {};
+  // 2. Import with the config that names the gateway: -lc reads only
+  //    CCAST_.CFG, -lada only ADACAST_.CFG. Writing titles back ourselves would
+  //    make every later import re-flag those over the 50 characters VC keeps.
+  const configPath = findRequirementGatewayConfig(enviroPath)?.configPath;
+  const result = await runReqs2xTool({
+    exe: clicastCommandToUse,
+    args: [
+      configPath?.endsWith("ADACAST_.CFG") ? "-lada" : "-lc",
+      "RGw",
+      "Import",
+    ],
+    cwd: path.dirname(enviroPath),
+    captureOutput: true,
+    allowNonZeroExit: true,
+  });
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `RGw Import exited with code ${result.exitCode}: ${result.stdout?.trim()}`
+    );
+  }
+
+  const keptKeys = new Set<string>();
   for (const bucket of Object.values(updates.requirements)) {
-    for (const [reqKey, req] of Object.entries(bucket)) {
-      consolidated[reqKey] = req;
+    for (const reqKey of Object.keys(bucket)) keptKeys.add(reqKey);
+  }
+  const requirements: RGWRequirementsFile = JSON.parse(
+    fs.readFileSync(files.requirements, "utf-8")
+  );
+  let removed = false;
+  for (const bucket of Object.values(requirements)) {
+    for (const reqKey of Object.keys(bucket)) {
+      if (keptKeys.has(reqKey)) continue;
+      delete bucket[reqKey];
+      removed = true;
     }
   }
-  writeAtomic(
-    files.requirements,
-    JSON.stringify({ [`[CSV] [${csvPath}]`]: consolidated }, null, 4)
-  );
+  if (removed) {
+    writeAtomic(files.requirements, JSON.stringify(requirements, null, 4));
+  }
 
   // 3. Write traceability.json directly. RGW's invariant is one-to-one with
   //    requirements: every requirement key has an entry, even if it's all
@@ -343,12 +371,14 @@ export async function writeRGWBundle(
   //    traceability.json (or a stale one with entries for removed
   //    requirements), which downstream tools mis-handle.
   const normalizedTraceability: RGWTraceabilityFile = {};
-  for (const reqKey of Object.keys(consolidated)) {
-    normalizedTraceability[reqKey] = updates.traceability[reqKey] ?? {
-      unit: null,
-      function: null,
-      lines: null,
-    };
+  for (const bucket of Object.values(requirements)) {
+    for (const reqKey of Object.keys(bucket)) {
+      normalizedTraceability[reqKey] = updates.traceability[reqKey] ?? {
+        unit: null,
+        function: null,
+        lines: null,
+      };
+    }
   }
   writeAtomic(
     files.traceability,
@@ -356,9 +386,13 @@ export async function writeRGWBundle(
   );
 
   return {
-    requirements: mtimeMsOrZero(files.requirements),
-    traceability: mtimeMsOrZero(files.traceability),
-    origin: mtimeMsOrZero(files.origin),
+    requirements,
+    traceability: normalizedTraceability,
+    mtimes: {
+      requirements: mtimeMsOrZero(files.requirements),
+      traceability: mtimeMsOrZero(files.traceability),
+      origin: mtimeMsOrZero(files.origin),
+    },
   };
 }
 
