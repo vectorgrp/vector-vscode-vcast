@@ -81,6 +81,11 @@ h2 {
   color: var(--vscode-inputValidation-errorBorder, #be1100);
   margin-top: 2px;
 }
+.field-hint {
+  font-size: 0.8em;
+  color: var(--vscode-editorWarning-foreground, #bf8803);
+  margin-top: 2px;
+}
 .open-source-row {
   margin-top: 6px;
   text-align: right;
