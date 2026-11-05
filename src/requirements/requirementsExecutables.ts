@@ -173,7 +173,16 @@ export const RECENT_REQS2TESTS_FLAGS = [
   "--fast",
   "--max-test-examples",
   "--test-examples-sources",
+  "--no-flow-assertions",
 ];
+
+// --effort came after --fast, and its "high" level later still, so the levels
+// are read from the choices --help lists; empty when the flag is missing.
+export async function reqs2testsEffortLevels(): Promise<string[]> {
+  if (!REQS2TESTS_EXECUTABLE_PATH) return [];
+  const help = await reqs2xHelpText(REQS2TESTS_EXECUTABLE_PATH);
+  return /--effort \{([a-z,]+)\}/.exec(help)?.[1].split(",") ?? [];
+}
 
 export async function panreqSupportsOnlyUntraced(): Promise<boolean> {
   return reqs2xSupportsFlag(PANREQ_EXECUTABLE_PATH, "--only-untraced");
