@@ -9,6 +9,10 @@ import { readCsvSourcePath } from "./rgwSettings";
 import { runReqs2xTool } from "./processRunner";
 import { PANREQ_EXECUTABLE_PATH } from "./requirementsExecutables";
 import { clicastCommandToUse } from "../vcastInstallation";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../../src-common/vcastServer";
 
 const path = require("path");
 const fs = require("fs");
@@ -328,6 +332,9 @@ export async function writeRGWBundle(
   // 2. Import with the config that names the gateway: -lc reads only
   //    CCAST_.CFG, -lada only ADACAST_.CFG. Writing titles back ourselves would
   //    make every later import re-flag titles that older VC versions cut to 50.
+  //    A clicast server still holding the environment would write its own copy
+  //    of the gateway over the import's flags when it closes, so close it first.
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
   const configPath = findRequirementGatewayConfig(enviroPath)?.configPath;
   const result = await runReqs2xTool({
     exe: clicastCommandToUse,
