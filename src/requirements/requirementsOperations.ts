@@ -25,6 +25,10 @@ import {
   inferTraceability,
   readRGWBundle,
 } from "./rgwIo";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../../src-common/vcastServer";
 
 const path = require("path");
 const fs = require("fs");
@@ -308,6 +312,10 @@ export async function generateTestsFromRequirements(
   } catch (err) {
     logCliError(`Could not remove stale ${tstPath}: ${err}`);
   }
+
+  // In server mode the server keeps the requirement links of tests it imported
+  // in memory until it closes, so reqs2tests would see those tests as unlinked.
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
 
   try {
     const { cancelled } = await runReqs2xTool({
