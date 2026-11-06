@@ -327,7 +327,7 @@ export async function writeRGWBundle(
 
   // 2. Import with the config that names the gateway: -lc reads only
   //    CCAST_.CFG, -lada only ADACAST_.CFG. Writing titles back ourselves would
-  //    make every later import re-flag those over the 50 characters VC keeps.
+  //    make every later import re-flag titles that older VC versions cut to 50.
   const configPath = findRequirementGatewayConfig(enviroPath)?.configPath;
   const result = await runReqs2xTool({
     exe: clicastCommandToUse,

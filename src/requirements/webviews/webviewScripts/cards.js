@@ -25,25 +25,6 @@ function buildField(label, child) {
   return div;
 }
 
-// clicast RGw Import stores a longer title as its first 47 characters + "...".
-const TITLE_LIMIT = 50;
-
-function buildTitleField(titleInput) {
-  const field = buildField("Title", titleInput);
-  const hint = document.createElement("div");
-  hint.className = "field-hint";
-  const update = () => {
-    hint.textContent =
-      titleInput.value.length > TITLE_LIMIT
-        ? `Over ${TITLE_LIMIT} characters: VectorCAST will store only the first ${TITLE_LIMIT - 3}, followed by "...".`
-        : "";
-  };
-  titleInput.addEventListener("input", update);
-  update();
-  field.appendChild(hint);
-  return field;
-}
-
 function buildTraceField(field, current, options, refAttrs) {
   let el;
   if (!options) {
@@ -186,7 +167,7 @@ export function buildCard(entry) {
   titleInput.dataset.field = "title";
   titleInput.value = entry.req.title ?? "";
   if (lockedBodies) titleInput.disabled = true;
-  card.appendChild(buildTitleField(titleInput));
+  card.appendChild(buildField("Title", titleInput));
 
   const descArea = document.createElement("textarea");
   descArea.dataset.reqId = entry.id;
@@ -247,7 +228,7 @@ export function buildPendingAddCard(pending) {
   titleInput.dataset.tempId = pending.tempId;
   titleInput.dataset.field = "title";
   titleInput.value = pending.title;
-  card.appendChild(buildTitleField(titleInput));
+  card.appendChild(buildField("Title", titleInput));
 
   const descArea = document.createElement("textarea");
   descArea.dataset.tempId = pending.tempId;
