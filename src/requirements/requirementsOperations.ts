@@ -164,7 +164,8 @@ const DEFAULT_TEST_EXAMPLE_SOURCES = ["environment", "generated"];
 
 export async function generateTestsFromRequirements(
   enviroPath: string,
-  unitOrFunctionName: string | null,
+  unitName: string | null,
+  functionName: string | null,
   options: { onlyDelta?: boolean } = {}
 ) {
   const parentDir = path.dirname(enviroPath);
@@ -290,11 +291,26 @@ export async function generateTestsFromRequirements(
     }
   }
 
+  // -f takes a name as a unit or a function anywhere in the environment, so a
+  // function node would also pick up same-named functions in other units.
+  const nodeName = functionName || unitName;
+  let selectorArgs: string[] = [];
+  if (unitName && supported.has("--subprogram")) {
+    selectorArgs = [
+      "-u",
+      unitName,
+      ...(functionName ? ["-s", functionName] : []),
+      "-F",
+    ];
+  } else if (nodeName) {
+    selectorArgs = ["-f", nodeName];
+  }
+
   const args = [
     "-e",
     envPath,
     gatewayPath,
-    ...(unitOrFunctionName ? ["-f", unitOrFunctionName] : []),
+    ...selectorArgs,
     "--export-tst",
     tstPath,
     "--retries",
