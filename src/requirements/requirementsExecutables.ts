@@ -173,6 +173,7 @@ export const RECENT_REQS2TESTS_FLAGS = [
   "--fast",
   "--max-test-examples",
   "--test-examples-sources",
+  "--subprogram",
 ];
 
 export async function panreqSupportsOnlyUntraced(): Promise<boolean> {
