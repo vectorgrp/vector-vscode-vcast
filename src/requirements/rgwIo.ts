@@ -1,4 +1,5 @@
 import * as os from "node:os";
+import { createHash } from "node:crypto";
 import {
   expandEnvVars,
   findRelevantRequirementGateway,
@@ -40,10 +41,10 @@ export interface RGWOrigin {
   generated_by_reqs2x: boolean;
 }
 
-export interface RGWFileMtimes {
-  requirements: number;
-  traceability: number;
-  origin: number;
+export interface RGWFileHashes {
+  requirements: string;
+  traceability: string;
+  origin: string;
 }
 
 export interface RGWBundle {
@@ -51,7 +52,7 @@ export interface RGWBundle {
   origin: RGWOrigin;
   requirements: RGWRequirementsFile;
   traceability: RGWTraceabilityFile;
-  mtimes: RGWFileMtimes;
+  hashes: RGWFileHashes;
 }
 
 export class RGWStaleWriteError extends Error {
@@ -109,11 +110,13 @@ function rgwFilePaths(gatewayPath: string) {
   };
 }
 
-function mtimeMsOrZero(filePath: string): number {
+// VectorCAST rewrites requirements.json unchanged when it runs a test, among
+// other operations, so only a change of content means someone else edited it.
+function contentHashOrEmpty(filePath: string): string {
   try {
-    return fs.statSync(filePath).mtimeMs;
+    return createHash("sha1").update(fs.readFileSync(filePath)).digest("hex");
   } catch {
-    return 0;
+    return "";
   }
 }
 
@@ -223,10 +226,10 @@ export function readRGWBundle(enviroPath: string): RGWBundle | null {
     origin,
     requirements,
     traceability,
-    mtimes: {
-      requirements: mtimeMsOrZero(files.requirements),
-      traceability: mtimeMsOrZero(files.traceability),
-      origin: mtimeMsOrZero(files.origin),
+    hashes: {
+      requirements: contentHashOrEmpty(files.requirements),
+      traceability: contentHashOrEmpty(files.traceability),
+      origin: contentHashOrEmpty(files.origin),
     },
   };
 }
@@ -246,7 +249,7 @@ export function readRGWBundle(enviroPath: string): RGWBundle | null {
  * Traceability is written directly. Done last so a panreq failure leaves
  * on-disk state consistent (no fresh trace pointing at stale requirements).
  *
- * Throws RGWStaleWriteError if either file's mtime has advanced since the
+ * Throws RGWStaleWriteError if either file's content changed since the
  * bundle was loaded.
  */
 export async function writeRGWBundle(
@@ -256,16 +259,16 @@ export async function writeRGWBundle(
     requirements: RGWRequirementsFile;
     traceability: RGWTraceabilityFile;
   },
-  expected: Pick<RGWFileMtimes, "requirements" | "traceability">
-): Promise<RGWFileMtimes> {
+  expected: Pick<RGWFileHashes, "requirements" | "traceability">
+): Promise<RGWFileHashes> {
   const files = rgwFilePaths(gatewayPath);
 
-  const currentReqMtime = mtimeMsOrZero(files.requirements);
-  if (currentReqMtime !== expected.requirements) {
+  const currentReqHash = contentHashOrEmpty(files.requirements);
+  if (currentReqHash !== expected.requirements) {
     throw new RGWStaleWriteError("requirements");
   }
-  const currentTraceMtime = mtimeMsOrZero(files.traceability);
-  if (currentTraceMtime !== expected.traceability) {
+  const currentTraceHash = contentHashOrEmpty(files.traceability);
+  if (currentTraceHash !== expected.traceability) {
     throw new RGWStaleWriteError("traceability");
   }
 
@@ -356,9 +359,9 @@ export async function writeRGWBundle(
   );
 
   return {
-    requirements: mtimeMsOrZero(files.requirements),
-    traceability: mtimeMsOrZero(files.traceability),
-    origin: mtimeMsOrZero(files.origin),
+    requirements: contentHashOrEmpty(files.requirements),
+    traceability: contentHashOrEmpty(files.traceability),
+    origin: contentHashOrEmpty(files.origin),
   };
 }
 

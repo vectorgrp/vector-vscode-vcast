@@ -2082,21 +2082,21 @@ function configureExtension(context: vscode.ExtensionContext) {
               // reports as locked, so a tampered webview can't sneak edits
               // through.
               const safeUpdates = applyEditPolicy(currentBundle, msg.updates);
-              const newMtimes = await writeRGWBundle(
+              const newHashes = await writeRGWBundle(
                 enviroPath,
                 currentBundle.gatewayPath,
                 safeUpdates,
-                msg.expectedMtimes
+                msg.expectedHashes
               );
               currentBundle = {
                 ...currentBundle,
                 requirements: safeUpdates.requirements,
                 traceability: safeUpdates.traceability,
-                mtimes: newMtimes,
+                hashes: newHashes,
               };
               post({
                 type: "saved",
-                mtimes: newMtimes,
+                hashes: newHashes,
                 requirements: safeUpdates.requirements,
                 traceability: safeUpdates.traceability,
               });
@@ -2123,7 +2123,7 @@ function configureExtension(context: vscode.ExtensionContext) {
               currentBundle = refreshed;
               post({
                 type: "inferred",
-                mtimes: refreshed.mtimes,
+                hashes: refreshed.hashes,
                 requirements: refreshed.requirements,
                 traceability: refreshed.traceability,
               });

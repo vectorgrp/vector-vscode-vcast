@@ -74,7 +74,7 @@ export function generateRequirementsHtml(
   const initialState = {
     gatewayPath: bundle.gatewayPath,
     policy,
-    mtimes: bundle.mtimes,
+    hashes: bundle.hashes,
     requirements: bundle.requirements,
     traceability: bundle.traceability,
     unitsToFunctions,
