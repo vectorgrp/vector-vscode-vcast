@@ -223,6 +223,7 @@ import {
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
 import { getNonce, resolveWebviewBase } from "./webviewUtils";
+import { registerMcpServers } from "./mcpServers";
 
 const path = require("path");
 
@@ -255,6 +256,10 @@ export async function activate(context: vscode.ExtensionContext) {
   //  -- VectorCAST environment exists in the workspace
   //  -- "Create VectorCAST Environment" is selected from the Explorer context menu
   //  -- "VectorCAST Test Explorer: Configure" is selected from the command palette (ctrl-shift-p)
+  //  -- VS Code's chat looks for MCP servers, in any workspace
+
+  // first, so the servers are available even when the installation check fails
+  registerMcpServers(context);
 
   // Handler for "VectorCAST Test Explorer: Configure"
   // The first use of configure will trigger this activate function
