@@ -10,10 +10,13 @@ import { getVcastInterfaceCommandForVariableInfo } from "./vcastUtilities";
 import { getJsonDataFromTestInterface } from "./vcastCommandRunner";
 import {
   atgAvailable,
+  atgLLMPathsAvailable,
   clicastCommandToUse,
   globalTestInterfacePath,
   vPythonCommandToUse,
 } from "./vcastInstallation";
+import { performLLMProviderUsableCheck } from "./requirements/llmProvider";
+import { reqs2xUsable } from "./requirements/requirementsOperations";
 import { getNonce, resolveWebviewBase } from "./webviewUtils";
 import {
   ArrayEntry,
@@ -82,6 +85,8 @@ export class ATGModeManager {
 
   private document: vscode.TextDocument | null = null;
   private enviroPath: string | undefined;
+  /** Set while the LLM provider check runs, so Generate cannot start twice. */
+  private checkingProvider = false;
   private tokens: ClickableToken[] = [];
   private disposables: vscode.Disposable[] = [];
   private statusBarItem: vscode.StatusBarItem | null = null;
@@ -110,6 +115,15 @@ export class ATGModeManager {
     if (!atgAvailable) {
       vscode.window.showWarningMessage(
         "ATG is not available: no licensed, supported 'atg' was found in the VectorCAST installation."
+      );
+      return;
+    }
+
+    // The line test needs ATG's LLM_PATHS option, which older ATG builds do
+    // not have. The context menu is gated on this too.
+    if (!atgLLMPathsAvailable) {
+      vscode.window.showWarningMessage(
+        "ATG Test for Line is not available: this version of 'atg' does not support LLM_PATHS."
       );
       return;
     }
@@ -494,12 +508,35 @@ export class ATGModeManager {
   }
 
   async fetchTest() {
-    if (!this.isActive) return;
+    if (!this.isActive || this.checkingProvider) return;
 
     const enviroPath = this.enviroPath ?? this.getEnviroPath();
     if (!enviroPath) {
       vscode.window.showWarningMessage("No environment found");
       return;
+    }
+
+    //
+    // The same check Reqs2X runs before its LLM tools: llm2check confirms the
+    // provider selected in reqs2x.provider is configured and reachable. It
+    // ships with the Reqs2X tools, so it only runs when those were found;
+    // otherwise atg reports a provider problem itself. On failure the panel
+    // stays open, so the user can fix the settings and generate again.
+    //
+    if (reqs2xUsable) {
+      this.checkingProvider = true;
+      try {
+        const usable = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "ATG: checking the LLM provider settings",
+          },
+          async () => performLLMProviderUsableCheck()
+        );
+        if (!usable || !this.isActive) return;
+      } finally {
+        this.checkingProvider = false;
+      }
     }
 
     const variableValues = buildVariableValues(this.selectedVars);

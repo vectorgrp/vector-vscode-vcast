@@ -330,41 +330,54 @@ export async function performLLMProviderUsableCheck(): Promise<boolean> {
 }
 
 /**
- * Build the env block Reqs2X tools expect: provider creds + extras
- * (generation language, debug logging, model-compatibility mode). Adds
- * VSCODE_VECTORCAST_DIR so the tools can find the VC installation.
+ * The env variables the LLM client in a Reqs2X tool reads: the credentials of
+ * the selected provider only, plus extras (generation language, debug logging,
+ * model-compatibility mode, extra model parameters, source encoding). Also used
+ * for ATG Test for Line, whose atg talks to the LLM through the same client.
  */
-export async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
-  const processEnv = { ...process.env };
-  processEnv.VSCODE_VECTORCAST_DIR = vcastInstallationDirectory;
+export function reqs2xEnvironmentVariables(): Record<string, string> {
+  const env: Record<string, string> = {};
 
   const gatheredSettings = gatherLLMProviderSettings();
   for (const [k, v] of Object.entries(gatheredSettings.env)) {
-    if (v) processEnv[k] = v;
+    if (v) env[k] = v;
   }
 
   const config = vscode.workspace.getConfiguration(
     "vectorcastTestExplorer.reqs2x"
   );
   const languageCode = config.get<string>("generationLanguage", "en");
-  processEnv.VCAST_REQS2X_RESPONSE_LANGUAGE = languageCode;
+  env.VCAST_REQS2X_RESPONSE_LANGUAGE = languageCode;
 
   if (config.get<boolean>("outputDebugInfo", false)) {
-    processEnv.VCAST_REQS2X_LOG_LEVEL = "debug";
+    env.VCAST_REQS2X_LOG_LEVEL = "debug";
   }
 
   if (config.get<boolean>("modelCompatibilityMode", false)) {
-    processEnv.VCAST_REQS2X_MODEL_COMPATIBILITY_MODE = "1";
+    env.VCAST_REQS2X_MODEL_COMPATIBILITY_MODE = "1";
   }
 
-  applyExtraModelParams(config, processEnv);
+  applyExtraModelParams(config, env);
 
   const sourceFileEncoding = config.get<string>("sourceFileEncoding", "");
   if (sourceFileEncoding) {
-    processEnv.VCAST_REQS2X_SOURCE_FILE_ENCODING = sourceFileEncoding;
+    env.VCAST_REQS2X_SOURCE_FILE_ENCODING = sourceFileEncoding;
   }
 
-  return processEnv;
+  return env;
+}
+
+/**
+ * Build the env block Reqs2X tools expect: the process env plus
+ * reqs2xEnvironmentVariables(). Adds VSCODE_VECTORCAST_DIR so the tools can
+ * find the VC installation.
+ */
+export async function createProcessEnvironment(): Promise<NodeJS.ProcessEnv> {
+  return {
+    ...process.env,
+    VSCODE_VECTORCAST_DIR: vcastInstallationDirectory,
+    ...reqs2xEnvironmentVariables(),
+  };
 }
 
 /**

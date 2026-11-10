@@ -184,7 +184,8 @@ function processExceptionFromExecuteCommand(
 export function executeCommandSync(
   commandToRun: string,
   cwd: string,
-  printErrorDetails: boolean = true
+  printErrorDetails: boolean = true,
+  env?: NodeJS.ProcessEnv
 ): commandStatusType {
   vectorMessage(`Running: ${commandToRun}`, errorLevel.trace);
 
@@ -194,6 +195,7 @@ export function executeCommandSync(
     commandStatus.stdout = execSync(commandToRun, {
       cwd: cwd,
       maxBuffer: maxCommandOutputBuffer,
+      env,
     })
       .toString()
       .trim();
@@ -629,6 +631,45 @@ export async function executeClicastCommandUsingServer(
   return commandStatus;
 }
 
+/**
+ * The environment the ATG line test runs atg in: the process environment plus
+ * `envVars`. Shared by the run and the start-up capability probe, so the probe
+ * asks the same atg that will run.
+ */
+export function atgLineTestEnvironment(
+  envVars: Record<string, string> = {}
+): NodeJS.ProcessEnv {
+  //
+  // The line test always runs the atg that ships with the configured
+  // VectorCAST. VCAST_ATG_PATH in the user's environment would
+  // redirect it to a separate ATG working copy, so drop it here
+  // rather than inherit it.
+  //
+  const childEnv: NodeJS.ProcessEnv = { ...process.env, ...envVars };
+  delete childEnv.VCAST_ATG_PATH;
+
+  //
+  // Undocumented developer override: VCAST_ATG_DEV_PATH points the
+  // line test at an ATG working copy instead of the bundled one.
+  // Deliberately not a setting -- it is for ATG development, not for
+  // users, so it is only reachable by exporting it in the
+  // environment. Applied after the delete above so it wins. atg would
+  // warn about VCAST_ATG_DEV_PATH as an unknown option, so it is not
+  // passed on.
+  //
+  const atgDevPath = process.env.VCAST_ATG_DEV_PATH;
+  delete childEnv.VCAST_ATG_DEV_PATH;
+  if (atgDevPath) {
+    childEnv.VCAST_ATG_PATH = atgDevPath;
+  }
+
+  return childEnv;
+}
+
+// Env var names whose values are credentials (API keys, LiteLLM provider
+// secrets, access tokens), masked when the ATG command line is logged.
+const secretEnvVariableName = /key|secret|token|password/i;
+
 export async function executeATGLineForScript(
   command: string,
   cwd: string,
@@ -646,31 +687,15 @@ export async function executeATGLineForScript(
       progress.report({ increment: 0 });
       vectorMessage("-".repeat(60));
       const envVarStr = Object.entries(envVars)
-        .map(([k, v]) => `${k}=${v}`)
+        .map(([k, v]) => `${k}=${secretEnvVariableName.test(k) ? "***" : v}`)
         .join(" ");
       vectorMessage(`Executing: ${envVarStr ? envVarStr + " " : ""}${command}`);
       vectorMessage(`cwd: ${cwd}`);
       vectorMessage("-".repeat(60));
 
-      //
-      // The line test always runs the atg that ships with the configured
-      // VectorCAST. VCAST_ATG_PATH in the user's environment would
-      // redirect it to a separate ATG working copy, so drop it here
-      // rather than inherit it.
-      //
-      const childEnv = { ...process.env, ...envVars };
-      delete childEnv.VCAST_ATG_PATH;
-
-      //
-      // Undocumented developer override: VCAST_ATG_DEV_PATH points the
-      // line test at an ATG working copy instead of the bundled one.
-      // Deliberately not a setting -- it is for ATG development, not for
-      // users, so it is only reachable by exporting it in the
-      // environment. Applied after the delete above so it wins.
-      //
+      const childEnv = atgLineTestEnvironment(envVars);
       const atgDevPath = process.env.VCAST_ATG_DEV_PATH;
       if (atgDevPath) {
-        childEnv.VCAST_ATG_PATH = atgDevPath;
         vectorMessage(
           `ATG: VCAST_ATG_DEV_PATH is set, using ${atgDevPath} instead of the bundled atg`
         );

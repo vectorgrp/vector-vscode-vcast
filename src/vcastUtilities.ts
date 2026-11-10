@@ -46,6 +46,8 @@ import {
   vUnitIncludeSuffix,
 } from "./vcastInstallation";
 
+import { reqs2xEnvironmentVariables } from "./requirements/llmProvider";
+
 import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
 import {
   cachedWorkspaceEnvData,
@@ -954,71 +956,15 @@ export function getATGLineTestCommand(
   const varValueCommand = buildVarStringSimple(variableValues);
 
   //
-  // Build env vars object for cross-platform compatibility. VCAST_ATG_PATH
-  // is deliberately not set here: the spawned process inherits the
-  // environment, so an ATG redirect is picked up from the user's own
-  // VCAST_ATG_PATH.
+  // The env vars the line test adds on top of the process environment.
+  // Which atg runs is decided in atgLineTestEnvironment(), not here.
   //
-  const envVars: Record<string, string> = {};
-
-  // Build LLM provider env vars from reqs2x settings
-  const reqs2xConfig = vscode.workspace.getConfiguration(
-    "vectorcastTestExplorer.reqs2x"
-  );
-  const llmEnvPairs: { setting: string; envVar: string }[] = [
-    { setting: "azure.apiKey", envVar: "VCAST_REQS2X_AZURE_OPENAI_API_KEY" },
-    {
-      setting: "azure.apiVersion",
-      envVar: "VCAST_REQS2X_AZURE_OPENAI_API_VERSION",
-    },
-    { setting: "azure.baseUrl", envVar: "VCAST_REQS2X_AZURE_OPENAI_BASE_URL" },
-    {
-      setting: "azure.deployment",
-      envVar: "VCAST_REQS2X_AZURE_OPENAI_DEPLOYMENT",
-    },
-    {
-      setting: "azure.modelName",
-      envVar: "VCAST_REQS2X_AZURE_OPENAI_MODEL_NAME",
-    },
-    { setting: "openai.apiKey", envVar: "VCAST_REQS2X_OPENAI_API_KEY" },
-    { setting: "openai.baseUrl", envVar: "VCAST_REQS2X_OPENAI_BASE_URL" },
-    { setting: "openai.modelName", envVar: "VCAST_REQS2X_OPENAI_MODEL_NAME" },
-    {
-      setting: "anthropic.apiKey",
-      envVar: "VCAST_REQS2X_ANTHROPIC_API_KEY",
-    },
-    {
-      setting: "anthropic.modelName",
-      envVar: "VCAST_REQS2X_ANTHROPIC_MODEL_NAME",
-    },
-  ];
-
-  for (const pair of llmEnvPairs) {
-    const inspected = reqs2xConfig.inspect<string>(pair.setting);
-    // Only include values explicitly set by the user, not package.json defaults
-    const val =
-      inspected?.workspaceFolderValue ??
-      inspected?.workspaceValue ??
-      inspected?.globalValue ??
-      "";
-    if (val) {
-      envVars[pair.envVar] = val;
-    }
-  }
-
-  // If any Azure env vars were explicitly set, include the API version
-  // (which has a package.json default) so the provider has a complete config
-  const hasAzureVars = Object.keys(envVars).some(
-    (k) =>
-      k.startsWith("VCAST_REQS2X_AZURE_") &&
-      k !== "VCAST_REQS2X_AZURE_OPENAI_API_VERSION"
-  );
-  if (hasAzureVars && !envVars["VCAST_REQS2X_AZURE_OPENAI_API_VERSION"]) {
-    const apiVersion = reqs2xConfig.get<string>("azure.apiVersion", "");
-    if (apiVersion) {
-      envVars["VCAST_REQS2X_AZURE_OPENAI_API_VERSION"] = apiVersion;
-    }
-  }
+  // atg reaches the LLM through the Reqs2X client, so it gets the same
+  // variables as the Reqs2X tools: only the provider selected in
+  // reqs2x.provider (the client would otherwise pick the first complete one
+  // it finds), plus the Reqs2X extras such as model-compatibility mode.
+  //
+  const envVars: Record<string, string> = reqs2xEnvironmentVariables();
 
   const targetedLine = truthValue
     ? `${lineNumber}:${truthValue}`

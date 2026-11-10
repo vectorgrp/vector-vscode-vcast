@@ -109,16 +109,20 @@ describe("vTypeCheck VS Code Extension", () => {
     process.env.E2E_TEST_ID = "0";
 
     // The feature is gated on a licensed atg of a supported version
-    // (vectorcastTestExplorer.atgAvailable), the same way the ATG groups are.
+    // (vectorcastTestExplorer.atgAvailable), the same way the ATG groups are,
+    // and on that atg supporting LLM_PATHS
+    // (vectorcastTestExplorer.atgLLMPathsAvailable).
     try {
       const toolVersion = await getToolVersion();
+      const llmPaths = await atgSupportsLlmPaths();
       // The workflow sets ENABLE_ATG_FEATURE: TRUE, but GitHub passes it to the
       // job as the string "true", so compare case-insensitively.
       atgAvailable =
         (process.env.ENABLE_ATG_FEATURE ?? "").toUpperCase() === "TRUE" &&
-        toolVersion >= 24;
+        toolVersion >= 24 &&
+        llmPaths;
       console.log(
-        `Tool version ${toolVersion}, ENABLE_ATG_FEATURE=${process.env.ENABLE_ATG_FEATURE} -> ATG line tests ${atgAvailable ? "enabled" : "skipped"}`
+        `Tool version ${toolVersion}, ENABLE_ATG_FEATURE=${process.env.ENABLE_ATG_FEATURE}, atg LLM_PATHS=${llmPaths} -> ATG line tests ${atgAvailable ? "enabled" : "skipped"}`
       );
     } catch (error) {
       console.log(`Could not determine the tool version: ${error}`);
@@ -668,6 +672,8 @@ describe("vTypeCheck VS Code Extension", () => {
       return;
     }
 
+    // Like the Reqs2X tools, atg only gets the selected provider's settings.
+    await setReqs2xSetting("Provider", "azure_openai");
     console.log(`API key length: ${process.env.OPENAI_API_KEY.length}`);
     await setAzureSetting("Api Key", process.env.OPENAI_API_KEY);
     console.log(`Base URL length: ${process.env.AZURE_BASE_URL.length}`);
@@ -811,6 +817,8 @@ describe("vTypeCheck VS Code Extension", () => {
     await setAzureSetting("Base Url", "");
     await setAzureSetting("Deployment", "");
     await setAzureSetting("Model Name", "");
+    // Back to the package.json default
+    await setReqs2xSetting("Provider", "openai");
   });
 
   // ─── helpers ─────────────────────────────────────────────────────
@@ -1296,6 +1304,30 @@ describe("vTypeCheck VS Code Extension", () => {
     return { ok: true, reason: "" };
   }
 
+  /**
+   * Whether the atg the extension runs for the line test supports LLM_PATHS,
+   * using the extension's own probe (`atg --help-dev` lists --llm-paths) and
+   * environment (see atgLineTestEnvironment): VCAST_ATG_PATH is dropped, and
+   * VCAST_ATG_DEV_PATH, when set, takes its place.
+   */
+  async function atgSupportsLlmPaths(): Promise<boolean> {
+    const atg = path.join(process.env.VECTORCAST_DIR ?? "", "atg");
+    const env = { ...process.env };
+    delete env.VCAST_ATG_PATH;
+    delete env.VCAST_ATG_DEV_PATH;
+    if (process.env.VCAST_ATG_DEV_PATH) {
+      env.VCAST_ATG_PATH = process.env.VCAST_ATG_DEV_PATH;
+    }
+    try {
+      const { stdout, stderr } = await promisifiedExec(`"${atg}" --help-dev`, {
+        env,
+      });
+      return `${stdout}${stderr}`.includes("--llm-paths");
+    } catch {
+      return false;
+    }
+  }
+
   /** The release vpython's Python version and whether it is >= 3.11. */
   async function vpythonVersion(): Promise<{
     version: string;
@@ -1322,8 +1354,19 @@ describe("vTypeCheck VS Code Extension", () => {
   }
 
   async function setAzureSetting(title: string, value: string) {
-    console.log(`Setting Reqs2x › Azure › ${title}`);
-    const category = "Vectorcast Test Explorer › Reqs2x › Azure";
+    await setReqs2xSetting(
+      title,
+      value,
+      "Vectorcast Test Explorer › Reqs2x › Azure"
+    );
+  }
+
+  async function setReqs2xSetting(
+    title: string,
+    value: string,
+    category = "Vectorcast Test Explorer › Reqs2x"
+  ) {
+    console.log(`Setting ${category} › ${title}`);
     // findSetting occasionally returns undefined when the settings list has not
     // rendered yet; re-open and search again until the row shows up.
     type SettingHandle = Awaited<ReturnType<SettingsEditor["findSetting"]>>;
@@ -1339,7 +1382,7 @@ describe("vTypeCheck VS Code Extension", () => {
       {
         timeout: 30_000,
         interval: 2000,
-        timeoutMsg: `Reqs2x › Azure › ${title} did not render in settings`,
+        timeoutMsg: `${category} › ${title} did not render in settings`,
       }
     );
     await setting!.setValue(value);
