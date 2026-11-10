@@ -2,9 +2,11 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
-## [1.0.35] - 2026-09-21
+## [1.0.35] - 2026-10-29
 
 ### Added
+- **Check Test Against Requirements** in the test context menu: runs the test, then shows an AI-generated PASS/FAIL for each linked requirement, with the lines it needs highlighted.
+- **Check Tests Against Requirements** on an environment, unit or function: checks every linked test under it at once and reports the verdicts grouped by function, from which each test's review opens.
 - **Incremental Re-Build Environment** in the environment context menu: recompiles and relinks the test harness for changed function bodies without a full re-build. When the source changes need a full re-build (for example a renamed parameter), a notification says so and offers to run it.
 
 ## [1.0.34] - 2026-08-01

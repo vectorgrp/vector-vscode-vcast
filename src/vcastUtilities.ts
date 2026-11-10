@@ -171,7 +171,7 @@ function insertIncludePath(filePath: string) {
   fs.writeFileSync(filePath, existingJSONasString);
 }
 
-function convertTestScriptContents(scriptPath: string) {
+export function convertTestScriptContents(scriptPath: string) {
   // Read the file
   let originalLines = fs.readFileSync(scriptPath).toString().split(os.EOL);
   let newLines: string[] = [];

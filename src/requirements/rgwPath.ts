@@ -1,7 +1,30 @@
 import * as vscode from "vscode";
+import { builtEnviroIsAda } from "../utilities";
 
 const path = require("path");
 const fs = require("fs");
+
+/**
+ * The configuration files that can hold an environment's VCAST_REPOSITORY,
+ * the one to write first. VectorCAST reads it for an Ada environment from
+ * ADACAST_.CFG and links TEST.REQUIREMENT_KEY only through that one; a
+ * CCAST_.CFG beside it is still read, as earlier versions wrote the gateway
+ * there for Ada too.
+ *
+ * Telling an Ada environment apart reads its script, and the gateway is
+ * looked up for every environment on each focus of the window, so a reader
+ * (`existingOnly`) does so only where an ADACAST_.CFG exists to read.
+ */
+function gatewayConfigPaths(
+  enviroPath: string,
+  existingOnly: boolean
+): string[] {
+  const parentDir = path.dirname(enviroPath);
+  const adaConfig = path.join(parentDir, "ADACAST_.CFG");
+  const ada =
+    (!existingOnly || fs.existsSync(adaConfig)) && builtEnviroIsAda(enviroPath);
+  return [...(ada ? [adaConfig] : []), path.join(parentDir, "CCAST_.CFG")];
+}
 
 export const DEFAULT_RGW_SUBDIR = "rgw";
 
@@ -40,20 +63,19 @@ export function expandEnvVars(inputPath: string): string {
 export function findRelevantRequirementGateway(
   enviroPath: string
 ): string | null {
-  const parentDir = path.dirname(enviroPath);
-  const configPath = path.join(parentDir, "CCAST_.CFG");
+  for (const configPath of gatewayConfigPaths(enviroPath, true)) {
+    if (!fs.existsSync(configPath)) continue;
 
-  if (!fs.existsSync(configPath)) return null;
+    const configContent = fs.readFileSync(configPath, "utf-8");
+    const gatewayMatch = configContent.match(/VCAST_REPOSITORY:\s*(.+)\s*/);
+    if (gatewayMatch == null) continue;
 
-  const configContent = fs.readFileSync(configPath, "utf-8");
-  const gatewayMatch = configContent.match(/VCAST_REPOSITORY:\s*(.+)\s*/);
-  if (gatewayMatch == null) return null;
+    const rawGatewayPath = gatewayMatch[1].trim();
+    const gatewayPath = expandEnvVars(rawGatewayPath);
 
-  const rawGatewayPath = gatewayMatch[1].trim();
-  const gatewayPath = expandEnvVars(rawGatewayPath);
-
-  if (!fs.existsSync(gatewayPath)) return null;
-  return rawGatewayPath;
+    if (fs.existsSync(gatewayPath)) return rawGatewayPath;
+  }
+  return null;
 }
 
 /**
@@ -95,8 +117,7 @@ export function setVcastRepositoryInConfig(
   enviroPath: string,
   gatewayPath: string
 ): void {
-  const parentDir = path.dirname(enviroPath);
-  const configPath = path.join(parentDir, "CCAST_.CFG");
+  const configPath = gatewayConfigPaths(enviroPath, false)[0];
   const line = `VCAST_REPOSITORY: ${gatewayPath}`;
 
   let content = "";
@@ -114,15 +135,15 @@ export function setVcastRepositoryInConfig(
   fs.writeFileSync(configPath, content, "utf-8");
 }
 
-/** Remove the VCAST_REPOSITORY line from CCAST_.CFG if present. */
+/** Remove the VCAST_REPOSITORY line from the environment's configuration. */
 export function clearVcastRepositoryInConfig(enviroPath: string): void {
-  const parentDir = path.dirname(enviroPath);
-  const configPath = path.join(parentDir, "CCAST_.CFG");
-  if (!fs.existsSync(configPath)) return;
+  for (const configPath of gatewayConfigPaths(enviroPath, true)) {
+    if (!fs.existsSync(configPath)) continue;
 
-  const content = fs.readFileSync(configPath, "utf-8");
-  const stripped = content.replace(/^VCAST_REPOSITORY:.*\r?\n?/m, "");
-  if (stripped !== content) {
-    fs.writeFileSync(configPath, stripped, "utf-8");
+    const content = fs.readFileSync(configPath, "utf-8");
+    const stripped = content.replace(/^VCAST_REPOSITORY:.*\r?\n?/m, "");
+    if (stripped !== content) {
+      fs.writeFileSync(configPath, stripped, "utf-8");
+    }
   }
 }

@@ -26,6 +26,7 @@ export enum vcastCommandType {
   mcdcReport = "mcdcReport",
   mcdcLines = "mcdcLines",
   atgLineTst = "atgLineTst",
+  perTestCoverage = "perTestCoverage",
   getWorkspaceEnviroData = "getWorkspaceEnviroData",
 }
 
