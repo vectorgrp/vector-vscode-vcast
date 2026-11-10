@@ -1,5 +1,8 @@
 import { normalizePath, quote } from "./utilities";
 
+const fs = require("fs");
+const path = require("path");
+
 export interface environmentNodeDataType {
   projectPath: string;
   buildDirectory: string;
@@ -28,6 +31,34 @@ export function getEnviroNodeData(enviroPath: string): environmentNodeDataType {
 
 export function clearEnviroDataCache() {
   environmentDataCache.clear();
+}
+
+// The environment's database mtimes when its data was last loaded, so the
+// external change watcher can skip writes the test pane already shows
+const loadedDatabaseStamps = new Map<string, string>();
+
+function databaseStamp(enviroPath: string): string {
+  return ["master.db", "cover.db"]
+    .map(
+      (name) =>
+        fs.statSync(path.join(enviroPath, name), { throwIfNoEntry: false })
+          ?.mtimeMs ?? 0
+    )
+    .join(":");
+}
+
+export function recordDatabasesLoaded(enviroPath: string) {
+  loadedDatabaseStamps.set(
+    normalizePath(enviroPath),
+    databaseStamp(enviroPath)
+  );
+}
+
+export function databasesChangedSinceLoad(enviroPath: string): boolean {
+  return (
+    loadedDatabaseStamps.get(normalizePath(enviroPath)) !==
+    databaseStamp(enviroPath)
+  );
 }
 
 export const compoundOnlyString = " [compound only]";

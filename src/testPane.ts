@@ -38,6 +38,7 @@ import {
   getFunctionNameFromID,
   getTestNameFromID,
   getUnitNameFromID,
+  recordDatabasesLoaded,
   saveEnviroNodeData,
   testNodeType,
   testNodeCache,
@@ -720,6 +721,12 @@ export async function updateTestsForEnvironment(
 ) {
   let jsonData: any;
 
+  // Closing clicast writes master.db, so close before taking the stamp, or the
+  // external change watcher takes the extension's own close for an outside change
+  if (globalEnviroDataServerActive && !comingFromRefresh) {
+    await closeConnection(enviroData.buildDirectory);
+  }
+  recordDatabasesLoaded(enviroData.buildDirectory);
   // In case we are refreshing the extension, we do not want to call the API n times (n=|envs|)
   // Instead we get the entire env data at once and save us time.
   jsonData = await loadEnviroData(enviroData, comingFromRefresh);
@@ -1603,7 +1610,31 @@ export function findTestItem(id: string): vscode.TestItem | undefined {
   return search(globalController.items);
 }
 
+// Runs and full rescans replace the test items, so the external change
+// watcher waits for them to finish rather than refreshing in between
+let testPaneBusyCount = 0;
+
+export function testPaneIsBusy(): boolean {
+  return testPaneBusyCount > 0;
+}
+
+async function whileTestPaneBusy<T>(work: () => Thenable<T>): Promise<T> {
+  testPaneBusyCount++;
+  try {
+    return await work();
+  } finally {
+    testPaneBusyCount--;
+  }
+}
+
 export async function runTests(
+  request: vscode.TestRunRequest,
+  cancellation: vscode.CancellationToken
+) {
+  return whileTestPaneBusy(() => executeTestRun(request, cancellation));
+}
+
+async function executeTestRun(
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken
 ) {
@@ -1999,16 +2030,18 @@ export async function activateTestPane(context: vscode.ExtensionContext) {
 }
 
 export async function buildTestPaneContents() {
-  return vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: "VectorCAST Test Pane Initialization",
-      cancellable: true,
-    },
-    async (progress, token) => {
-      // This call will scan all workspace folders.
-      await loadAllVCTests(progress, token);
-    }
+  return whileTestPaneBusy(() =>
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "VectorCAST Test Pane Initialization",
+        cancellable: true,
+      },
+      async (progress, token) => {
+        // This call will scan all workspace folders.
+        await loadAllVCTests(progress, token);
+      }
+    )
   );
 }
 
