@@ -1264,22 +1264,23 @@ describe("vTypeCheck VS Code Extension", () => {
 
   /**
    * Whether ATG line-test generation is expected to work: PyATG is wired
-   * (VCAST_ATG_PATH points at a real file), an LLM provider is configured, and
-   * the release's bundled Python is new enough to run PyATG. When all hold the
-   * generation tests run for real and a failure is a real failure; otherwise
-   * they are skipped with a logged reason (local dev, a group without PyATG, or
-   * a release whose Python is too old).
+   * (VCAST_ATG_DEV_PATH, the extension's override for the line test's atg,
+   * points at a real file), an LLM provider is configured, and the release's
+   * bundled Python is new enough to run PyATG. When all hold the generation
+   * tests run for real and a failure is a real failure; otherwise they are
+   * skipped with a logged reason (local dev, a group without PyATG, or a
+   * release whose Python is too old).
    */
   async function generationPrerequisites(): Promise<{
     ok: boolean;
     reason: string;
   }> {
-    const atgPath = process.env.VCAST_ATG_PATH;
+    const atgPath = process.env.VCAST_ATG_DEV_PATH;
     if (!atgPath || !fs.existsSync(atgPath)) {
       return {
         ok: false,
         reason:
-          "PyATG is not wired (VCAST_ATG_PATH unset or missing); the release atg cannot target a line",
+          "PyATG is not wired (VCAST_ATG_DEV_PATH unset or missing); the release atg cannot target a line",
       };
     }
 

@@ -578,14 +578,19 @@ jobs:
 
       # PyATG gives `atg` the ability to generate a test for a single targeted
       # source line (VCAST_ATG_LLM_PATHS), which the ATG line-test spec in the
-      # basic_user_interactions groups needs; the `atg` shipped in the release
-      # cannot do it. Only those two groups run that spec, and only they get
-      # VCAST_ATG_PATH pointed at PyATG - the other ATG groups keep using the
-      # release's own `atg` so their golden-output comparisons are unaffected.
+      # basic_user_interactions groups needs; the `atg` shipped in the releases
+      # tested here cannot do it. Only those two groups run that spec, and only
+      # they get PyATG - the other ATG groups keep using the release's own `atg`
+      # so their golden-output comparisons are unaffected.
+      #
+      # The extension runs the line test with the release's own `atg` and drops
+      # VCAST_ATG_PATH for it; VCAST_ATG_DEV_PATH is its override for ATG
+      # development, so that is what points the line test at PyATG.
+      # VCAST_ATG_PATH still redirects every other `atg` call in these groups.
       #
       # This is opt-in: until the PYATG_REPO repository variable and the
-      # PYATG_TOKEN secret are configured, both steps skip and the spec detects
-      # the missing capability and skips its generation tests, exactly as today.
+      # PYATG_TOKEN secret are configured, both steps skip, and the spec finds
+      # no `atg` that supports LLM_PATHS and skips.
       - name: Check out PyATG
         if: ${{ vars.PYATG_REPO != '' && (matrix.group == 'basic_user_interactions' || matrix.group == 'basic_user_interactions_server') }}
         uses: actions/checkout@v4
@@ -610,9 +615,10 @@ jobs:
           {
             echo "ATG_ROOT=${GITHUB_WORKSPACE}/pyatg"
             echo "VCAST_ATG_PATH=${GITHUB_WORKSPACE}/pyatg/atg/main.py"
+            echo "VCAST_ATG_DEV_PATH=${GITHUB_WORKSPACE}/pyatg/atg/main.py"
             echo "PYTHONPATH=${GITHUB_WORKSPACE}/pyatg${PYTHONPATH:+:${PYTHONPATH}}"
           } >> "$GITHUB_ENV"
-          echo "PyATG wired: VCAST_ATG_PATH=${GITHUB_WORKSPACE}/pyatg/atg/main.py"
+          echo "PyATG wired: VCAST_ATG_PATH and VCAST_ATG_DEV_PATH=${GITHUB_WORKSPACE}/pyatg/atg/main.py"
 
       - name: Run tests
         run: |
