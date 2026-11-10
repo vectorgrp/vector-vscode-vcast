@@ -1,9 +1,10 @@
+import { spawnSync } from "node:child_process";
 import * as vscode from "vscode";
 import * as jsonc from "jsonc-parser";
 
 import { updateVMockStatus, sendVCDirCommandToLanguageServer } from "./client";
 
-import { openMessagePane, vectorMessage } from "./messagePane";
+import { errorLevel, openMessagePane, vectorMessage } from "./messagePane";
 
 import {
   exeFilename,
@@ -220,26 +221,38 @@ function vectorCASTSupportsATG(vcastInstallationPath: string): boolean {
 function checkForATGLLMPaths(atgCommand: string): boolean {
   //
   // Like the Reqs2X tools' flag probes, detect the capability rather than
-  // infer it from the VectorCAST version. LLM_PATHS is a private ATG option,
-  // so it does not show up in the plain --help output -- only in the
-  // developer help. The probe runs in the line test's own environment, so a
+  // infer it from the VectorCAST version. Older ATG builds list LLM_PATHS
+  // only in the developer help (newer ones in the plain --help too), so ask
+  // --help-dev. The probe runs in the line test's own environment, so a
   // VCAST_ATG_DEV_PATH override is asked instead of the bundled atg.
   //
   // Anything unexpected (an older atg that rejects --help-dev, a missing
   // license) leaves this false, so the feature stays hidden rather than
   // offering a line test that cannot work.
   //
-  const commandStatus = executeCommandSync(
-    `${atgCommand} --help-dev`,
-    process.cwd(),
-    false,
-    atgLineTestEnvironment()
-  );
-  if (commandStatus.errorCode !== 0) {
+  // A failing probe is an expected answer, not an error, so it runs without
+  // executeCommandSync: that opens the message pane on every non-zero exit,
+  // which would pop the log at each start-up on such an atg.
+  //
+  const result = spawnSync(atgCommand, ["--help-dev"], {
+    cwd: process.cwd(),
+    env: atgLineTestEnvironment(),
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+    timeout: 60_000,
+  });
+  if (result.error !== undefined || result.status !== 0) {
+    const reason = result.error
+      ? result.error.message
+      : `exit code ${result.status}`;
+    vectorMessage(
+      `   'atg --help-dev' failed (${reason}): ${(result.stderr ?? "").trim().slice(-500)}`,
+      errorLevel.trace
+    );
     return false;
   }
 
-  return commandStatus.stdout.includes("--llm-paths");
+  return result.stdout.includes("--llm-paths");
 }
 
 function checkForATG(vcastInstallationPath: string) {
