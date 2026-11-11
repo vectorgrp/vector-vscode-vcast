@@ -13,6 +13,7 @@ import {
   openTestScriptFor,
   updateTestID,
   checkIfRequestInLogs,
+  releaseHasEnvironmentVersion,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -215,6 +216,62 @@ describe("vTypeCheck VS Code Extension", () => {
     expect(await contentAssist.hasItem("Manager::Manager")).toBe(true);
     expect(await contentAssist.hasItem("Manager::PlaceOrder")).toBe(true);
 
+    await tab.setTextAtLine(currentLine, "");
+
+    await tab.save();
+  });
+
+  it("should offer the script features of the environment for TEST.SCRIPT_FEATURE:", async () => {
+    await updateTestID();
+
+    const editorView = workbench.getEditorView();
+    const tab = (await editorView.openEditor(
+      "vcast-template.tst"
+    )) as TextEditor;
+
+    // Need to activate contentAssist before getting the object
+    await browser.keys([Key.Ctrl, Key.Space]);
+    const contentAssist = await tab.toggleContentAssist(true);
+
+    // add a new script feature line below an existing one
+    const existingFeature = "TEST.SCRIPT_FEATURE:MULTIPLE_UUT_SUPPORT";
+    let currentLine = await tab.getLineOfText(existingFeature);
+    await tab.moveCursor(currentLine, existingFeature.length + 1);
+    await browser.keys([Key.Enter]);
+    currentLine += 1;
+
+    await tab.setTextAtLine(currentLine, "TEST.SCRIPT_FEATURE");
+    await tab.typeTextAt(currentLine, "TEST.SCRIPT_FEATURE".length + 1, ":");
+
+    console.log("validating content assist for TEST.SCRIPT_FEATURE:");
+    // this one is part of the list that is built into the extension
+    await browser.waitUntil(
+      async () => await contentAssist.hasItem("C_DIRECT_ARRAY_INDEXING")
+    );
+
+    // this one is not part of the built-in list, so it is only
+    // offered if we got it from the environment
+    const newFeature = "USING_DECL_FOR_BASE_MEMBER_HANDLED";
+    const releaseHasNewFeature = await releaseHasEnvironmentVersion(
+      "REVISION_2025_USING_DECL_FOR_BASE_MEMBER_HANDLED"
+    );
+    console.log(`release knows ${newFeature}: ${releaseHasNewFeature}`);
+
+    // typing the start of the name filters the list
+    await tab.typeTextAt(
+      currentLine,
+      "TEST.SCRIPT_FEATURE:".length + 1,
+      "USING"
+    );
+    if (releaseHasNewFeature) {
+      await browser.waitUntil(
+        async () => await contentAssist.hasItem(newFeature)
+      );
+    } else {
+      expect(await contentAssist.hasItem(newFeature)).toBe(false);
+    }
+
+    await browser.keys([Key.Escape]);
     await tab.setTextAtLine(currentLine, "");
 
     await tab.save();

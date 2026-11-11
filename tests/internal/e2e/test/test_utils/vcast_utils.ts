@@ -1419,6 +1419,31 @@ export async function assertTestsDeleted(
 }
 
 /**
+ * Checks if the VectorCAST release under test knows a TEST.SCRIPT_FEATURE flag
+ * that was introduced with an environment version (e.g. the flag
+ * USING_DECL_FOR_BASE_MEMBER_HANDLED came with the environment version
+ * REVISION_2025_USING_DECL_FOR_BASE_MEMBER_HANDLED).
+ *
+ * @param environmentVersion Name of the environment version to look for.
+ * @returns True if the release knows this environment version.
+ */
+export async function releaseHasEnvironmentVersion(
+  environmentVersion: string
+): Promise<boolean> {
+  const vpython = process.env.VECTORCAST_DIR
+    ? `"${path.join(process.env.VECTORCAST_DIR, "vpython")}"`
+    : "vpython";
+  const pythonCode = `from vector.enums import ENVIRONMENT_VERSION_TYPE_T; print('${environmentVersion}' in list(ENVIRONMENT_VERSION_TYPE_T.names))`;
+  try {
+    const { stdout } = await promisifiedExec(`${vpython} -c "${pythonCode}"`);
+    return stdout.trim().endsWith("True");
+  } catch (error) {
+    console.log(`Could not query environment versions: ${error}`);
+    return false;
+  }
+}
+
+/**
  * Selects an item from the content assist dropdown.
  *
  * Normalizes the provided item string, searches the content assist
