@@ -110,6 +110,12 @@ The VectorCAST Test Tree contains a hierarchy of nodes for each VectorCAST Test 
 The top-level node will indicate the relative path from the workspace root to the
 environment. The subsequent levels show units, functions, and test cases.
 
+The tree also updates by itself when environments or Manage projects change outside the
+extension, for example when `clicast` or `manage` runs in a terminal or through an AI agent:
+new, rebuilt and deleted environments, added and deleted tests, and changes to a project's
+compilers, testsuites and environments. Coverage annotations update too, and the results of
+tests run this way appear in the Testing view as a test run named "Run outside VS Code".
+
 ### Test Tree Context Menus
 
 #### Environment node context menu
