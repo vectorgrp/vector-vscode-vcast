@@ -1,6 +1,6 @@
 import { normalizePath, quote } from "./utilities";
+import { mtimeMsOrZero } from "../src-common/commonUtilities";
 
-const fs = require("fs");
 const path = require("path");
 
 export interface environmentNodeDataType {
@@ -39,11 +39,7 @@ const loadedDatabaseStamps = new Map<string, string>();
 
 function databaseStamp(enviroPath: string): string {
   return ["master.db", "cover.db"]
-    .map(
-      (name) =>
-        fs.statSync(path.join(enviroPath, name), { throwIfNoEntry: false })
-          ?.mtimeMs ?? 0
-    )
+    .map((name) => mtimeMsOrZero(path.join(enviroPath, name)))
     .join(":");
 }
 
@@ -64,21 +60,17 @@ export function databasesChangedSinceLoad(enviroPath: string): boolean {
 // The same for each Manage project file
 const loadedProjectStamps = new Map<string, number>();
 
-function projectStamp(projectFile: string): number {
-  return fs.statSync(projectFile, { throwIfNoEntry: false })?.mtimeMs ?? 0;
-}
-
 export function recordProjectLoaded(projectFile: string) {
   loadedProjectStamps.set(
     normalizePath(projectFile),
-    projectStamp(projectFile)
+    mtimeMsOrZero(projectFile)
   );
 }
 
 export function projectChangedSinceLoad(projectFile: string): boolean {
   return (
     loadedProjectStamps.get(normalizePath(projectFile)) !==
-    projectStamp(projectFile)
+    mtimeMsOrZero(projectFile)
   );
 }
 
