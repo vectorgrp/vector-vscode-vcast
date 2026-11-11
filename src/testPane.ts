@@ -39,6 +39,7 @@ import {
   getTestNameFromID,
   getUnitNameFromID,
   recordDatabasesLoaded,
+  recordProjectLoaded,
   saveEnviroNodeData,
   testNodeType,
   testNodeCache,
@@ -548,6 +549,7 @@ export async function buildProjectDataCache(
       // allow UI to catch up
       await new Promise((r) => setTimeout(r, 0));
     }
+    recordProjectLoaded(projectFile);
     const projectData = await getDataForProject(projectFile);
 
     if (projectData) {

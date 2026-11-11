@@ -4,6 +4,7 @@ import {
   environmentDataCache,
   getEnviroNodeData,
   makeTestNodeID,
+  projectChangedSinceLoad,
 } from "./testData";
 import {
   failMessageFor,
@@ -108,6 +109,30 @@ async function checkEnvironment(enviroPath: string) {
   }
 }
 
+// Manage projects whose .vcm file changed. VectorCAST writes it only when the
+// project's compilers, testsuites, environments or settings change, and the
+// extension reads those only in a full rescan.
+const pendingProjects = new Set<string>();
+let projectCheckTimer: NodeJS.Timeout | undefined;
+
+function scheduleProjectCheck(projectFile: string) {
+  pendingProjects.add(projectFile);
+  clearTimeout(projectCheckTimer);
+  projectCheckTimer = setTimeout(() => void checkProjects(), quietPeriodMs);
+}
+
+async function checkProjects() {
+  if (testPaneIsBusy()) {
+    projectCheckTimer = setTimeout(() => void checkProjects(), quietPeriodMs);
+    return;
+  }
+  const changed = [...pendingProjects].some(projectChangedSinceLoad);
+  pendingProjects.clear();
+  if (changed) {
+    await refreshAllExtensionData();
+  }
+}
+
 export function setupExternalChangeWatchers(
   context: vscode.ExtensionContext
 ): void {
@@ -150,5 +175,17 @@ export function setupExternalChangeWatchers(
     context.subscriptions
   );
 
-  context.subscriptions.push(databaseWatcher, buildWatcher, deleteWatcher);
+  const projectWatcher = vscode.workspace.createFileSystemWatcher("**/*.vcm");
+  const onProjectChange = (uri: vscode.Uri) =>
+    scheduleProjectCheck(normalizePath(uri.fsPath));
+  projectWatcher.onDidCreate(onProjectChange, null, context.subscriptions);
+  projectWatcher.onDidChange(onProjectChange, null, context.subscriptions);
+  projectWatcher.onDidDelete(onProjectChange, null, context.subscriptions);
+
+  context.subscriptions.push(
+    databaseWatcher,
+    buildWatcher,
+    deleteWatcher,
+    projectWatcher
+  );
 }

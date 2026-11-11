@@ -61,6 +61,27 @@ export function databasesChangedSinceLoad(enviroPath: string): boolean {
   );
 }
 
+// The same for each Manage project file
+const loadedProjectStamps = new Map<string, number>();
+
+function projectStamp(projectFile: string): number {
+  return fs.statSync(projectFile, { throwIfNoEntry: false })?.mtimeMs ?? 0;
+}
+
+export function recordProjectLoaded(projectFile: string) {
+  loadedProjectStamps.set(
+    normalizePath(projectFile),
+    projectStamp(projectFile)
+  );
+}
+
+export function projectChangedSinceLoad(projectFile: string): boolean {
+  return (
+    loadedProjectStamps.get(normalizePath(projectFile)) !==
+    projectStamp(projectFile)
+  );
+}
+
 export const compoundOnlyString = " [compound only]";
 
 export interface testNodeType {
