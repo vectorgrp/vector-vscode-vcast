@@ -6,6 +6,8 @@ as a gutter decoration in C/C++ source editors.
 
 ## Prerequisites
 
+The extension needs VS Code 1.101 or newer.
+
 You must have a VectorCAST version 21 or newer installed and licensed, 
 and the installation directory must be:
   - on the **system PATH**, 
@@ -441,6 +443,13 @@ and can be used to re-start the Data Server.
 When the Data Server starts, it will create a log file in the workspace to log each command it receives.
 You can open this log file by using the "VectorCAST Test Explorer: Open Data Server log" command in 
 the Command Palette.
+
+### VectorCAST MCP Servers
+
+If your VectorCAST installation includes MCP servers (`vcast-mcp-server`, `reqs2x-mcp-server`
+and `docs-mcp-server`, next to `clicast`), the extension makes them available to VS Code's chat
+in agent mode, with no `mcp.json` entry needed. They come from the installation the extension
+uses, so changing the **Vectorcast Installation Location** option changes them too.
 
 
 ### Miscellaneous Features

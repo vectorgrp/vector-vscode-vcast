@@ -2,6 +2,11 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.36] - 2026-11-11
+
+### Added
+- VectorCAST installations that include MCP servers now make them available to VS Code's chat in agent mode, without any setup. This needs VS Code 1.101 or newer, which is now the minimum version of the extension.
+
 ## [1.0.35] - 2026-10-29
 
 ### Added
