@@ -123,20 +123,23 @@ function onProjectChange(projectFile: string) {
 export function setupExternalChangeWatchers(
   context: vscode.ExtensionContext
 ): void {
-  const onChange = (buildChanged: boolean) => (uri: vscode.Uri) =>
+  // master.db, cover.db and UNITDATA.VCD sit in the environment's directory
+  const environmentFileChanged = (buildChanged: boolean) => (uri: vscode.Uri) =>
     onEnvironmentChange(normalizePath(path.dirname(uri.fsPath)), buildChanged);
 
   const databaseWatcher = vscode.workspace.createFileSystemWatcher(
     "**/{master,cover}.db"
   );
-  databaseWatcher.onDidCreate(onChange(false), null, context.subscriptions);
-  databaseWatcher.onDidChange(onChange(false), null, context.subscriptions);
-  databaseWatcher.onDidDelete(onChange(false), null, context.subscriptions);
+  const databaseChanged = environmentFileChanged(false);
+  databaseWatcher.onDidCreate(databaseChanged, null, context.subscriptions);
+  databaseWatcher.onDidChange(databaseChanged, null, context.subscriptions);
+  databaseWatcher.onDidDelete(databaseChanged, null, context.subscriptions);
 
   const buildWatcher = vscode.workspace.createFileSystemWatcher(
     `**/${vcastEnviroFile}`
   );
-  buildWatcher.onDidCreate(onChange(true), null, context.subscriptions);
+  const environmentBuilt = environmentFileChanged(true);
+  buildWatcher.onDidCreate(environmentBuilt, null, context.subscriptions);
 
   // When a whole directory is deleted or moved away, VS Code reports only the
   // directory, not the environment files in it
@@ -163,11 +166,11 @@ export function setupExternalChangeWatchers(
   );
 
   const projectWatcher = vscode.workspace.createFileSystemWatcher("**/*.vcm");
-  const onProjectFile = (uri: vscode.Uri) =>
+  const projectFileChanged = (uri: vscode.Uri) =>
     onProjectChange(normalizePath(uri.fsPath));
-  projectWatcher.onDidCreate(onProjectFile, null, context.subscriptions);
-  projectWatcher.onDidChange(onProjectFile, null, context.subscriptions);
-  projectWatcher.onDidDelete(onProjectFile, null, context.subscriptions);
+  projectWatcher.onDidCreate(projectFileChanged, null, context.subscriptions);
+  projectWatcher.onDidChange(projectFileChanged, null, context.subscriptions);
+  projectWatcher.onDidDelete(projectFileChanged, null, context.subscriptions);
 
   context.subscriptions.push(
     databaseWatcher,
