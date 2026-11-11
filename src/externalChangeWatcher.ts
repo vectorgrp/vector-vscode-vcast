@@ -3,14 +3,18 @@ import {
   databasesChangedSinceLoad,
   environmentDataCache,
   getEnviroNodeData,
+  makeTestNodeID,
 } from "./testData";
 import {
+  failMessageFor,
+  findTestItem,
+  globalController,
   refreshAllExtensionData,
   testPaneIsBusy,
   updateDataForEnvironment,
 } from "./testPane";
 import { normalizePath } from "./utilities";
-import { vcastEnviroFile } from "./vcastTestInterface";
+import { globalTestStatusArray, vcastEnviroFile } from "./vcastTestInterface";
 
 const fs = require("fs");
 const path = require("path");
@@ -37,6 +41,44 @@ function scheduleCheck(enviroPath: string, buildChanged: boolean) {
   });
 }
 
+// The last result of each of the environment's tests that has one
+function testResults(enviroPath: string): Map<string, string> {
+  const prefix = makeTestNodeID(enviroPath, "");
+  const results = new Map<string, string>();
+  for (const [id, test] of Object.entries(globalTestStatusArray)) {
+    if (id.startsWith(prefix) && test.status) {
+      results.set(id, `${test.status} ${test.time} ${test.passfail}`);
+    }
+  }
+  return results;
+}
+
+// The Testing view shows a test's result only once a test run reports it
+function reportNewResults(
+  before: Map<string, string>,
+  after: Map<string, string>
+) {
+  const tests = [...after.keys()]
+    .filter((id) => after.get(id) !== before.get(id))
+    .map(findTestItem)
+    .filter((test): test is vscode.TestItem => test !== undefined);
+  if (tests.length === 0) return;
+
+  const run = globalController.createTestRun(
+    new vscode.TestRunRequest(tests),
+    "Run outside VS Code"
+  );
+  for (const test of tests) {
+    const { status, passfail } = globalTestStatusArray[test.id];
+    if (status === "passed") {
+      run.passed(test);
+    } else {
+      run.failed(test, failMessageFor(passfail));
+    }
+  }
+  run.end();
+}
+
 async function checkEnvironment(enviroPath: string) {
   const pending = pendingChecks.get(enviroPath)!;
   if (testPaneIsBusy()) {
@@ -52,7 +94,9 @@ async function checkEnvironment(enviroPath: string) {
   const builtOnDisk = fs.existsSync(path.join(enviroPath, vcastEnviroFile));
   if (enviroData?.isBuilt && builtOnDisk) {
     if (databasesChangedSinceLoad(enviroData.buildDirectory)) {
+      const resultsBefore = testResults(enviroData.buildDirectory);
       await updateDataForEnvironment(enviroData.buildDirectory);
+      reportNewResults(resultsBefore, testResults(enviroData.buildDirectory));
     }
   } else if (pending.buildChanged) {
     // A new, newly built or deleted environment changes the tree itself. A

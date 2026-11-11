@@ -1462,6 +1462,24 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
   }
 }
 
+export function failMessageFor(passfail: string): TestMessage {
+  // convert the pass fail string from the current test data into a message
+  // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
+  // transform to: "Expected Results matched 0% ( 0 / 1 ) Fail"
+
+  // We have seen the passfail string be empty so guard i
+  // against that and any malformed strings
+  let failMessageText = "";
+  try {
+    const xofy = passfail.split("(")[0].trim();
+    const percentage = passfail.split("(")[1].split(")")[0].trim();
+    failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
+  } catch (err: any) {
+    failMessageText = "Unexpected error processing expected results";
+  }
+  return new TestMessage(failMessageText);
+}
+
 export async function runNode(
   node: vcastTestItem,
   run: vscode.TestRun,
@@ -1498,27 +1516,7 @@ export async function runNode(
       if (status == testStatus.passed) {
         run.passed(node);
       } else if (status == testStatus.failed) {
-        const currentTestData = executionResult.details;
-
-        // convert the pass fail string from the current test data into a message
-        // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
-        // transform to: "Expected Results matched 0% ( 0 / 1 ) Fail"
-
-        // We have seen the passfail string be empty so guard i
-        // against that and any malformed strings
-        let failMessageText = "";
-        try {
-          const xofy = currentTestData.passfail.split("(")[0].trim();
-          const percentage = currentTestData.passfail
-            .split("(")[1]
-            .split(")")[0]
-            .trim();
-          failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
-        } catch (err: any) {
-          failMessageText = "Unexpected error processing expected results";
-        }
-        const failMessage = new TestMessage(failMessageText);
-        run.failed(node, failMessage);
+        run.failed(node, failMessageFor(executionResult.details.passfail));
       }
 
       if (generateReport) {
