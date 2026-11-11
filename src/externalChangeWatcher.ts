@@ -26,20 +26,21 @@ const path = require("path");
 // UNITDATA.VCD last in a build. Reads, including the extension's own data
 // loads, write neither.
 const quietPeriodMs = 1000;
+const quietPeriodTimers = new Map<string, NodeJS.Timeout>();
 
-interface pendingCheck {
-  timer: NodeJS.Timeout;
-  buildChanged: boolean;
-}
-const pendingChecks = new Map<string, pendingCheck>();
-
-function scheduleCheck(enviroPath: string, buildChanged: boolean) {
-  const pending = pendingChecks.get(enviroPath);
-  clearTimeout(pending?.timer);
-  pendingChecks.set(enviroPath, {
-    timer: setTimeout(() => void checkEnvironment(enviroPath), quietPeriodMs),
-    buildChanged: buildChanged || (pending?.buildChanged ?? false),
-  });
+// Runs check once nothing changed at key for the quiet period and no run or
+// full rescan is in progress
+function afterQuietPeriod(key: string, check: () => Promise<void>) {
+  clearTimeout(quietPeriodTimers.get(key));
+  const run = () => {
+    if (testPaneIsBusy()) {
+      quietPeriodTimers.set(key, setTimeout(run, quietPeriodMs));
+      return;
+    }
+    quietPeriodTimers.delete(key);
+    void check();
+  };
+  quietPeriodTimers.set(key, setTimeout(run, quietPeriodMs));
 }
 
 // The last result of each of the environment's tests that has one
@@ -80,17 +81,16 @@ function reportNewResults(
   run.end();
 }
 
-async function checkEnvironment(enviroPath: string) {
-  const pending = pendingChecks.get(enviroPath)!;
-  if (testPaneIsBusy()) {
-    pending.timer = setTimeout(
-      () => void checkEnvironment(enviroPath),
-      quietPeriodMs
-    );
-    return;
-  }
-  pendingChecks.delete(enviroPath);
+// Environments built, rebuilt or deleted since their last check
+const buildChangedEnvs = new Set<string>();
 
+function onEnvironmentChange(enviroPath: string, buildChanged: boolean) {
+  if (buildChanged) buildChangedEnvs.add(enviroPath);
+  afterQuietPeriod(enviroPath, () => checkEnvironment(enviroPath));
+}
+
+async function checkEnvironment(enviroPath: string) {
+  const buildChanged = buildChangedEnvs.delete(enviroPath);
   const enviroData = getEnviroNodeData(enviroPath);
   const builtOnDisk = fs.existsSync(path.join(enviroPath, vcastEnviroFile));
   if (enviroData?.isBuilt && builtOnDisk) {
@@ -99,7 +99,7 @@ async function checkEnvironment(enviroPath: string) {
       await updateDataForEnvironment(enviroData.buildDirectory);
       reportNewResults(resultsBefore, testResults(enviroData.buildDirectory));
     }
-  } else if (pending.buildChanged) {
+  } else if (buildChanged) {
     // A new, newly built or deleted environment changes the tree itself. A
     // rebuild deletes and recreates the directory, so it waits for UNITDATA.VCD.
     const deleted = enviroData && !fs.existsSync(enviroPath);
@@ -109,35 +109,22 @@ async function checkEnvironment(enviroPath: string) {
   }
 }
 
-// Manage projects whose .vcm file changed. VectorCAST writes it only when the
-// project's compilers, testsuites, environments or settings change, and the
-// extension reads those only in a full rescan.
-const pendingProjects = new Set<string>();
-let projectCheckTimer: NodeJS.Timeout | undefined;
-
-function scheduleProjectCheck(projectFile: string) {
-  pendingProjects.add(projectFile);
-  clearTimeout(projectCheckTimer);
-  projectCheckTimer = setTimeout(() => void checkProjects(), quietPeriodMs);
-}
-
-async function checkProjects() {
-  if (testPaneIsBusy()) {
-    projectCheckTimer = setTimeout(() => void checkProjects(), quietPeriodMs);
-    return;
-  }
-  const changed = [...pendingProjects].some(projectChangedSinceLoad);
-  pendingProjects.clear();
-  if (changed) {
-    await refreshAllExtensionData();
-  }
+// VectorCAST writes a Manage project's .vcm file only when the project's
+// compilers, testsuites, environments or settings change, and the extension
+// reads those only in a full rescan
+function onProjectChange(projectFile: string) {
+  afterQuietPeriod(projectFile, async () => {
+    if (projectChangedSinceLoad(projectFile)) {
+      await refreshAllExtensionData();
+    }
+  });
 }
 
 export function setupExternalChangeWatchers(
   context: vscode.ExtensionContext
 ): void {
   const onChange = (buildChanged: boolean) => (uri: vscode.Uri) =>
-    scheduleCheck(normalizePath(path.dirname(uri.fsPath)), buildChanged);
+    onEnvironmentChange(normalizePath(path.dirname(uri.fsPath)), buildChanged);
 
   const databaseWatcher = vscode.workspace.createFileSystemWatcher(
     "**/{master,cover}.db"
@@ -167,7 +154,7 @@ export function setupExternalChangeWatchers(
           enviroPath === deletedPath ||
           enviroPath.startsWith(deletedPath + "/")
         ) {
-          scheduleCheck(enviroPath, true);
+          onEnvironmentChange(enviroPath, true);
         }
       }
     },
@@ -176,11 +163,11 @@ export function setupExternalChangeWatchers(
   );
 
   const projectWatcher = vscode.workspace.createFileSystemWatcher("**/*.vcm");
-  const onProjectChange = (uri: vscode.Uri) =>
-    scheduleProjectCheck(normalizePath(uri.fsPath));
-  projectWatcher.onDidCreate(onProjectChange, null, context.subscriptions);
-  projectWatcher.onDidChange(onProjectChange, null, context.subscriptions);
-  projectWatcher.onDidDelete(onProjectChange, null, context.subscriptions);
+  const onProjectFile = (uri: vscode.Uri) =>
+    onProjectChange(normalizePath(uri.fsPath));
+  projectWatcher.onDidCreate(onProjectFile, null, context.subscriptions);
+  projectWatcher.onDidChange(onProjectFile, null, context.subscriptions);
+  projectWatcher.onDidDelete(onProjectFile, null, context.subscriptions);
 
   context.subscriptions.push(
     databaseWatcher,
