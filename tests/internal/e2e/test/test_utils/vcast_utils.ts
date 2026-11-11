@@ -1444,6 +1444,32 @@ export async function releaseHasEnvironmentVersion(
 }
 
 /**
+ * Checks if the content assist currently shows an item with the given label.
+ *
+ * Unlike ContentAssist.hasItem(), this only looks at the visible items and
+ * never scrolls. hasItem() loops forever when the content assist is empty.
+ *
+ * @param contentAssist The content assist object containing autocompletion items.
+ * @param label The label of the item to look for.
+ * @returns True if a visible item has this label.
+ */
+export async function contentAssistShowsItem(
+  contentAssist: ContentAssist,
+  label: string
+): Promise<boolean> {
+  try {
+    for (const item of await contentAssist.getItems()) {
+      if ((await item.getLabel()) === label) {
+        return true;
+      }
+    }
+  } catch {
+    // the content assist is not shown (anymore)
+  }
+  return false;
+}
+
+/**
  * Selects an item from the content assist dropdown.
  *
  * Normalizes the provided item string, searches the content assist

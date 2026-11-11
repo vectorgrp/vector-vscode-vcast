@@ -14,6 +14,7 @@ import {
   updateTestID,
   checkIfRequestInLogs,
   releaseHasEnvironmentVersion,
+  contentAssistShowsItem,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -249,8 +250,36 @@ describe("vTypeCheck VS Code Extension", () => {
       console.log("validating content assist for TEST.SCRIPT_FEATURE:");
       // this one is part of the list that is built into the extension
       await browser.waitUntil(
-        async () => await contentAssist.hasItem("C_DIRECT_ARRAY_INDEXING")
+        async () =>
+          await contentAssistShowsItem(contentAssist, "C_DIRECT_ARRAY_INDEXING")
       );
+
+      // all features that are built into the extension have to be offered,
+      // no matter which features the VectorCAST release reports
+      const builtInFeatures = [
+        "ACCEPTING_MISSING_CONST",
+        "ADA_DIRECT_ARRAY_INDEXING",
+        "C_DIRECT_ARRAY_INDEXING",
+        "REMOVED_CL_PREFIX",
+        "CPP_CLASS_OBJECT_REVISION",
+        "DATA_SPACING_FORMAT",
+        "FULL_PARAMETER_TYPES",
+        "IGNORE_NAME_VALUE_ERRORS",
+        "MIXED_CASE_NAMES",
+        "MULTIPLE_UUT_SUPPORT",
+        "OVERLOADED_CONST_SUPPORT",
+        "STANDARD_SPACING_R2",
+        "STRUCT_BASE_CTOR_ADDS_POINTER",
+        "STRUCT_DTOR_ADDS_POINTER",
+        "STRUCT_FIELD_CTOR_ADDS_POINTER",
+        "STATIC_HEADER_FUNCS_IN_UUTS",
+        "UNDERSCORE_NULLPTR",
+        "VCAST_MAIN_NOT_RENAMED",
+      ];
+      for (const feature of builtInFeatures) {
+        // the list is not empty here, so hasItem() can scroll through it
+        expect(await contentAssist.hasItem(feature)).toBe(true);
+      }
 
       // this one is not part of the built-in list, so it is only
       // offered if we got it from the environment
@@ -268,10 +297,14 @@ describe("vTypeCheck VS Code Extension", () => {
       );
       if (releaseHasNewFeature) {
         await browser.waitUntil(
-          async () => await contentAssist.hasItem(newFeature)
+          async () => await contentAssistShowsItem(contentAssist, newFeature)
         );
       } else {
-        expect(await contentAssist.hasItem(newFeature)).toBe(false);
+        // give the content assist time to update
+        await browser.pause(2000);
+        expect(await contentAssistShowsItem(contentAssist, newFeature)).toBe(
+          false
+        );
       }
     } finally {
       // always restore and save the script, the following specs need it
