@@ -8,7 +8,7 @@ import {
   getNearest,
   getTriggerFromContext,
   testCommandList,
-  scriptFeatureList,
+  getScriptFeaturesForEnviro,
 } from "./serverUtilities";
 
 import {
@@ -165,7 +165,7 @@ export async function getTstCompletionData(
       returnData.choiceList = choiceData.choiceList;
     } else if (trigger == "COLON" && upperCaseLine == "TEST.SCRIPT_FEATURE:") {
       returnData.choiceKind = "Keyword";
-      returnData.choiceList = scriptFeatureList;
+      returnData.choiceList = getScriptFeaturesForEnviro(enviroPath);
     } else if (trigger == "COLON" && upperCaseLine == "TEST.SUBPROGRAM:") {
       // find closest TEST.UNIT above this line ...
       const unit = getNearest(

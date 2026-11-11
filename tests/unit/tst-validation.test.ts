@@ -3,6 +3,10 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 import { generateDiagnosticMessages, runCommand } from "./utils";
 import { getToolVersion } from "./getToolversion";
+import {
+  clearScriptFeatureMap,
+  setScriptFeaturesForEnviro,
+} from "../../langServer/serverUtilities";
 
 const timeout = 30_000; // 30 seconds
 
@@ -315,6 +319,34 @@ describe("Text Document Validator", () => {
           expect.stringContaining("TEST.NEW | REPLACE is required but missing"),
         ])
       );
+    },
+    timeout
+  );
+
+  test(
+    "validate that a script feature reported by the environment is accepted",
+    async () => {
+      const tstText = `
+TEST.SCRIPT_FEATURE:USING_DECL_FOR_BASE_MEMBER_HANDLED
+TEST.SCRIPT_FEATURE:INVALID_BLA_FEATURE
+`;
+      const featureMessage =
+        "Invalid feature flag, type TEST.SCRIPT_FEATURE: to see a all flags";
+      const countFeatureMessages = () =>
+        generateDiagnosticMessages(tstText).filter((message) =>
+          message.includes(featureMessage)
+        ).length;
+
+      // not in the built-in list, so both lines are flagged
+      clearScriptFeatureMap();
+      expect(countFeatureMessages()).toBe(2);
+
+      // once an environment reports the feature, only the invalid one is flagged
+      setScriptFeaturesForEnviro(path.join("some", "enviro", "TEST"), [
+        "USING_DECL_FOR_BASE_MEMBER_HANDLED",
+      ]);
+      expect(countFeatureMessages()).toBe(1);
+      clearScriptFeatureMap();
     },
     timeout
   );

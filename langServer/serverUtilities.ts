@@ -303,3 +303,40 @@ export const scriptFeatureList = [
   "UNDERSCORE_NULLPTR",
   "VCAST_MAIN_NOT_RENAMED",
 ];
+
+// Map of enviroPath -> script features known to the VectorCAST release of
+// that environment. The extension sends this data to the language server
+// via the "vcasttesteditor/updateScriptFeatures" notification.
+const scriptFeatureMap: Map<string, string[]> = new Map();
+
+export function setScriptFeaturesForEnviro(
+  enviroPath: string,
+  featureList: string[]
+) {
+  scriptFeatureMap.set(path.normalize(enviroPath), featureList);
+}
+
+export function clearScriptFeatureMap(): void {
+  scriptFeatureMap.clear();
+}
+
+// Returns the built-in feature list, extended with the features reported
+// by the environment. If we have no data for the environment (e.g. the
+// script is not located next to it), we accept what any loaded environment
+// reports, so that we do not flag valid features as invalid.
+export function getScriptFeaturesForEnviro(enviroPath?: string): string[] {
+  let enviroFeatures: string[] | undefined = enviroPath
+    ? scriptFeatureMap.get(path.normalize(enviroPath))
+    : undefined;
+  if (!enviroFeatures) {
+    enviroFeatures = Array.from(scriptFeatureMap.values()).flat();
+  }
+
+  const featureList = [...scriptFeatureList];
+  for (const feature of enviroFeatures) {
+    if (!featureList.includes(feature)) {
+      featureList.push(feature);
+    }
+  }
+  return featureList;
+}
