@@ -1,12 +1,12 @@
 /* eslint-disable n/prefer-global/process */
 import path from "node:path";
 import { describe, expect, test } from "vitest";
-import { generateDiagnosticMessages, runCommand } from "./utils";
-import { getToolVersion } from "./getToolversion";
 import {
   clearScriptFeatureMap,
   setScriptFeaturesForEnviro,
 } from "../../langServer/serverUtilities";
+import { generateDiagnosticMessages, runCommand } from "./utils";
+import { getToolVersion } from "./getToolversion";
 
 const timeout = 30_000; // 30 seconds
 
@@ -337,11 +337,11 @@ TEST.SCRIPT_FEATURE:INVALID_BLA_FEATURE
           message.includes(featureMessage)
         ).length;
 
-      // not in the built-in list, so both lines are flagged
+      // Not in the built-in list, so both lines are flagged
       clearScriptFeatureMap();
       expect(countFeatureMessages()).toBe(2);
 
-      // once an environment reports the feature, only the invalid one is flagged
+      // Once an environment reports the feature, only the invalid one is flagged
       setScriptFeaturesForEnviro(path.join("some", "enviro", "TEST"), [
         "USING_DECL_FOR_BASE_MEMBER_HANDLED",
       ]);

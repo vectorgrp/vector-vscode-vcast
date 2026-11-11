@@ -6,17 +6,17 @@ import URI from "vscode-uri";
 import { checkClicastOption } from "../../langServer/tstCompletion";
 import { updateClicastCommandForLanguageServer } from "../../langServer/pythonUtilities";
 import {
+  clearScriptFeatureMap,
+  scriptFeatureList,
+  setScriptFeaturesForEnviro,
+} from "../../langServer/serverUtilities";
+import {
   getCompletionPositionForLine,
   generateCompletionData,
   storeNewDocument,
   runCommand,
 } from "./utils";
 import { getToolVersion } from "./getToolversion";
-import {
-  clearScriptFeatureMap,
-  scriptFeatureList,
-  setScriptFeaturesForEnviro,
-} from "../../langServer/serverUtilities";
 
 const timeout = 30_000; // 30 seconds
 
@@ -401,7 +401,7 @@ describe("Text Completion", () => {
   test(
     "validate that TEST.SCRIPT_FEATURE: always offers the built-in features",
     async () => {
-      // an older VectorCAST release reports fewer features than our built-in
+      // An older VectorCAST release reports fewer features than our built-in
       // list, we still want to offer the complete built-in list in that case
       clearScriptFeatureMap();
       setScriptFeaturesForEnviro(path.join("some", "enviro", "TEST"), [
