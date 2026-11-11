@@ -38,6 +38,8 @@ import {
   getFunctionNameFromID,
   getTestNameFromID,
   getUnitNameFromID,
+  recordDatabasesLoaded,
+  recordProjectLoaded,
   saveEnviroNodeData,
   testNodeType,
   testNodeCache,
@@ -547,6 +549,7 @@ export async function buildProjectDataCache(
       // allow UI to catch up
       await new Promise((r) => setTimeout(r, 0));
     }
+    recordProjectLoaded(projectFile);
     const projectData = await getDataForProject(projectFile);
 
     if (projectData) {
@@ -720,6 +723,12 @@ export async function updateTestsForEnvironment(
 ) {
   let jsonData: any;
 
+  // Closing clicast writes master.db, so close before taking the stamp, or the
+  // external change watcher takes the extension's own close for an outside change
+  if (globalEnviroDataServerActive && !comingFromRefresh) {
+    await closeConnection(enviroData.buildDirectory);
+  }
+  recordDatabasesLoaded(enviroData.buildDirectory);
   // In case we are refreshing the extension, we do not want to call the API n times (n=|envs|)
   // Instead we get the entire env data at once and save us time.
   jsonData = await loadEnviroData(enviroData, comingFromRefresh);
@@ -1455,6 +1464,24 @@ async function debugNode(request: vscode.TestRunRequest, node: vcastTestItem) {
   }
 }
 
+export function failMessageFor(passfail: string): TestMessage {
+  // convert the pass fail string from the current test data into a message
+  // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
+  // transform to: "Expected Results matched 0% ( 0 / 1 ) Fail"
+
+  // We have seen the passfail string be empty so guard i
+  // against that and any malformed strings
+  let failMessageText = "";
+  try {
+    const xofy = passfail.split("(")[0].trim();
+    const percentage = passfail.split("(")[1].split(")")[0].trim();
+    failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
+  } catch (err: any) {
+    failMessageText = "Unexpected error processing expected results";
+  }
+  return new TestMessage(failMessageText);
+}
+
 export async function runNode(
   node: vcastTestItem,
   run: vscode.TestRun,
@@ -1491,27 +1518,7 @@ export async function runNode(
       if (status == testStatus.passed) {
         run.passed(node);
       } else if (status == testStatus.failed) {
-        const currentTestData = executionResult.details;
-
-        // convert the pass fail string from the current test data into a message
-        // the pass fail string will look like: "0/1 (0.00)" or "1/1 (100.00)"
-        // transform to: "Expected Results matched 0% ( 0 / 1 ) Fail"
-
-        // We have seen the passfail string be empty so guard i
-        // against that and any malformed strings
-        let failMessageText = "";
-        try {
-          const xofy = currentTestData.passfail.split("(")[0].trim();
-          const percentage = currentTestData.passfail
-            .split("(")[1]
-            .split(")")[0]
-            .trim();
-          failMessageText = `Expected results matched ${xofy} (${percentage}%) Fail`;
-        } catch (err: any) {
-          failMessageText = "Unexpected error processing expected results";
-        }
-        const failMessage = new TestMessage(failMessageText);
-        run.failed(node, failMessage);
+        run.failed(node, failMessageFor(executionResult.details.passfail));
       }
 
       if (generateReport) {
@@ -1603,7 +1610,31 @@ export function findTestItem(id: string): vscode.TestItem | undefined {
   return search(globalController.items);
 }
 
+// Runs and full rescans replace the test items, so the external change
+// watcher waits for them to finish rather than refreshing in between
+let testPaneBusyCount = 0;
+
+export function testPaneIsBusy(): boolean {
+  return testPaneBusyCount > 0;
+}
+
+async function whileTestPaneBusy<T>(work: () => Thenable<T>): Promise<T> {
+  testPaneBusyCount++;
+  try {
+    return await work();
+  } finally {
+    testPaneBusyCount--;
+  }
+}
+
 export async function runTests(
+  request: vscode.TestRunRequest,
+  cancellation: vscode.CancellationToken
+) {
+  return whileTestPaneBusy(() => executeTestRun(request, cancellation));
+}
+
+async function executeTestRun(
   request: vscode.TestRunRequest,
   cancellation: vscode.CancellationToken
 ) {
@@ -1999,16 +2030,18 @@ export async function activateTestPane(context: vscode.ExtensionContext) {
 }
 
 export async function buildTestPaneContents() {
-  return vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: "VectorCAST Test Pane Initialization",
-      cancellable: true,
-    },
-    async (progress, token) => {
-      // This call will scan all workspace folders.
-      await loadAllVCTests(progress, token);
-    }
+  return whileTestPaneBusy(() =>
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "VectorCAST Test Pane Initialization",
+        cancellable: true,
+      },
+      async (progress, token) => {
+        // This call will scan all workspace folders.
+        await loadAllVCTests(progress, token);
+      }
+    )
   );
 }
 

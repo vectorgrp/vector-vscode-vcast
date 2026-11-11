@@ -7,6 +7,7 @@ import {
 import { readCsvSourcePath } from "./rgwSettings";
 import { runReqs2xTool } from "./processRunner";
 import { PANREQ_EXECUTABLE_PATH } from "./requirementsExecutables";
+import { mtimeMsOrZero } from "../../src-common/commonUtilities";
 
 const path = require("path");
 const fs = require("fs");
@@ -107,14 +108,6 @@ function rgwFilePaths(gatewayPath: string) {
     traceability: path.join(inner, "traceability.json"),
     origin: path.join(inner, "origin.json"),
   };
-}
-
-function mtimeMsOrZero(filePath: string): number {
-  try {
-    return fs.statSync(filePath).mtimeMs;
-  } catch {
-    return 0;
-  }
 }
 
 function writeAtomic(target: string, contents: string): void {

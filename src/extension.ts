@@ -223,6 +223,7 @@ import {
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
 import { getNonce, resolveWebviewBase } from "./webviewUtils";
+import { setupExternalChangeWatchers } from "./externalChangeWatcher";
 
 const path = require("path");
 
@@ -535,6 +536,7 @@ async function activationLogic(context: vscode.ExtensionContext) {
   }
   setupRequirementsFileWatchers(context);
   setupLegacyMigrationWatchers(context);
+  setupExternalChangeWatchers(context);
 
   initializeReqs2X(context);
 

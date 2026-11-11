@@ -2,6 +2,11 @@
 
 All notable changes to the "vectorcastTestExplorer" extension will be documented in this file.
 
+## [1.0.36] - 2026-11-11
+
+### Added
+- The test tree, code coverage and test results now update when environments or Manage projects change outside the extension, for example when `clicast` or `manage` runs in a terminal or through an AI agent.
+
 ## [1.0.35] - 2026-10-29
 
 ### Added

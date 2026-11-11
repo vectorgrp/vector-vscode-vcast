@@ -1,4 +1,7 @@
 import { normalizePath, quote } from "./utilities";
+import { mtimeMsOrZero } from "../src-common/commonUtilities";
+
+const path = require("path");
 
 export interface environmentNodeDataType {
   projectPath: string;
@@ -28,6 +31,47 @@ export function getEnviroNodeData(enviroPath: string): environmentNodeDataType {
 
 export function clearEnviroDataCache() {
   environmentDataCache.clear();
+}
+
+// The environment's database mtimes when its data was last loaded, so the
+// external change watcher can skip writes the test pane already shows
+const loadedDatabaseStamps = new Map<string, string>();
+
+function databaseStamp(enviroPath: string): string {
+  return ["master.db", "cover.db"]
+    .map((name) => mtimeMsOrZero(path.join(enviroPath, name)))
+    .join(":");
+}
+
+export function recordDatabasesLoaded(enviroPath: string) {
+  loadedDatabaseStamps.set(
+    normalizePath(enviroPath),
+    databaseStamp(enviroPath)
+  );
+}
+
+export function databasesChangedSinceLoad(enviroPath: string): boolean {
+  return (
+    loadedDatabaseStamps.get(normalizePath(enviroPath)) !==
+    databaseStamp(enviroPath)
+  );
+}
+
+// The same for each Manage project file
+const loadedProjectStamps = new Map<string, number>();
+
+export function recordProjectLoaded(projectFile: string) {
+  loadedProjectStamps.set(
+    normalizePath(projectFile),
+    mtimeMsOrZero(projectFile)
+  );
+}
+
+export function projectChangedSinceLoad(projectFile: string): boolean {
+  return (
+    loadedProjectStamps.get(normalizePath(projectFile)) !==
+    mtimeMsOrZero(projectFile)
+  );
 }
 
 export const compoundOnlyString = " [compound only]";

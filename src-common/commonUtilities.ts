@@ -174,3 +174,11 @@ export function cleanVectorcastOutput(outputString: string): string {
     return outputString;
   }
 }
+
+export function mtimeMsOrZero(filePath: string): number {
+  try {
+    return fs.statSync(filePath).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
