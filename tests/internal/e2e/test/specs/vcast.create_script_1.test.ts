@@ -218,7 +218,9 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await tab.setTextAtLine(currentLine, "");
 
-    await tab.save();
+    // the script is saved by the next test. Saving loads the script into the
+    // environment and removes the file, and the language server only offers
+    // completions for a script that exists on disk.
   });
 
   it("should offer the script features of the environment for TEST.SCRIPT_FEATURE:", async () => {
@@ -240,40 +242,42 @@ describe("vTypeCheck VS Code Extension", () => {
     await browser.keys([Key.Enter]);
     currentLine += 1;
 
-    await tab.setTextAtLine(currentLine, "TEST.SCRIPT_FEATURE");
-    await tab.typeTextAt(currentLine, "TEST.SCRIPT_FEATURE".length + 1, ":");
+    try {
+      await tab.setTextAtLine(currentLine, "TEST.SCRIPT_FEATURE");
+      await tab.typeTextAt(currentLine, "TEST.SCRIPT_FEATURE".length + 1, ":");
 
-    console.log("validating content assist for TEST.SCRIPT_FEATURE:");
-    // this one is part of the list that is built into the extension
-    await browser.waitUntil(
-      async () => await contentAssist.hasItem("C_DIRECT_ARRAY_INDEXING")
-    );
-
-    // this one is not part of the built-in list, so it is only
-    // offered if we got it from the environment
-    const newFeature = "USING_DECL_FOR_BASE_MEMBER_HANDLED";
-    const releaseHasNewFeature = await releaseHasEnvironmentVersion(
-      "REVISION_2025_USING_DECL_FOR_BASE_MEMBER_HANDLED"
-    );
-    console.log(`release knows ${newFeature}: ${releaseHasNewFeature}`);
-
-    // typing the start of the name filters the list
-    await tab.typeTextAt(
-      currentLine,
-      "TEST.SCRIPT_FEATURE:".length + 1,
-      "USING"
-    );
-    if (releaseHasNewFeature) {
+      console.log("validating content assist for TEST.SCRIPT_FEATURE:");
+      // this one is part of the list that is built into the extension
       await browser.waitUntil(
-        async () => await contentAssist.hasItem(newFeature)
+        async () => await contentAssist.hasItem("C_DIRECT_ARRAY_INDEXING")
       );
-    } else {
-      expect(await contentAssist.hasItem(newFeature)).toBe(false);
+
+      // this one is not part of the built-in list, so it is only
+      // offered if we got it from the environment
+      const newFeature = "USING_DECL_FOR_BASE_MEMBER_HANDLED";
+      const releaseHasNewFeature = await releaseHasEnvironmentVersion(
+        "REVISION_2025_USING_DECL_FOR_BASE_MEMBER_HANDLED"
+      );
+      console.log(`release knows ${newFeature}: ${releaseHasNewFeature}`);
+
+      // typing the start of the name filters the list
+      await tab.typeTextAt(
+        currentLine,
+        "TEST.SCRIPT_FEATURE:".length + 1,
+        "USING"
+      );
+      if (releaseHasNewFeature) {
+        await browser.waitUntil(
+          async () => await contentAssist.hasItem(newFeature)
+        );
+      } else {
+        expect(await contentAssist.hasItem(newFeature)).toBe(false);
+      }
+    } finally {
+      // always restore and save the script, the following specs need it
+      await browser.keys([Key.Escape]);
+      await tab.setTextAtLine(currentLine, "");
+      await tab.save();
     }
-
-    await browser.keys([Key.Escape]);
-    await tab.setTextAtLine(currentLine, "");
-
-    await tab.save();
   });
 });
