@@ -6,8 +6,6 @@ as a gutter decoration in C/C++ source editors.
 
 ## Prerequisites
 
-The extension needs VS Code 1.101 or newer.
-
 You must have a VectorCAST version 21 or newer installed and licensed, 
 and the installation directory must be:
   - on the **system PATH**, 
@@ -449,7 +447,8 @@ the Command Palette.
 If your VectorCAST installation includes MCP servers (`vcast-mcp-server`, `reqs2x-mcp-server`
 and `docs-mcp-server`, next to `clicast`), the extension makes them available to VS Code's chat
 in agent mode, with no `mcp.json` entry needed. They come from the installation the extension
-uses, so changing the **Vectorcast Installation Location** option changes them too.
+uses, so changing the **Vectorcast Installation Location** option changes them too. This needs
+VS Code 1.101 or newer; older versions run the rest of the extension without them.
 
 
 ### Miscellaneous Features

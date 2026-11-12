@@ -1,3 +1,4 @@
+/// <reference path="./vscodeMcpApi.d.ts" />
 import * as vscode from "vscode";
 import { exeFilename } from "./utilities";
 import { getVectorCastInstallationLocation } from "./vcastInstallation";
@@ -12,7 +13,9 @@ const mcpServers = [
   { label: "VectorCAST Docs", executable: "docs-mcp-server" },
 ];
 
-function getMcpServerDefinitions(): vscode.McpStdioServerDefinition[] {
+function getMcpServerDefinitions(
+  Definition: NonNullable<typeof vscode.McpStdioServerDefinition>
+): vscode.McpStdioServerDefinition[] {
   const vcastDir = getVectorCastInstallationLocation();
   if (!vcastDir) return [];
 
@@ -28,7 +31,7 @@ function getMcpServerDefinitions(): vscode.McpStdioServerDefinition[] {
   for (const { label, executable } of mcpServers) {
     const command = path.join(vcastDir, exeFilename(executable));
     if (!fs.existsSync(command)) continue;
-    const definition = new vscode.McpStdioServerDefinition(
+    const definition = new Definition(
       label,
       command,
       [],
@@ -42,12 +45,17 @@ function getMcpServerDefinitions(): vscode.McpStdioServerDefinition[] {
 }
 
 export function registerMcpServers(context: vscode.ExtensionContext) {
+  // VS Code before 1.101 has no MCP API; the rest of the extension works without it
+  const lm = vscode.lm;
+  const Definition = vscode.McpStdioServerDefinition;
+  if (!lm?.registerMcpServerDefinitionProvider || !Definition) return;
+
   const definitionsChanged = new vscode.EventEmitter<void>();
   context.subscriptions.push(
     definitionsChanged,
-    vscode.lm.registerMcpServerDefinitionProvider("vectorcast", {
+    lm.registerMcpServerDefinitionProvider("vectorcast", {
       onDidChangeMcpServerDefinitions: definitionsChanged.event,
-      provideMcpServerDefinitions: getMcpServerDefinitions,
+      provideMcpServerDefinitions: () => getMcpServerDefinitions(Definition),
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (
