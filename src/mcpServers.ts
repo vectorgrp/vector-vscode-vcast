@@ -13,6 +13,15 @@ const mcpServers = [
   { label: "VectorCAST Docs", executable: "docs-mcp-server" },
 ];
 
+function installedMcpServers(vcastDir: string) {
+  return mcpServers
+    .map(({ label, executable }) => ({
+      label,
+      command: path.join(vcastDir, exeFilename(executable)),
+    }))
+    .filter(({ command }) => fs.existsSync(command));
+}
+
 function getMcpServerDefinitions(
   Definition: NonNullable<typeof vscode.McpStdioServerDefinition>
 ): vscode.McpStdioServerDefinition[] {
@@ -27,10 +36,7 @@ function getMcpServerDefinitions(
     .trim();
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
 
-  const definitions: vscode.McpStdioServerDefinition[] = [];
-  for (const { label, executable } of mcpServers) {
-    const command = path.join(vcastDir, exeFilename(executable));
-    if (!fs.existsSync(command)) continue;
+  return installedMcpServers(vcastDir).map(({ label, command }) => {
     const definition = new Definition(
       label,
       command,
@@ -39,16 +45,33 @@ function getMcpServerDefinitions(
       toolVersion
     );
     definition.cwd = workspaceFolder;
-    definitions.push(definition);
-  }
-  return definitions;
+    return definition;
+  });
+}
+
+const updateHintShownKey = "mcpServersNeedNewerVsCodeShown";
+
+// Only once, so that people who stay on an older VS Code are not told again
+// on every start
+function suggestUpdatingVsCode(context: vscode.ExtensionContext) {
+  if (context.globalState.get(updateHintShownKey)) return;
+  const vcastDir = getVectorCastInstallationLocation();
+  if (!vcastDir || installedMcpServers(vcastDir).length === 0) return;
+
+  void context.globalState.update(updateHintShownKey, true);
+  void vscode.window.showInformationMessage(
+    "This VectorCAST installation includes MCP servers. Update VS Code to 1.101 or newer to use them in chat automatically."
+  );
 }
 
 export function registerMcpServers(context: vscode.ExtensionContext) {
   // VS Code before 1.101 has no MCP API; the rest of the extension works without it
   const lm = vscode.lm;
   const Definition = vscode.McpStdioServerDefinition;
-  if (!lm?.registerMcpServerDefinitionProvider || !Definition) return;
+  if (!lm?.registerMcpServerDefinitionProvider || !Definition) {
+    suggestUpdatingVsCode(context);
+    return;
+  }
 
   const definitionsChanged = new vscode.EventEmitter<void>();
   context.subscriptions.push(
