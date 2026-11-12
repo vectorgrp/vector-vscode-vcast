@@ -2082,24 +2082,14 @@ function configureExtension(context: vscode.ExtensionContext) {
               // reports as locked, so a tampered webview can't sneak edits
               // through.
               const safeUpdates = applyEditPolicy(currentBundle, msg.updates);
-              const newHashes = await writeRGWBundle(
+              const saved = await writeRGWBundle(
                 enviroPath,
                 currentBundle.gatewayPath,
                 safeUpdates,
                 msg.expectedHashes
               );
-              currentBundle = {
-                ...currentBundle,
-                requirements: safeUpdates.requirements,
-                traceability: safeUpdates.traceability,
-                hashes: newHashes,
-              };
-              post({
-                type: "saved",
-                hashes: newHashes,
-                requirements: safeUpdates.requirements,
-                traceability: safeUpdates.traceability,
-              });
+              currentBundle = { ...currentBundle, ...saved };
+              post({ type: "saved", ...saved });
             } catch (err) {
               const message =
                 err instanceof RGWStaleWriteError
