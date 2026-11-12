@@ -1398,12 +1398,12 @@
       },
       {
         "command": "vectorcastTestExplorer.openReqsCoverageReview",
-        "group": "5_reqs@8",
+        "group": "5_reqs@9",
         "when": "testId =~ /^vcast:[^|]+\\|[^.]+\\.[^.]+\\..+$/ && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.vcastEnviroList && !(testId =~ /.* \\[compound only\\]$/) && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
       },
       {
         "command": "vectorcastTestExplorer.checkTestsAgainstRequirements",
-        "group": "5_reqs@9",
+        "group": "5_reqs@10",
         "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^vcast:[^|]+\\|[^.]+\\.[^.]+\\..+$/) && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
       },
       {
@@ -1463,7 +1463,7 @@
       },
       {
         "command": "vectorcastTestExplorer.generateTestsFromRequirementsDelta",
-        "group": "vcast@11",
+        "group": "5_reqs@8",
         "when": "testId =~ /^vcast:.*$/ && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.reqs2xSupportsDelta && testId not in vectorcastTestExplorer.vcastLegacyMigrationAvailable"
       },
       {
