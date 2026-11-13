@@ -120,7 +120,7 @@ function rgwFilePaths(gatewayPath: string) {
 // other operations, so only a change of content means someone else edited it.
 function contentHashOrEmpty(filePath: string): string {
   try {
-    return createHash("sha1").update(fs.readFileSync(filePath)).digest("hex");
+    return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
   } catch {
     return "";
   }
