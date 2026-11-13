@@ -2086,7 +2086,7 @@ function configureExtension(context: vscode.ExtensionContext) {
                 enviroPath,
                 currentBundle.gatewayPath,
                 safeUpdates,
-                msg.expectedMtimes
+                msg.expectedHashes
               );
               currentBundle = { ...currentBundle, ...saved };
               post({ type: "saved", ...saved });
@@ -2113,7 +2113,7 @@ function configureExtension(context: vscode.ExtensionContext) {
               currentBundle = refreshed;
               post({
                 type: "inferred",
-                mtimes: refreshed.mtimes,
+                hashes: refreshed.hashes,
                 requirements: refreshed.requirements,
                 traceability: refreshed.traceability,
               });

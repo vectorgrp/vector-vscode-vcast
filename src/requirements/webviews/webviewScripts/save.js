@@ -86,7 +86,7 @@ export function postSave() {
   vscode.postMessage({
     type: "save",
     updates,
-    expectedMtimes: state.mtimes,
+    expectedHashes: state.hashes,
   });
 }
 
@@ -102,7 +102,7 @@ export function applyRefreshedBundle(msg) {
   dirty.clear();
   removed.clear();
   added.length = 0;
-  state.mtimes = msg.mtimes;
+  state.hashes = msg.hashes;
   state.requirements = msg.requirements;
   state.traceability = msg.traceability;
   rebuildBody();
