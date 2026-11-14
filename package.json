@@ -2,7 +2,7 @@
   "name": "vectorcasttestexplorer",
   "displayName": "VectorCAST Test Explorer",
   "description": "VectorCAST Test Explorer for VS Code",
-  "version": "1.0.35",
+  "version": "1.0.36",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -36,6 +36,12 @@
     "workspaceContains:**/*.vcm"
   ],
   "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "vectorcast",
+        "label": "VectorCAST"
+      }
+    ],
     "configurationDefaults": {
       "comments.openView": "never"
     },
@@ -1540,7 +1546,7 @@
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
     "@types/node": "16.x",
-    "@types/vscode": "^1.74.0",
+    "@types/vscode": "1.79.0",
     "@typescript-eslint/eslint-plugin": "^5.59.0",
     "@typescript-eslint/parser": "^5.59.0",
     "@vitest/coverage-v8": "^0.32.2",
