@@ -26,6 +26,7 @@ import {
 
 import {
   dumpTestScriptFile,
+  getATGLineTest,
   getDataForEnvironmentFromAPI,
   openProjectInVcast,
   runATGCommands,
@@ -35,6 +36,7 @@ import {
 import { cleanProjectEnvironment } from "./manage/manageSrc/manageCommands";
 
 import {
+  atgCommandToUse,
   clicastCommandToUse,
   configFileContainsCorrectInclude,
   globalIncludePath,
@@ -44,9 +46,12 @@ import {
   vUnitIncludeSuffix,
 } from "./vcastInstallation";
 
+import { reqs2xEnvironmentVariables } from "./requirements/llmProvider";
+
 import { clientRequestType, vcastCommandType } from "../src-common/vcastServer";
 import {
   cachedWorkspaceEnvData,
+  findTestItemByLabel,
   globalController,
   globalProjectDataCache,
   globalProjectMap,
@@ -454,6 +459,23 @@ export function getVcastInterfaceCommandForMCDC(
   let optionsDict: { [command: string]: string | number } = {};
   optionsDict["unitName"] = unitName;
   optionsDict["lineNumber"] = lineNumber;
+  const jsonOptions: string = JSON.stringify(optionsDict).replaceAll(
+    '"',
+    '\\"'
+  );
+  const testArgument = `--options="${jsonOptions}"`;
+  return `${commandToRun} ${testArgument}`;
+}
+
+export function getVcastInterfaceCommandForVariableInfo(
+  enviroPath: string,
+  sourceFile: string,
+  functionName: string
+) {
+  const commandToRun = `${vPythonCommandToUse} ${globalTestInterfacePath}  --mode=getVariableInfo --clicast=${clicastCommandToUse} --path=${enviroPath}`;
+  let optionsDict: { [key: string]: string } = {};
+  optionsDict["sourceFile"] = sourceFile;
+  optionsDict["functionName"] = functionName;
   const jsonOptions: string = JSON.stringify(optionsDict).replaceAll(
     '"',
     '\\"'
@@ -873,4 +895,89 @@ export async function getEnvironmentData(enviroPath: string) {
   }
 
   return envData;
+}
+
+export async function loadATGLineTest(
+  sourceFile: string,
+  lineNumber: number,
+  enviroPath: string,
+  variableValues: any,
+  truthValue: "True" | "False" | "" = ""
+): Promise<void> {
+  const enclosingDirectory = path.dirname(enviroPath);
+  const timeStamp = Date.now().toString();
+  const tempScriptPath = path.join(
+    enclosingDirectory,
+    `vcast-${timeStamp}.tst`
+  );
+  if (enviroPath) {
+    await getATGLineTest(
+      lineNumber,
+      tempScriptPath,
+      enviroPath,
+      variableValues,
+      truthValue,
+      sourceFile
+    );
+
+    const testItem = findTestItemByLabel(
+      new RegExp(`ATG-.*-LINE-${lineNumber}\\b`)
+    );
+    if (testItem) {
+      vscode.commands.executeCommand("vscode.revealTestInExplorer", testItem);
+    }
+  } else {
+    vectorMessage(`No Environment found for ${sourceFile}`);
+  }
+}
+
+function buildVarStringSimple(pairs: { name: any; value: any }[]) {
+  return pairs
+    .map(
+      (p: { name: any; value: any }) =>
+        `${String(p.name).trim()}:${String(p.value).trim()}`
+    )
+    .join(";");
+}
+
+export interface ATGLineTestCommand {
+  command: string;
+  envVars: Record<string, string>;
+}
+
+export function getATGLineTestCommand(
+  scriptPath: string,
+  lineNumber: number,
+  enviroPath: string,
+  variableValues: any,
+  truthValue: "True" | "False" | "" = "",
+  sourceFile: string = ""
+): ATGLineTestCommand {
+  const varValueCommand = buildVarStringSimple(variableValues);
+
+  //
+  // The env vars the line test adds on top of the process environment.
+  // Which atg runs is decided in atgLineTestEnvironment(), not here.
+  //
+  // atg reaches the LLM through the Reqs2X client, so it gets the same
+  // variables as the Reqs2X tools: only the provider selected in
+  // reqs2x.provider (the client would otherwise pick the first complete one
+  // it finds), plus the Reqs2X extras such as model-compatibility mode.
+  //
+  const envVars: Record<string, string> = reqs2xEnvironmentVariables();
+
+  const targetedLine = truthValue
+    ? `${lineNumber}:${truthValue}`
+    : `${lineNumber}`;
+
+  envVars["VCAST_ATG_LLM_PATHS"] = "1";
+  envVars["VCAST_ATG_NODE_MAPPING"] = "1";
+  envVars["VCAST_ATG_TARGETED_LINE"] = targetedLine;
+  if (sourceFile) {
+    envVars["VCAST_ATG_TARGETED_FILE"] = path.basename(sourceFile);
+  }
+  envVars["VCAST_ATG_TARGETED_VALUES"] = varValueCommand;
+
+  const commandToRun = `${atgCommandToUse} -v ${scriptPath}`;
+  return { command: commandToRun, envVars };
 }

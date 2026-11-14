@@ -34,6 +34,7 @@ import {
   executeWithRealTimeEcho,
   getJsonDataFromTestInterface,
   executeWithRealTimeEchoWithProgress,
+  executeATGLineForScript,
 } from "./vcastCommandRunner";
 
 import {
@@ -44,6 +45,7 @@ import {
 } from "./vcastInstallation";
 
 import {
+  getATGLineTestCommand,
   getClientRequestObject,
   getMCDCLineCoverageCommand,
   getRebuildOptionsString,
@@ -1133,4 +1135,46 @@ async function getMCDCCoverageLinesFromServer(
 
   const commandStatus = convertServerResponseToCommandStatus(transmitResponse);
   return cleanVectorcastOutput(commandStatus.stdout);
+}
+
+export async function getATGLineTest(
+  lineNumber: number,
+  tstScriptPath: string,
+  enviroPath: string,
+  variableValues: any,
+  truthValue: "True" | "False" | "" = "",
+  sourceFile: string = ""
+): Promise<void> {
+  // Defense in depth: the context menu is gated on atgAvailable and
+  // ATGModeManager.enter() checks too, but never interpolate an undefined
+  // command into a shell string.
+  if (!atgCommandToUse) {
+    vectorMessage(
+      "getATGLineTest: no licensed 'atg' found in the VectorCAST installation"
+    );
+    vscode.window.showWarningMessage("ATG is not available.");
+    return;
+  }
+
+  const { command: commandToRun, envVars } = getATGLineTestCommand(
+    tstScriptPath,
+    lineNumber,
+    enviroPath,
+    variableValues,
+    truthValue,
+    sourceFile
+  );
+  const cwd = enviroPath;
+  try {
+    await executeATGLineForScript(
+      commandToRun,
+      cwd,
+      enviroPath,
+      tstScriptPath,
+      envVars
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    vectorMessage(`getATGLineTest failed: ${msg}`);
+  }
 }

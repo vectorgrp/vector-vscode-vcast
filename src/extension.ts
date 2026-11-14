@@ -223,6 +223,11 @@ import {
   setCompilerList,
 } from "./manage/manageSrc/manageUtils";
 import { getNonce, resolveWebviewBase } from "./webviewUtils";
+import {
+  ATGModeManager,
+  ATGLinePanelViewProvider,
+  ATG_MODE_ACTIVE_CONTEXT,
+} from "./atgMode";
 
 const path = require("path");
 
@@ -245,6 +250,8 @@ function decodeAndRemoveDeveloperEnvs() {
 let messagePane: vscode.OutputChannel = vscode.window.createOutputChannel(
   "VectorCAST Test Explorer"
 );
+
+const atgModeManager = new ATGModeManager();
 
 export function getMessagePane(): vscode.OutputChannel {
   return messagePane;
@@ -274,6 +281,61 @@ export async function activate(context: vscode.ExtensionContext) {
   // this checks the vcast installation,
   // and if its ok will proceed with full activation
   await checkPrerequisites(context);
+
+  // ATG Test for Line: bottom-panel view (only visible while the mode is
+  // active, see the view's `when` clause in package.json)
+  vscode.commands.executeCommand("setContext", ATG_MODE_ACTIVE_CONTEXT, false);
+  const atgPanelProvider = new ATGLinePanelViewProvider(
+    atgModeManager,
+    context
+  );
+  atgModeManager.setPanelView(atgPanelProvider);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      ATGLinePanelViewProvider.viewId,
+      atgPanelProvider,
+      { webviewOptions: { retainContextWhenHidden: true } }
+    )
+  );
+
+  // ATG Mode: commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.atgToggleVariable",
+      (fullPath: string) => {
+        atgModeManager.toggleVariable(fullPath);
+      }
+    ),
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.atgExitMode",
+      () => {
+        atgModeManager.exit();
+      }
+    ),
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.atgFetchTest",
+      () => {
+        atgModeManager.fetchTest();
+      }
+    ),
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.atgShowMenu",
+      async () => {
+        const choice = await vscode.window.showQuickPick(
+          [
+            {
+              label: "$(play) Generate test for the target line",
+              action: "fetch",
+            },
+            { label: "$(close) Cancel ATG Test for Line", action: "exit" },
+          ],
+          { placeHolder: "ATG Test for Line" }
+        );
+        if (choice?.action === "fetch") atgModeManager.fetchTest();
+        if (choice?.action === "exit") atgModeManager.exit();
+      }
+    )
+  );
 }
 
 export function configureCommandCalled(context: vscode.ExtensionContext) {
@@ -3240,6 +3302,32 @@ async function installPreActivationEventHandlers(
 
     return html;
   }
+
+  // Command: vectorcastTestExplorer.getATGTestForLine /////////////////////////////////////////////
+  let getATGTestForLineCommand = vscode.commands.registerCommand(
+    "vectorcastTestExplorer.getATGTestForLine",
+    async (args: any) => {
+      const activeEditor = vscode.window.activeTextEditor;
+      if (!activeEditor) {
+        vscode.window.showWarningMessage("No active editor found.");
+        return;
+      }
+
+      // Context menu passes args as {lineNumber: N} or as [N] depending on source
+      let lineNumber: number;
+      if (args && args.lineNumber) {
+        lineNumber = args.lineNumber;
+      } else if (Array.isArray(args) && args.length > 0) {
+        lineNumber = parseInt(String(args[0]), 10);
+      } else {
+        lineNumber = activeEditor.selection.active.line + 1;
+      }
+
+      // Enter ATG selection mode on the current editor
+      await atgModeManager.enter(activeEditor, lineNumber, context);
+    }
+  );
+  context.subscriptions.push(getATGTestForLineCommand);
 }
 
 // this method is called when your extension is deactivated

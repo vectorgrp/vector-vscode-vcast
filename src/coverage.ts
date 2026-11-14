@@ -8,6 +8,7 @@ import {
   getCoverageDataForFile,
   getCoverageDataForFileAndTests,
   getListOfFilesToDecorate,
+  updateGlobalStatementsAndBranchesForFile,
 } from "./vcastTestInterface";
 
 import { getPerTestCoverageFromAPI } from "./vcastAdapter";
@@ -297,6 +298,10 @@ export async function updateCOVdecorations() {
       // we get here for C/C++ files that are not part of an environment
       coverageStatusBarObject.hide();
     }
+    // update the current cache for all statements and branches for the active file
+    // We do that for the Get ATG Line button so that we do not show the button on empty lines
+    // But only on Statement + Branch Lines.
+    updateGlobalStatementsAndBranchesForFile(filePath);
   } else {
     // we get here for non-C/C++ files
     coverageStatusBarObject.hide();

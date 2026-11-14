@@ -57,6 +57,8 @@ modeChoices = [
     "getWorkspaceEnviroData",
     "getProjectData",
     "getEnviroData",
+    "getVariableInfo",
+    "getLocalVariables",
     "executeTest",
     "report",
     "mcdcReport",
@@ -328,9 +330,14 @@ def getUnitData(api):
 
     for sourcePath, sourceObject, isInstrumented in getSourceFiles(api):
         if isInstrumented:
-            covered, uncovered, partiallyCovered, checksum = getCoverageData(
-                sourceObject
-            )
+            (
+                covered,
+                uncovered,
+                partiallyCovered,
+                checksum,
+                allStatements,
+                allBranches,
+            ) = getCoverageData(sourceObject)
             unitInfo = dict()
             unitInfo["path"] = sourcePath
             unitInfo["functionList"] = getFunctionData(sourceObject)
@@ -338,6 +345,8 @@ def getUnitData(api):
             unitInfo["covered"] = covered
             unitInfo["uncovered"] = uncovered
             unitInfo["partiallyCovered"] = partiallyCovered
+            unitInfo["allStatements"] = allStatements
+            unitInfo["allBranches"] = allBranches
             unitList.append(unitInfo)
 
         elif len(sourcePath) > 0:
@@ -351,6 +360,8 @@ def getUnitData(api):
             unitInfo["covered"] = ""
             unitInfo["uncovered"] = ""
             unitInfo["partiallyCovered"] = ""
+            unitInfo["allStatements"] = []
+            unitInfo["allBranches"] = []
             unitList.append(unitInfo)
 
     return unitList
@@ -959,7 +970,10 @@ def getCoverageData(sourceObject):
     coveredString = ""
     uncoveredString = ""
     partiallyCoveredString = ""
+    allStatements = []
+    allBranches = []
     checksum = 0
+
     if sourceObject and sourceObject.is_instrumented:
 
         # Unit name with deleted extension.
@@ -978,6 +992,28 @@ def getCoverageData(sourceObject):
         # iterate_coverage crashes if the file path doesn't exist
         if os.path.exists(sourceObject.path):
             for line in sourceObject.iterate_coverage():
+                metrics = line.metrics
+                line_number = line.line_number
+
+                # Collect all statement/branch lines (covered or not)
+                # for the ATG Line Test button visibility
+
+                # All Statement Lines
+                if getattr(metrics, "statements", 0) > 0:
+                    if line_number not in allStatements:
+                        allStatements.append(line_number)
+
+                # All Branch Lines
+                use_mcdc = getattr(metrics, "mcdc_branches", 0) > 0
+                branch_total = (
+                    metrics.mcdc_branches
+                    if use_mcdc
+                    else getattr(metrics, "branches", 0)
+                )
+                if branch_total > 0 and line_number not in functionLineList:
+                    if line_number not in allBranches:
+                        allBranches.append(line_number)
+
                 coveredString, partiallyCoveredString, uncoveredString = (
                     _runGutterHandler(
                         coverageKind,
@@ -996,7 +1032,14 @@ def getCoverageData(sourceObject):
             uncoveredString = uncoveredString[:-1]
             partiallyCoveredString = partiallyCoveredString[:-1]
 
-    return coveredString, uncoveredString, partiallyCoveredString, checksum
+    return (
+        coveredString,
+        uncoveredString,
+        partiallyCoveredString,
+        checksum,
+        allStatements,
+        allBranches,
+    )
 
 
 def executeVCtest(enviroPath, testIDObject):
@@ -1298,6 +1341,516 @@ def find_vce_files(root_dir):
     return vce_files
 
 
+def buildTypeNode(name, typeObj, depth, maxDepth, visited=None):
+    """
+    Recursively build a type tree node from a DataAPI type object.
+    Returns a dict with name, displayType, kind, enumValues, children.
+    """
+    if visited is None:
+        visited = set()
+
+    kind = tstUtilities.getTypeClassification(typeObj)
+    displayType = tstUtilities.additionalTypeInfo(typeObj)
+
+    node = {
+        "name": name,
+        "displayType": displayType,
+        "kind": kind,
+        "enumValues": [],
+        "children": [],
+    }
+
+    # Enum values
+    if kind == "enum":
+        try:
+            node["enumValues"] = [e.name for e in typeObj.enums]
+        except Exception:
+            pass
+
+    # Struct/union/class fields
+    if kind == "struct" and depth < maxDepth:
+        type_id = id(typeObj)
+        if type_id not in visited:
+            visited.add(type_id)
+            try:
+                for field in typeObj.child_fields:
+                    child = buildTypeNode(
+                        field.name, field.type, depth + 1, maxDepth, visited
+                    )
+                    node["children"].append(child)
+            except Exception:
+                pass
+            visited.discard(type_id)
+
+    # Pointer/array - expand one index level
+    if kind == "array" and depth < maxDepth:
+        try:
+            elementType = typeObj.element
+            if elementType:
+                child = buildTypeNode("[0]", elementType, depth + 1, maxDepth, visited)
+                node["children"].append(child)
+        except Exception:
+            pass
+
+    return node
+
+
+def buildVariableTree(api, sourceFile, functionName, maxDepth=3):
+    """
+    Build a typed variable tree for a function in a VectorCAST environment.
+    Finds the unit by source file path, then the function by name.
+    Returns dict with 'parameters' and 'globals' lists of type tree nodes.
+    """
+    result = {"parameters": [], "globals": []}
+
+    # Find unit by matching source file path
+    targetUnit = None
+    for unit in api.Unit.all():
+        try:
+            unitPath = unit.path
+            if unitPath and os.path.basename(unitPath) == os.path.basename(sourceFile):
+                targetUnit = unit
+                break
+        except Exception:
+            continue
+
+    if targetUnit is None:
+        return result
+
+    # Find function by name (try vcast_name first, then base name)
+    targetFunction = None
+    for func in targetUnit.functions:
+        if func.vcast_name == functionName or func.name == functionName:
+            targetFunction = func
+            break
+
+    # If exact match failed, try partial match (function name without params)
+    if targetFunction is None:
+        for func in targetUnit.functions:
+            if func.name.startswith(functionName) or functionName.startswith(func.name):
+                targetFunction = func
+                break
+
+    if targetFunction is None:
+        return result
+
+    # Build parameter nodes
+    try:
+        for param in targetFunction.parameters:
+            if param.name == "return":
+                continue
+            node = buildTypeNode(param.name, param.type, 0, maxDepth)
+            result["parameters"].append(node)
+    except Exception:
+        pass
+
+    # Build global nodes
+    try:
+        for glob in targetUnit.globals:
+            node = buildTypeNode(glob.name, glob.type, 0, maxDepth)
+            result["globals"].append(node)
+    except Exception:
+        pass
+
+    return result
+
+
+C_KEYWORDS = {
+    "if",
+    "else",
+    "for",
+    "while",
+    "do",
+    "switch",
+    "case",
+    "return",
+    "break",
+    "continue",
+    "goto",
+    "sizeof",
+    "typedef",
+    "struct",
+    "union",
+    "enum",
+    "void",
+    "int",
+    "float",
+    "double",
+    "char",
+    "short",
+    "long",
+    "unsigned",
+    "signed",
+    "const",
+    "static",
+    "extern",
+    "volatile",
+    "auto",
+    "register",
+    "inline",
+    "bool",
+    "true",
+    "false",
+    "NULL",
+    "nullptr",
+}
+
+
+def classifyType(varType):
+    """Classify a C/C++ type string into a kind bucket."""
+    tl = varType.lower()
+    if "bool" in tl:
+        return "bool"
+    elif "float" in tl or "double" in tl:
+        return "float"
+    elif "char" in tl and ("*" in tl or "[" in tl):
+        return "string"
+    elif "char" in tl:
+        return "char"
+    elif "enum" in tl:
+        return "enum"
+    elif any(t in tl for t in ["int", "long", "short", "unsigned", "size_t"]):
+        return "int"
+    elif "*" in tl:
+        return "array"  # pointer
+    elif "[" in tl:
+        return "array"
+    else:
+        return "unknown"
+
+
+def chmodOnlyWhenNeeded():
+    """
+    Context manager that skips chmod on files that are already executable.
+
+    multilspy chmods its bundled clangd every time it starts a language
+    server. In a shared VectorCAST installation that binary is owned by
+    root and is already mode 755, and chmod on a file you do not own
+    fails with EPERM even when the mode is unchanged -- so the language
+    server never starts and we silently lose all local variables.
+
+    Any chmod that would actually change something is still performed.
+    """
+    import contextlib
+
+    @contextlib.contextmanager
+    def manager():
+        realChmod = os.chmod
+
+        def guardedChmod(path, mode, *args, **kwargs):
+            try:
+                if os.path.isfile(path) and os.access(path, os.X_OK):
+                    return None
+            except OSError:
+                # Fall through and let the real chmod report the problem.
+                pass
+            return realChmod(path, mode, *args, **kwargs)
+
+        os.chmod = guardedChmod
+        try:
+            yield
+        finally:
+            os.chmod = realChmod
+
+    return manager()
+
+
+def getModelledFunctionNames(enviroPath):
+    """
+    Names of the functions ATG can drive the result of: the stubs, plus
+    the functions of the units under test.
+
+    A local is only worth offering for selection if a call fills it, and
+    a call is only useful if ATG models what it does. Stubs are the
+    obvious case, but a unit under test is modelled too -- an
+    environment that stubs nothing (every unit is a UUT) still lets a
+    targeted value steer a local filled by one of its own functions.
+
+    Returns (names, error).
+    """
+    names = set()
+    try:
+        api = UnitTestApi(enviroPath)
+    except Exception as error:
+        return names, f"could not open environment: {error}"
+
+    try:
+        for unit in api.Unit.all():
+            if unit.name == "USER_GLOBALS_VCAST":
+                continue
+            for function in unit.functions:
+                names.add(function.name)
+    except Exception as error:
+        return names, f"could not read function names: {error}"
+    finally:
+        api.close()
+
+    return names, None
+
+
+def splitSimpleAssignment(line):
+    """
+    Split "lhs = rhs" into (lhs, rhs) for a plain assignment.
+
+    Returns (None, None) for anything that is not one: comparisons
+    (==, !=, <=, >=) and compound assignments are all ignored.
+    """
+    for index, char in enumerate(line):
+        if char != "=":
+            continue
+        previous = line[index - 1] if index > 0 else ""
+        following = line[index + 1] if index + 1 < len(line) else ""
+        if following == "=" or previous in "=!<>+-*/%&|^":
+            continue
+        return line[:index], line[index + 1 :]
+    return None, None
+
+
+def findCallAssignedLocals(lines, targetLine, callableNames):
+    """
+    Names a modelled call can drive, either
+
+        int range_m = read_radar_range_m();     the return value
+
+    or
+
+        Data.GetTableRecord(Table, &TableData); written through a pointer
+
+    callableNames covers the stubs and the UUT functions, so a local
+    filled by either is kept. Locals holding only literals or computed
+    expressions are left out: no targeted value can steer them.
+    """
+    assigned = set()
+    if not callableNames:
+        return assigned
+
+    #
+    # Functions are recorded qualified ("DataBase::GetTableRecord") while
+    # the call site names them bare, so match on the trailing segment.
+    #
+    bareNames = {name.rsplit("::", 1)[-1] for name in callableNames}
+
+    callRegex = re.compile(r"([A-Za-z_]\w*)\s*\(")
+    addressRegex = re.compile(r"&\s*([A-Za-z_]\w*)")
+    declRegex = re.compile(r"([A-Za-z_]\w*)\s*$")
+
+    for lineIdx in range(min(targetLine, len(lines))):
+        line = lines[lineIdx].split("//")[0]
+
+        if not any(callee in bareNames for callee in callRegex.findall(line)):
+            continue
+
+        #
+        # The return value assigned to a local. The left side may carry a
+        # declaration ("int range_m"), so take the trailing identifier.
+        #
+        lhs, rhs = splitSimpleAssignment(line)
+        if lhs is not None and any(
+            callee in bareNames for callee in callRegex.findall(rhs)
+        ):
+            match = declRegex.search(lhs.strip())
+            if match:
+                assigned.add(match.group(1))
+
+        #
+        # Anything passed by address on a line that calls a modelled
+        # function: it can write through the pointer, so the variable is
+        # reachable even though nothing is assigned to it here.
+        #
+        assigned.update(addressRegex.findall(line))
+
+    return assigned
+
+
+def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine, callableNames=None):
+    """
+    Use the bundled clangd (via multilspy) to find local variables
+    and struct field types in scope at the target line.
+
+    Only locals filled by a call ATG models are returned: those are the
+    ones a targeted value can actually drive. callableNames is the set of
+    stub and UUT function names for the environment.
+
+    Returns (list of variable tree nodes, error or None).
+    """
+    import re
+
+    locals_list = []
+    try:
+        from monitors4codegen.multilspy.multilspy_config import MultilspyConfig
+        from monitors4codegen.multilspy.multilspy_logger import MultilspyLogger
+        from monitors4codegen.multilspy import SyncLanguageServer
+    except ImportError as error:
+        return locals_list, f"multilspy is not available: {error}"
+
+    try:
+        config = MultilspyConfig.from_dict({"code_language": "c"})
+        logger = MultilspyLogger()
+        # multilspy chmods the bundled clangd on the way in; see the helper.
+        with chmodOnlyWhenNeeded():
+            lsp = SyncLanguageServer.create(config, logger, sourceDir)
+
+        relativeFile = os.path.basename(sourceFile)
+
+        with chmodOnlyWhenNeeded(), lsp.start_server():
+            lsp.open_file(relativeFile)
+
+            # Read source lines
+            fullPath = os.path.join(sourceDir, relativeFile)
+            if not os.path.exists(fullPath):
+                fullPath = sourceFile
+            with open(fullPath, "r") as f:
+                lines = f.readlines()
+
+            #
+            # Restrict the result to locals fed by a modelled call. Without
+            # this every local in scope is offered, including ones no
+            # targeted value can influence.
+            #
+            callAssigned = findCallAssignedLocals(
+                lines, targetLine, callableNames or set()
+            )
+
+            # Collect hover info for all identifiers up to targetLine
+            # hoverCache: (lineIdx, col) -> {category, name, type}
+            hoverCache = {}
+
+            def getHoverInfo(lineIdx, col):
+                key = (lineIdx, col)
+                if key in hoverCache:
+                    return hoverCache[key]
+                try:
+                    hover = lsp.request_hover(relativeFile, lineIdx, col)
+                    if not hover or "contents" not in hover:
+                        hoverCache[key] = None
+                        return None
+                    value = hover["contents"].get("value", "")
+                    # Parse category: ### variable, ### field, ### param
+                    cat_match = re.search(r"###\s+(\w+)\s+`(\w+)`", value)
+                    type_match = re.search(r"Type:\s*`(.*?)`", value)
+                    if cat_match and type_match:
+                        info = {
+                            "category": cat_match.group(1),
+                            "name": cat_match.group(2),
+                            "type": type_match.group(1),
+                        }
+                        hoverCache[key] = info
+                        return info
+                except Exception:
+                    pass
+                hoverCache[key] = None
+                return None
+
+            # Find all member access chains (e.g., zzz->f->g) and individual variables
+            # Pattern: identifier (-> or .) identifier (-> or .) ...
+            chain_pattern = re.compile(
+                r"\b([a-zA-Z_]\w*)\b" r"((?:\s*(?:->|\.)\s*[a-zA-Z_]\w*)*)"
+            )
+
+            seen_vars = set()
+            # Map: variable name -> node (for building children)
+            var_nodes = {}
+
+            for lineIdx in range(min(targetLine, len(lines))):
+                rawLine = lines[lineIdx]
+                line = rawLine.rstrip()
+                if (
+                    not line.strip()
+                    or line.strip().startswith("//")
+                    or line.strip().startswith("#")
+                ):
+                    continue
+
+                for match in chain_pattern.finditer(line):
+                    base = match.group(1)
+                    rest = match.group(2)
+
+                    if base in C_KEYWORDS:
+                        continue
+
+                    # Get hover info for the base identifier
+                    baseCol = match.start()
+                    baseInfo = getHoverInfo(lineIdx, baseCol)
+                    if not baseInfo:
+                        continue
+                    if baseInfo["category"] not in ("variable", "field"):
+                        continue
+
+                    # Add the base variable if not seen, and only when a
+                    # stubbed call assigns it.
+                    if (
+                        base not in seen_vars
+                        and baseInfo["category"] == "variable"
+                        and base in callAssigned
+                    ):
+                        varType = baseInfo["type"]
+                        kind = classifyType(varType)
+                        # Pointers to structs: kind is "array" (pointer), not "struct"
+                        node = {
+                            "name": base,
+                            "displayType": varType,
+                            "kind": kind,
+                            "enumValues": [],
+                            "children": [],
+                        }
+                        seen_vars.add(base)
+                        var_nodes[base] = node
+                        locals_list.append(node)
+
+                    # Process member access chain: ->f->g or .f.g
+                    if rest.strip():
+                        # Parse the chain segments
+                        segments = re.findall(r"(?:->|\.)\s*([a-zA-Z_]\w*)", rest)
+                        parentNode = var_nodes.get(base)
+                        currentCol = baseCol + len(base)
+
+                        for seg in segments:
+                            # Find the column of this segment in the line
+                            segIdx = line.find(seg, currentCol)
+                            if segIdx < 0:
+                                break
+                            currentCol = segIdx + len(seg)
+
+                            fieldInfo = getHoverInfo(lineIdx, segIdx)
+                            if not fieldInfo:
+                                break
+
+                            fieldType = fieldInfo["type"]
+                            fieldKind = classifyType(fieldType)
+
+                            # Check if this child already exists on the parent
+                            existingChild = None
+                            if parentNode:
+                                for c in parentNode["children"]:
+                                    if c["name"] == seg:
+                                        existingChild = c
+                                        break
+
+                            if not existingChild:
+                                childNode = {
+                                    "name": seg,
+                                    "displayType": fieldType,
+                                    "kind": fieldKind,
+                                    "enumValues": [],
+                                    "children": [],
+                                }
+                                if parentNode:
+                                    parentNode["children"].append(childNode)
+                                parentNode = childNode
+                            else:
+                                parentNode = existingChild
+
+    except Exception as error:
+        #
+        # Locals are a best-effort enrichment, so a failure here must not
+        # break the request -- but it must not be invisible either, or
+        # "no variables to select" looks identical to "no variables".
+        #
+        return locals_list, f"{type(error).__name__}: {error}"
+
+    return locals_list, None
+
+
 def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
     """
     This function does the actual work of processing a vTestInterface command,
@@ -1400,6 +1953,35 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
         api.close()
         returnObject = topLevel
+
+    elif mode == "getVariableInfo":
+        jsonOptions = processOptions(options)
+        sourceFile = jsonOptions.get("sourceFile", "")
+        functionName = jsonOptions.get("functionName", "")
+
+        try:
+            api = UnitTestApi(pathToUse)
+        except Exception as err:
+            raise UsageError(err)
+
+        returnObject = buildVariableTree(api, sourceFile, functionName)
+        api.close()
+
+    elif mode == "getLocalVariables":
+        jsonOptions = processOptions(options)
+        sourceFile = jsonOptions.get("sourceFile", "")
+        targetLine = jsonOptions.get("targetLine", 0)
+
+        returnObject = {"locals": []}
+        if sourceFile and targetLine > 0:
+            sourceDir = os.path.dirname(sourceFile)
+            callableNames, namesError = getModelledFunctionNames(pathToUse)
+            locals_list, localsError = getLocalVariablesFromClangd(
+                sourceDir, sourceFile, targetLine, callableNames
+            )
+            returnObject["locals"] = locals_list
+            if localsError or namesError:
+                returnObject["error"] = localsError or namesError
 
     elif mode == "perTestCoverage":
         try:

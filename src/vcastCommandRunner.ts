@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { execSync, spawn } from "child_process";
+import { ChildProcess, execSync, spawn } from "child_process";
 
 import {
   errorLevel,
@@ -8,6 +8,7 @@ import {
   openMessagePane,
   vectorMessage,
 } from "./messagePane";
+import { loadScriptCallBack } from "./callbacks";
 import { processCommandOutput, statusMessageType } from "./utilities";
 import { cleanVectorcastOutput } from "../src-common/commonUtilities";
 
@@ -183,7 +184,8 @@ function processExceptionFromExecuteCommand(
 export function executeCommandSync(
   commandToRun: string,
   cwd: string,
-  printErrorDetails: boolean = true
+  printErrorDetails: boolean = true,
+  env?: NodeJS.ProcessEnv
 ): commandStatusType {
   vectorMessage(`Running: ${commandToRun}`, errorLevel.trace);
 
@@ -193,6 +195,7 @@ export function executeCommandSync(
     commandStatus.stdout = execSync(commandToRun, {
       cwd: cwd,
       maxBuffer: maxCommandOutputBuffer,
+      env,
     })
       .toString()
       .trim();
@@ -626,4 +629,197 @@ export async function executeClicastCommandUsingServer(
     vectorMessage(commandStatus.stdout);
   }
   return commandStatus;
+}
+
+/**
+ * The environment the ATG line test runs atg in: the process environment plus
+ * `envVars`. Shared by the run and the start-up capability probe, so the probe
+ * asks the same atg that will run.
+ */
+export function atgLineTestEnvironment(
+  envVars: Record<string, string> = {}
+): NodeJS.ProcessEnv {
+  //
+  // The line test always runs the atg that ships with the configured
+  // VectorCAST. VCAST_ATG_PATH in the user's environment would
+  // redirect it to a separate ATG working copy, so drop it here
+  // rather than inherit it.
+  //
+  const childEnv: NodeJS.ProcessEnv = { ...process.env, ...envVars };
+  delete childEnv.VCAST_ATG_PATH;
+
+  //
+  // Undocumented developer override: VCAST_ATG_DEV_PATH points the
+  // line test at an ATG working copy instead of the bundled one.
+  // Deliberately not a setting -- it is for ATG development, not for
+  // users, so it is only reachable by exporting it in the
+  // environment. Applied after the delete above so it wins. atg would
+  // warn about VCAST_ATG_DEV_PATH as an unknown option, so it is not
+  // passed on.
+  //
+  const atgDevPath = process.env.VCAST_ATG_DEV_PATH;
+  delete childEnv.VCAST_ATG_DEV_PATH;
+  if (atgDevPath) {
+    childEnv.VCAST_ATG_PATH = atgDevPath;
+  }
+
+  return childEnv;
+}
+
+// Env var names whose values are credentials (API keys, LiteLLM provider
+// secrets, access tokens), masked when the ATG command line is logged.
+const secretEnvVariableName = /key|secret|token|password/i;
+
+export async function executeATGLineForScript(
+  command: string,
+  cwd: string,
+  enviroPath: string,
+  scriptPath: string,
+  envVars: Record<string, string> = {}
+): Promise<void> {
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: `Running ATG: ${path.basename(scriptPath)}`,
+      cancellable: true,
+    },
+    async (progress, token) => {
+      progress.report({ increment: 0 });
+      vectorMessage("-".repeat(60));
+      const envVarStr = Object.entries(envVars)
+        .map(([k, v]) => `${k}=${secretEnvVariableName.test(k) ? "***" : v}`)
+        .join(" ");
+      vectorMessage(`Executing: ${envVarStr ? envVarStr + " " : ""}${command}`);
+      vectorMessage(`cwd: ${cwd}`);
+      vectorMessage("-".repeat(60));
+
+      const childEnv = atgLineTestEnvironment(envVars);
+      const atgDevPath = process.env.VCAST_ATG_DEV_PATH;
+      if (atgDevPath) {
+        vectorMessage(
+          `ATG: VCAST_ATG_DEV_PATH is set, using ${atgDevPath} instead of the bundled atg`
+        );
+      }
+
+      const proc: ChildProcess = spawn(command, [], {
+        cwd,
+        shell: true,
+        windowsHide: true,
+        env: childEnv,
+      });
+
+      let stdoutBuffer = "";
+      let stderrBuffer = "";
+      let stdoutFragment = "";
+      let animVal = 0;
+
+      const progressInterval = setInterval(() => {
+        try {
+          progress.report({ increment: 5 });
+          animVal = (animVal + 5) % 95;
+        } catch {
+          /* ignore progress errors */
+        }
+      }, 2000);
+
+      let cancelled = false;
+      token.onCancellationRequested(() => {
+        cancelled = true;
+        try {
+          if (proc && !proc.killed) {
+            vectorMessage("User cancelled — sending SIGTERM to process.");
+            proc.kill("SIGTERM");
+          }
+        } catch (e) {
+          vectorMessage(
+            `Failed to terminate process on cancel: ${(e as Error).message}`
+          );
+        } finally {
+          if (progressInterval) clearInterval(progressInterval);
+        }
+      });
+
+      if (proc.stdout) {
+        proc.stdout.on("data", (chunk: Buffer | string) => {
+          const s = chunk.toString();
+          stdoutBuffer += s;
+          const parts = s.split(/[\r\n]+/);
+          if (stdoutFragment.length > 0) {
+            parts[0] = stdoutFragment + parts[0];
+            stdoutFragment = "";
+          }
+          if (!s.endsWith("\n") && !s.endsWith("\r")) {
+            stdoutFragment = parts.pop() || "";
+          }
+          for (const line of parts) {
+            if (line.length) vectorMessage(line);
+          }
+        });
+      }
+
+      if (proc.stderr) {
+        proc.stderr.on("data", (chunk: Buffer | string) => {
+          const s = chunk.toString();
+          stderrBuffer += s;
+          s.split(/[\r\n]+/).forEach((line) => {
+            if (line.length) vectorMessage(line);
+          });
+        });
+      }
+
+      await new Promise<void>((resolve) => {
+        const cleanupAndResolve = () => {
+          try {
+            if (progressInterval) clearInterval(progressInterval);
+          } catch {}
+          try {
+            progress.report({ increment: 100 });
+          } catch {}
+          resolve();
+        };
+
+        proc.on("close", async (exitCode: number | null) => {
+          const code = exitCode === null ? 1 : Number(exitCode);
+          vectorMessage("-".repeat(60));
+          vectorMessage(
+            `Process finished with exit code: ${code}${cancelled ? " (cancelled)" : ""}`
+          );
+          vectorMessage("-".repeat(60));
+
+          const status: commandStatusType = {
+            errorCode: code,
+            stdout: stdoutBuffer + (stderrBuffer ? `\n${stderrBuffer}` : ""),
+          };
+          const enviroName = path.basename(enviroPath || "");
+          try {
+            await loadScriptCallBack(status, enviroName, scriptPath);
+          } catch (cbErr) {
+            vectorMessage(
+              `loadScriptCallBack threw: ${(cbErr as Error).message}`
+            );
+          } finally {
+            cleanupAndResolve();
+          }
+        });
+
+        proc.on("error", async (err) => {
+          vectorMessage(`Failed to spawn process: ${err.message}`);
+          const status: commandStatusType = {
+            errorCode: "spawn_error",
+            stdout: stdoutBuffer + (stderrBuffer ? `\n${stderrBuffer}` : ""),
+          };
+          const enviroName = path.basename(enviroPath || "");
+          try {
+            await loadScriptCallBack(status, enviroName, scriptPath);
+          } catch (cbErr) {
+            vectorMessage(
+              `loadScriptCallBack threw after spawn error: ${(cbErr as Error).message}`
+            );
+          } finally {
+            cleanupAndResolve();
+          }
+        });
+      });
+    }
+  );
 }
