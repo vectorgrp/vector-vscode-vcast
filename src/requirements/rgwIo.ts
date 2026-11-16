@@ -1,12 +1,19 @@
 import * as os from "node:os";
+import { createHash } from "node:crypto";
 import {
   expandEnvVars,
   findRelevantRequirementGateway,
+  findRequirementGatewayConfig,
   RGW_INNER_DIR,
 } from "./rgwPath";
 import { readCsvSourcePath } from "./rgwSettings";
 import { runReqs2xTool } from "./processRunner";
 import { PANREQ_EXECUTABLE_PATH } from "./requirementsExecutables";
+import { clicastCommandToUse } from "../vcastInstallation";
+import {
+  closeConnection,
+  globalEnviroDataServerActive,
+} from "../../src-common/vcastServer";
 
 const path = require("path");
 const fs = require("fs");
@@ -40,10 +47,10 @@ export interface RGWOrigin {
   generated_by_reqs2x: boolean;
 }
 
-export interface RGWFileMtimes {
-  requirements: number;
-  traceability: number;
-  origin: number;
+export interface RGWFileHashes {
+  requirements: string;
+  traceability: string;
+  origin: string;
 }
 
 export interface RGWBundle {
@@ -51,7 +58,7 @@ export interface RGWBundle {
   origin: RGWOrigin;
   requirements: RGWRequirementsFile;
   traceability: RGWTraceabilityFile;
-  mtimes: RGWFileMtimes;
+  hashes: RGWFileHashes;
 }
 
 export class RGWStaleWriteError extends Error {
@@ -109,11 +116,13 @@ function rgwFilePaths(gatewayPath: string) {
   };
 }
 
-function mtimeMsOrZero(filePath: string): number {
+// VectorCAST rewrites requirements.json unchanged when it runs a test, among
+// other operations, so only a change of content means someone else edited it.
+function contentHashOrEmpty(filePath: string): string {
   try {
-    return fs.statSync(filePath).mtimeMs;
+    return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
   } catch {
-    return 0;
+    return "";
   }
 }
 
@@ -223,10 +232,10 @@ export function readRGWBundle(enviroPath: string): RGWBundle | null {
     origin,
     requirements,
     traceability,
-    mtimes: {
-      requirements: mtimeMsOrZero(files.requirements),
-      traceability: mtimeMsOrZero(files.traceability),
-      origin: mtimeMsOrZero(files.origin),
+    hashes: {
+      requirements: contentHashOrEmpty(files.requirements),
+      traceability: contentHashOrEmpty(files.traceability),
+      origin: contentHashOrEmpty(files.origin),
     },
   };
 }
@@ -236,17 +245,16 @@ export function readRGWBundle(enviroPath: string): RGWBundle | null {
 /**
  * Persist edits back into the RGW.
  *
- * Requirement bodies travel via the source CSV (kept in sync as the durable
- * external artifact): we serialize the updates to a temp JSON in panreq's
- * input shape and run panreq to overwrite the CSV. We then mirror the same
- * data into `requirements.json` ourselves — `clicast RGw Import` only adds
- * *new* requirements (it deliberately doesn't overwrite existing bodies, and
- * there's no `Reimport` subcommand).
+ * Requirement bodies travel via the source CSV: panreq rewrites it, and
+ * `clicast RGw Import` brings the changes into `requirements.json` and marks
+ * the tests linked to a changed requirement as needing review. The import
+ * never deletes, so removed requirements are deleted afterwards, and the
+ * stored (possibly truncated) titles are returned for the webview to show.
  *
- * Traceability is written directly. Done last so a panreq failure leaves
+ * Traceability is written directly. Done last so a failure leaves
  * on-disk state consistent (no fresh trace pointing at stale requirements).
  *
- * Throws RGWStaleWriteError if either file's mtime has advanced since the
+ * Throws RGWStaleWriteError if either file's content changed since the
  * bundle was loaded.
  */
 export async function writeRGWBundle(
@@ -256,16 +264,16 @@ export async function writeRGWBundle(
     requirements: RGWRequirementsFile;
     traceability: RGWTraceabilityFile;
   },
-  expected: Pick<RGWFileMtimes, "requirements" | "traceability">
-): Promise<RGWFileMtimes> {
+  expected: Pick<RGWFileHashes, "requirements" | "traceability">
+): Promise<Pick<RGWBundle, "requirements" | "traceability" | "hashes">> {
   const files = rgwFilePaths(gatewayPath);
 
-  const currentReqMtime = mtimeMsOrZero(files.requirements);
-  if (currentReqMtime !== expected.requirements) {
+  const currentReqHash = contentHashOrEmpty(files.requirements);
+  if (currentReqHash !== expected.requirements) {
     throw new RGWStaleWriteError("requirements");
   }
-  const currentTraceMtime = mtimeMsOrZero(files.traceability);
-  if (currentTraceMtime !== expected.traceability) {
+  const currentTraceHash = contentHashOrEmpty(files.traceability);
+  if (currentTraceHash !== expected.traceability) {
     throw new RGWStaleWriteError("traceability");
   }
 
@@ -324,18 +332,48 @@ export async function writeRGWBundle(
     }
   }
 
-  // 2. Mirror the same data into requirements.json. Bucket key is normalized
-  //    to the current csv_path so consumers see a consistent source path.
-  const consolidated: Record<string, RGWRequirement> = {};
+  // 2. Import with the config that names the gateway: -lc reads only
+  //    CCAST_.CFG, -lada only ADACAST_.CFG. Writing titles back ourselves would
+  //    make every later import re-flag titles that older VC versions cut to 50.
+  //    A clicast server still holding the environment would write its own copy
+  //    of the gateway over the import's flags when it closes, so close it first.
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+  const configPath = findRequirementGatewayConfig(enviroPath)?.configPath;
+  const result = await runReqs2xTool({
+    exe: clicastCommandToUse,
+    args: [
+      configPath?.endsWith("ADACAST_.CFG") ? "-lada" : "-lc",
+      "RGw",
+      "Import",
+    ],
+    cwd: path.dirname(enviroPath),
+    captureOutput: true,
+    allowNonZeroExit: true,
+  });
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `RGw Import exited with code ${result.exitCode}: ${result.stdout?.trim()}`
+    );
+  }
+
+  const keptKeys = new Set<string>();
   for (const bucket of Object.values(updates.requirements)) {
-    for (const [reqKey, req] of Object.entries(bucket)) {
-      consolidated[reqKey] = req;
+    for (const reqKey of Object.keys(bucket)) keptKeys.add(reqKey);
+  }
+  const requirements: RGWRequirementsFile = JSON.parse(
+    fs.readFileSync(files.requirements, "utf-8")
+  );
+  let removed = false;
+  for (const bucket of Object.values(requirements)) {
+    for (const reqKey of Object.keys(bucket)) {
+      if (keptKeys.has(reqKey)) continue;
+      delete bucket[reqKey];
+      removed = true;
     }
   }
-  writeAtomic(
-    files.requirements,
-    JSON.stringify({ [`[CSV] [${csvPath}]`]: consolidated }, null, 4)
-  );
+  if (removed) {
+    writeAtomic(files.requirements, JSON.stringify(requirements, null, 4));
+  }
 
   // 3. Write traceability.json directly. RGW's invariant is one-to-one with
   //    requirements: every requirement key has an entry, even if it's all
@@ -343,12 +381,14 @@ export async function writeRGWBundle(
   //    traceability.json (or a stale one with entries for removed
   //    requirements), which downstream tools mis-handle.
   const normalizedTraceability: RGWTraceabilityFile = {};
-  for (const reqKey of Object.keys(consolidated)) {
-    normalizedTraceability[reqKey] = updates.traceability[reqKey] ?? {
-      unit: null,
-      function: null,
-      lines: null,
-    };
+  for (const bucket of Object.values(requirements)) {
+    for (const reqKey of Object.keys(bucket)) {
+      normalizedTraceability[reqKey] = updates.traceability[reqKey] ?? {
+        unit: null,
+        function: null,
+        lines: null,
+      };
+    }
   }
   writeAtomic(
     files.traceability,
@@ -356,9 +396,13 @@ export async function writeRGWBundle(
   );
 
   return {
-    requirements: mtimeMsOrZero(files.requirements),
-    traceability: mtimeMsOrZero(files.traceability),
-    origin: mtimeMsOrZero(files.origin),
+    requirements,
+    traceability: normalizedTraceability,
+    hashes: {
+      requirements: contentHashOrEmpty(files.requirements),
+      traceability: contentHashOrEmpty(files.traceability),
+      origin: contentHashOrEmpty(files.origin),
+    },
   };
 }
 
