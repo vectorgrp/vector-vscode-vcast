@@ -49,7 +49,13 @@ def cleanEnviroData(newData):
     """
     We want to clean any file paths, these are in two places:
     the data.testData, and data.unitData
+
+    We also drop data.scriptFeatureList, because these are release-level
+    capability flags that differ between VectorCAST versions.
     """
+    scriptFeatureList = newData["data"].pop("scriptFeatureList", None)
+    assert isinstance(scriptFeatureList, list)
+
     for item in newData["data"]["testData"]:
         if "path" in item:
             item["path"] = os.path.basename(item["path"])

@@ -5,7 +5,13 @@ import {
   Position,
 } from "vscode-languageserver";
 
-import { testCommandList, scriptFeatureList } from "./serverUtilities";
+import url = require("url");
+
+import {
+  testCommandList,
+  getEnviroNameFromTestScript,
+  getScriptFeaturesForEnviro,
+} from "./serverUtilities";
 import { checkForKeywordInLine } from "./tstCompletion";
 
 export function getDiagnosticObject(
@@ -32,6 +38,17 @@ export function getDiagnosticObject(
 
 const specialSubprogramNames = ["<<INIT>>", "<<COMPOUND>>"];
 
+function getScriptFeaturesForDocument(textDocument: TextDocument): string[] {
+  let enviroPath: string | undefined = undefined;
+  try {
+    const testScriptPath = url.fileURLToPath(textDocument.uri);
+    enviroPath = getEnviroNameFromTestScript(testScriptPath);
+  } catch {
+    // not a file on disk, use the features of all known environments
+  }
+  return getScriptFeaturesForEnviro(enviroPath);
+}
+
 export function validateTextDocument(textDocument: TextDocument) {
   // this function does the error checking for the test script
   // and generates diagnostics for any issues
@@ -50,6 +67,8 @@ export function validateTextDocument(textDocument: TextDocument) {
   let withinValueUserCode: boolean = false;
   let withinExpectedUserCode: boolean = false;
   let withinImportFailures = false;
+  // computed on first use, since most scripts have few feature lines
+  let scriptFeatureList: string[] | undefined = undefined;
   const codedTestsDriverInSubprogram = checkForKeywordInLine(
     text,
     "TEST.SUBPROGRAM",
@@ -228,6 +247,7 @@ export function validateTextDocument(textDocument: TextDocument) {
           }
         } else if (command == "SCRIPT_FEATURE" && pieces.length > 2) {
           const featureName = pieces[2].trim();
+          scriptFeatureList ??= getScriptFeaturesForDocument(textDocument);
           if (scriptFeatureList.indexOf(featureName) < 0) {
             diagnosticList.push(
               getDiagnosticObject(

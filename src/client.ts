@@ -21,6 +21,8 @@ import {
 
 let client: LanguageClient;
 let globalvMockAvailable: boolean = false;
+// script features of environments that got loaded before the client was started
+const pendingScriptFeatures: Map<string, string[]> = new Map();
 export function activateLanguageServerClient(context: ExtensionContext) {
   // The server is implemented in nodejs also
   let serverModule = context.asAbsolutePath(path.join("out", "server.js"));
@@ -91,6 +93,10 @@ export function activateLanguageServerClient(context: ExtensionContext) {
 
     // initialize the vMock status to the value set during activation
     updateVMockStatus(globalvMockAvailable);
+    for (const [enviroPath, featureList] of pendingScriptFeatures) {
+      sendScriptFeaturesToLanguageServer(enviroPath, featureList);
+    }
+    pendingScriptFeatures.clear();
   } else {
     vectorMessage(
       "Unable to start the Language Server: VectorCAST installation not found. " +
@@ -174,6 +180,24 @@ export function updateVMockStatus(vmockAvailable: boolean) {
     });
   } else {
     globalvMockAvailable = vmockAvailable;
+  }
+}
+
+// This function is used to tell the server which TEST.SCRIPT_FEATURE flags
+// the VectorCAST release of an environment knows about
+export function sendScriptFeaturesToLanguageServer(
+  enviroPath: string,
+  featureList: string[]
+) {
+  if (client) {
+    client.onReady().then(() => {
+      client.sendNotification("vcasttesteditor/updateScriptFeatures", {
+        enviroPath,
+        featureList,
+      });
+    });
+  } else {
+    pendingScriptFeatures.set(enviroPath, featureList);
   }
 }
 

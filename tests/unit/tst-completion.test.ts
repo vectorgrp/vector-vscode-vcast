@@ -6,6 +6,11 @@ import URI from "vscode-uri";
 import { checkClicastOption } from "../../langServer/tstCompletion";
 import { updateClicastCommandForLanguageServer } from "../../langServer/pythonUtilities";
 import {
+  clearScriptFeatureMap,
+  scriptFeatureList,
+  setScriptFeaturesForEnviro,
+} from "../../langServer/serverUtilities";
+import {
   getCompletionPositionForLine,
   generateCompletionData,
   storeNewDocument,
@@ -388,6 +393,34 @@ describe("Text Completion", () => {
           detail: "",
           data: 15,
         },
+      ]);
+    },
+    timeout
+  );
+
+  test(
+    "validate that TEST.SCRIPT_FEATURE: always offers the built-in features",
+    async () => {
+      // An older VectorCAST release reports fewer features than our built-in
+      // list, we still want to offer the complete built-in list in that case
+      clearScriptFeatureMap();
+      setScriptFeaturesForEnviro(path.join("some", "enviro", "TEST"), [
+        "MULTIPLE_UUT_SUPPORT",
+        "FEATURE_ONLY_KNOWN_BY_THE_ENVIRONMENT",
+      ]);
+
+      const lineToComplete = "TEST.SCRIPT_FEATURE:";
+      const generatedCompletionData = await generateCompletionData(
+        scriptFeatureTst,
+        getCompletionPositionForLine(lineToComplete, scriptFeatureTst),
+        lineToComplete.at(-1)
+      );
+      clearScriptFeatureMap();
+
+      const labels = generatedCompletionData.map((item) => item.label);
+      expect(labels).toEqual([
+        ...scriptFeatureList,
+        "FEATURE_ONLY_KNOWN_BY_THE_ENVIRONMENT",
       ]);
     },
     timeout
