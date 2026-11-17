@@ -1131,6 +1131,17 @@ async function getMCDCCoverageLinesFromServer(
   let transmitResponse: transmitResponseType =
     await transmitCommand(requestObject);
 
-  const commandStatus = convertServerResponseToCommandStatus(transmitResponse);
+  // This request runs on every editor change, so we only log the response
+  // when the retrieval failed, instead of echoing the lines each time.
+  const commandStatus = convertServerResponseToCommandStatus(
+    transmitResponse,
+    false
+  );
+  if (
+    commandStatus.errorCode !== 0 ||
+    commandStatus.stdout.startsWith("Error:")
+  ) {
+    vectorMessage(commandStatus.stdout);
+  }
   return cleanVectorcastOutput(commandStatus.stdout);
 }
