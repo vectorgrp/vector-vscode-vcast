@@ -146,7 +146,7 @@ const VERDICT_MARKS: Record<string, string> = {
 };
 
 // Text from the test or tests2check must not be read as Markdown or icons.
-function escapeMarkdown(text: string): string {
+export function escapeMarkdown(text: string): string {
   return text.replace(/[\\`*_{}[\]()#+\-!~|<>$]/g, "\\$&");
 }
 
