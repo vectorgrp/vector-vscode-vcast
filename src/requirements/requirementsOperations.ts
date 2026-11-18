@@ -14,6 +14,7 @@ import {
   reqs2xSupportedFlags,
   setupReqs2XExecutablePaths,
   TESTS2CHECK_EXECUTABLE_PATH,
+  reqs2checkInstalled,
 } from "./requirementsExecutables";
 import { runReqs2xTool } from "./processRunner";
 import {
@@ -79,6 +80,11 @@ export function initializeReqs2X(context: vscode.ExtensionContext) {
     "setContext",
     "vectorcastTestExplorer.tests2checkAvailable",
     featureEnabled && fs.existsSync(TESTS2CHECK_EXECUTABLE_PATH)
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "vectorcastTestExplorer.reqs2checkAvailable",
+    featureEnabled && reqs2checkInstalled()
   );
 }
 

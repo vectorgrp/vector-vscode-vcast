@@ -23,6 +23,12 @@ export let LLM2CHECK_EXECUTABLE_PATH: string = "";
 // Optional: not every distribution ships tests2check, so it is not in
 // NECESSARY_REQS2X_EXECUTABLES; callers check the file exists before running it.
 export let TESTS2CHECK_EXECUTABLE_PATH: string = "";
+// Optional as well: checks the code against the requirements.
+export let REQS2CHECK_EXECUTABLE_PATH: string = "";
+
+export function reqs2checkInstalled(): boolean {
+  return fs.existsSync(REQS2CHECK_EXECUTABLE_PATH);
+}
 
 /**
  * Resolve the on-disk directory containing the Reqs2X executables. Priority:
@@ -104,6 +110,10 @@ export function setupReqs2XExecutablePaths(
   TESTS2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
     baseUri,
     exeFilename("tests2check")
+  ).fsPath;
+  REQS2CHECK_EXECUTABLE_PATH = vscode.Uri.joinPath(
+    baseUri,
+    exeFilename("reqs2check")
   ).fsPath;
 
   // A different binary may have been resolved; drop the cached help output.

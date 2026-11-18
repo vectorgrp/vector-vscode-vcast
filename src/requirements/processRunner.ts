@@ -117,7 +117,10 @@ export interface RunReqs2xToolOptions {
    * cancel kills the subprocess and the runner returns `{ cancelled: true }`.
    */
   progress?: { title: string; logPrefix: string };
-  /** Return captured stdout/stderr on the result. Ignored when `progress` is set. */
+  /**
+   * Return captured stdout/stderr on the result. With `progress` set, stdout
+   * still holds the tool's `--json-events` lines.
+   */
   captureOutput?: boolean;
   /** Resolve (with `exitCode`) instead of throwing on a non-zero exit. */
   allowNonZeroExit?: boolean;
@@ -177,6 +180,9 @@ export async function runReqs2xTool(
         const tracker = new ProgressTracker(progress, progressOpts.logPrefix);
 
         let cancelled = false;
+        let stdout = "";
+        let stderr = "";
+        let exitCode: number | null = null;
         cancellationToken.onCancellationRequested(() => {
           cancelled = true;
           proc.kill();
@@ -185,18 +191,20 @@ export async function runReqs2xTool(
 
         await new Promise<void>((resolve, reject) => {
           proc.stdout.on("data", (d) => {
+            stdout += d.toString();
             if (!cancelled) tracker.processOutput(d.toString());
           });
           proc.stderr.on("data", (d) => {
             const errOut = d.toString();
+            stderr += errOut;
             if (errOut.trim())
               logCliError(`${progressOpts.logPrefix}: ${errOut.trim()}`);
           });
           proc.on("error", reject);
           proc.on("close", (code) => {
             logCliOperation(`${progressOpts.logPrefix} exit code: ${code}`);
-            if (cancelled) return resolve();
-            if (code === 0) resolve();
+            exitCode = code;
+            if (cancelled || code === 0 || opts.allowNonZeroExit) resolve();
             else
               reject(
                 new Error(`${progressOpts.logPrefix} exited with code ${code}`)
@@ -204,7 +212,11 @@ export async function runReqs2xTool(
           });
         });
 
-        return { cancelled };
+        return {
+          cancelled,
+          exitCode,
+          ...(opts.captureOutput ? { stdout, stderr } : {}),
+        };
       }
     );
   }
