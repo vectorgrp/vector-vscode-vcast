@@ -301,6 +301,7 @@ export function getSpecGroups(
         "./**/**/vcast_build_env_requirements.test.ts",
         "./**/**/vcast_requirements_tests.test.ts",
         "./**/**/vcast_requirements_review.test.ts",
+        "./**/**/vcast_requirements_code_check.test.ts",
       ],
       env: {
         REQS2X_PCT_RELEASE: "True",
