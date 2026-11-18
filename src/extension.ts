@@ -151,6 +151,7 @@ import {
 import { generateRequirementsHtml } from "./requirements/webviews/template";
 import type { FromWebview, ToWebview } from "./requirements/webviews/messages";
 import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
+import { activateCodeCheck } from "./requirements/codeCheck";
 import {
   endReview,
   fetchRequirementChecks,
@@ -1944,6 +1945,16 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
 
   registerReviewHover(context);
+  activateCodeCheck(context, async (enviroPath) => {
+    const envData = await getEnvironmentData(enviroPath);
+    return (unit, functionName) => {
+      const located = resolveSourceLocation(envData, unit, functionName);
+      // The top of the file when the function's line is not known.
+      return located
+        ? { file: located.uri.fsPath, line: located.lineNumber || 1 }
+        : undefined;
+    };
+  });
   context.subscriptions.push(
     openReqsCoverageReview,
     checkTestsAgainstRequirements,
