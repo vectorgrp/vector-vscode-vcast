@@ -34,6 +34,7 @@ import {
   reviewLineColors,
   reviewMarkdown,
 } from "./testReviewData";
+import { AI_DISCLAIMER } from "./reportPage";
 import { checkReportHtml, ReportGroup } from "./testReviewReport";
 import { getNonce } from "../webviewUtils";
 import { getRangeOption } from "../utilities";
@@ -155,7 +156,7 @@ function showReviewThread(
       body,
       mode: vscode.CommentMode.Preview,
       author: {
-        name: "AI-generated requirements check. Review before relying on it.",
+        name: AI_DISCLAIMER,
       },
     },
   ];

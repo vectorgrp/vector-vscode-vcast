@@ -625,10 +625,10 @@ describe("the batch check report", () => {
 
   test("reviews a unit or a function as a whole", () => {
     expect(html).toContain(
-      'class="open group" data-unit="manager">Review unit'
+      'class="open group secondary" data-unit="manager">Review unit'
     );
     expect(html).toContain(
-      'class="open group" data-unit="manager" data-function="Place_Order">Review function'
+      'class="open group secondary" data-unit="manager" data-function="Place_Order">Review function'
     );
     expect(html).toContain("open-group-review");
   });
@@ -675,9 +675,7 @@ describe("the batch check report", () => {
       cspSource: "vscode-resource:",
     });
     expect(page).toContain("1 undecided");
-    expect(page).toContain(
-      '<span class="verdict other"><span class="mark">•</span> </span>'
-    );
+    expect(page).toContain('<span class="mark other">•</span> ');
   });
 
   test("only runs its own script", () => {

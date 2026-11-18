@@ -1,6 +1,7 @@
 // The report of a requirements check of several tests, grouped by function,
 // as a webview page. Kept free of the vscode module so it can be unit tested.
 
+import { AI_DISCLAIMER, markHtml, reportPageHtml } from "./reportPage";
 import {
   escapeHtml,
   RequirementData,
@@ -36,15 +37,10 @@ function uncheckedHtml(unchecked: string[]): string {
   return ` <span class="unchecked" title="${escapeHtml(unchecked.join("\n"))}">${tests} without a linked requirement ${were} not checked.</span>`;
 }
 
-// A verdict's CSS class and mark, colored like the test explorer's icons.
-const VERDICT_MARKS: Record<string, [kind: string, mark: string]> = {
-  PASS: ["pass", "✔"],
-  FAIL: ["fail", "✘"],
-};
-
 function verdictHtml(verdict: string): string {
-  const [kind, mark] = VERDICT_MARKS[verdict] ?? ["other", "•"];
-  return `<span class="verdict ${kind}"><span class="mark">${mark}</span> ${escapeHtml(verdict)}</span>`;
+  const kind =
+    verdict === "PASS" ? "pass" : verdict === "FAIL" ? "fail" : "other";
+  return `${markHtml(kind)} ${escapeHtml(verdict)}`;
 }
 
 function requirementHtml(req: RequirementData["requirements"][number]): string {
@@ -70,7 +66,7 @@ function testHtml(check: ReviewedTest): string {
     ? `<button type="button" class="open" data-test-id="${escapeHtml(check.testId)}">Open review</button>`
     : "";
   return `<details class="test"${check.testId ? ` data-test-id="${escapeHtml(check.testId)}"` : ""}>
-  <summary>${verdictHtml(data.verdict)} <span class="name">${escapeHtml(data.title)}</span> ${open}</summary>
+  <summary><span class="heading">${verdictHtml(data.verdict)} <span class="name">${escapeHtml(data.title)}</span></span> ${open}</summary>
   ${data.requirements.map(requirementHtml).join("\n")}
 </details>`;
 }
@@ -88,12 +84,12 @@ function headerHtml(
   const name = functionName ?? unitName;
   const verdicts = tests.map((test) => test.data.verdict);
   const review = tests.some((test) => test.testId)
-    ? `<button type="button" class="open group" data-unit="${escapeHtml(unitName)}"${
+    ? `<button type="button" class="open group secondary" data-unit="${escapeHtml(unitName)}"${
         functionName ? ` data-function="${escapeHtml(functionName)}"` : ""
       }>Review ${kind}</button>`
     : "";
   return `<details class="${kind}">
-  <summary>${escapeHtml(name)} <span class="counts">${countsHtml(verdicts)}</span> ${review}</summary>
+  <summary><span class="heading">${escapeHtml(name)} <span class="counts">${countsHtml(verdicts)}</span></span> ${review}</summary>
   ${body}
 </details>`;
 }
@@ -145,55 +141,23 @@ export function checkReportHtml(options: {
     units.set(group.unitName, [...(units.get(group.unitName) ?? []), group]);
   }
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}' ${cspSource}; script-src 'nonce-${nonce}';">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Requirements check</title>
-  <style nonce="${nonce}">
-    body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 0 16px 16px; }
-    h1 { font-size: 1.3em; margin-bottom: 0; }
-    .summary-line { color: var(--vscode-descriptionForeground); margin: 4px 0 12px; }
-    .disclaimer { color: var(--vscode-descriptionForeground); font-style: italic; }
+  return reportPageHtml({
+    title: "Requirements check",
+    nonce,
+    cspSource,
+    styles: `
     .unchecked { cursor: help; text-decoration: underline dotted; }
-    details.unit { margin: 18px 0 0; }
-    details.unit > summary { font-size: 1.15em; font-weight: 600; padding: 6px 8px; background: var(--vscode-sideBarSectionHeader-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; cursor: pointer; }
-    details.function { margin: 10px 0 0 16px; }
-    details.function > summary { font-size: 1.05em; font-weight: 600; padding: 4px 8px; background: var(--vscode-sideBarSectionHeader-background); border-left: 3px solid var(--vscode-panel-border); cursor: pointer; }
-    .counts { font-weight: normal; color: var(--vscode-descriptionForeground); margin-left: 8px; }
     details.test { border: 1px solid var(--vscode-panel-border); border-radius: 4px; margin: 8px 0 8px 32px; padding: 4px 10px; }
-    details.test > summary { cursor: pointer; }
     .name { font-weight: 600; }
-    .verdict.pass .mark { color: var(--vscode-testing-iconPassed); }
-    .verdict.fail .mark { color: var(--vscode-testing-iconFailed); }
-    .verdict.other .mark { color: var(--vscode-testing-iconQueued); }
-    section.requirement { margin: 8px 0 8px 24px; }
-    section.requirement h4 { font-size: 1em; margin: 8px 0 2px; }
     dt { font-weight: 600; margin-top: 6px; }
     dd { margin: 0 0 0 12px; white-space: pre-wrap; }
     dd ul { margin: 0; padding-left: 18px; }
-    button.open { float: right; margin-left: 8px; border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
-    button.open:hover { background: var(--vscode-button-hoverBackground); }
-    button.open.group { font-weight: normal; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
-    .stale-banner { margin: 8px 0 12px; padding: 6px 10px; border: 1px solid var(--vscode-editorWarning-foreground); border-radius: 4px; }
-    .stale-banner .mark, details.stale > summary::after { color: var(--vscode-editorWarning-foreground); }
-    details.stale > summary::after { content: " \u26A0 out of date"; font-weight: normal; }
-    button.rerun { margin-left: 12px; border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); font: inherit; }
-    button.open { font: inherit; font-size: var(--vscode-font-size); }
-    .passed { color: var(--vscode-testing-iconPassed); }
-    .failed { color: var(--vscode-testing-iconFailed); }
-    button.open.group:hover { background: var(--vscode-button-secondaryHoverBackground); }
-  </style>
-</head>
-<body>
-  <h1>Requirements check: ${escapeHtml(scope)}</h1>
-  <p class="summary-line">${countsHtml(verdicts)}.${uncheckedHtml(unchecked)} <span class="disclaimer">AI-generated requirements check. Review before relying on it.</span></p>
-  ${[...units].map(([unitName, unitGroups]) => unitHtml(unitName, unitGroups)).join("\n")}
-  <script nonce="${nonce}">
-    const vscode = acquireVsCodeApi();
-    document.addEventListener("click", (event) => {
+    details.stale > summary > .heading::after { content: " \u26A0 out of date"; font-weight: normal; color: var(--vscode-editorWarning-foreground); }
+`,
+    body: `<h1>Requirements check: ${escapeHtml(scope)}</h1>
+  <p class="summary-line">${countsHtml(verdicts)}.${uncheckedHtml(unchecked)} <span class="disclaimer">${AI_DISCLAIMER}</span></p>
+  ${[...units].map(([unitName, unitGroups]) => unitHtml(unitName, unitGroups)).join("\n")}`,
+    script: `    document.addEventListener("click", (event) => {
       if (event.target.closest("button.rerun")) {
         vscode.postMessage({ type: "rerun" });
         return;
@@ -243,8 +207,6 @@ export function checkReportHtml(options: {
       button.className = "rerun";
       button.textContent = "Re-run check";
       banner.append(mark, text, button);
-    });
-  </script>
-</body>
-</html>`;
+    });`,
+  });
 }
