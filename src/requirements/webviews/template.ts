@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { RequirementCheck } from "../codeCheckData";
 import { editPolicyFor, type RGWBundle } from "../rgwIo";
 
 const path = require("path");
@@ -47,6 +48,9 @@ function fillTemplate(html: string, values: Record<string, string>): string {
  * blob the script picks up on load and renders into the empty `#reqs-body` via
  * safe DOM APIs — there's no server-side card rendering anymore, so every
  * concrete element comes from one place (the JS).
+ *
+ * `codeChecks` is how the requirements fared in the last check of the code
+ * against them, or null when the installed Reqs2X cannot run that check.
  */
 export function generateRequirementsHtml(
   webview: vscode.Webview,
@@ -54,7 +58,8 @@ export function generateRequirementsHtml(
   nonce: string,
   bundle: RGWBundle,
   unitsToFunctions: Record<string, string[]> | null = null,
-  onlyUntracedSupported = false
+  onlyUntracedSupported = false,
+  codeChecks: Record<string, RequirementCheck> | null = null
 ): string {
   const policy = editPolicyFor(bundle);
 
@@ -79,6 +84,7 @@ export function generateRequirementsHtml(
     traceability: bundle.traceability,
     unitsToFunctions,
     onlyUntracedSupported,
+    codeChecks,
   };
 
   // Split button when --only-untraced is supported (default = untraced only,
@@ -96,7 +102,10 @@ export function generateRequirementsHtml(
   const addHtml = policy.bodiesEditable
     ? `<button id="add-btn" class="toolbar-btn" title="Add a new requirement to this RGW.">+ Add requirement</button>`
     : "";
-  const toolbarHtml = `${addHtml}${inferHtml}<button id="save-btn" class="toolbar-btn" disabled>Save changes</button>`;
+  const checkCodeHtml = codeChecks
+    ? `<button id="check-code-btn" class="toolbar-btn" title="Use the configured LLM to compare the code with the saved requirements: where it contradicts one, does not implement one, or does what none describes.">✨ Check code</button>`
+    : "";
+  const toolbarHtml = `${addHtml}${inferHtml}${checkCodeHtml}<button id="save-btn" class="toolbar-btn" disabled>Save changes</button>`;
 
   const cspSource = webview.cspSource;
   const cspMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource}; script-src 'nonce-${nonce}' ${cspSource};">`;

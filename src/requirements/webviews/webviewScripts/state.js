@@ -30,6 +30,8 @@ export const inferCaret = document.getElementById("infer-caret");
 export const inferMenu = document.getElementById("infer-menu");
 // addBtn is null when bodies aren't editable (the template omits it).
 export const addBtn = document.getElementById("add-btn");
+// checkCodeBtn is null when the installed Reqs2X has no reqs2check.
+export const checkCodeBtn = document.getElementById("check-code-btn");
 export const reqsBody = document.getElementById("reqs-body");
 export const searchInput = document.getElementById("search-input");
 export const searchCount = document.getElementById("search-count");
@@ -59,6 +61,8 @@ export function refreshButtonStates() {
   // Don't clobber unsaved local edits with an inference.
   inferBtn.disabled = hasChanges;
   if (inferCaret) inferCaret.disabled = hasChanges;
+  // The check reads the saved requirements.
+  if (checkCodeBtn) checkCodeBtn.disabled = hasChanges;
 }
 
 export function setDirty(reqId, scope, field, value) {

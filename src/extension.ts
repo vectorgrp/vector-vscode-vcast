@@ -150,7 +150,10 @@ import {
 } from "./requirements/rgwIo";
 import { generateRequirementsHtml } from "./requirements/webviews/template";
 import type { FromWebview, ToWebview } from "./requirements/webviews/messages";
-import { panreqSupportsOnlyUntraced } from "./requirements/requirementsExecutables";
+import {
+  panreqSupportsOnlyUntraced,
+  reqs2checkInstalled,
+} from "./requirements/requirementsExecutables";
 import { activateCodeCheck } from "./requirements/codeCheck";
 import {
   endReview,
@@ -1945,7 +1948,7 @@ function configureExtension(context: vscode.ExtensionContext) {
   );
 
   registerReviewHover(context);
-  activateCodeCheck(context, async (enviroPath) => {
+  const codeCheck = activateCodeCheck(context, async (enviroPath) => {
     const envData = await getEnvironmentData(enviroPath);
     return (unit, functionName) => {
       const located = resolveSourceLocation(envData, unit, functionName);
@@ -2063,7 +2066,8 @@ function configureExtension(context: vscode.ExtensionContext) {
         nonce,
         loaded,
         unitsToFunctions,
-        onlyUntracedSupported
+        onlyUntracedSupported,
+        reqs2checkInstalled() ? codeCheck.requirementChecks(enviroPath) : null
       );
 
       let currentBundle: RGWBundle = loaded;
@@ -2084,6 +2088,20 @@ function configureExtension(context: vscode.ExtensionContext) {
         panel.webview.postMessage(msg);
       };
 
+      // The requirements show how they fared in the last check of the code.
+      const codeCheckListener = codeCheck.onDidChange((changedEnviroPath) => {
+        if (changedEnviroPath !== enviroPath) return;
+        post({
+          type: "code-checks",
+          checks: codeCheck.requirementChecks(enviroPath),
+        });
+      });
+      panel.onDidDispose(
+        () => codeCheckListener.dispose(),
+        null,
+        context.subscriptions
+      );
+
       panel.webview.onDidReceiveMessage(
         async (msg: FromWebview) => {
           if (msg?.type === "save") {
@@ -2101,6 +2119,7 @@ function configureExtension(context: vscode.ExtensionContext) {
               );
               currentBundle = { ...currentBundle, ...saved };
               post({ type: "saved", ...saved });
+              codeCheck.requirementsChangedTo(enviroPath, currentBundle);
             } catch (err) {
               const message =
                 err instanceof RGWStaleWriteError
@@ -2128,6 +2147,7 @@ function configureExtension(context: vscode.ExtensionContext) {
                 requirements: refreshed.requirements,
                 traceability: refreshed.traceability,
               });
+              codeCheck.requirementsChangedTo(enviroPath, currentBundle);
             } catch (err) {
               const message = `Failed to infer traceability: ${err}`;
               vscode.window.showErrorMessage(message);
@@ -2140,6 +2160,10 @@ function configureExtension(context: vscode.ExtensionContext) {
               msg.function,
               panel.viewColumn
             );
+          } else if (msg?.type === "check-code") {
+            await codeCheck.run(enviroPath);
+          } else if (msg?.type === "show-in-code") {
+            await codeCheck.showInCode(enviroPath, msg.unit, msg.function);
           }
         },
         undefined,

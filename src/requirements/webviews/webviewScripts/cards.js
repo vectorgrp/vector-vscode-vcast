@@ -12,6 +12,7 @@ import {
   nextTempIdValue,
 } from "./state.js";
 import { rebuildFilterDropdowns, applyFilter } from "./filter.js";
+import { buildCheckChip } from "./codeCheck.js";
 
 // ---------- Low-level DOM builders ---------------------------------------
 
@@ -145,6 +146,7 @@ export function buildCard(entry) {
   id.className = "req-id";
   id.textContent = entry.id;
   header.appendChild(id);
+  header.appendChild(buildCheckChip(entry.id));
 
   const meta = document.createElement("div");
   meta.className = "req-meta";

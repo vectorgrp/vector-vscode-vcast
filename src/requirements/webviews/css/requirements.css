@@ -102,6 +102,34 @@ h2 {
   opacity: 0.4;
   cursor: default;
 }
+/* How the requirement fared in the check of the code; shows the function. */
+.req-check {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1px 10px;
+  font-family: inherit;
+  font-size: 0.8em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.req-check:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+}
+.req-check--implemented {
+  color: var(--vscode-testing-iconPassed, #388a34);
+}
+.req-check--violated,
+.req-check--missing {
+  color: var(--vscode-testing-iconFailed, #be1100);
+}
+.req-check--stale {
+  color: var(--vscode-descriptionForeground, #888);
+  border-style: dashed;
+}
+.req-meta {
+  margin-left: auto;
+}
 .req-id {
   font-weight: 600;
   color: var(--vscode-textLink-foreground, #2980b9);

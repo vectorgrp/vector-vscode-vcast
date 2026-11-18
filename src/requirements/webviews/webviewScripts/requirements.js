@@ -1,10 +1,11 @@
 // Requirements editor webview entry. Wires DOM events to the four feature
 // modules:
 //
-//   state.js   — pending edits (dirty / removed / added) + DOM refs
-//   cards.js   — DOM building + grouping + edit handlers + add/remove
-//   filter.js  — search + unit/function dropdowns
-//   save.js    — save payload + refresh handler
+//   state.js     — pending edits (dirty / removed / added) + DOM refs
+//   cards.js     — DOM building + grouping + edit handlers + add/remove
+//   filter.js    — search + unit/function dropdowns
+//   save.js      — save payload + refresh handler
+//   codeCheck.js — how each requirement fared in the check of the code
 //
 // State (`window.__rgwState`) is injected as a JSON blob by the extension
 // at load time. The cards section is empty in the rendered HTML — every
@@ -12,8 +13,8 @@
 // textContent).
 //
 // Wire protocol (see src/requirements/webview/messages.ts):
-//   FROM webview: { type: "save" | "infer-traceability" | "open-source" }
-//   TO   webview: { type: "saved" | "inferred" | "save-failed" | "infer-failed" | "infer-cancelled" }
+//   FROM webview: { type: "save" | "infer-traceability" | "open-source" | "check-code" | "show-in-code" }
+//   TO   webview: { type: "saved" | "inferred" | "save-failed" | "infer-failed" | "infer-cancelled" | "code-checks" }
 
 import {
   vscode,
@@ -23,6 +24,7 @@ import {
   inferCaret,
   inferMenu,
   addBtn,
+  checkCodeBtn,
   reqsBody,
   searchInput,
   filterUnit,
@@ -38,6 +40,7 @@ import {
 } from "./cards.js";
 import { applyFilter, onUnitFilterChange } from "./filter.js";
 import { postSave, postInfer, applyRefreshedBundle } from "./save.js";
+import { showCodeChecks } from "./codeCheck.js";
 
 // ---------- Event delegation on the cards container ----------------------
 
@@ -67,6 +70,15 @@ reqsBody.addEventListener("click", (e) => {
     return;
   }
 
+  if (t.matches(".req-check")) {
+    vscode.postMessage({
+      type: "show-in-code",
+      unit: t.dataset.unit,
+      function: t.dataset.function,
+    });
+    return;
+  }
+
   if (t.matches(".open-source-btn") && !t.disabled) {
     const card = t.closest(".req");
     if (!card) return;
@@ -91,6 +103,11 @@ reqsBody.addEventListener("click", (e) => {
 
 if (addBtn) addBtn.addEventListener("click", appendPendingAdd);
 saveBtn.addEventListener("click", postSave);
+if (checkCodeBtn) {
+  checkCodeBtn.addEventListener("click", () =>
+    vscode.postMessage({ type: "check-code" })
+  );
+}
 
 // Default action: untraced-only when supported (split button), else full infer.
 inferBtn.addEventListener("click", () =>
@@ -192,6 +209,8 @@ window.addEventListener("message", (event) => {
   const msg = event.data;
   if (msg.type === "saved" || msg.type === "inferred") {
     applyRefreshedBundle(msg);
+  } else if (msg.type === "code-checks") {
+    showCodeChecks(msg.checks);
   } else if (
     msg.type === "save-failed" ||
     msg.type === "infer-failed" ||

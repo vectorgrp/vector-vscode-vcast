@@ -1,3 +1,4 @@
+import type { RequirementCheck } from "../codeCheckData";
 import type {
   RGWFileHashes,
   RGWRequirementsFile,
@@ -33,10 +34,24 @@ export interface OpenSourceMessage {
   function: string | null;
 }
 
+/** Check the code of the environment against the saved requirements. */
+export interface CheckCodeMessage {
+  type: "check-code";
+}
+
+/** Show a checked function, with its findings, in its source file. */
+export interface ShowInCodeMessage {
+  type: "show-in-code";
+  unit: string;
+  function: string;
+}
+
 export type FromWebview =
   | SaveMessage
   | InferTraceabilityMessage
-  | OpenSourceMessage;
+  | OpenSourceMessage
+  | CheckCodeMessage
+  | ShowInCodeMessage;
 
 // --------- Extension → Webview ---------------------------------------------
 
@@ -68,7 +83,14 @@ export interface InferCancelledMessage {
   type: "infer-cancelled";
 }
 
+/** How the requirements fared in the check of the code, by key. */
+export interface CodeChecksMessage {
+  type: "code-checks";
+  checks: Record<string, RequirementCheck>;
+}
+
 export type ToWebview =
+  | CodeChecksMessage
   | SavedMessage
   | InferredMessage
   | SaveFailedMessage
