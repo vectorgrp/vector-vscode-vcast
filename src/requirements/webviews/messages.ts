@@ -1,5 +1,5 @@
 import type {
-  RGWFileMtimes,
+  RGWFileHashes,
   RGWRequirementsFile,
   RGWTraceabilityFile,
 } from "../rgwIo";
@@ -16,7 +16,7 @@ export interface SaveMessage {
     requirements: RGWRequirementsFile;
     traceability: RGWTraceabilityFile;
   };
-  expectedMtimes: Pick<RGWFileMtimes, "requirements" | "traceability">;
+  expectedHashes: Pick<RGWFileHashes, "requirements" | "traceability">;
 }
 
 export interface InferTraceabilityMessage {
@@ -41,7 +41,7 @@ export type FromWebview =
 // --------- Extension → Webview ---------------------------------------------
 
 interface BundleRefreshPayload {
-  mtimes: RGWFileMtimes;
+  hashes: RGWFileHashes;
   requirements: RGWRequirementsFile;
   traceability: RGWTraceabilityFile;
 }
