@@ -103,7 +103,7 @@ export function initializeInstallerFiles(context: vscode.ExtensionContext) {
     "./python/atgLineLoader.py"
   );
   if (fs.existsSync(pathToATGLineLoader)) {
-    vectorMessage("Found atgLineLoader here: " + pathToATGLineLoader);
+    void vectorMessage("Found atgLineLoader here: " + pathToATGLineLoader);
     globalATGLineLoaderPath = `${pathToATGLineLoader}`;
   }
 
@@ -245,7 +245,7 @@ function checkForATGLLMPaths(atgCommand: string): boolean {
     const reason = result.error
       ? result.error.message
       : `exit code ${result.status}`;
-    vectorMessage(
+    void vectorMessage(
       `   'atg --help-dev' failed (${reason}): ${(result.stderr ?? "").trim().slice(-500)}`,
       errorLevel.trace
     );
@@ -293,7 +293,7 @@ function checkForATG(vcastInstallationPath: string) {
     atgLLMPathsAvailable =
       atgAvailable && checkForATGLLMPaths(candidateCommand);
     if (atgAvailable) {
-      vectorMessage(
+      void vectorMessage(
         atgLLMPathsAvailable
           ? "   'atg' supports LLM_PATHS, line test is available"
           : "   'atg' does NOT support LLM_PATHS, line test is not available"

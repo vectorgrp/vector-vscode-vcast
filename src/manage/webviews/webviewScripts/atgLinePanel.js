@@ -1028,8 +1028,13 @@
   }
 
   window.addEventListener("message", (event) => {
+    // The extension's messages arrive with a `vscode-webview:` origin (or
+    // the `vscode-webview-resource:` variant); anything else comes from an
+    // unrelated frame and is ignored.
+    if (!/^vscode-webview(-resource)?:/.test(event.origin)) return;
+
     const message = event.data;
-    if (message && message.command === "state") {
+    if (message?.command === "state") {
       state = message.state;
       render();
     }

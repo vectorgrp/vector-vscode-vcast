@@ -927,7 +927,7 @@ export async function loadATGLineTest(
       vscode.commands.executeCommand("vscode.revealTestInExplorer", testItem);
     }
   } else {
-    vectorMessage(`No Environment found for ${sourceFile}`);
+    void vectorMessage(`No Environment found for ${sourceFile}`);
   }
 }
 

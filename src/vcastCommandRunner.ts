@@ -685,18 +685,20 @@ export async function executeATGLineForScript(
     },
     async (progress, token) => {
       progress.report({ increment: 0 });
-      vectorMessage("-".repeat(60));
+      void vectorMessage("-".repeat(60));
       const envVarStr = Object.entries(envVars)
         .map(([k, v]) => `${k}=${secretEnvVariableName.test(k) ? "***" : v}`)
         .join(" ");
-      vectorMessage(`Executing: ${envVarStr ? envVarStr + " " : ""}${command}`);
-      vectorMessage(`cwd: ${cwd}`);
-      vectorMessage("-".repeat(60));
+      void vectorMessage(
+        `Executing: ${envVarStr ? envVarStr + " " : ""}${command}`
+      );
+      void vectorMessage(`cwd: ${cwd}`);
+      void vectorMessage("-".repeat(60));
 
       const childEnv = atgLineTestEnvironment(envVars);
       const atgDevPath = process.env.VCAST_ATG_DEV_PATH;
       if (atgDevPath) {
-        vectorMessage(
+        void vectorMessage(
           `ATG: VCAST_ATG_DEV_PATH is set, using ${atgDevPath} instead of the bundled atg`
         );
       }
@@ -727,11 +729,11 @@ export async function executeATGLineForScript(
         cancelled = true;
         try {
           if (proc && !proc.killed) {
-            vectorMessage("User cancelled — sending SIGTERM to process.");
+            void vectorMessage("User cancelled — sending SIGTERM to process.");
             proc.kill("SIGTERM");
           }
         } catch (e) {
-          vectorMessage(
+          void vectorMessage(
             `Failed to terminate process on cancel: ${(e as Error).message}`
           );
         } finally {
@@ -752,7 +754,7 @@ export async function executeATGLineForScript(
             stdoutFragment = parts.pop() || "";
           }
           for (const line of parts) {
-            if (line.length) vectorMessage(line);
+            if (line.length) void vectorMessage(line);
           }
         });
       }
@@ -762,7 +764,7 @@ export async function executeATGLineForScript(
           const s = chunk.toString();
           stderrBuffer += s;
           s.split(/[\r\n]+/).forEach((line) => {
-            if (line.length) vectorMessage(line);
+            if (line.length) void vectorMessage(line);
           });
         });
       }
@@ -780,11 +782,11 @@ export async function executeATGLineForScript(
 
         proc.on("close", async (exitCode: number | null) => {
           const code = exitCode === null ? 1 : Number(exitCode);
-          vectorMessage("-".repeat(60));
-          vectorMessage(
+          void vectorMessage("-".repeat(60));
+          void vectorMessage(
             `Process finished with exit code: ${code}${cancelled ? " (cancelled)" : ""}`
           );
-          vectorMessage("-".repeat(60));
+          void vectorMessage("-".repeat(60));
 
           const status: commandStatusType = {
             errorCode: code,
@@ -794,7 +796,7 @@ export async function executeATGLineForScript(
           try {
             await loadScriptCallBack(status, enviroName, scriptPath);
           } catch (cbErr) {
-            vectorMessage(
+            void vectorMessage(
               `loadScriptCallBack threw: ${(cbErr as Error).message}`
             );
           } finally {
@@ -803,7 +805,7 @@ export async function executeATGLineForScript(
         });
 
         proc.on("error", async (err) => {
-          vectorMessage(`Failed to spawn process: ${err.message}`);
+          void vectorMessage(`Failed to spawn process: ${err.message}`);
           const status: commandStatusType = {
             errorCode: "spawn_error",
             stdout: stdoutBuffer + (stderrBuffer ? `\n${stderrBuffer}` : ""),
@@ -812,7 +814,7 @@ export async function executeATGLineForScript(
           try {
             await loadScriptCallBack(status, enviroName, scriptPath);
           } catch (cbErr) {
-            vectorMessage(
+            void vectorMessage(
               `loadScriptCallBack threw after spawn error: ${(cbErr as Error).message}`
             );
           } finally {

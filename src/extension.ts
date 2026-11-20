@@ -315,7 +315,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "vectorcastTestExplorer.atgFetchTest",
       () => {
-        atgModeManager.fetchTest();
+        void atgModeManager.fetchTest();
       }
     ),
     vscode.commands.registerCommand(
@@ -331,7 +331,7 @@ export async function activate(context: vscode.ExtensionContext) {
           ],
           { placeHolder: "ATG Test for Line" }
         );
-        if (choice?.action === "fetch") atgModeManager.fetchTest();
+        if (choice?.action === "fetch") void atgModeManager.fetchTest();
         if (choice?.action === "exit") atgModeManager.exit();
       }
     )

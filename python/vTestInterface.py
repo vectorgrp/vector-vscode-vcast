@@ -1555,10 +1555,10 @@ def chmodOnlyWhenNeeded():
     return manager()
 
 
-def getModelledFunctionNames(enviroPath):
+def getEnvironmentModel(enviroPath):
     """
-    Names of the functions ATG can drive the result of: the stubs, plus
-    the functions of the units under test.
+    What the environment lets ATG model: the names of the functions it can
+    drive the result of, and the source file of each unit.
 
     A local is only worth offering for selection if a call fills it, and
     a call is only useful if ATG models what it does. Stubs are the
@@ -1566,26 +1566,59 @@ def getModelledFunctionNames(enviroPath):
     environment that stubs nothing (every unit is a UUT) still lets a
     targeted value steer a local filled by one of its own functions.
 
-    Returns (names, error).
+    The source files are what the file named on the command line is
+    checked against, see findEnvironmentSourcePath.
+
+    Returns (names, sourcePaths, error).
     """
     names = set()
+    sourcePaths = []
     try:
         api = UnitTestApi(enviroPath)
     except Exception as error:
-        return names, f"could not open environment: {error}"
+        return names, sourcePaths, f"could not open environment: {error}"
 
     try:
         for unit in api.Unit.all():
             if unit.name == "USER_GLOBALS_VCAST":
                 continue
+            unitPath = getattr(unit, "path", "")
+            if unitPath:
+                sourcePaths.append(unitPath)
             for function in unit.functions:
                 names.add(function.name)
     except Exception as error:
-        return names, f"could not read function names: {error}"
+        return names, sourcePaths, f"could not read function names: {error}"
     finally:
         api.close()
 
-    return names, None
+    return names, sourcePaths, None
+
+
+def findEnvironmentSourcePath(sourcePaths, requestedFile):
+    """
+    The environment's own path for the source file named on the command
+    line, or None when no unit of the environment has it.
+
+    The requested path only selects a unit; it is never opened. What the
+    caller opens is the path the environment recorded for that unit, so a
+    path that is not a unit's source file cannot be read through this mode.
+
+    A real path match wins, so two units that share a file name stay
+    apart. Failing that, the file name is matched the way buildVariableTree
+    matches it.
+    """
+    wanted = os.path.normcase(os.path.realpath(requestedFile))
+    for path in sourcePaths:
+        if os.path.normcase(os.path.realpath(path)) == wanted:
+            return path
+
+    wantedName = os.path.basename(requestedFile)
+    for path in sourcePaths:
+        if os.path.basename(path) == wantedName:
+            return path
+
+    return None
 
 
 def splitSimpleAssignment(line):
@@ -1695,11 +1728,9 @@ def getLocalVariablesFromClangd(sourceDir, sourceFile, targetLine, callableNames
         with chmodOnlyWhenNeeded(), lsp.start_server():
             lsp.open_file(relativeFile)
 
-            # Read source lines
-            fullPath = os.path.join(sourceDir, relativeFile)
-            if not os.path.exists(fullPath):
-                fullPath = sourceFile
-            with open(fullPath, "r") as f:
+            # Read source lines. sourceFile is the environment's own path
+            # for the unit, see findEnvironmentSourcePath.
+            with open(sourceFile, "r") as f:
                 lines = f.readlines()
 
             #
@@ -1974,14 +2005,24 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
 
         returnObject = {"locals": []}
         if sourceFile and targetLine > 0:
-            sourceDir = os.path.dirname(sourceFile)
-            callableNames, namesError = getModelledFunctionNames(pathToUse)
-            locals_list, localsError = getLocalVariablesFromClangd(
-                sourceDir, sourceFile, targetLine, callableNames
-            )
-            returnObject["locals"] = locals_list
-            if localsError or namesError:
-                returnObject["error"] = localsError or namesError
+            callableNames, sourcePaths, namesError = getEnvironmentModel(pathToUse)
+            # Only a unit's source file is read, and it is read from where
+            # the environment says it is, not from the path given here.
+            environmentFile = findEnvironmentSourcePath(sourcePaths, sourceFile)
+            if environmentFile is None:
+                returnObject["error"] = namesError or (
+                    f"{os.path.basename(sourceFile)} is not a unit of this environment"
+                )
+            else:
+                locals_list, localsError = getLocalVariablesFromClangd(
+                    os.path.dirname(environmentFile),
+                    environmentFile,
+                    targetLine,
+                    callableNames,
+                )
+                returnObject["locals"] = locals_list
+                if localsError or namesError:
+                    returnObject["error"] = localsError or namesError
 
     elif mode == "perTestCoverage":
         try:

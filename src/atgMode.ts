@@ -169,7 +169,7 @@ export class ATGModeManager {
           buildLookupFromNodes(jsonData.globals, this.variableLookup, "global");
         }
       } catch {
-        vectorMessage("ATG Mode: Could not fetch variable info");
+        void vectorMessage("ATG Mode: Could not fetch variable info");
       }
     }
 
@@ -300,7 +300,7 @@ export class ATGModeManager {
     // Fetch clangd locals asynchronously
     this.fetchLocalsAsync(this.enviroPath);
 
-    vectorMessage(
+    void vectorMessage(
       `ATG Mode: Active on line ${lineNumber} of ${path.basename(this.filePath)}`
     );
   }
@@ -351,7 +351,7 @@ export class ATGModeManager {
       vscode.commands.executeCommand("workbench.action.focusActiveEditorGroup");
     }
 
-    if (wasActive) vectorMessage("ATG Mode: Exited");
+    if (wasActive) void vectorMessage("ATG Mode: Exited");
   }
 
   /**
@@ -455,7 +455,7 @@ export class ATGModeManager {
     this.targetIsDecision = this.checkIsDecisionLine(line);
     this.truthValue = "";
     this.refreshAfterChange();
-    vectorMessage(`ATG Mode: Target line → ${line}`);
+    void vectorMessage(`ATG Mode: Target line → ${line}`);
     return true;
   }
 
@@ -463,7 +463,7 @@ export class ATGModeManager {
     this.truthValue = value;
     this.updateStatusBar();
     this.panelView?.notifyStateChanged();
-    vectorMessage(`ATG Mode: Truth value → ${value || "auto"}`);
+    void vectorMessage(`ATG Mode: Truth value → ${value || "auto"}`);
   }
 
   /** After the panel opened, show the target line at the top of the editor. */
@@ -776,7 +776,7 @@ export class ATGModeManager {
         // reporting, but a real failure is.
         if (!this.isActive || this.filePath !== requestedFor) return;
         if (error) {
-          vectorMessage(
+          void vectorMessage(
             `ATG Mode: could not read local variables: ${error.message ?? error}`
           );
           return;
@@ -791,7 +791,7 @@ export class ATGModeManager {
           if (data.error) {
             // clangd could not be started, so only parameters and globals
             // will be selectable. Say so rather than showing a short list.
-            vectorMessage(
+            void vectorMessage(
               `ATG Mode: local variables unavailable: ${data.error}`
             );
           }
@@ -800,7 +800,7 @@ export class ATGModeManager {
             this.refreshAfterChange();
           }
         } catch (parseError: any) {
-          vectorMessage(
+          void vectorMessage(
             `ATG Mode: could not parse local variable data: ${
               parseError?.message ?? parseError
             }`
@@ -836,7 +836,7 @@ export class ATGLinePanelViewProvider implements vscode.WebviewViewProvider {
     try {
       base = resolveWebviewBase(this.context, "manage", "webviews");
     } catch (err) {
-      vectorMessage(
+      void vectorMessage(
         `ATG panel: could not locate webview assets: ${(err as Error).message}`,
         errorLevel.error
       );
@@ -902,7 +902,7 @@ export class ATGLinePanelViewProvider implements vscode.WebviewViewProvider {
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
     if (!this.view) {
-      vectorMessage(
+      void vectorMessage(
         "ATG panel: the view did not open automatically. Open the 'ATG Test for Line' tab in the bottom panel.",
         errorLevel.warn
       );
@@ -919,7 +919,7 @@ export class ATGLinePanelViewProvider implements vscode.WebviewViewProvider {
 
   private handleMessage(message: any) {
     if (!message || typeof message.command !== "string") return;
-    vectorMessage(`ATG panel: '${message.command}'`, errorLevel.trace);
+    void vectorMessage(`ATG panel: '${message.command}'`, errorLevel.trace);
 
     switch (message.command) {
       case "ready":
@@ -970,7 +970,7 @@ export class ATGLinePanelViewProvider implements vscode.WebviewViewProvider {
         break;
       case "revealLine": {
         const line = toLine(message.line);
-        if (line !== undefined) this.manager.revealLine(line);
+        if (line !== undefined) void this.manager.revealLine(line);
         break;
       }
       case "highlightInEditor":
@@ -982,7 +982,7 @@ export class ATGLinePanelViewProvider implements vscode.WebviewViewProvider {
         this.manager.highlightVariableInEditor(null);
         break;
       case "fetchTest":
-        this.manager.fetchTest();
+        void this.manager.fetchTest();
         break;
       case "cancel":
         this.manager.exit();

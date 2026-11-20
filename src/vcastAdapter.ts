@@ -1149,7 +1149,7 @@ export async function getATGLineTest(
   // ATGModeManager.enter() checks too, but never interpolate an undefined
   // command into a shell string.
   if (!atgCommandToUse) {
-    vectorMessage(
+    void vectorMessage(
       "getATGLineTest: no licensed 'atg' found in the VectorCAST installation"
     );
     vscode.window.showWarningMessage("ATG is not available.");
@@ -1175,6 +1175,6 @@ export async function getATGLineTest(
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    vectorMessage(`getATGLineTest failed: ${msg}`);
+    void vectorMessage(`getATGLineTest failed: ${msg}`);
   }
 }
