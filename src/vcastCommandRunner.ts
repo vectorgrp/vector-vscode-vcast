@@ -35,7 +35,8 @@ export interface commandStatusType {
 const maxCommandOutputBuffer = 256 * 1024 * 1024; // 256 MiB
 
 export function convertServerResponseToCommandStatus(
-  serverResponse: transmitResponseType
+  serverResponse: transmitResponseType,
+  logOutput: boolean = true
 ): commandStatusType {
   //
   // tansmitResponse.returnData is an object with exitCode and data properties
@@ -48,7 +49,9 @@ export function convertServerResponseToCommandStatus(
     commandStatus.errorCode = 1;
     commandStatus.stdout = serverResponse.statusText;
   }
-  vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
+  if (logOutput) {
+    vectorMessage(commandStatus.stdout, errorLevel.info, indentString);
+  }
   return commandStatus;
 }
 
