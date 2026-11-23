@@ -7,7 +7,10 @@ import * as vscode from "vscode";
 
 import { Position, Range, Uri, TestMessage } from "vscode";
 
-import { sendTestFileDataToLanguageServer } from "./client";
+import {
+  sendScriptFeaturesToLanguageServer,
+  sendTestFileDataToLanguageServer,
+} from "./client";
 
 import { updateDisplayedCoverage, updateCOVdecorations } from "./coverage";
 
@@ -139,6 +142,7 @@ export type EnviroData = {
   testData: FileTestData[];
   unitData: UnitData[];
   mockingSupport: boolean;
+  scriptFeatureList?: string[];
 };
 
 export type CachedWorkspaceData = {
@@ -807,6 +811,14 @@ async function processSingleEnvData(
 ) {
   saveEnviroNodeData(enviroData.buildDirectory, enviroData);
   updateGlobalDataForFile(enviroData.buildDirectory, jsonData.unitData);
+
+  // tell the language server which script features this environment knows
+  if (Array.isArray(jsonData.scriptFeatureList)) {
+    sendScriptFeaturesToLanguageServer(
+      enviroData.buildDirectory,
+      jsonData.scriptFeatureList
+    );
+  }
 
   const enviroNodeID: string = "vcast:" + enviroData.buildDirectory;
   createTestNodeInCache(

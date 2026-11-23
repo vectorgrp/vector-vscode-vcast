@@ -27,6 +27,7 @@ import {
   buildCompletionList,
   convertKind,
   getLineFragment,
+  setScriptFeaturesForEnviro,
 } from "./serverUtilities";
 
 import { getTstCompletionData } from "./tstCompletion";
@@ -126,6 +127,22 @@ connection.onNotification("vcasttesteditor/updateServerState", (data) => {
   connection.console.log(
     "Notification received: use vectorcast data server: " + data.useServer
   );
+});
+
+// this handler receives the TEST.SCRIPT_FEATURE flags that the VectorCAST
+// release of an environment knows about, it is called when an environment
+// is loaded. We re-validate the open scripts, because features that we
+// flagged as invalid before might be known now.
+connection.onNotification("vcasttesteditor/updateScriptFeatures", (data) => {
+  setScriptFeaturesForEnviro(data.enviroPath, data.featureList);
+  for (const document of textDocumentManager.all()) {
+    if (document.uri.endsWith(".tst")) {
+      connection.sendDiagnostics({
+        uri: document.uri,
+        diagnostics: validateTextDocument(document),
+      });
+    }
+  }
 });
 
 connection.onDidChangeWatchedFiles((_change) => {

@@ -33,7 +33,7 @@ from versionChecks import (
     vpythonHasCodedTestSupport,
     enviroSupportsMocking,
 )
-from pythonUtilities import logMessage, expand_vc_env_vars
+from pythonUtilities import logMessage, expand_vc_env_vars, getScriptFeatureList
 
 from vector.apps.DataAPI.manage_api import VCProjectApi
 from vector.apps.DataAPI.vcproject_models import EnvironmentType
@@ -1356,6 +1356,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                 unit_data.extend(getSubunitUnitData(api, vce_path))
                 mocking_support = getEnviroSupportsMock(api)
                 is_ada = bool(getattr(api.environment, "is_ada", False))
+                script_feature_list = getScriptFeatureList(api)
                 api.close()
 
                 enviro_list.append(
@@ -1365,6 +1366,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
                         "unitData": unit_data,
                         "mockingSupport": mocking_support,
                         "isAda": is_ada,
+                        "scriptFeatureList": script_feature_list,
                     }
                 )
 
@@ -1385,7 +1387,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         except Exception as err:
             raise UsageError(err)
 
-        # it's important that getTetDataVCAST() is called first since it sets up
+        # it's important that getTestDataVCAST() is called first since it sets up
         # the global list of testable functions that getUnitData() needs
         topLevel["testData"] = getTestDataVCAST(api, pathToUse)
         topLevel["unitData"] = getUnitData(api)
@@ -1397,6 +1399,7 @@ def processCommandLogic(mode, clicast, pathToUse, testString="", options=""):
         # Ada environments behave like C/C++ except for coded tests, which do
         # not exist for Ada. The extension uses this flag to suppress those.
         topLevel["isAda"] = bool(getattr(api.environment, "is_ada", False))
+        topLevel["scriptFeatureList"] = getScriptFeatureList(api)
 
         api.close()
         returnObject = topLevel

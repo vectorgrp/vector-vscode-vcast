@@ -1,6 +1,15 @@
 /* eslint-disable n/prefer-global/process */
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
+import { TextDocument } from "vscode-languageserver";
+import URI from "vscode-uri";
+import {
+  clearScriptFeatureMap,
+  setScriptFeaturesForEnviro,
+} from "../../langServer/serverUtilities";
+import { validateTextDocument } from "../../langServer/tstValidation";
 import { generateDiagnosticMessages, runCommand } from "./utils";
 import { getToolVersion } from "./getToolversion";
 
@@ -315,6 +324,78 @@ describe("Text Document Validator", () => {
           expect.stringContaining("TEST.NEW | REPLACE is required but missing"),
         ])
       );
+    },
+    timeout
+  );
+
+  test(
+    "validate that a script feature reported by the environment is accepted",
+    async () => {
+      const tstText = `
+TEST.SCRIPT_FEATURE:USING_DECL_FOR_BASE_MEMBER_HANDLED
+TEST.SCRIPT_FEATURE:INVALID_BLA_FEATURE
+`;
+      const featureMessage =
+        "Invalid feature flag, type TEST.SCRIPT_FEATURE: to see a all flags";
+      const countFeatureMessages = () =>
+        generateDiagnosticMessages(tstText).filter((message) =>
+          message.includes(featureMessage)
+        ).length;
+
+      // Not in the built-in list, so both lines are flagged
+      clearScriptFeatureMap();
+      expect(countFeatureMessages()).toBe(2);
+
+      // Once an environment reports the feature, only the invalid one is flagged
+      setScriptFeaturesForEnviro(path.join("some", "enviro", "TEST"), [
+        "USING_DECL_FOR_BASE_MEMBER_HANDLED",
+      ]);
+      expect(countFeatureMessages()).toBe(1);
+      clearScriptFeatureMap();
+    },
+    timeout
+  );
+
+  test(
+    "validate that the script features of the script's own environment are used",
+    async () => {
+      const featureMessage =
+        "Invalid feature flag, type TEST.SCRIPT_FEATURE: to see a all flags";
+      const tstText = `
+-- Environment: TEST
+TEST.SCRIPT_FEATURE:FEATURE_OF_THIS_ENVIRONMENT
+TEST.SCRIPT_FEATURE:FEATURE_OF_OTHER_ENVIRONMENT
+`;
+      const countFeatureMessages = (uri: string) =>
+        validateTextDocument(
+          TextDocument.create(uri, "VectorCAST Test Script", 1, tstText)
+        ).filter((diagnostic) => diagnostic.message.includes(featureMessage))
+          .length;
+
+      const enviroDirectory = fs.mkdtempSync(
+        path.join(os.tmpdir(), "vcast-script-features-")
+      );
+      const tstFilepath = path.join(enviroDirectory, "test.tst");
+      fs.writeFileSync(tstFilepath, tstText);
+
+      try {
+        clearScriptFeatureMap();
+        setScriptFeaturesForEnviro(path.join(enviroDirectory, "TEST"), [
+          "FEATURE_OF_THIS_ENVIRONMENT",
+        ]);
+        setScriptFeaturesForEnviro(path.join(enviroDirectory, "OTHER"), [
+          "FEATURE_OF_OTHER_ENVIRONMENT",
+        ]);
+
+        // The script is next to its environment, only its features are valid
+        expect(countFeatureMessages(URI.file(tstFilepath).toString())).toBe(1);
+
+        // Not a file on disk, the features of all environments are accepted
+        expect(countFeatureMessages("untitled:Untitled-1")).toBe(0);
+      } finally {
+        clearScriptFeatureMap();
+        fs.rmSync(enviroDirectory, { recursive: true, force: true });
+      }
     },
     timeout
   );

@@ -258,3 +258,27 @@ def expand_vc_env_vars(path: str) -> str:
         return match.group(0)
 
     return env_var_pattern.sub(repl, path)
+
+
+def getScriptFeatureList(api):
+    """
+    Returns the names of the TEST.SCRIPT_FEATURE flags that the VectorCAST
+    release of this environment knows about. Returns an empty list if the
+    release does not provide this information, the caller then falls back
+    to its built-in list.
+    """
+    try:
+        from vector.apps.DataAPI.test_script_manager import TestScriptManager
+
+        features = TestScriptManager(api).features
+    except Exception:
+        return []
+
+    # the API also reports mixed case duplicates of some flags
+    # (e.g. Struct_Dtor_Adds_Pointer), so we normalize to upper case
+    feature_list = []
+    for name in features:
+        upper_name = str(name).upper()
+        if upper_name not in feature_list:
+            feature_list.append(upper_name)
+    return feature_list

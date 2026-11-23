@@ -13,6 +13,8 @@ import {
   openTestScriptFor,
   updateTestID,
   checkIfRequestInLogs,
+  releaseHasEnvironmentVersion,
+  contentAssistShowsItem,
 } from "../test_utils/vcast_utils";
 import { TIMEOUT } from "../test_utils/vcast_utils";
 import { checkForServerRunnability } from "../../../../unit/getToolversion";
@@ -217,6 +219,98 @@ describe("vTypeCheck VS Code Extension", () => {
 
     await tab.setTextAtLine(currentLine, "");
 
-    await tab.save();
+    // the script is saved by the next test. Saving loads the script into the
+    // environment and removes the file, and the language server only offers
+    // completions for a script that exists on disk.
+  });
+
+  it("should offer the script features of the environment for TEST.SCRIPT_FEATURE:", async () => {
+    await updateTestID();
+
+    const editorView = workbench.getEditorView();
+    const tab = (await editorView.openEditor(
+      "vcast-template.tst"
+    )) as TextEditor;
+
+    // Need to activate contentAssist before getting the object
+    await browser.keys([Key.Ctrl, Key.Space]);
+    const contentAssist = await tab.toggleContentAssist(true);
+
+    // add a new script feature line below an existing one
+    const existingFeature = "TEST.SCRIPT_FEATURE:MULTIPLE_UUT_SUPPORT";
+    let currentLine = await tab.getLineOfText(existingFeature);
+    await tab.moveCursor(currentLine, existingFeature.length + 1);
+    await browser.keys([Key.Enter]);
+    currentLine += 1;
+
+    try {
+      await tab.setTextAtLine(currentLine, "TEST.SCRIPT_FEATURE");
+      await tab.typeTextAt(currentLine, "TEST.SCRIPT_FEATURE".length + 1, ":");
+
+      console.log("validating content assist for TEST.SCRIPT_FEATURE:");
+      // this one is part of the list that is built into the extension
+      await browser.waitUntil(
+        async () =>
+          await contentAssistShowsItem(contentAssist, "C_DIRECT_ARRAY_INDEXING")
+      );
+
+      // all features that are built into the extension have to be offered,
+      // no matter which features the VectorCAST release reports
+      const builtInFeatures = [
+        "ACCEPTING_MISSING_CONST",
+        "ADA_DIRECT_ARRAY_INDEXING",
+        "C_DIRECT_ARRAY_INDEXING",
+        "REMOVED_CL_PREFIX",
+        "CPP_CLASS_OBJECT_REVISION",
+        "DATA_SPACING_FORMAT",
+        "FULL_PARAMETER_TYPES",
+        "IGNORE_NAME_VALUE_ERRORS",
+        "MIXED_CASE_NAMES",
+        "MULTIPLE_UUT_SUPPORT",
+        "OVERLOADED_CONST_SUPPORT",
+        "STANDARD_SPACING_R2",
+        "STRUCT_BASE_CTOR_ADDS_POINTER",
+        "STRUCT_DTOR_ADDS_POINTER",
+        "STRUCT_FIELD_CTOR_ADDS_POINTER",
+        "STATIC_HEADER_FUNCS_IN_UUTS",
+        "UNDERSCORE_NULLPTR",
+        "VCAST_MAIN_NOT_RENAMED",
+      ];
+      for (const feature of builtInFeatures) {
+        // the list is not empty here, so hasItem() can scroll through it
+        expect(await contentAssist.hasItem(feature)).toBe(true);
+      }
+
+      // this one is not part of the built-in list, so it is only
+      // offered if we got it from the environment
+      const newFeature = "USING_DECL_FOR_BASE_MEMBER_HANDLED";
+      const releaseHasNewFeature = await releaseHasEnvironmentVersion(
+        "REVISION_2025_USING_DECL_FOR_BASE_MEMBER_HANDLED"
+      );
+      console.log(`release knows ${newFeature}: ${releaseHasNewFeature}`);
+
+      // typing the start of the name filters the list
+      await tab.typeTextAt(
+        currentLine,
+        "TEST.SCRIPT_FEATURE:".length + 1,
+        "USING"
+      );
+      if (releaseHasNewFeature) {
+        await browser.waitUntil(
+          async () => await contentAssistShowsItem(contentAssist, newFeature)
+        );
+      } else {
+        // give the content assist time to update
+        await browser.pause(2000);
+        expect(await contentAssistShowsItem(contentAssist, newFeature)).toBe(
+          false
+        );
+      }
+    } finally {
+      // always restore and save the script, the following specs need it
+      await browser.keys([Key.Escape]);
+      await tab.setTextAtLine(currentLine, "");
+      await tab.save();
+    }
   });
 });
