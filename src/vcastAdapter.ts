@@ -1141,7 +1141,7 @@ async function getMCDCCoverageLinesFromServer(
     commandStatus.errorCode !== 0 ||
     commandStatus.stdout.startsWith("Error:")
   ) {
-    vectorMessage(commandStatus.stdout);
+    await vectorMessage(commandStatus.stdout);
   }
   return cleanVectorcastOutput(commandStatus.stdout);
 }
