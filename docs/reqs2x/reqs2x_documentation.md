@@ -169,6 +169,10 @@ The demo environment ships with a requirements CSV (`requirements.csv`) that alr
     *   Right-click `Add_Included_Dessert` again and select **VectorCAST -> Generate Tests from Requirements**.
         * This will generate tests only for the requirements related to `Add_Included_Dessert` function.
 
+> **Marking a test as reviewed.** Once you have looked at a test yourself, right-click it and select **VectorCAST -> Mark as Reviewed** (the entry then reads **Mark as Not Reviewed**). **Check Test Against Requirements** and **Check Tests Against Requirements** offer the same for every test they show: a **Mark as reviewed** button above the AI verdict of a single test, a link per test in the review of a function or unit, and a button per test in the report, which also counts the reviewed tests of each function and unit. The mark is kept with your workspace. **Mark as Not Reviewed** (**Undo** in a requirements check) takes it back.
+>
+> **Keeping a test instead.** Saving a changed requirement flags the tests linked to it: they show *needs review* in the Test Explorer, and lose a *reviewed* mark they had. If you checked that such a test still fits the requirement, mark it as reviewed again (on a function, unit or environment, **Mark Tests as Reviewed** marks all flagged tests). **Check Test Against Requirements** shows the flag above the AI verdict. A test marked as reviewed no longer counts as changed for **Generate Tests from Requirements (Untested or Changed Only)**.
+
 ---
 
 ![Reqs2x delete `Add_Included_Dessert` tests](./screenshots/VectorCAST_Reqs2x_delete_tests_dessert.png)

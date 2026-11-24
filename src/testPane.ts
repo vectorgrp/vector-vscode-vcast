@@ -849,6 +849,11 @@ async function processSingleEnvData(
     require("./requirements/availability") as typeof import("./requirements/availability");
   updateRequirementsAvailability(enviroData.buildDirectory);
 
+  // Says on the new nodes which tests VectorCAST flags for review.
+  const { refreshReviewFlags } =
+    require("./requirements/reviewFlags") as typeof import("./requirements/reviewFlags");
+  refreshReviewFlags(enviroData.buildDirectory, enviroNode);
+
   // Instead of grouping, add the environment directly.
   globalController.items.delete(enviroNode.id);
   if (parentNode) {

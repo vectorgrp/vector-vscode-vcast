@@ -4,11 +4,16 @@ import {
   groupMarkdown,
   lastToolError,
   lineHoverMarkdown,
+  localDay,
+  parseReviewFlags,
   parseTests2checkResult,
   ranLinesFromCoverage,
+  requirementsText,
   resultIdentity,
+  reviewFlagKey,
   reviewLineColors,
   reviewMarkdown,
+  staleReviewMarks,
 } from "../../src/requirements/testReviewData";
 import { checkReportHtml } from "../../src/requirements/testReviewReport";
 
@@ -492,6 +497,233 @@ describe("a review of several tests", () => {
   test("has no hover for a line no reviewed test ran", () => {
     expect(lineHoverMarkdown([], "ext.focus")).toBeUndefined();
   });
+
+  const steakArgument = encodeURIComponent(JSON.stringify([tests[0].testId]));
+
+  test("has a last column that marks each test of the test tree as reviewed", () => {
+    const markdown = groupMarkdown("manager.Place_Order", tests, {
+      flagged: new Map(),
+      markCommand: "ext.mark",
+      unmarkCommand: "ext.unmark",
+    });
+    expect(markdown).toContain('width="18%"');
+    expect(markdown).toContain(">Reviewed</th></tr></thead>");
+    expect(markdown).toContain(
+      `<td>STEAK</td><td>✅ FR-1</td><td><a href="command:ext.mark?${steakArgument}" ` +
+        'title="You reviewed this test">Mark&nbsp;as&nbsp;reviewed</a></td></tr>'
+    );
+    // A test that is not in the tree cannot be marked.
+    expect(markdown).toContain(
+      "<td>CHICKEN</td><td>❌ FR-1</td><td></td></tr>"
+    );
+    expect(markdown).toContain(
+      "1 passed, 1 failed &nbsp;&nbsp; 0 of 1 reviewed"
+    );
+    expect(markdown).not.toContain("ext.unmark");
+  });
+
+  test("says of a test marked as reviewed that it is, with a link that takes that back", () => {
+    const markdown = groupMarkdown("manager.Place_Order", tests, {
+      flagged: new Map(),
+      reviewed: new Set([tests[0].testId!]),
+      markCommand: "ext.mark",
+      unmarkCommand: "ext.unmark",
+    });
+    expect(markdown).toContain(
+      '<td><span style="color:var(--vscode-testing-iconPassed);">✔&nbsp;Reviewed</span>' +
+        `&nbsp;&nbsp;<a href="command:ext.unmark?${steakArgument}" title="Take the reviewed mark back">Undo</a></td>`
+    );
+    expect(markdown).toContain("1 of 1 reviewed");
+    expect(markdown).not.toContain("ext.mark?");
+  });
+
+  test("says below a flagged test's name that it needs review, and marks it in the last column", () => {
+    const markdown = groupMarkdown("manager.Place_Order", tests, {
+      flagged: new Map([[tests[0].testId!, ["FR-1", "FR <2>"]]]),
+      // A mark from before the requirement changed does not count.
+      reviewed: new Set([tests[0].testId!]),
+      markCommand: "ext.mark",
+      unmarkCommand: "ext.unmark",
+    });
+    expect(markdown).toContain(
+      '<td>STEAK<br><span style="color:var(--vscode-editorWarning-foreground);">' +
+        "Needs review:</span> requirements FR-1 and FR &lt;2&gt; changed</td>"
+    );
+    expect(markdown).toContain(
+      `<td><a href="command:ext.mark?${steakArgument}" ` +
+        'title="You checked that this test still fits the changed requirement">Mark&nbsp;as&nbsp;reviewed</a></td>'
+    );
+    expect(markdown).toContain("0 of 1 reviewed");
+    expect(markdown).not.toContain("✔&nbsp;Reviewed");
+    // The test that is not flagged, and not in the tree, says nothing.
+    expect(markdown).toContain("<td>CHICKEN</td>");
+    expect(markdown.match(/Needs review/g)).toHaveLength(1);
+  });
+
+  test("flags a test without a link when there is no command to mark it", () => {
+    const markdown = groupMarkdown("manager.Place_Order", tests, {
+      flagged: new Map([[tests[0].testId!, ["FR-1"]]]),
+    });
+    expect(markdown).toContain(
+      "Needs review:</span> requirement FR-1 changed</td>"
+    );
+    expect(markdown).not.toContain("<a ");
+  });
+
+  test("says nothing of the tests' review when it is not told about it", () => {
+    const markdown = groupMarkdown("manager.Place_Order", tests);
+    expect(markdown).not.toContain("Needs review");
+    expect(markdown).not.toContain("eviewed");
+    expect(markdown.match(/<th /g)).toHaveLength(3);
+  });
+
+  test("names the day of a mark, and none for a time it cannot read", () => {
+    expect(localDay("2026-03-07T09:05:00")).toBe("2026-03-07");
+    expect(localDay("not a time")).toBe("");
+  });
+});
+
+describe("the tests VectorCAST flags for review", () => {
+  // The gateway's record of an environment's tests, as VectorCAST writes it.
+  const record = (
+    unit: string,
+    subprogram: string,
+    name: string,
+    links: Record<string, unknown>
+  ) => ({
+    environment_name: "TUTORIAL_C",
+    unit_name: unit,
+    subprogram_name: subprogram,
+    test_case_name: name,
+    linked_requirements: Object.fromEntries(
+      Object.entries(links).map(([key, flag]) => [key, { needs_review: flag }])
+    ),
+    status: "pass",
+    needs_export: true,
+    external_key: null,
+  });
+  const key = (unit: string, subprogram: string, name: string) =>
+    reviewFlagKey(unit, subprogram, name);
+
+  test("are those linked to a changed requirement, with the keys of those", () => {
+    const flags = parseReviewFlags({
+      "TUTORIAL_C.manager.Place_Order.STEAK": record(
+        "manager",
+        "Place_Order",
+        "STEAK",
+        { "FR-1": "y", "FR-2": "n", "FR-3": "y" }
+      ),
+      "TUTORIAL_C.manager.Place_Order.CHICKEN": record(
+        "manager",
+        "Place_Order",
+        "CHICKEN",
+        { "FR-1": "n" }
+      ),
+    });
+    expect([...flags]).toEqual([
+      [key("manager", "Place_Order", "STEAK"), ["FR-1", "FR-3"]],
+    ]);
+  });
+
+  test("are read from the boolean flag of later VectorCAST versions too", () => {
+    const flags = parseReviewFlags({
+      a: record("manager", "Place_Order", "STEAK", { "FR-1": true }),
+      b: record("manager", "Place_Order", "CHICKEN", { "FR-1": false }),
+    });
+    expect([...flags.keys()]).toEqual([key("manager", "Place_Order", "STEAK")]);
+  });
+
+  test("are found whatever the case of an Ada unit's and subprogram's name", () => {
+    const flags = parseReviewFlags({
+      a: record("MANAGER", "Place_Order", "STEAK", { "FR-1": "y" }),
+    });
+    expect(flags.get(key("manager", "PLACE_ORDER", "STEAK"))).toEqual(["FR-1"]);
+    // A test's name is as written.
+    expect(flags.has(key("manager", "Place_Order", "steak"))).toBe(false);
+  });
+
+  test("include a compound test, whichever unit VectorCAST files it under", () => {
+    const flags = parseReviewFlags({
+      a: record("manager", "<<COMPOUND>>", "ORDER_AND_PAY", { "FR-1": "y" }),
+    });
+    expect(flags.get(key("not-used", "<<COMPOUND>>", "ORDER_AND_PAY"))).toEqual(
+      ["FR-1"]
+    );
+  });
+
+  test("are none for a record that is missing, empty or not as expected", () => {
+    expect(parseReviewFlags(undefined).size).toBe(0);
+    expect(parseReviewFlags({}).size).toBe(0);
+    expect(parseReviewFlags("[]").size).toBe(0);
+    expect(
+      parseReviewFlags({
+        a: null,
+        b: { test_case_name: "STEAK" },
+        c: { linked_requirements: { "FR-1": { needs_review: "y" } } },
+        d: { ...record("manager", "Place_Order", "STEAK", {}) },
+        e: {
+          ...record("manager", "Place_Order", "CHICKEN", {}),
+          linked_requirements: { "FR-1": null, "FR-2": {} },
+        },
+      }).size
+    ).toBe(0);
+  });
+
+  test("are named with their changed requirements", () => {
+    expect(requirementsText(["FR-1"])).toBe("requirement FR-1");
+    expect(requirementsText(["FR-1", "FR-2"])).toBe(
+      "requirements FR-1 and FR-2"
+    );
+    expect(requirementsText(["FR-1", "FR-2", "FR-3"])).toBe(
+      "requirements FR-1, FR-2 and FR-3"
+    );
+  });
+});
+
+describe("a test's reviewed mark", () => {
+  const prefix = "vcast:/work/ENV|";
+  const steak = `${prefix}manager.Place_Order.STEAK`;
+  const chicken = `${prefix}manager.Place_Order.CHICKEN`;
+  // An environment whose name starts like this one's is another one.
+  const elsewhere = "vcast:/work/ENV_2|manager.Place_Order.STEAK";
+  const marked = [steak, chicken, elsewhere];
+
+  test("holds while its test is there and no requirement of it changed", () => {
+    expect(
+      staleReviewMarks(marked, prefix, new Set(), new Set([steak, chicken]))
+    ).toEqual([]);
+  });
+
+  test("goes when VectorCAST flags the test for review", () => {
+    expect(
+      staleReviewMarks(
+        marked,
+        prefix,
+        new Set([chicken, elsewhere]),
+        new Set([steak, chicken])
+      )
+    ).toEqual([chicken]);
+    // Also when the environment's tests are not known.
+    expect(staleReviewMarks(marked, prefix, new Set([steak]))).toEqual([steak]);
+  });
+
+  test("goes with its test", () => {
+    expect(
+      staleReviewMarks(marked, prefix, new Set(), new Set([chicken]))
+    ).toEqual([steak]);
+  });
+
+  test("stays while the environment's tests are not known or it shows none", () => {
+    expect(staleReviewMarks(marked, prefix, new Set())).toEqual([]);
+    // An environment that failed to load has no tests in the tree.
+    expect(staleReviewMarks(marked, prefix, new Set(), new Set())).toEqual([]);
+  });
+
+  test("of another environment is left alone", () => {
+    expect(
+      staleReviewMarks(marked, prefix, new Set([elsewhere]), new Set([steak]))
+    ).toEqual([chicken]);
+  });
 });
 
 describe("recoloring the requirements' lines from a new run", () => {
@@ -605,7 +837,7 @@ describe("the batch check report", () => {
     expect(html.slice(unit, placeOrder)).toContain("manager");
     expect(html.slice(unit, placeOrder)).toContain(counts(2, 1));
     expect(html.slice(placeOrder, clearTable)).toContain(counts(1, 1));
-    expect(html.slice(placeOrder, clearTable)).toContain("TEST_2");
+    expect(html.slice(placeOrder, clearTable)).toContain("TEST_<wbr>2");
     expect(html.slice(clearTable)).toContain(counts(1, 0));
     expect(html.match(/<details class="function">/g)).toHaveLength(2);
     expect(html).not.toContain(" open>");
@@ -634,7 +866,8 @@ describe("the batch check report", () => {
   });
 
   test("escapes text from the test", () => {
-    expect(html).toContain("TEST_2 &lt;b&gt;");
+    // The name can wrap after its underscore.
+    expect(html).toContain("TEST_<wbr>2 &lt;b&gt;");
     expect(html).not.toContain("<b>");
   });
 
@@ -683,6 +916,62 @@ describe("the batch check report", () => {
   test("only runs its own script", () => {
     expect(html).toContain("script-src 'nonce-n0nce'");
     expect(html).toContain('<script nonce="n0nce">');
+  });
+
+  test("has a mark button and a place for the review flag on each test found in the tree", () => {
+    expect(html.match(/<span class="review-flag"><\/span>/g)).toHaveLength(2);
+    expect(html).toContain(
+      'class="mark-reviewed" data-test-id="vcast:/env|manager.Place_Order.TEST_1" ' +
+        'title="You reviewed this test">Mark as reviewed</button>'
+    );
+    // Two tests in the tree, and the banner's button for all flagged ones.
+    expect(html.match(/class="mark-reviewed"/g)).toHaveLength(3);
+    expect(html).toContain(
+      '<p id="review-banner" class="review-banner" hidden>'
+    );
+    // A marked test's button takes the mark back.
+    expect(html).toContain('? "unmark-reviewed" : "mark-reviewed"');
+    // Each unit and function header counts the reviewed and the flagged
+    // tests under it.
+    expect(html.match(/<span class="reviewed-count"><\/span>/g)).toHaveLength(
+      3
+    );
+    expect(html.match(/<span class="review-count"><\/span>/g)).toHaveLength(3);
+  });
+
+  test("starts with no test flagged or marked as reviewed unless told which are", () => {
+    expect(html).toContain(
+      'showReviewStatus({"needsReview":{},"reviewed":{}});'
+    );
+  });
+
+  test("starts with the given tests flagged or marked as reviewed", () => {
+    const page = checkReportHtml({
+      scope: "manager",
+      groups: [
+        {
+          unitName: "manager",
+          functionName: "Place_Order",
+          tests: [
+            { testId: "vcast:/env|manager.Place_Order.T<1", data: passed },
+          ],
+        },
+      ],
+      reviewStatus: {
+        needsReview: {
+          "vcast:/env|manager.Place_Order.T<1": ["FR-1", "</script>"],
+        },
+        reviewed: { "vcast:/env|manager.Clear_Table.TEST_1": "2026-11-24" },
+      },
+      nonce: "n0nce",
+      cspSource: "vscode-resource:",
+    });
+    // What it starts with cannot end the script it is written into.
+    expect(page).toContain(
+      'showReviewStatus({"needsReview":{"vcast:/env|manager.Place_Order.T\\u003c1":["FR-1","\\u003c/script>"]},' +
+        '"reviewed":{"vcast:/env|manager.Clear_Table.TEST_1":"2026-11-24"}});'
+    );
+    expect(page.match(/<\/script>/g)).toHaveLength(1);
   });
 
   test("says how many tests it left out for lack of a linked requirement, and which on hover", () => {

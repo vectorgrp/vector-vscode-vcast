@@ -32,6 +32,20 @@ async function expandReport() {
     }
   });
 }
+
+// The report of the last check of several tests, with everything open.
+// Returns its webview, to close it again.
+async function openCheckReport(workbench: Workbench) {
+  await browser.executeWorkbench(async (vscode) => {
+    await vscode.commands.executeCommand(
+      "vectorcastTestExplorer.showRequirementsCheckReport"
+    );
+  });
+  const webview = (await workbench.getAllWebviews())[0];
+  await webview.open();
+  await expandReport();
+  return webview;
+}
 const reviewDir = path.join(__dirname, "..", "vcastTutorial", "review_c");
 
 // Both tests are traced to the steak requirement; only the first orders steak.
@@ -86,6 +100,39 @@ async function reviewCommentText(testName: string): Promise<string> {
     if (text.includes(testName)) return text;
   }
   return "";
+}
+
+// "Mark as reviewed" in a review's comment (the button of a single test, the
+// link of each test of a function) and the "Undo" of a marked test, by what
+// they say on hover.
+const MARK_AS_REVIEWED = "a[title='You reviewed this test']";
+const UNDO_REVIEWED = "a[title='Take the reviewed mark back']";
+
+// Waits until the review comment for `name` has (or, with `shown` false, no
+// longer has) the text.
+async function waitForReviewComment(name: string, text: string, shown = true) {
+  await browser.waitUntil(
+    async () => (await reviewCommentText(name)).includes(text) === shown,
+    {
+      timeout: TIMEOUT,
+      timeoutMsg: `The review of ${name} ${shown ? "does not say" : "still says"}: ${text}`,
+    }
+  );
+}
+
+// Shows the reviewed source again, and with it the review's comment, after
+// the report took its place in the editor.
+async function showReviewedSource() {
+  await browser.executeWorkbench(async (vscode) => {
+    const source = vscode.workspace.textDocuments.find((document) =>
+      document.fileName.endsWith("manager.c")
+    );
+    if (!source) throw new Error("manager.c is not open");
+    await vscode.window.showTextDocument(source, {
+      viewColumn: vscode.ViewColumn.One,
+      preserveFocus: false,
+    });
+  });
 }
 
 async function visibleEditors(): Promise<string> {
@@ -517,6 +564,147 @@ describe("Requirements check", () => {
     expect(await $$(".review-widget")).toHaveLength(1);
   });
 
+  it("should mark a test as reviewed in its review and take the mark back", async () => {
+    await updateTestID();
+    // The review is still focused on the steak test.
+    expect(await reviewCommentText("PLACE_ORDER_STEAK")).toContain(
+      "Mark as reviewed"
+    );
+    step("clicking Mark as reviewed in the review of PLACE_ORDER_STEAK");
+    await (await $(MARK_AS_REVIEWED)).click();
+    await waitForReviewComment(
+      "PLACE_ORDER_STEAK",
+      "You marked this test as reviewed"
+    );
+    // The mark takes the place of the button, in the comment and its title.
+    expect(await $(MARK_AS_REVIEWED).isExisting()).toBe(false);
+    await browser.waitUntil(
+      async () => !(await $("aria/Mark as Reviewed").isExisting()),
+      { timeout: TIMEOUT }
+    );
+
+    step("clicking Undo");
+    await (await $(UNDO_REVIEWED)).click();
+    await waitForReviewComment("PLACE_ORDER_STEAK", "You marked", false);
+    expect(await reviewCommentText("PLACE_ORDER_STEAK")).toContain(
+      "Mark as reviewed"
+    );
+
+    // The button in the review's title marks the test too.
+    step("clicking Mark as Reviewed in the title of the review");
+    await (await $("aria/Mark as Reviewed")).click();
+    await waitForReviewComment(
+      "PLACE_ORDER_STEAK",
+      "You marked this test as reviewed"
+    );
+    await (await $(UNDO_REVIEWED)).click();
+    await waitForReviewComment("PLACE_ORDER_STEAK", "You marked", false);
+  });
+
+  it("should mark the tests of a function as reviewed one by one, in its review and from the test tree", async () => {
+    await updateTestID();
+    await focusReviewOn("manager.Place_Order");
+    await waitForReviewComment("Place_Order", "0 of 2 reviewed");
+    const row = (testName: string) => $(`tr*=${testName}`);
+
+    // Each test has its own link in the review's table.
+    step("clicking Mark as reviewed in the row of PLACE_ORDER_STEAK");
+    await (await row("PLACE_ORDER_STEAK").$(MARK_AS_REVIEWED)).click();
+    await waitForReviewComment("Place_Order", "1 of 2 reviewed");
+    expect(await row("PLACE_ORDER_STEAK").getText()).toMatch(/Reviewed\s+Undo/);
+    expect(await row("PLACE_ORDER_CHICKEN").getText()).toMatch(
+      /Mark\s+as\s+reviewed/
+    );
+
+    // The menu of a marked test in the test tree takes the mark back.
+    await openVectorcastMenuFor("PLACE_ORDER_STEAK");
+    step("clicking Mark as Not Reviewed in the test tree");
+    await (await $("aria/Mark as Not Reviewed")).click();
+    await waitForReviewComment("Place_Order", "0 of 2 reviewed");
+    expect(await row("PLACE_ORDER_STEAK").getText()).toMatch(
+      /Mark\s+as\s+reviewed/
+    );
+
+    // The menu of a test that is not marked marks it, which the open review
+    // then shows.
+    await openVectorcastMenuFor("PLACE_ORDER_CHICKEN");
+    expect(await $("aria/Mark as Not Reviewed").isExisting()).toBe(false);
+    step("clicking Mark as Reviewed in the test tree");
+    await (await $("aria/Mark as Reviewed")).click();
+    await waitForReviewComment("Place_Order", "1 of 2 reviewed");
+    expect(await row("PLACE_ORDER_CHICKEN").getText()).toMatch(
+      /Reviewed\s+Undo/
+    );
+  });
+
+  it("should mark tests as reviewed on the report, which counts them", async () => {
+    await updateTestID();
+    const webview = await openCheckReport(workbench);
+    const markButton = (testName: string) =>
+      $(`details*=${testName}`).$("button.mark-reviewed");
+    const functionHeader = () => $("details.function > summary").getText();
+    const waitForReviewed = async (count: number) =>
+      browser.waitUntil(
+        async () => (await functionHeader()).includes(`${count} of 2 reviewed`),
+        {
+          timeout: TIMEOUT,
+          timeoutMsg: `Place_Order does not say: ${count} of 2 reviewed`,
+        }
+      );
+
+    // The chicken test was marked in the test tree.
+    await waitForReviewed(1);
+    expect(await markButton("PLACE_ORDER_CHICKEN").getText()).toContain(
+      "Reviewed"
+    );
+    expect(await markButton("PLACE_ORDER_STEAK").getText()).toBe(
+      "Mark as reviewed"
+    );
+
+    step("clicking Mark as reviewed on PLACE_ORDER_STEAK in the report");
+    await (await markButton("PLACE_ORDER_STEAK")).click();
+    await waitForReviewed(2);
+    expect(await markButton("PLACE_ORDER_STEAK").getText()).toContain(
+      "Reviewed"
+    );
+
+    // The button of a marked test takes the mark back.
+    step("clicking the Reviewed button of both tests in the report");
+    await (await markButton("PLACE_ORDER_STEAK")).click();
+    await waitForReviewed(1);
+    await (await markButton("PLACE_ORDER_CHICKEN")).click();
+    await waitForReviewed(0);
+    expect(await markButton("PLACE_ORDER_CHICKEN").getText()).toBe(
+      "Mark as reviewed"
+    );
+    await webview.close();
+
+    // The open review follows the report.
+    await showReviewedSource();
+    await waitForReviewComment("Place_Order", "0 of 2 reviewed");
+  });
+
+  it("should still offer to change the focus in a review opened after another was closed", async () => {
+    await updateTestID();
+    await (await $("aria/Close Requirements Check")).click();
+    await browser.waitUntil(
+      async () => (await $$(".review-widget")).length === 0,
+      { timeout: TIMEOUT }
+    );
+
+    const webview = await openCheckReport(workbench);
+    step("reviewing Place_Order from the report after closing its review");
+    await (await $("details.function > summary button.group")).click();
+    await webview.close();
+    await waitForReviewComment("Place_Order", "1 passed, 1 failed");
+    expect(await reviewCommentText("Place_Order")).toContain(
+      "Focus on: manager.Place_Order"
+    );
+    expect(await $("aria/Focus Requirements Check On...").isExisting()).toBe(
+      true
+    );
+  });
+
   it("should flag a changed test, refresh its coverage and re-run its check", async () => {
     await updateTestID();
     await focusReviewOn("PLACE_ORDER_CHICKEN");
@@ -578,17 +766,7 @@ describe("Requirements check", () => {
 
   it("should mark the changed test on the report and re-run the check from it", async () => {
     await updateTestID();
-    const openReport = async () => {
-      await browser.executeWorkbench(async (vscode) => {
-        await vscode.commands.executeCommand(
-          "vectorcastTestExplorer.showRequirementsCheckReport"
-        );
-      });
-      const webview = (await workbench.getAllWebviews())[0];
-      await webview.open();
-      await expandReport();
-      return webview;
-    };
+    const openReport = async () => openCheckReport(workbench);
 
     // The check re-run by the previous test refreshed the report, so the
     // chicken test changes again, on a value its requirement ignores.

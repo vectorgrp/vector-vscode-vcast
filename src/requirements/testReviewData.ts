@@ -105,6 +105,91 @@ export function reviewLineColors(input: RequirementData | RequirementData[]): {
   return { covered, uncovered };
 }
 
+// ---- Tests flagged for review -------------------------------------------
+
+// The functions holding the tests of no unit. VectorCAST records them under
+// a unit all the same (the one its script named last), so the unit is not
+// part of what identifies them.
+const NO_UNIT_FUNCTION = /^<<(COMPOUND|INIT)>>$/;
+
+/**
+ * What a test is looked up by among the flagged ones. Unit and function
+ * names compare case-insensitively, as an Ada name may come back in another
+ * case.
+ */
+export function reviewFlagKey(
+  unitName: string,
+  functionName: string,
+  testName: string
+): string {
+  const unit = NO_UNIT_FUNCTION.test(functionName) ? "" : unitName;
+  return [unit.toLowerCase(), functionName.toLowerCase(), testName].join("\n");
+}
+
+/**
+ * The tests VectorCAST flags as needing review, from the requirements
+ * gateway's record of an environment's tests (its
+ * `export_data/<environment>.json`): those linked to a requirement that
+ * changed since the test was linked or last marked as reviewed. Maps each
+ * (by its `reviewFlagKey`) to the keys of those requirements. The flag is
+ * "y" or "n" up to VectorCAST 2026 SP1 and a boolean after.
+ */
+export function parseReviewFlags(exportData: unknown): Map<string, string[]> {
+  const flagged = new Map<string, string[]>();
+  if (!exportData || typeof exportData !== "object") return flagged;
+  for (const test of Object.values(exportData as Record<string, any>)) {
+    if (typeof test?.test_case_name !== "string") continue;
+    const changed = Object.entries(test.linked_requirements ?? {})
+      .filter(([, link]) => {
+        const flag = (link as any)?.needs_review;
+        return flag === true || /^(y|yes|true)$/i.test(String(flag));
+      })
+      .map(([key]) => key);
+    if (changed.length === 0) continue;
+    flagged.set(
+      reviewFlagKey(
+        String(test.unit_name ?? ""),
+        String(test.subprogram_name ?? ""),
+        test.test_case_name
+      ),
+      changed
+    );
+  }
+  return flagged;
+}
+
+/**
+ * The tests of an environment whose reviewed mark no longer holds: those
+ * VectorCAST flags for review, as a requirement they are linked to changed
+ * after they were marked, and those that are gone. `tests` are the
+ * environment's tests when its test tree was just built; without it, or
+ * while it has none (an environment that failed to load), no test counts as
+ * gone. Node IDs throughout; `prefix` starts those of the environment.
+ */
+export function staleReviewMarks(
+  marked: Iterable<string>,
+  prefix: string,
+  flagged: { has(testId: string): boolean },
+  tests?: { has(testId: string): boolean; size: number }
+): string[] {
+  const known = tests && tests.size > 0 ? tests : undefined;
+  return [...marked].filter(
+    (testId) =>
+      testId.startsWith(prefix) &&
+      (flagged.has(testId) || (known !== undefined && !known.has(testId)))
+  );
+}
+
+// "requirement FR-1", "requirements FR-1 and FR-2", "requirements FR-1, FR-2
+// and FR-3"
+export function requirementsText(keys: string[]): string {
+  const names =
+    keys.length < 2
+      ? keys.join("")
+      : `${keys.slice(0, -1).join(", ")} and ${keys[keys.length - 1]}`;
+  return `${keys.length === 1 ? "requirement" : "requirements"} ${names}`;
+}
+
 // Which test a tests2check result is about, as the tool names it.
 export function resultIdentity(result: any): {
   name?: string;
@@ -146,7 +231,7 @@ const VERDICT_MARKS: Record<string, string> = {
 };
 
 // Text from the test or tests2check must not be read as Markdown or icons.
-function escapeMarkdown(text: string): string {
+export function escapeMarkdown(text: string): string {
   return text.replace(/[\\`*_{}[\]()#+\-!~|<>$]/g, "\\$&");
 }
 
@@ -201,6 +286,72 @@ const VERDICT_STYLES: Record<string, string> = {
 };
 const HEADER_STYLE =
   ' style="background-color:var(--vscode-sideBarSectionHeader-background);"';
+const NEEDS_REVIEW_STYLE =
+  ' style="color:var(--vscode-editorWarning-foreground);"';
+
+// What the tooltip of "Mark as reviewed" says the mark means: on a test
+// VectorCAST flags for review, and on any other.
+export const MARK_FLAGGED_TOOLTIP =
+  "You checked that this test still fits the changed requirement";
+export const MARK_TOOLTIP = "You reviewed this test";
+export const UNMARK_TOOLTIP = "Take the reviewed mark back";
+
+// What a review knows of the human review of its tests: those VectorCAST
+// flags for review (by node ID, the keys of their changed requirements),
+// those marked as reviewed, and the commands (a test's node ID the argument)
+// that mark a test as reviewed and take the mark back, for the links on each.
+export interface ReviewFlags {
+  flagged: Map<string, string[]>;
+  reviewed?: Set<string>;
+  markCommand?: string;
+  unmarkCommand?: string;
+}
+
+// A command link's target, with the command's arguments.
+export function commandUri(command: string, args: unknown[]): string {
+  return `command:${command}?${encodeURIComponent(JSON.stringify(args))}`;
+}
+
+// "2026-11-24" for the day, here, of an ISO date and time; empty when it is
+// not one.
+export function localDay(isoTime: string): string {
+  const time = new Date(isoTime);
+  if (Number.isNaN(time.getTime())) return "";
+  const two = (value: number) => String(value).padStart(2, "0");
+  return `${time.getFullYear()}-${two(time.getMonth() + 1)}-${two(time.getDate())}`;
+}
+
+// Below a flagged test's name in the group comment's table: that it needs
+// review, and for which requirements.
+function needsReviewHtml(testId: string | undefined, review: ReviewFlags) {
+  const changed = (testId && review.flagged.get(testId)) || [];
+  if (!testId || changed.length === 0) return "";
+  // Only the first words are colored: a comment never wraps a span.
+  return (
+    `<br><span${NEEDS_REVIEW_STYLE}>Needs review:</span> ` +
+    `${escapeHtml(requirementsText(changed))} changed`
+  );
+}
+
+// The last cell of a test's row in the group comment's table: that the test
+// was reviewed, with the link that takes that back, or the link that marks
+// it as reviewed. Empty for a test that is not in the test tree. Its words
+// do not break apart, so a narrow editor wraps the test's name instead and
+// the row stays one line high.
+function reviewedCellHtml(testId: string | undefined, review: ReviewFlags) {
+  if (!testId) return "";
+  if (review.reviewed?.has(testId) && !review.flagged.has(testId)) {
+    const undo = review.unmarkCommand
+      ? `&nbsp;&nbsp;<a href="${commandUri(review.unmarkCommand, [testId])}" title="${UNMARK_TOOLTIP}">Undo</a>`
+      : "";
+    return `<span${VERDICT_STYLES.PASS}>✔&nbsp;Reviewed</span>${undo}`;
+  }
+  if (!review.markCommand) return "";
+  const tooltip = review.flagged.has(testId)
+    ? MARK_FLAGGED_TOOLTIP
+    : MARK_TOOLTIP;
+  return `<a href="${commandUri(review.markCommand, [testId])}" title="${tooltip}">Mark&nbsp;as&nbsp;reviewed</a>`;
+}
 
 /**
  * The comment of a function's or unit's review: the counts, then a table
@@ -208,8 +359,16 @@ const HEADER_STYLE =
  * fixed column widths, so a long name wraps inside its cell), then what the
  * highlighted lines and the gutter mean for several tests. The table is
  * HTML: a Markdown table gets no column widths in a comment.
+ *
+ * With `review`, the human review of the tests shows too: how many were
+ * reviewed, a last column that says of each test that it was or marks it as
+ * reviewed, and below a flagged test's name that it needs review.
  */
-export function groupMarkdown(title: string, tests: ReviewedTest[]): string {
+export function groupMarkdown(
+  title: string,
+  tests: ReviewedTest[],
+  review?: ReviewFlags
+): string {
   const verdicts = tests.map((test) => test.data.verdict);
   const overall = verdicts.includes("FAIL")
     ? "FAIL"
@@ -218,20 +377,33 @@ export function groupMarkdown(title: string, tests: ReviewedTest[]): string {
       : "";
   const th = (width: string, text: string) =>
     `<th align="left" width="${width}"${HEADER_STYLE}>${text}</th>`;
-  const rows = tests.map(({ data }) => {
+  const rows = tests.map(({ testId, data }) => {
     const requirements = data.requirements
       .map((req) => `${mark(req.verdict)} ${escapeHtml(req.key)}`)
       .join("<br>");
     return (
       `<tr><td${VERDICT_STYLES[data.verdict] ?? ""}><b>${mark(data.verdict)} ${escapeHtml(data.verdict)}</b></td>` +
-      `<td>${escapeHtml(data.title)}</td><td>${requirements}</td></tr>`
+      `<td>${escapeHtml(data.title)}${review ? needsReviewHtml(testId, review) : ""}</td><td>${requirements}</td>` +
+      `${review ? `<td>${reviewedCellHtml(testId, review)}</td>` : ""}</tr>`
     );
   });
+  // Only a test of the test tree can be marked as reviewed.
+  const markable = tests.flatMap((test) => (test.testId ? [test.testId] : []));
+  const reviewedCount = markable.filter(
+    (testId) => review?.reviewed?.has(testId) && !review.flagged.has(testId)
+  ).length;
+  const reviewedText =
+    review && markable.length
+      ? ` &nbsp;&nbsp; ${reviewedCount} of ${markable.length} reviewed`
+      : "";
+  const header = review
+    ? `${th("12%", "Verdict")}${th("44%", "Test")}${th("26%", "Requirements")}${th("18%", "Reviewed")}`
+    : `${th("14%", "Verdict")}${th("56%", "Test")}${th("30%", "Requirements")}`;
   return [
-    `#### ${mark(overall)} ${escapeMarkdown(title)} &nbsp;&nbsp; ${countVerdicts(verdicts)}`,
+    `#### ${mark(overall)} ${escapeMarkdown(title)} &nbsp;&nbsp; ${countVerdicts(verdicts)}${reviewedText}`,
     [
       '<table width="100%">',
-      `<thead><tr>${th("14%", "Verdict")}${th("56%", "Test")}${th("30%", "Requirements")}</tr></thead>`,
+      `<thead><tr>${header}</tr></thead>`,
       "<tbody>",
       ...rows,
       "</tbody>",
@@ -283,7 +455,7 @@ export function lineHoverMarkdown(
   if (ran.length === 0) return undefined;
   const link = (runner: LineRunner) =>
     runner.testId
-      ? `[${escapeMarkdown(runner.title)}](command:${focusCommand}?${encodeURIComponent(JSON.stringify([runner.testId]))} "Review this test alone")`
+      ? `[${escapeMarkdown(runner.title)}](${commandUri(focusCommand, [runner.testId])} "Review this test alone")`
       : escapeMarkdown(runner.title);
   return (
     "**Ran by** " +

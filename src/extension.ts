@@ -158,11 +158,15 @@ import {
   FOCUS_REVIEW_TEST_COMMAND,
   FocusChoice,
   focusReviewTest,
+  MARK_REVIEWED_COMMAND,
+  markReviewAsNotReviewed,
+  markReviewAsReviewed,
   openReview,
   pickReviewFocus,
   recordCheckedTests,
   refreshReviewCoverage,
   rerunReview,
+  registerReviewFlagUpdates,
   registerReviewHover,
   revealCheckReport,
   reviewInProgress,
@@ -170,6 +174,7 @@ import {
   setFocusChoices,
   choiceMatchingOpenReview,
   showCheckReport,
+  UNMARK_REVIEWED_COMMAND,
 } from "./requirements/testReview";
 import {
   countVerdicts,
@@ -178,6 +183,14 @@ import {
   resultIdentity,
 } from "./requirements/testReviewData";
 import type { ReportGroup } from "./requirements/testReviewReport";
+import {
+  flaggedTestsUnder,
+  initializeReviewMarks,
+  markTestsAsReviewed,
+  refreshAllReviewFlags,
+  refreshReviewFlags,
+  unmarkTestsAsReviewed,
+} from "./requirements/reviewFlags";
 
 import {
   exportRequirements,
@@ -537,6 +550,9 @@ async function activationLogic(context: vscode.ExtensionContext) {
   setupLegacyMigrationWatchers(context);
 
   initializeReqs2X(context);
+  // The test tree may have been built before this said whether the
+  // requirements features, which show the tests flagged for review, are on.
+  refreshAllReviewFlags();
 
   // One-shot prompt: legacy reqs.xlsx / reqs.csv → RGW. Runs after
   // initializeReqs2X so the panreq executable path is resolved (no-op
@@ -1917,8 +1933,13 @@ function configureExtension(context: vscode.ExtensionContext) {
       const reopen = choiceMatchingOpenReview(choices);
       setFocusChoices(choices);
 
+      // The report outlives the reviews it opens: closing a review, or
+      // checking a single test from the test tree, drops what the review can
+      // be focused on, so a review opened from the report offers it again.
       const show = async (choice: FocusChoice | undefined) => {
-        if (choice) await showReview(choice.target, choice.scriptOf);
+        if (!choice) return;
+        setFocusChoices(choices);
+        await showReview(choice.target, choice.scriptOf);
       };
       showCheckReport(context, scope, [...groups.values()], unchecked, {
         openReview: (testId) =>
@@ -1943,10 +1964,48 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
 
+  // "Mark as Reviewed" on a test of the test tree, "Mark Tests as Reviewed"
+  // on a node above tests that VectorCAST flags for review, which marks
+  // those.
+  const markNodeAsReviewed = async (args: any) => {
+    if (typeof args?.id !== "string") return;
+    await markTestsAsReviewed(
+      getTestNode(args.id)?.testName ? [args.id] : flaggedTestsUnder(args.id)
+    );
+  };
+
   registerReviewHover(context);
+  // Before the test tree is built, which shows the tests marked as reviewed.
+  initializeReviewMarks(context);
+  registerReviewFlagUpdates(context);
   context.subscriptions.push(
     openReqsCoverageReview,
     checkTestsAgainstRequirements,
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.markTestAsReviewed",
+      markNodeAsReviewed
+    ),
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.markTestsAsReviewed",
+      markNodeAsReviewed
+    ),
+    // "Mark as Not Reviewed" on a test of the test tree marked as reviewed
+    vscode.commands.registerCommand(
+      "vectorcastTestExplorer.markTestAsNotReviewed",
+      (args: any) => {
+        if (typeof args?.id === "string") unmarkTestsAsReviewed([args.id]);
+      }
+    ),
+    // The requirements check's "Mark as reviewed" button and links, and the
+    // "Undo" of a test marked as reviewed
+    vscode.commands.registerCommand(
+      MARK_REVIEWED_COMMAND,
+      markReviewAsReviewed
+    ),
+    vscode.commands.registerCommand(
+      UNMARK_REVIEWED_COMMAND,
+      markReviewAsNotReviewed
+    ),
     vscode.commands.registerCommand(
       "vectorcastTestExplorer.closeTestReview",
       endReview
@@ -2090,6 +2149,8 @@ function configureExtension(context: vscode.ExtensionContext) {
               );
               currentBundle = { ...currentBundle, ...saved };
               post({ type: "saved", ...saved });
+              // The import flagged the tests linked to a changed requirement.
+              refreshReviewFlags(enviroPath);
             } catch (err) {
               const message =
                 err instanceof RGWStaleWriteError
@@ -2364,6 +2425,7 @@ async function installPreActivationEventHandlers(
       ) {
         // If the user changes the path to reqs2x or tries to enable or disable the feature, we re-initialize
         initializeReqs2X(context);
+        refreshAllReviewFlags();
       }
     }
     // pre-configuration, we only handle changes to the vcast installation location

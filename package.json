@@ -264,6 +264,27 @@
         "icon": "$(target)"
       },
       {
+        "command": "vectorcastTestExplorer.markReviewAsReviewed",
+        "category": "VectorCAST Test Explorer",
+        "title": "Mark as Reviewed",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "vectorcastTestExplorer.markTestAsReviewed",
+        "category": "VectorCAST Test Explorer",
+        "title": "Mark as Reviewed"
+      },
+      {
+        "command": "vectorcastTestExplorer.markTestAsNotReviewed",
+        "category": "VectorCAST Test Explorer",
+        "title": "Mark as Not Reviewed"
+      },
+      {
+        "command": "vectorcastTestExplorer.markTestsAsReviewed",
+        "category": "VectorCAST Test Explorer",
+        "title": "Mark Tests as Reviewed"
+      },
+      {
         "command": "vectorcastTestExplorer.insertBasisPathTests",
         "category": "VectorCAST Test Explorer",
         "title": "Insert Basis Path Tests"
@@ -1059,6 +1080,22 @@
           "when": "never"
         },
         {
+          "command": "vectorcastTestExplorer.markReviewAsReviewed",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.markTestAsReviewed",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.markTestAsNotReviewed",
+          "when": "never"
+        },
+        {
+          "command": "vectorcastTestExplorer.markTestsAsReviewed",
+          "when": "never"
+        },
+        {
           "command": "vectorcastTestExplorer.insertBasisPathTests",
           "when": "never"
         },
@@ -1156,6 +1193,11 @@
         }
       ],
       "comments/commentThread/title": [
+        {
+          "command": "vectorcastTestExplorer.markReviewAsReviewed",
+          "group": "inline@0",
+          "when": "commentController == vectorcastTestReview && vectorcastTestExplorer.reviewNeedsReview"
+        },
         {
           "command": "vectorcastTestExplorer.focusReview",
           "group": "inline@1",
@@ -1405,6 +1447,21 @@
         "command": "vectorcastTestExplorer.checkTestsAgainstRequirements",
         "group": "5_reqs@10",
         "when": "testId =~ /^vcast:.*$/ && !(testId =~ /^vcast:[^|]+\\|[^.]+\\.[^.]+\\..+$/) && !(testId =~ /^.*<<COMPOUND>>.*$/) && !(testId =~ /^.*<<INIT>>.*$/) && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && vectorcastTestExplorer.reqs2xFeatureEnabled && vectorcastTestExplorer.tests2checkAvailable"
+      },
+      {
+        "command": "vectorcastTestExplorer.markTestAsReviewed",
+        "group": "5_reqs@11",
+        "when": "testId =~ /^vcast:[^|]+\\|[^.]+\\.[^.]+\\..+$/ && !(testId =~ /.*coded_tests_driver.*/) && testId not in vectorcastTestExplorer.vcastUnbuiltEnviroList && testId not in vectorcastTestExplorer.reviewedTests && vectorcastTestExplorer.reqs2xFeatureEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.markTestAsNotReviewed",
+        "group": "5_reqs@11",
+        "when": "testId in vectorcastTestExplorer.reviewedTests && vectorcastTestExplorer.reqs2xFeatureEnabled"
+      },
+      {
+        "command": "vectorcastTestExplorer.markTestsAsReviewed",
+        "group": "5_reqs@12",
+        "when": "testId in vectorcastTestExplorer.nodesWithTestsNeedingReview"
       },
       {
         "command": "vectorcastTestExplorer.insertBasisPathTests",

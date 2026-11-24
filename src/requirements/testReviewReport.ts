@@ -3,8 +3,11 @@
 
 import {
   escapeHtml,
+  MARK_FLAGGED_TOOLTIP,
+  MARK_TOOLTIP,
   RequirementData,
   ReviewedTest,
+  UNMARK_TOOLTIP,
   verdictCounts,
 } from "./testReviewData";
 
@@ -14,6 +17,15 @@ export interface ReportGroup {
   unitName: string;
   functionName: string;
   tests: ReviewedTest[];
+}
+
+// Which of the report's tests VectorCAST flags for review (by node ID, the
+// keys of their changed requirements), and which are marked as reviewed (by
+// node ID, the day they were). The page shows it when it loads and again on
+// each `{ type: "review-status", ...status }` message.
+export interface ReportReviewStatus {
+  needsReview: Record<string, string[]>;
+  reviewed: Record<string, string>;
 }
 
 // "1 passed, 1 failed", passed and failed in the test explorer's colors.
@@ -64,13 +76,32 @@ function requirementHtml(req: RequirementData["requirements"][number]): string {
 </section>`;
 }
 
+// A row's or header's line: what it is about (`title`), which wraps in a
+// narrow page, and its buttons (`actions`), which stay together at the right
+// and move below the title as one when there is no room beside it.
+function summaryHtml(title: string, actions: string): string {
+  return `<summary><span class="title">${title}</span>${
+    actions ? `<span class="actions">${actions}</span>` : ""
+  }</summary>`;
+}
+
+// A test found in the test tree can be marked as reviewed: its row has the
+// button that does, which says so once it is and then takes the mark back,
+// and the place for VectorCAST's flag that the test needs review.
 function testHtml(check: ReviewedTest): string {
   const { data } = check;
-  const open = check.testId
-    ? `<button type="button" class="open" data-test-id="${escapeHtml(check.testId)}">Open review</button>`
-    : "";
-  return `<details class="test"${check.testId ? ` data-test-id="${escapeHtml(check.testId)}"` : ""}>
-  <summary>${verdictHtml(data.verdict)} <span class="name">${escapeHtml(data.title)}</span> ${open}</summary>
+  const testId = check.testId ? escapeHtml(check.testId) : undefined;
+  // A long name wraps after an underscore rather than inside a word.
+  const name = escapeHtml(data.title).replace(/_/g, "_<wbr>");
+  const title = `${verdictHtml(data.verdict)} <span class="name">${name}</span>`;
+  const summary = testId
+    ? summaryHtml(
+        `${title} <span class="review-flag"></span>`,
+        `<button type="button" class="mark-reviewed" data-test-id="${testId}" title="${MARK_TOOLTIP}">Mark as reviewed</button><button type="button" class="open" data-test-id="${testId}">Open review</button>`
+      )
+    : summaryHtml(title, "");
+  return `<details class="test"${testId ? ` data-test-id="${testId}"` : ""}>
+  ${summary}
   ${data.requirements.map(requirementHtml).join("\n")}
 </details>`;
 }
@@ -93,7 +124,10 @@ function headerHtml(
       }>Review ${kind}</button>`
     : "";
   return `<details class="${kind}">
-  <summary>${escapeHtml(name)} <span class="counts">${countsHtml(verdicts)}</span> ${review}</summary>
+  ${summaryHtml(
+    `<span class="label">${escapeHtml(name)}</span> <span class="counts">${countsHtml(verdicts)}</span> <span class="reviewed-count"></span> <span class="review-count"></span>`,
+    review
+  )}
   ${body}
 </details>`;
 }
@@ -126,6 +160,13 @@ function unitHtml(unitName: string, groups: ReportGroup[]): string {
  * single-test review shows. Everything starts collapsed. "Open review" posts
  * `{ type: "open-review", testId }`; a header's "Review" posts
  * `{ type: "open-group-review", unitName, functionName? }`.
+ *
+ * Each test of the test tree has a "Mark as reviewed" button, which posts
+ * `{ type: "mark-reviewed", testIds }`; on a marked test it reads "Reviewed"
+ * and posts `{ type: "unmark-reviewed", testIds }`. The headers count the
+ * reviewed tests under them. A test VectorCAST flags for review says so, as
+ * do the headers above it and a banner at the top, whose button marks all of
+ * them.
  */
 export function checkReportHtml(options: {
   scope: string;
@@ -133,10 +174,20 @@ export function checkReportHtml(options: {
   // Tests of the scope that tests2check left out: those not linked to a
   // requirement.
   unchecked?: string[];
+  reviewStatus?: ReportReviewStatus;
   nonce: string;
   cspSource: string;
 }): string {
   const { scope, groups, unchecked = [], nonce, cspSource } = options;
+  const reviewStatus: ReportReviewStatus = options.reviewStatus ?? {
+    needsReview: {},
+    reviewed: {},
+  };
+  // Inside a script, "<" could end it.
+  const initialReviewStatus = JSON.stringify(reviewStatus).replace(
+    /</g,
+    "\\u003c"
+  );
   const verdicts = groups.flatMap((group) =>
     group.tests.map((test) => test.data.verdict)
   );
@@ -158,13 +209,21 @@ export function checkReportHtml(options: {
     .summary-line { color: var(--vscode-descriptionForeground); margin: 4px 0 12px; }
     .disclaimer { color: var(--vscode-descriptionForeground); font-style: italic; }
     .unchecked { cursor: help; text-decoration: underline dotted; }
+    summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; list-style: none; cursor: pointer; }
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: ""; flex: none; align-self: flex-start; margin: 0.42em 2px 0 0; border-style: solid; border-width: 0.3em 0 0.3em 0.5em; border-color: transparent transparent transparent currentColor; opacity: 0.8; }
+    details[open] > summary::before { transform: rotate(90deg); }
+    summary .title { flex: 1 1 14em; min-width: 0; overflow-wrap: anywhere; }
+    details.test > summary .title { flex-basis: 28em; }
+    summary .actions { flex: none; display: flex; gap: 8px; margin-left: auto; white-space: nowrap; }
     details.unit { margin: 18px 0 0; }
-    details.unit > summary { font-size: 1.15em; font-weight: 600; padding: 6px 8px; background: var(--vscode-sideBarSectionHeader-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; cursor: pointer; }
+    details.unit > summary { font-size: 1.15em; font-weight: 600; padding: 6px 8px; background: var(--vscode-sideBarSectionHeader-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; }
     details.function { margin: 10px 0 0 16px; }
-    details.function > summary { font-size: 1.05em; font-weight: 600; padding: 4px 8px; background: var(--vscode-sideBarSectionHeader-background); border-left: 3px solid var(--vscode-panel-border); cursor: pointer; }
-    .counts { font-weight: normal; color: var(--vscode-descriptionForeground); margin-left: 8px; }
+    details.function > summary { font-size: 1.05em; font-weight: 600; padding: 4px 8px; background: var(--vscode-sideBarSectionHeader-background); border-left: 3px solid var(--vscode-panel-border); }
+    .counts { font-weight: normal; color: var(--vscode-descriptionForeground); }
+    .label, .counts, .reviewed-count { margin-right: 8px; }
+    .counts, .reviewed-count, .review-count { display: inline-block; white-space: nowrap; }
     details.test { border: 1px solid var(--vscode-panel-border); border-radius: 4px; margin: 8px 0 8px 32px; padding: 4px 10px; }
-    details.test > summary { cursor: pointer; }
     .name { font-weight: 600; }
     .verdict.pass .mark { color: var(--vscode-testing-iconPassed); }
     .verdict.fail .mark { color: var(--vscode-testing-iconFailed); }
@@ -174,28 +233,57 @@ export function checkReportHtml(options: {
     dt { font-weight: 600; margin-top: 6px; }
     dd { margin: 0 0 0 12px; white-space: pre-wrap; }
     dd ul { margin: 0; padding-left: 18px; }
-    button.open { float: right; margin-left: 8px; border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+    button.open { border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
     button.open:hover { background: var(--vscode-button-hoverBackground); }
     button.open.group { font-weight: normal; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
     .stale-banner { margin: 8px 0 12px; padding: 6px 10px; border: 1px solid var(--vscode-editorWarning-foreground); border-radius: 4px; }
-    .stale-banner .mark, details.stale > summary::after { color: var(--vscode-editorWarning-foreground); }
-    details.stale > summary::after { content: " \u26A0 out of date"; font-weight: normal; }
+    .stale-banner .mark, details.stale > summary .title::after { color: var(--vscode-editorWarning-foreground); }
+    details.stale > summary .title::after { content: " \u26A0 out of date"; font-weight: normal; white-space: nowrap; }
     button.rerun { margin-left: 12px; border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); font: inherit; }
     button.open { font: inherit; font-size: var(--vscode-font-size); }
     .passed { color: var(--vscode-testing-iconPassed); }
     .failed { color: var(--vscode-testing-iconFailed); }
     button.open.group:hover { background: var(--vscode-button-secondaryHoverBackground); }
+    .review-flag { display: inline-block; white-space: nowrap; margin-left: 4px; padding: 0 7px; border: 1px solid currentColor; border-radius: 9px; font-size: 0.85em; font-weight: normal; }
+    .review-flag:empty, .review-count:empty, .reviewed-count:empty { display: none; }
+    .review-flag, .review-count, .review-banner .mark { color: var(--vscode-editorWarning-foreground); }
+    .review-count, .reviewed-count { font-weight: normal; }
+    .reviewed-count { color: var(--vscode-descriptionForeground); }
+    .reviewed-count.all { color: var(--vscode-testing-iconPassed); }
+    button.mark-reviewed { min-width: 9.8em; border: 1px solid transparent; border-radius: 2px; padding: 1px 10px; cursor: pointer; font: inherit; font-size: var(--vscode-font-size); color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+    button.mark-reviewed:hover { background: var(--vscode-button-secondaryHoverBackground); }
+    details.reviewed > summary button.mark-reviewed { color: var(--vscode-testing-iconPassed); background: transparent; border-color: currentColor; }
+    details.reviewed > summary button.mark-reviewed:hover { background: var(--vscode-toolbar-hoverBackground); }
+    .review-banner { margin: 8px 0 12px; padding: 6px 10px; border: 1px solid var(--vscode-editorWarning-foreground); border-radius: 4px; }
+    .review-banner button.mark-reviewed { min-width: 0; margin-left: 12px; color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+    .review-banner button.mark-reviewed:hover { background: var(--vscode-button-hoverBackground); }
   </style>
 </head>
 <body>
   <h1>Requirements check: ${escapeHtml(scope)}</h1>
   <p class="summary-line">${countsHtml(verdicts)}.${uncheckedHtml(unchecked)} <span class="disclaimer">AI-generated requirements check. Review before relying on it.</span></p>
+  <p id="review-banner" class="review-banner" hidden><span class="mark">\u26A0 </span><span class="text"></span><button type="button" class="mark-reviewed"></button></p>
   ${[...units].map(([unitName, unitGroups]) => unitHtml(unitName, unitGroups)).join("\n")}
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     document.addEventListener("click", (event) => {
       if (event.target.closest("button.rerun")) {
         vscode.postMessage({ type: "rerun" });
+        return;
+      }
+      // A test's "Mark as reviewed" marks that test, or takes its mark
+      // back; the banner's marks every flagged test of the report.
+      const mark = event.target.closest("button.mark-reviewed");
+      if (mark) {
+        event.preventDefault();
+        const flagged = [...document.querySelectorAll("details.test.needs-review")];
+        const row = mark.closest("details.test");
+        vscode.postMessage({
+          type: row && row.classList.contains("reviewed") ? "unmark-reviewed" : "mark-reviewed",
+          testIds: mark.dataset.testId
+            ? [mark.dataset.testId]
+            : flagged.map((row) => row.dataset.testId),
+        });
         return;
       }
       const button = event.target.closest("button.open");
@@ -211,10 +299,52 @@ export function checkReportHtml(options: {
         vscode.postMessage({ type: "open-review", testId: button.dataset.testId });
       }
     });
+    // Which tests were reviewed and which need review: each test's button
+    // marks it as reviewed or, once it is, says so and takes that back; a
+    // flagged test says that it needs review; the headers count both, and a
+    // banner marks all flagged tests.
+    function showReviewStatus(status) {
+      const needsReview = status.needsReview || {};
+      const reviewed = status.reviewed || {};
+      for (const row of document.querySelectorAll("details.test[data-test-id]")) {
+        const changed = needsReview[row.dataset.testId];
+        const marked = !changed && Object.prototype.hasOwnProperty.call(reviewed, row.dataset.testId);
+        row.classList.toggle("needs-review", !!changed);
+        row.classList.toggle("reviewed", marked);
+        const flag = row.querySelector(".review-flag");
+        flag.textContent = changed ? "needs review" : "";
+        flag.title = changed ? "Changed since this test was last reviewed: " + changed.join(", ") : "";
+        const button = row.querySelector("button.mark-reviewed");
+        const day = marked ? reviewed[row.dataset.testId] : "";
+        button.textContent = marked ? "\u2714 Reviewed" : "Mark as reviewed";
+        button.title = marked
+          ? "You marked this test as reviewed" + (day ? " on " + day : "") + ". ${UNMARK_TOOLTIP}."
+          : changed ? "${MARK_FLAGGED_TOOLTIP}" : "${MARK_TOOLTIP}";
+      }
+      const needing = (count) => count === 1 ? "1 test needs review" : count + " tests need review";
+      for (const header of document.querySelectorAll("details.unit, details.function")) {
+        const count = header.querySelectorAll("details.test.needs-review").length;
+        header.querySelector(":scope > summary .review-count").textContent = count ? needing(count) : "";
+        const markable = header.querySelectorAll("details.test[data-test-id]").length;
+        const done = header.querySelectorAll("details.test.reviewed").length;
+        const progress = header.querySelector(":scope > summary .reviewed-count");
+        progress.textContent = markable ? done + " of " + markable + " reviewed" : "";
+        progress.classList.toggle("all", markable > 0 && done === markable);
+      }
+      const total = document.querySelectorAll("details.test.needs-review").length;
+      const banner = document.getElementById("review-banner");
+      banner.hidden = total === 0;
+      banner.querySelector(".text").textContent = needing(total) + ": a requirement " +
+        (total === 1 ? "it is" : "they are") + " linked to changed. Check that " +
+        (total === 1 ? "it still fits" : "they still fit") + " it.";
+      banner.querySelector("button").textContent = total === 1 ? "Mark as reviewed" : "Mark all " + total + " as reviewed";
+    }
+    showReviewStatus(${initialReviewStatus});
     // The extension says which checked tests changed since the check: a
     // banner with a re-run button, and a mark on those tests and their headers.
     window.addEventListener("message", (event) => {
       const message = event.data;
+      if (message && message.type === "review-status") showReviewStatus(message);
       if (!message || message.type !== "stale") return;
       let count = 0;
       for (const testId of message.testIds) {
