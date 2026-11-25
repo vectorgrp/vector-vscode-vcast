@@ -511,8 +511,10 @@ jobs:
           TOOL_VERSION=$(head -n1 "$RELEASE_DIR/DATA/tool_version.txt" | grep -oE '^[0-9]+')
           USE_VCAST_24=$([ "$TOOL_VERSION" -ge 24 ] && echo "True" || echo "False")
           USE_VCAST_25=$([ "$TOOL_VERSION" -ge 25 ] && echo "True" || echo "False")
+          USE_VCAST_27=$([ "$TOOL_VERSION" -ge 27 ] && echo "True" || echo "False")
           echo "USE_VCAST_24=$USE_VCAST_24" >> $GITHUB_ENV
           echo "USE_VCAST_25=$USE_VCAST_25" >> $GITHUB_ENV
+          echo "USE_VCAST_27=$USE_VCAST_27" >> $GITHUB_ENV
         shell: bash
       
       - name: Load hidden env vars

@@ -18,6 +18,7 @@ import { Key } from "webdriverio";
 import expectedBasisPathTests from "../basis_path_tests.json";
 import expectedAtgTests from "../atg_tests.json";
 import expectedAtgTests26 from "../atg_tests_26.json";
+import expectedAtgTests27 from "../atg_tests_27.json";
 import { getToolVersion } from "../../../../unit/getToolversion";
 
 // Local VM takes longer and needs a higher TIMEOUT
@@ -981,6 +982,10 @@ export async function getAllExpectedTests(testGenMethodText: string) {
   }
   // ATG output drifted in vc26 (reworded notes, dropped some TEST.VALUE lines)
   const toolVersion = await getToolVersion();
+  // vc27 ATG picks Table 0 instead of 4 for DataBase::GetTableRecord
+  if (toolVersion >= 27) {
+    return expectedAtgTests27;
+  }
   if (toolVersion >= 26) {
     return expectedAtgTests26;
   }
@@ -1495,6 +1500,7 @@ export async function selectItem(contentAssist: ContentAssist, item: string) {
 
   if (itemIndex === -1) {
     console.log(`Content assist item ${item} not found`);
+    console.log(`Available items:\n${normalizedLabels.join("\n---\n")}`);
     return undefined;
   }
 

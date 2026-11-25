@@ -135,7 +135,8 @@ export const config: Options.Testrunner = {
   specs: getSpecs(
     process.env.USE_VCAST_24 === "True",
     groupName,
-    process.env.USE_VCAST_25 === "True"
+    process.env.USE_VCAST_25 === "True",
+    process.env.USE_VCAST_27 === "True"
   ),
   // Patterns to exclude.
   // exclude:

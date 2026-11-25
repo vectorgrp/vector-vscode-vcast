@@ -7,12 +7,20 @@ export const newestVCRelease = "2024sp5";
  *                   requirements-related groups (requirements, manage,
  *                   manage_server), which depend on reqs2x behaviour only
  *                   available from VC25 onwards.
+ * @param useVcast27 Boolean whether release 27 or higher is used. Gates the
+ *                   ATG line-test spec: only from VC27 onwards does the
+ *                   release's own atg support targeting a single line.
  * @returns Returns all spec groups.
  */
 export function getSpecGroups(
   useVcast24: boolean,
-  useVcast25: boolean = false
+  useVcast25: boolean = false,
+  useVcast27: boolean = false
 ) {
+  const atgLineTestSpecs = useVcast27
+    ? ["./**/**/vcast_atg_line_test.test.ts"]
+    : [];
+
   const specGroups = {
     basic_user_interactions: {
       specs: [
@@ -25,6 +33,7 @@ export function getSpecGroups(
         "./**/**/vcast.third_test.test.ts",
         "./**/**/vcast.rest.test.ts",
         "./**/**/vcast.rest_2.test.ts",
+        ...atgLineTestSpecs,
         "./**/**/vcast.rest_3.test.ts",
       ],
       env: {
@@ -162,6 +171,7 @@ export function getSpecGroups(
         "./**/**/vcast.third_test.test.ts",
         "./**/**/vcast.rest.test.ts",
         "./**/**/vcast.rest_2.test.ts",
+        ...atgLineTestSpecs,
         "./**/**/vcast.rest_3.test.ts",
       ],
       env: {
@@ -432,14 +442,16 @@ export function getEnvVarsForGroup(
  * @param vcast24 Boolean whether release 24 or higher is used.
  * @param group Name of a spec group.
  * @param vcast25 Boolean whether release 25 or higher is used.
+ * @param vcast27 Boolean whether release 27 or higher is used.
  * @returns
  */
 export function getSpecs(
   vcast24: boolean,
   group: string = null,
-  vcast25: boolean = false
+  vcast25: boolean = false,
+  vcast27: boolean = false
 ) {
-  const specGroups = getSpecGroups(vcast24, vcast25);
+  const specGroups = getSpecGroups(vcast24, vcast25, vcast27);
 
   if (group != null) {
     // Check if the group exists and has a 'specs' key; otherwise, return an empty array
