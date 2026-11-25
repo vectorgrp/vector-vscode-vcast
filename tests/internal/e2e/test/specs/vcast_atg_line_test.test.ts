@@ -9,13 +9,15 @@
 //   - the editor highlight and the status bar item that mirror the state,
 //   - the ways of leaving the mode (panel Cancel, status bar quick pick,
 //     hiding the panel),
-//   - and, when the installed atg supports targeted lines and an LLM provider
-//     is configured, generating/loading/revealing/deleting a test, and checking
-//     that a true vs false outcome on a simple branch reaches it accordingly.
+//   - and, when an LLM provider is configured, generating/loading/revealing/
+//     deleting a test, and checking that a true vs false outcome on a simple
+//     branch reaches it accordingly.
 //
-// The spec runs inside the basic_user_interactions group on the
+// The spec runs inside the basic_user_interactions groups on the
 // DATABASE-MANAGER environment built by the earlier specs and leaves the
-// environment as it found it (the generated test is deleted again).
+// environment as it found it (the generated test is deleted again). It is
+// only part of those groups from VectorCAST 2027 onwards (see specs_config):
+// that is the first release whose own atg can target a single line.
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import * as fs from "node:fs";
@@ -86,6 +88,10 @@ const AZURE_API_VERSION = "2024-12-01-preview";
 
 // atg with the LLM path search can take several minutes to produce a test.
 const GENERATE_TIMEOUT = 600_000;
+
+// Why the generation tests are skipped when the provider was not configured.
+const NO_LLM_PROVIDER =
+  "no LLM provider configured (OPENAI_API_KEY / AZURE_BASE_URL)";
 
 type AtgPanel = Awaited<ReturnType<Workbench["getAllWebviews"]>>[number];
 
@@ -688,12 +694,10 @@ describe("vTypeCheck VS Code Extension", () => {
     await updateTestID();
     if (!atgAvailable) return;
 
-    // When PyATG and an LLM provider are actually present, run for real and let
-    // a failure be a failure. Skip only when a prerequisite is genuinely
-    // missing (local dev, or a group without the PyATG checkout).
-    const prereq = await generationPrerequisites();
-    if (!prereq.ok) {
-      console.log(`Skipping ATG line test generation: ${prereq.reason}`);
+    // With an LLM provider configured, run for real and let a failure be a
+    // failure. Skip only when there is none (local dev without credentials).
+    if (!llmConfigured) {
+      console.log(`Skipping ATG line test generation: ${NO_LLM_PROVIDER}`);
       return;
     }
 
@@ -771,9 +775,8 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should reach the branch TRUE outcome", async () => {
     await updateTestID();
     if (!atgAvailable) return;
-    const prereq = await generationPrerequisites();
-    if (!prereq.ok) {
-      console.log(`Skipping the TRUE range check: ${prereq.reason}`);
+    if (!llmConfigured) {
+      console.log(`Skipping the TRUE range check: ${NO_LLM_PROVIDER}`);
       return;
     }
 
@@ -791,9 +794,8 @@ describe("vTypeCheck VS Code Extension", () => {
   it("should reach the branch FALSE outcome", async () => {
     await updateTestID();
     if (!atgAvailable) return;
-    const prereq = await generationPrerequisites();
-    if (!prereq.ok) {
-      console.log(`Skipping the FALSE range check: ${prereq.reason}`);
+    if (!llmConfigured) {
+      console.log(`Skipping the FALSE range check: ${NO_LLM_PROVIDER}`);
       return;
     }
 
@@ -1263,49 +1265,6 @@ describe("vTypeCheck VS Code Extension", () => {
   }
 
   /**
-   * Whether ATG line-test generation is expected to work: PyATG is wired
-   * (VCAST_ATG_DEV_PATH, the extension's override for the line test's atg,
-   * points at a real file), an LLM provider is configured, and the release's
-   * bundled Python is new enough to run PyATG. When all hold the generation
-   * tests run for real and a failure is a real failure; otherwise they are
-   * skipped with a logged reason (local dev, a group without PyATG, or a
-   * release whose Python is too old).
-   */
-  async function generationPrerequisites(): Promise<{
-    ok: boolean;
-    reason: string;
-  }> {
-    const atgPath = process.env.VCAST_ATG_DEV_PATH;
-    if (!atgPath || !fs.existsSync(atgPath)) {
-      return {
-        ok: false,
-        reason:
-          "PyATG is not wired (VCAST_ATG_DEV_PATH unset or missing); the release atg cannot target a line",
-      };
-    }
-
-    if (!llmConfigured) {
-      return {
-        ok: false,
-        reason: "no LLM provider configured (OPENAI_API_KEY / AZURE_BASE_URL)",
-      };
-    }
-
-    // PyATG uses typing.Self, which only exists in Python 3.11+. Some releases
-    // bundle an older vpython that cannot import it (atg then exits with an
-    // ImportError), so generation genuinely cannot run on those.
-    const python = await vpythonVersion();
-    if (!python.atLeast311) {
-      return {
-        ok: false,
-        reason: `PyATG needs Python 3.11+, but this release's vpython is ${python.version}`,
-      };
-    }
-
-    return { ok: true, reason: "" };
-  }
-
-  /**
    * Whether the atg the extension runs for the line test supports LLM_PATHS,
    * using the extension's own probe (`atg --help-dev` lists --llm-paths) and
    * environment (see atgLineTestEnvironment): VCAST_ATG_PATH is dropped, and
@@ -1326,31 +1285,6 @@ describe("vTypeCheck VS Code Extension", () => {
       return `${stdout}${stderr}`.includes("--llm-paths");
     } catch {
       return false;
-    }
-  }
-
-  /** The release vpython's Python version and whether it is >= 3.11. */
-  async function vpythonVersion(): Promise<{
-    version: string;
-    atLeast311: boolean;
-  }> {
-    const vpython = path.join(process.env.VECTORCAST_DIR ?? "", "vpython");
-    try {
-      // Parse a marker rather than raw stdout: vpython can print a banner (e.g.
-      // a VECTORCAST_DIR mismatch warning) before the version.
-      const { stdout, stderr } = await promisifiedExec(
-        `"${vpython}" -c "import sys; print('PYVER=%d.%d' % sys.version_info[:2])"`
-      );
-      const match = /PYVER=(\d+)\.(\d+)/.exec(`${stdout}\n${stderr}`);
-      if (!match) return { version: "unknown", atLeast311: false };
-      const major = Number(match[1]);
-      const minor = Number(match[2]);
-      return {
-        version: `${major}.${minor}`,
-        atLeast311: major > 3 || (major === 3 && minor >= 11),
-      };
-    } catch {
-      return { version: "unknown", atLeast311: false };
     }
   }
 
