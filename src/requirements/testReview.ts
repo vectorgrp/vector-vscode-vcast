@@ -29,28 +29,23 @@ import {
   groupMarkdown,
   lastToolError,
   lineHoverMarkdown,
-  localDay,
-  MARK_FLAGGED_TOOLTIP,
   MARK_TOOLTIP,
   parseTests2checkResult,
   ranLinesFromCoverage,
   RequirementData,
-  requirementsText,
   ReviewedTest,
   reviewLineColors,
   reviewMarkdown,
   UNMARK_TOOLTIP,
 } from "./testReviewData";
+import { checkReportHtml, ReportGroup } from "./testReviewReport";
 import {
-  checkReportHtml,
-  ReportGroup,
-  ReportReviewStatus,
-} from "./testReviewReport";
-import {
+  isReviewed,
+  MARK_TEST_COMMAND,
   markTestsAsReviewed,
   onDidChangeReviewFlags,
   requirementsNeedingReview,
-  reviewedAt,
+  UNMARK_TEST_COMMAND,
   unmarkTestsAsReviewed,
 } from "./reviewFlags";
 import { getNonce } from "../webviewUtils";
@@ -184,19 +179,10 @@ function commentBody(target: ReviewTarget): vscode.MarkdownString {
     target.tests.length === 1
       ? reviewMarkdown(target.tests[0].data)
       : groupMarkdown(target.title, target.tests, {
-          flagged: new Map(
-            flaggedTestsOf(target).map(({ testId, changed }) => [
-              testId,
-              changed,
-            ])
-          ),
-          reviewed: new Set(
-            target.tests.flatMap((test) =>
-              test.testId && reviewedAt(test.testId) ? [test.testId] : []
-            )
-          ),
-          markCommand: MARK_REVIEWED_COMMAND,
-          unmarkCommand: UNMARK_REVIEWED_COMMAND,
+          changed: requirementsNeedingReview,
+          reviewed: isReviewed,
+          markCommand: MARK_TEST_COMMAND,
+          unmarkCommand: UNMARK_TEST_COMMAND,
         });
   const body = new vscode.MarkdownString(
     staleLineMarkdown(target) +
@@ -213,7 +199,8 @@ function commentBody(target: ReviewTarget): vscode.MarkdownString {
       RERUN_COMMAND,
       REFRESH_COMMAND,
       MARK_REVIEWED_COMMAND,
-      UNMARK_REVIEWED_COMMAND,
+      MARK_TEST_COMMAND,
+      UNMARK_TEST_COMMAND,
     ],
   };
   return body;
@@ -481,123 +468,80 @@ export async function rerunReview(): Promise<void> {
   await currentReview?.rerun?.();
 }
 
-// ---- Human review of the tests --------------------------------------------
+// ---- A person's own review of the tests -----------------------------------
 
-// "Mark as reviewed": the command of the comment's button and links and of
-// the thread's title button, which shows while the review has a test to mark
-// with it. A link in the group comment's table names its test.
+// "Mark as reviewed": the command of the comment's button and of the
+// thread's title button, which shows while the review has tests to mark.
 export const MARK_REVIEWED_COMMAND =
   "vectorcastTestExplorer.markReviewAsReviewed";
-// "Undo" on a test marked as reviewed, which the link names.
-export const UNMARK_REVIEWED_COMMAND =
-  "vectorcastTestExplorer.markReviewAsNotReviewed";
 const CAN_MARK_CONTEXT = "vectorcastTestExplorer.reviewNeedsReview";
 const MARK_REVIEWED_SVG =
   // a check mark: the test was looked at and is fine
   `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='18' viewBox='0 0 24 18'>${BUTTON_BOX}` +
   "<path d='M7.2 9.4l3.2 3.2 6.4-7' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
-// The review's tests VectorCAST flags for review, each with the keys of its
-// changed requirements.
-function flaggedTestsOf(
-  target: ReviewTarget
-): { testId: string; title: string; changed: string[] }[] {
-  return target.tests.flatMap((test) => {
-    const changed = test.testId ? requirementsNeedingReview(test.testId) : [];
-    return test.testId && changed.length
-      ? [{ testId: test.testId, title: test.data.title, changed }]
-      : [];
-  });
-}
+// The review's tests that are in the test tree, and those of them that
+// VectorCAST flags for review.
+const testIdsOf = (target: ReviewTarget): string[] =>
+  target.tests.flatMap((test) => (test.testId ? [test.testId] : []));
+const flaggedTestsOf = (target: ReviewTarget): string[] =>
+  testIdsOf(target).filter((id) => requirementsNeedingReview(id).length > 0);
 
-// What "Mark as reviewed" without a test marks: a single test's review that
-// test, unless it is marked already; a group's review its flagged tests.
-// The other tests of a group are marked one by one, in its table.
-function testsMarkedTogether(target: ReviewTarget): string[] {
-  const flagged = flaggedTestsOf(target).map((test) => test.testId);
+// What the button marks: the flagged tests, else the test of a single test's
+// review that is not marked yet. The other tests of a function's or unit's
+// review are marked one by one, in its table.
+function testsToMark(target: ReviewTarget): string[] {
+  const flagged = flaggedTestsOf(target);
   if (flagged.length || target.tests.length !== 1) return flagged;
-  const testId = target.tests[0].testId;
-  return testId && !reviewedAt(testId) ? [testId] : [];
+  return testIdsOf(target).filter((id) => !isReviewed(id));
 }
 
 function publishCanMarkReviewed(target: ReviewTarget | undefined): void {
   void vscode.commands.executeCommand(
     "setContext",
     CAN_MARK_CONTEXT,
-    !!target && testsMarkedTogether(target).length > 0
+    !!target && testsToMark(target).length > 0
   );
 }
 
-// At the top of a review, what a person's own review of its tests stands at.
-// With tests flagged for review: why they are, and the button that marks
-// them as reviewed. Else, for a single test: that button, or that the test
-// was marked, since when, and the link that takes it back. A group's other
-// tests say so, and are marked, in its table.
+// At the top of a review, what a person's own review of its tests stands at:
+// why tests are flagged for review, with the button that marks them; else,
+// for a single test, that button or that the test was marked, with the link
+// that takes the mark back.
 function humanReviewMarkdown(target: ReviewTarget): string {
   const flagged = flaggedTestsOf(target);
   const single = target.tests.length === 1;
-  const button = (tooltip: string) =>
-    imageButton(MARK_REVIEWED_SVG, MARK_REVIEWED_COMMAND, tooltip);
-  if (flagged.length === 0) {
-    const testId = single ? target.tests[0].testId : undefined;
-    if (!testId) return "";
-    const at = reviewedAt(testId);
-    if (!at)
-      return `&nbsp;&nbsp;${button(MARK_TOOLTIP)} &nbsp;Mark as reviewed\n\n`;
-    const day = localDay(at);
-    return noticeMarkdown(
-      "infoBackground",
-      "$(pass) **Reviewed**",
-      `You marked this test as reviewed${day ? ` on ${day}` : ""}. ` +
-        `[Undo](${commandUri(UNMARK_REVIEWED_COMMAND, [testId])} "${UNMARK_TOOLTIP}")`
+  const markButton = (caption: string) =>
+    `&nbsp;&nbsp;${imageButton(MARK_REVIEWED_SVG, MARK_REVIEWED_COMMAND, MARK_TOOLTIP)} &nbsp;${caption}\n\n`;
+  if (flagged.length) {
+    const changed = new Set(flagged.flatMap(requirementsNeedingReview));
+    return (
+      noticeMarkdown(
+        "warningBackground",
+        "$(eye) **Needs review**",
+        `${[...changed].map(escapeMarkdown).join(", ")} changed. Check that ` +
+          `${single ? "this test still fits" : "the flagged tests still fit"}.`
+      ) +
+      markButton(
+        single ? "Mark as reviewed" : "Mark the flagged tests as reviewed"
+      )
     );
   }
-  const changed = [...new Set(flagged.flatMap((test) => test.changed))].map(
-    escapeMarkdown
-  );
-  const why = single
-    ? `${requirementsText(changed)} changed. Check that this test still fits ${changed.length === 1 ? "it" : "them"}.`
-    : `${flagged.length} of these tests ${flagged.length === 1 ? "is" : "are"} linked to a requirement that changed (${changed.join(", ")}). Check that ${flagged.length === 1 ? "it still fits" : "they still fit"} it.`;
-  // Starts the sentence after the highlighted words
-  const sentence = why.charAt(0).toUpperCase() + why.slice(1);
-  let caption = `Mark all ${flagged.length} as reviewed`;
-  if (flagged.length === 1) {
-    caption = single
-      ? "Mark as reviewed"
-      : `Mark ${escapeMarkdown(flagged[0].title)} as reviewed`;
-  }
-  return (
-    noticeMarkdown("warningBackground", "$(eye) **Needs review**", sentence) +
-    `&nbsp;&nbsp;${button(MARK_FLAGGED_TOOLTIP)} &nbsp;${caption}\n\n`
+  const [testId] = single ? testIdsOf(target) : [];
+  if (!testId) return "";
+  if (!isReviewed(testId)) return markButton("Mark as reviewed");
+  return noticeMarkdown(
+    "infoBackground",
+    "$(pass) **Reviewed**",
+    "You marked this test as reviewed. " +
+      `[Undo](${commandUri(UNMARK_TEST_COMMAND, [{ id: testId }])} "${UNMARK_TOOLTIP}")`
   );
 }
 
-/**
- * "Mark as reviewed" of the open review: marks the test a link in the group
- * comment's table names; without one (the button, the thread's title button,
- * which passes its thread) the single test or the group's flagged tests.
- */
-export async function markReviewAsReviewed(testId?: unknown): Promise<void> {
-  const review = currentReview;
-  if (!review) return;
-  if (typeof testId !== "string") {
-    const tests = testsMarkedTogether(review);
-    if (tests.length) await markTestsAsReviewed(tests);
-    return;
-  }
-  if (review.tests.some((test) => test.testId === testId)) {
-    await markTestsAsReviewed([testId]);
-  }
-}
-
-/** "Undo" on a test of the open review that is marked as reviewed. */
-export function markReviewAsNotReviewed(testId?: unknown): void {
-  if (
-    typeof testId === "string" &&
-    currentReview?.tests.some((test) => test.testId === testId)
-  ) {
-    unmarkTestsAsReviewed([testId]);
-  }
+/** The button's command; the thread's title button passes its thread. */
+export async function markReviewAsReviewed(): Promise<void> {
+  const tests = currentReview ? testsToMark(currentReview) : [];
+  if (tests.length) await markTestsAsReviewed(tests);
 }
 
 /**
@@ -610,10 +554,7 @@ export function registerReviewFlagUpdates(
   context.subscriptions.push(
     onDidChangeReviewFlags(() => {
       if (currentReview) refreshReviewThread(currentReview);
-      void reportPanel?.webview.postMessage({
-        type: "review-status",
-        ...reportReviewStatus(),
-      });
+      postReviewStatus();
     })
   );
 }
@@ -1084,17 +1025,19 @@ let reportHandlers: CheckReportHandlers | undefined;
 // The node IDs of the report's tests
 let reportTestIds: string[] = [];
 
-// Which of the report's tests need review, and which are marked as reviewed.
-function reportReviewStatus(): ReportReviewStatus {
+// Tells the report which of its tests need review and which are marked as
+// reviewed.
+function postReviewStatus(): void {
   const needsReview: Record<string, string[]> = {};
-  const reviewed: Record<string, string> = {};
   for (const testId of reportTestIds) {
     const changed = requirementsNeedingReview(testId);
     if (changed.length) needsReview[testId] = changed;
-    const at = reviewedAt(testId);
-    if (at && !changed.length) reviewed[testId] = localDay(at);
   }
-  return { needsReview, reviewed };
+  void reportPanel?.webview.postMessage({
+    type: "review-status",
+    needsReview,
+    reviewed: reportTestIds.filter(isReviewed),
+  });
 }
 
 /** Brings the last report back, if there is one. */
@@ -1160,15 +1103,15 @@ export function showCheckReport(
               : undefined
           );
         if (message?.type === "rerun") void reportHandlers.rerun();
-        // "Mark as reviewed" on a test, or on the banner for all flagged
-        // ones, and a marked test's button, which takes the mark back.
-        const named = (): string[] =>
-          Array.isArray(message?.testIds)
-            ? reportTestIds.filter((testId) => message.testIds.includes(testId))
-            : [];
-        if (message?.type === "mark-reviewed" && named().length)
-          void markTestsAsReviewed(named());
-        if (message?.type === "unmark-reviewed") unmarkTestsAsReviewed(named());
+        if (message?.type === "ready") postReviewStatus();
+        // "Mark as reviewed" on a test or, for all flagged tests, on the
+        // banner; on a marked test the button takes the mark back.
+        const testIds = reportTestIds.filter((testId) =>
+          message?.testIds?.includes?.(testId)
+        );
+        if (message?.type === "mark-reviewed" && testIds.length)
+          void markTestsAsReviewed(testIds);
+        if (message?.type === "unmark-reviewed") unmarkTestsAsReviewed(testIds);
       },
       undefined,
       context.subscriptions
@@ -1179,7 +1122,6 @@ export function showCheckReport(
     scope,
     groups,
     unchecked,
-    reviewStatus: reportReviewStatus(),
     nonce: getNonce(),
     cspSource: reportPanel.webview.cspSource,
   });

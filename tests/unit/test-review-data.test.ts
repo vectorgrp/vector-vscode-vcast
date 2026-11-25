@@ -4,11 +4,9 @@ import {
   groupMarkdown,
   lastToolError,
   lineHoverMarkdown,
-  localDay,
   parseReviewFlags,
   parseTests2checkResult,
   ranLinesFromCoverage,
-  requirementsText,
   resultIdentity,
   reviewFlagKey,
   reviewLineColors,
@@ -279,6 +277,17 @@ describe("an Ada subunit file", () => {
   });
 });
 
+// A person's own review of the tests, as the group comment's table takes it:
+// no test flagged for review or marked as reviewed, unless told.
+const reviewState = (
+  state: { changed?: string[]; reviewed?: boolean } = {}
+) => ({
+  changed: () => state.changed ?? [],
+  reviewed: () => state.reviewed ?? false,
+  markCommand: "ext.mark",
+  unmarkCommand: "ext.unmark",
+});
+
 describe("the group comment's overall mark", () => {
   const withVerdict = (name: string, verdict: string) => ({
     data: parseTests2checkResult(
@@ -290,19 +299,21 @@ describe("the group comment's overall mark", () => {
   });
 
   test("is a pass when every test passed", () => {
-    const markdown = groupMarkdown("manager.Place_Order", [
-      withVerdict("A", "PASS"),
-      withVerdict("B", "PASS"),
-    ]);
+    const markdown = groupMarkdown(
+      "manager.Place_Order",
+      [withVerdict("A", "PASS"), withVerdict("B", "PASS")],
+      reviewState()
+    );
     expect(markdown).toContain("#### ✅ manager.Place\\_Order");
     expect(markdown).toContain("2 passed, 0 failed");
   });
 
   test("is undecided when no test failed but one has no verdict", () => {
-    const markdown = groupMarkdown("manager.Place_Order", [
-      withVerdict("A", "PASS"),
-      withVerdict("B", ""),
-    ]);
+    const markdown = groupMarkdown(
+      "manager.Place_Order",
+      [withVerdict("A", "PASS"), withVerdict("B", "")],
+      reviewState()
+    );
     expect(markdown).toContain("#### ℹ️ manager.Place\\_Order");
     expect(markdown).toContain("1 passed, 0 failed, 1 undecided");
   });
@@ -464,11 +475,11 @@ describe("a review of several tests", () => {
   });
 
   test("tabulates the tests and their requirements in the comment", () => {
-    const markdown = groupMarkdown("manager.Place_Order", tests);
+    const markdown = groupMarkdown("manager.Place_Order", tests, reviewState());
     expect(markdown).toContain("#### ❌ manager.Place\\_Order");
     expect(markdown).toContain("1 passed, 1 failed");
     expect(markdown).toContain('<table width="100%">');
-    expect(markdown).toContain('width="56%"');
+    expect(markdown).toContain('width="44%"');
     expect(markdown).toContain(
       '<td style="color:var(--vscode-testing-iconPassed);"><b>✅ PASS</b></td><td>STEAK</td><td>✅ FR-1</td>'
     );
@@ -498,18 +509,15 @@ describe("a review of several tests", () => {
     expect(lineHoverMarkdown([], "ext.focus")).toBeUndefined();
   });
 
-  const steakArgument = encodeURIComponent(JSON.stringify([tests[0].testId]));
+  // The link of the steak test's row, which names the test's node.
+  const steakLink = (command: string) =>
+    `<a href="command:${command}?${encodeURIComponent(JSON.stringify([{ id: tests[0].testId }]))}"`;
 
-  test("has a last column that marks each test of the test tree as reviewed", () => {
-    const markdown = groupMarkdown("manager.Place_Order", tests, {
-      flagged: new Map(),
-      markCommand: "ext.mark",
-      unmarkCommand: "ext.unmark",
-    });
-    expect(markdown).toContain('width="18%"');
+  test("marks each test of the test tree as reviewed in the last column", () => {
+    const markdown = groupMarkdown("manager.Place_Order", tests, reviewState());
     expect(markdown).toContain(">Reviewed</th></tr></thead>");
     expect(markdown).toContain(
-      `<td>STEAK</td><td>✅ FR-1</td><td><a href="command:ext.mark?${steakArgument}" ` +
+      `<td>STEAK</td><td>✅ FR-1</td><td>${steakLink("ext.mark")} ` +
         'title="You reviewed this test">Mark&nbsp;as&nbsp;reviewed</a></td></tr>'
     );
     // A test that is not in the tree cannot be marked.
@@ -523,63 +531,33 @@ describe("a review of several tests", () => {
   });
 
   test("says of a test marked as reviewed that it is, with a link that takes that back", () => {
-    const markdown = groupMarkdown("manager.Place_Order", tests, {
-      flagged: new Map(),
-      reviewed: new Set([tests[0].testId!]),
-      markCommand: "ext.mark",
-      unmarkCommand: "ext.unmark",
-    });
+    const markdown = groupMarkdown(
+      "manager.Place_Order",
+      tests,
+      reviewState({ reviewed: true })
+    );
     expect(markdown).toContain(
       '<td><span style="color:var(--vscode-testing-iconPassed);">✔&nbsp;Reviewed</span>' +
-        `&nbsp;&nbsp;<a href="command:ext.unmark?${steakArgument}" title="Take the reviewed mark back">Undo</a></td>`
+        `&nbsp;&nbsp;${steakLink("ext.unmark")} title="Take the reviewed mark back">Undo</a></td>`
     );
     expect(markdown).toContain("1 of 1 reviewed");
     expect(markdown).not.toContain("ext.mark?");
   });
 
-  test("says below a flagged test's name that it needs review, and marks it in the last column", () => {
-    const markdown = groupMarkdown("manager.Place_Order", tests, {
-      flagged: new Map([[tests[0].testId!, ["FR-1", "FR <2>"]]]),
-      // A mark from before the requirement changed does not count.
-      reviewed: new Set([tests[0].testId!]),
-      markCommand: "ext.mark",
-      unmarkCommand: "ext.unmark",
-    });
+  test("says below a flagged test's name that it needs review", () => {
+    const markdown = groupMarkdown(
+      "manager.Place_Order",
+      tests,
+      reviewState({ changed: ["FR-1", "FR <2>"] })
+    );
     expect(markdown).toContain(
       '<td>STEAK<br><span style="color:var(--vscode-editorWarning-foreground);">' +
-        "Needs review:</span> requirements FR-1 and FR &lt;2&gt; changed</td>"
+        "Needs review:</span> FR-1, FR &lt;2&gt; changed</td>"
     );
-    expect(markdown).toContain(
-      `<td><a href="command:ext.mark?${steakArgument}" ` +
-        'title="You checked that this test still fits the changed requirement">Mark&nbsp;as&nbsp;reviewed</a></td>'
-    );
-    expect(markdown).toContain("0 of 1 reviewed");
-    expect(markdown).not.toContain("✔&nbsp;Reviewed");
-    // The test that is not flagged, and not in the tree, says nothing.
+    expect(markdown).toContain(steakLink("ext.mark"));
+    // Not the test that is not in the tree.
     expect(markdown).toContain("<td>CHICKEN</td>");
     expect(markdown.match(/Needs review/g)).toHaveLength(1);
-  });
-
-  test("flags a test without a link when there is no command to mark it", () => {
-    const markdown = groupMarkdown("manager.Place_Order", tests, {
-      flagged: new Map([[tests[0].testId!, ["FR-1"]]]),
-    });
-    expect(markdown).toContain(
-      "Needs review:</span> requirement FR-1 changed</td>"
-    );
-    expect(markdown).not.toContain("<a ");
-  });
-
-  test("says nothing of the tests' review when it is not told about it", () => {
-    const markdown = groupMarkdown("manager.Place_Order", tests);
-    expect(markdown).not.toContain("Needs review");
-    expect(markdown).not.toContain("eviewed");
-    expect(markdown.match(/<th /g)).toHaveLength(3);
-  });
-
-  test("names the day of a mark, and none for a time it cannot read", () => {
-    expect(localDay("2026-03-07T09:05:00")).toBe("2026-03-07");
-    expect(localDay("not a time")).toBe("");
   });
 });
 
@@ -667,16 +645,6 @@ describe("the tests VectorCAST flags for review", () => {
         },
       }).size
     ).toBe(0);
-  });
-
-  test("are named with their changed requirements", () => {
-    expect(requirementsText(["FR-1"])).toBe("requirement FR-1");
-    expect(requirementsText(["FR-1", "FR-2"])).toBe(
-      "requirements FR-1 and FR-2"
-    );
-    expect(requirementsText(["FR-1", "FR-2", "FR-3"])).toBe(
-      "requirements FR-1, FR-2 and FR-3"
-    );
   });
 });
 
@@ -931,47 +899,14 @@ describe("the batch check report", () => {
     );
     // A marked test's button takes the mark back.
     expect(html).toContain('? "unmark-reviewed" : "mark-reviewed"');
+    // Which tests are marked or flagged the page asks for.
+    expect(html).toContain('vscode.postMessage({ type: "ready" });');
     // Each unit and function header counts the reviewed and the flagged
     // tests under it.
     expect(html.match(/<span class="reviewed-count"><\/span>/g)).toHaveLength(
       3
     );
     expect(html.match(/<span class="review-count"><\/span>/g)).toHaveLength(3);
-  });
-
-  test("starts with no test flagged or marked as reviewed unless told which are", () => {
-    expect(html).toContain(
-      'showReviewStatus({"needsReview":{},"reviewed":{}});'
-    );
-  });
-
-  test("starts with the given tests flagged or marked as reviewed", () => {
-    const page = checkReportHtml({
-      scope: "manager",
-      groups: [
-        {
-          unitName: "manager",
-          functionName: "Place_Order",
-          tests: [
-            { testId: "vcast:/env|manager.Place_Order.T<1", data: passed },
-          ],
-        },
-      ],
-      reviewStatus: {
-        needsReview: {
-          "vcast:/env|manager.Place_Order.T<1": ["FR-1", "</script>"],
-        },
-        reviewed: { "vcast:/env|manager.Clear_Table.TEST_1": "2026-11-24" },
-      },
-      nonce: "n0nce",
-      cspSource: "vscode-resource:",
-    });
-    // What it starts with cannot end the script it is written into.
-    expect(page).toContain(
-      'showReviewStatus({"needsReview":{"vcast:/env|manager.Place_Order.T\\u003c1":["FR-1","\\u003c/script>"]},' +
-        '"reviewed":{"vcast:/env|manager.Clear_Table.TEST_1":"2026-11-24"}});'
-    );
-    expect(page.match(/<\/script>/g)).toHaveLength(1);
   });
 
   test("says how many tests it left out for lack of a linked requirement, and which on hover", () => {

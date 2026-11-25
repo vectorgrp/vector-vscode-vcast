@@ -105,7 +105,7 @@ export function reviewLineColors(input: RequirementData | RequirementData[]): {
   return { covered, uncovered };
 }
 
-// ---- Tests flagged for review -------------------------------------------
+// ---- A person's own review of the tests ---------------------------------
 
 // The functions holding the tests of no unit. VectorCAST records them under
 // a unit all the same (the one its script named last), so the unit is not
@@ -159,35 +159,23 @@ export function parseReviewFlags(exportData: unknown): Map<string, string[]> {
 }
 
 /**
- * The tests of an environment whose reviewed mark no longer holds: those
- * VectorCAST flags for review, as a requirement they are linked to changed
- * after they were marked, and those that are gone. `tests` are the
- * environment's tests when its test tree was just built; without it, or
- * while it has none (an environment that failed to load), no test counts as
- * gone. Node IDs throughout; `prefix` starts those of the environment.
+ * The marked tests of an environment (its node IDs start with `prefix`)
+ * whose reviewed mark no longer holds: those VectorCAST flags for review, and
+ * those that are gone. Whether a test is gone is only known with `tests`, the
+ * environment's tests when its tree was just built, and not while it shows
+ * none at all, as an environment that failed to load does.
  */
 export function staleReviewMarks(
   marked: Iterable<string>,
   prefix: string,
   flagged: { has(testId: string): boolean },
-  tests?: { has(testId: string): boolean; size: number }
+  tests?: Set<string>
 ): string[] {
-  const known = tests && tests.size > 0 ? tests : undefined;
+  const gone = (testId: string) => !!tests?.size && !tests.has(testId);
   return [...marked].filter(
     (testId) =>
-      testId.startsWith(prefix) &&
-      (flagged.has(testId) || (known !== undefined && !known.has(testId)))
+      testId.startsWith(prefix) && (flagged.has(testId) || gone(testId))
   );
-}
-
-// "requirement FR-1", "requirements FR-1 and FR-2", "requirements FR-1, FR-2
-// and FR-3"
-export function requirementsText(keys: string[]): string {
-  const names =
-    keys.length < 2
-      ? keys.join("")
-      : `${keys.slice(0, -1).join(", ")} and ${keys[keys.length - 1]}`;
-  return `${keys.length === 1 ? "requirement" : "requirements"} ${names}`;
 }
 
 // Which test a tests2check result is about, as the tool names it.
@@ -289,22 +277,19 @@ const HEADER_STYLE =
 const NEEDS_REVIEW_STYLE =
   ' style="color:var(--vscode-editorWarning-foreground);"';
 
-// What the tooltip of "Mark as reviewed" says the mark means: on a test
-// VectorCAST flags for review, and on any other.
-export const MARK_FLAGGED_TOOLTIP =
-  "You checked that this test still fits the changed requirement";
+// What "Mark as reviewed" and the "Undo" of a marked test say on hover.
 export const MARK_TOOLTIP = "You reviewed this test";
 export const UNMARK_TOOLTIP = "Take the reviewed mark back";
 
-// What a review knows of the human review of its tests: those VectorCAST
-// flags for review (by node ID, the keys of their changed requirements),
-// those marked as reviewed, and the commands (a test's node ID the argument)
-// that mark a test as reviewed and take the mark back, for the links on each.
-export interface ReviewFlags {
-  flagged: Map<string, string[]>;
-  reviewed?: Set<string>;
-  markCommand?: string;
-  unmarkCommand?: string;
+// What a person's own review of the tests, named by their node IDs, stands
+// at: the keys of the changed requirements a test is flagged for review for
+// (none if it is not), whether it is marked as reviewed, and the commands
+// (a test's node their argument) that mark a test and take the mark back.
+export interface TestReviewState {
+  changed(testId: string): string[];
+  reviewed(testId: string): boolean;
+  markCommand: string;
+  unmarkCommand: string;
 }
 
 // A command link's target, with the command's arguments.
@@ -312,62 +297,23 @@ export function commandUri(command: string, args: unknown[]): string {
   return `command:${command}?${encodeURIComponent(JSON.stringify(args))}`;
 }
 
-// "2026-11-24" for the day, here, of an ISO date and time; empty when it is
-// not one.
-export function localDay(isoTime: string): string {
-  const time = new Date(isoTime);
-  if (Number.isNaN(time.getTime())) return "";
-  const two = (value: number) => String(value).padStart(2, "0");
-  return `${time.getFullYear()}-${two(time.getMonth() + 1)}-${two(time.getDate())}`;
-}
-
-// Below a flagged test's name in the group comment's table: that it needs
-// review, and for which requirements.
-function needsReviewHtml(testId: string | undefined, review: ReviewFlags) {
-  const changed = (testId && review.flagged.get(testId)) || [];
-  if (!testId || changed.length === 0) return "";
-  // Only the first words are colored: a comment never wraps a span.
-  return (
-    `<br><span${NEEDS_REVIEW_STYLE}>Needs review:</span> ` +
-    `${escapeHtml(requirementsText(changed))} changed`
-  );
-}
-
-// The last cell of a test's row in the group comment's table: that the test
-// was reviewed, with the link that takes that back, or the link that marks
-// it as reviewed. Empty for a test that is not in the test tree. Its words
-// do not break apart, so a narrow editor wraps the test's name instead and
-// the row stays one line high.
-function reviewedCellHtml(testId: string | undefined, review: ReviewFlags) {
-  if (!testId) return "";
-  if (review.reviewed?.has(testId) && !review.flagged.has(testId)) {
-    const undo = review.unmarkCommand
-      ? `&nbsp;&nbsp;<a href="${commandUri(review.unmarkCommand, [testId])}" title="${UNMARK_TOOLTIP}">Undo</a>`
-      : "";
-    return `<span${VERDICT_STYLES.PASS}>✔&nbsp;Reviewed</span>${undo}`;
-  }
-  if (!review.markCommand) return "";
-  const tooltip = review.flagged.has(testId)
-    ? MARK_FLAGGED_TOOLTIP
-    : MARK_TOOLTIP;
-  return `<a href="${commandUri(review.markCommand, [testId])}" title="${tooltip}">Mark&nbsp;as&nbsp;reviewed</a>`;
-}
-
 /**
  * The comment of a function's or unit's review: the counts, then a table
- * with one row per test (its verdict, its name, its requirements' verdicts;
- * fixed column widths, so a long name wraps inside its cell), then what the
- * highlighted lines and the gutter mean for several tests. The table is
- * HTML: a Markdown table gets no column widths in a comment.
+ * with one row per test (its verdict, its name, its requirements' verdicts
+ * and whether it was reviewed; fixed column widths, so a long name wraps
+ * inside its cell), then what the highlighted lines and the gutter mean for
+ * several tests. The table is HTML: a Markdown table gets no column widths
+ * in a comment.
  *
- * With `review`, the human review of the tests shows too: how many were
- * reviewed, a last column that says of each test that it was or marks it as
- * reviewed, and below a flagged test's name that it needs review.
+ * A test of the test tree is marked as reviewed, or the mark taken back, by
+ * the link in its last cell, whose words do not break apart: a narrow editor
+ * wraps the test's name instead. A flagged test says below its name that it
+ * needs review.
  */
 export function groupMarkdown(
   title: string,
   tests: ReviewedTest[],
-  review?: ReviewFlags
+  review: TestReviewState
 ): string {
   const verdicts = tests.map((test) => test.data.verdict);
   const overall = verdicts.includes("FAIL")
@@ -377,33 +323,37 @@ export function groupMarkdown(
       : "";
   const th = (width: string, text: string) =>
     `<th align="left" width="${width}"${HEADER_STYLE}>${text}</th>`;
+  const link = (command: string, testId: string, tooltip: string) =>
+    `<a href="${commandUri(command, [{ id: testId }])}" title="${tooltip}">`;
   const rows = tests.map(({ testId, data }) => {
     const requirements = data.requirements
       .map((req) => `${mark(req.verdict)} ${escapeHtml(req.key)}`)
       .join("<br>");
+    const changed = testId ? review.changed(testId) : [];
+    // Only the first words are colored: a comment never wraps a span.
+    const needsReview = changed.length
+      ? `<br><span${NEEDS_REVIEW_STYLE}>Needs review:</span> ${escapeHtml(changed.join(", "))} changed`
+      : "";
+    let reviewed = "";
+    if (testId) {
+      reviewed = review.reviewed(testId)
+        ? `<span${VERDICT_STYLES.PASS}>✔&nbsp;Reviewed</span>&nbsp;&nbsp;${link(review.unmarkCommand, testId, UNMARK_TOOLTIP)}Undo</a>`
+        : `${link(review.markCommand, testId, MARK_TOOLTIP)}Mark&nbsp;as&nbsp;reviewed</a>`;
+    }
     return (
       `<tr><td${VERDICT_STYLES[data.verdict] ?? ""}><b>${mark(data.verdict)} ${escapeHtml(data.verdict)}</b></td>` +
-      `<td>${escapeHtml(data.title)}${review ? needsReviewHtml(testId, review) : ""}</td><td>${requirements}</td>` +
-      `${review ? `<td>${reviewedCellHtml(testId, review)}</td>` : ""}</tr>`
+      `<td>${escapeHtml(data.title)}${needsReview}</td><td>${requirements}</td><td>${reviewed}</td></tr>`
     );
   });
   // Only a test of the test tree can be marked as reviewed.
   const markable = tests.flatMap((test) => (test.testId ? [test.testId] : []));
-  const reviewedCount = markable.filter(
-    (testId) => review?.reviewed?.has(testId) && !review.flagged.has(testId)
-  ).length;
-  const reviewedText =
-    review && markable.length
-      ? ` &nbsp;&nbsp; ${reviewedCount} of ${markable.length} reviewed`
-      : "";
-  const header = review
-    ? `${th("12%", "Verdict")}${th("44%", "Test")}${th("26%", "Requirements")}${th("18%", "Reviewed")}`
-    : `${th("14%", "Verdict")}${th("56%", "Test")}${th("30%", "Requirements")}`;
+  const reviewedCount = markable.filter(review.reviewed).length;
   return [
-    `#### ${mark(overall)} ${escapeMarkdown(title)} &nbsp;&nbsp; ${countVerdicts(verdicts)}${reviewedText}`,
+    `#### ${mark(overall)} ${escapeMarkdown(title)} &nbsp;&nbsp; ${countVerdicts(verdicts)}` +
+      ` &nbsp;&nbsp; ${reviewedCount} of ${markable.length} reviewed`,
     [
       '<table width="100%">',
-      `<thead><tr>${header}</tr></thead>`,
+      `<thead><tr>${th("12%", "Verdict")}${th("44%", "Test")}${th("26%", "Requirements")}${th("18%", "Reviewed")}</tr></thead>`,
       "<tbody>",
       ...rows,
       "</tbody>",

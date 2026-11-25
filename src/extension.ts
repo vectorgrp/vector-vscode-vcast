@@ -159,7 +159,6 @@ import {
   FocusChoice,
   focusReviewTest,
   MARK_REVIEWED_COMMAND,
-  markReviewAsNotReviewed,
   markReviewAsReviewed,
   openReview,
   pickReviewFocus,
@@ -174,7 +173,6 @@ import {
   setFocusChoices,
   choiceMatchingOpenReview,
   showCheckReport,
-  UNMARK_REVIEWED_COMMAND,
 } from "./requirements/testReview";
 import {
   countVerdicts,
@@ -184,11 +182,12 @@ import {
 } from "./requirements/testReviewData";
 import type { ReportGroup } from "./requirements/testReviewReport";
 import {
-  flaggedTestsUnder,
   initializeReviewMarks,
-  markTestsAsReviewed,
+  MARK_TEST_COMMAND,
+  markAsReviewed,
   refreshAllReviewFlags,
   refreshReviewFlags,
+  UNMARK_TEST_COMMAND,
   unmarkTestsAsReviewed,
 } from "./requirements/reviewFlags";
 
@@ -1964,16 +1963,6 @@ function configureExtension(context: vscode.ExtensionContext) {
     }
   );
 
-  // "Mark as Reviewed" on a test of the test tree, "Mark Tests as Reviewed"
-  // on a node above tests that VectorCAST flags for review, which marks
-  // those.
-  const markNodeAsReviewed = async (args: any) => {
-    if (typeof args?.id !== "string") return;
-    await markTestsAsReviewed(
-      getTestNode(args.id)?.testName ? [args.id] : flaggedTestsUnder(args.id)
-    );
-  };
-
   registerReviewHover(context);
   // Before the test tree is built, which shows the tests marked as reviewed.
   initializeReviewMarks(context);
@@ -1981,30 +1970,19 @@ function configureExtension(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     openReqsCoverageReview,
     checkTestsAgainstRequirements,
-    vscode.commands.registerCommand(
-      "vectorcastTestExplorer.markTestAsReviewed",
-      markNodeAsReviewed
+    // "Mark as Reviewed" and "Mark as Not Reviewed" on a node of the test
+    // tree, which the links of a requirements check run too, and the button
+    // of a check's comment.
+    vscode.commands.registerCommand(MARK_TEST_COMMAND, (node: { id: string }) =>
+      markAsReviewed(node.id)
     ),
     vscode.commands.registerCommand(
-      "vectorcastTestExplorer.markTestsAsReviewed",
-      markNodeAsReviewed
+      UNMARK_TEST_COMMAND,
+      (node: { id: string }) => unmarkTestsAsReviewed([node.id])
     ),
-    // "Mark as Not Reviewed" on a test of the test tree marked as reviewed
-    vscode.commands.registerCommand(
-      "vectorcastTestExplorer.markTestAsNotReviewed",
-      (args: any) => {
-        if (typeof args?.id === "string") unmarkTestsAsReviewed([args.id]);
-      }
-    ),
-    // The requirements check's "Mark as reviewed" button and links, and the
-    // "Undo" of a test marked as reviewed
     vscode.commands.registerCommand(
       MARK_REVIEWED_COMMAND,
       markReviewAsReviewed
-    ),
-    vscode.commands.registerCommand(
-      UNMARK_REVIEWED_COMMAND,
-      markReviewAsNotReviewed
     ),
     vscode.commands.registerCommand(
       "vectorcastTestExplorer.closeTestReview",

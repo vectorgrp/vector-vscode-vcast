@@ -1,17 +1,10 @@
 // Which tests a person reviewed, and which need review.
 //
 // VectorCAST flags a test as needing review when a requirement it is linked
-// to changed since. It keeps the flag in the requirements gateway and sets it
-// when it imports a changed requirement; a person who checked that the test
-// still fits the requirement clears it by marking the test as reviewed.
-//
-// Any other test can be marked as reviewed too. VectorCAST has no place for
-// that, so the mark is the extension's own, kept with the workspace. It
-// stays until it is taken back, the test is gone, or a changed requirement
-// flags the test.
-//
-// This module reads the flags, keeps the marks, shows the flags in the test
-// tree and marks tests as reviewed.
+// to changed. It keeps the flag in the requirements gateway; marking the test
+// as reviewed clears it. Any other test can be marked as reviewed too, which
+// VectorCAST has no place for: that mark is kept with the workspace, until it
+// is taken back, the test is gone or VectorCAST flags the test.
 
 import * as vscode from "vscode";
 import {
@@ -22,18 +15,10 @@ import {
   testNodeType,
 } from "../testData";
 import { findTestItem, makeEnviroNodeID } from "../testPane";
-import { clicastCommandToUse } from "../vcastInstallation";
-import {
-  closeConnection,
-  globalEnviroDataServerActive,
-} from "../../src-common/vcastServer";
-import { runReqs2xTool } from "./processRunner";
 import { logCliError } from "./requirementsLog";
 import { reqs2xUsable } from "./requirementsOperations";
-import {
-  findRequirementGatewayConfig,
-  resolveRequirementsGatewayInnerDir,
-} from "./rgwPath";
+import { runGatewayClicast } from "./rgwIo";
+import { resolveRequirementsGatewayInnerDir } from "./rgwPath";
 import {
   parseReviewFlags,
   reviewFlagKey,
@@ -43,38 +28,34 @@ import {
 const path = require("path");
 const fs = require("fs");
 
+// "Mark as Reviewed" and "Mark as Not Reviewed" of the test tree, which the
+// links in a requirements check run too. Their argument names the node.
+export const MARK_TEST_COMMAND = "vectorcastTestExplorer.markTestAsReviewed";
+export const UNMARK_TEST_COMMAND =
+  "vectorcastTestExplorer.markTestAsNotReviewed";
+
 // The flagged tests, by node ID: the keys of their changed requirements.
 const flaggedTests = new Map<string, string[]>();
-// The tests marked as reviewed, by node ID: when (an ISO date and time).
-const reviewedTests = new Map<string, string>();
+// The node IDs of the tests marked as reviewed. No flagged test is among them.
+const reviewedTests = new Set<string>();
 const REVIEWED_TESTS_KEY = "vectorcastTestExplorer.reviewedTests";
 let reviewMarkStore: vscode.Memento | undefined;
 
-/**
- * Reads the tests marked as reviewed in earlier sessions. Called on
- * activation, before the test tree is built.
- */
+/** Reads the marks of earlier sessions. Called before the test tree is built. */
 export function initializeReviewMarks(context: vscode.ExtensionContext): void {
   reviewMarkStore = context.workspaceState;
-  reviewedTests.clear();
-  const saved = reviewMarkStore.get<Record<string, unknown>>(
-    REVIEWED_TESTS_KEY,
-    {}
-  );
-  for (const [testId, at] of Object.entries(saved ?? {})) {
-    if (typeof at === "string") reviewedTests.set(testId, at);
+  const saved = reviewMarkStore.get<unknown>(REVIEWED_TESTS_KEY);
+  for (const testId of Array.isArray(saved) ? saved : []) {
+    reviewedTests.add(testId);
   }
 }
 
 function saveReviewMarks(): void {
-  void reviewMarkStore?.update(
-    REVIEWED_TESTS_KEY,
-    Object.fromEntries(reviewedTests)
-  );
+  void reviewMarkStore?.update(REVIEWED_TESTS_KEY, [...reviewedTests]);
 }
 
 const changeEmitter = new vscode.EventEmitter<void>();
-/** Fires when a test was flagged for review, marked as reviewed or unmarked. */
+/** Fires when the flags and marks were read again or a mark changed. */
 export const onDidChangeReviewFlags = changeEmitter.event;
 
 /** The keys of the changed requirements a test needs review for; none if it does not. */
@@ -82,12 +63,8 @@ export function requirementsNeedingReview(testId: string): string[] {
   return flaggedTests.get(testId) ?? [];
 }
 
-/**
- * When the test was marked as reviewed (an ISO date and time); undefined if
- * it is not, or a changed requirement flagged it since.
- */
-export function reviewedAt(testId: string): string | undefined {
-  return reviewedTests.get(testId);
+export function isReviewed(testId: string): boolean {
+  return reviewedTests.has(testId);
 }
 
 // The tests of an environment the gateway flags, by `reviewFlagKey`. None
@@ -114,11 +91,10 @@ function readReviewFlags(enviroPath: string): Map<string, string[]> {
 const NEEDS_REVIEW = "needs review";
 
 // Says in the tree which tests need review, and returns the IDs of the nodes
-// above them. Only this is said there, and only on the tests: VS Code builds
-// a node's tooltip and what a screen reader says of it from its description
-// in place of its name. So a test marked as reviewed, which most tests end up
-// as, shows it in its context menu only ("Mark as Not Reviewed"), and the
-// nodes above flagged tests, which are found by their names, say nothing.
+// above them. Nothing else is said there: VS Code builds a node's tooltip and
+// what a screen reader says of it from its description in place of its name.
+// So a reviewed test shows it in its menu only, and the nodes above flagged
+// tests, which are found by their names, say nothing.
 function annotateTree(enviroItem: vscode.TestItem): string[] {
   const parents: string[] = [];
   const annotate = (item: vscode.TestItem): number => {
@@ -138,31 +114,14 @@ function annotateTree(enviroItem: vscode.TestItem): string[] {
   return parents;
 }
 
-// The nodes above flagged tests, by environment node ID, for the context
-// menu's "Mark Tests as Reviewed".
+// The nodes above flagged tests, by the path of each environment in the tree.
 const parentsOfFlagged = new Map<string, string[]>();
-// The environments of the test tree
-const shownEnviros = new Set<string>();
-// What was last shown of each environment's flags and marks, by environment
-// node ID, to tell when it changed.
-const shownStates = new Map<string, string>();
 
-function publishContext(): void {
+function setContext(key: string, nodeIds: string[]): void {
   void vscode.commands.executeCommand(
     "setContext",
-    "vectorcastTestExplorer.testsNeedingReview",
-    [...flaggedTests.keys()]
-  );
-  void vscode.commands.executeCommand(
-    "setContext",
-    "vectorcastTestExplorer.nodesWithTestsNeedingReview",
-    [...parentsOfFlagged.values()].flat()
-  );
-  // For "Mark as Reviewed" on the tests that are not, and its opposite.
-  void vscode.commands.executeCommand(
-    "setContext",
-    "vectorcastTestExplorer.reviewedTests",
-    [...reviewedTests.keys()]
+    `vectorcastTestExplorer.${key}`,
+    nodeIds
   );
 }
 
@@ -171,8 +130,7 @@ function publishContext(): void {
  * it, with the tests marked as reviewed, in the test tree, the open
  * requirements check and its report. Called when the environment's tree is
  * built (with its new node, which is not in the tree yet) and after anything
- * that changes the flags or the marks: saving the requirements, marking a
- * test as reviewed or taking that back.
+ * that changes the flags or the marks.
  */
 export function refreshReviewFlags(
   enviroPath: string,
@@ -180,16 +138,6 @@ export function refreshReviewFlags(
 ): void {
   const enviroNodeID = makeEnviroNodeID(enviroPath);
   const prefix = `${enviroNodeID}|`;
-  const ofEnviro = () =>
-    [
-      ...[...flaggedTests].map(([id, keys]) => `${id}\n${keys.join("\n")}`),
-      ...[...reviewedTests].map(([id, at]) => `${id}\nreviewed ${at}`),
-    ]
-      .filter((entry) => entry.startsWith(prefix))
-      .sort()
-      .join("\n\n");
-  const before = shownStates.get(enviroNodeID) ?? "";
-
   for (const id of [...flaggedTests.keys()]) {
     if (id.startsWith(prefix)) flaggedTests.delete(id);
   }
@@ -201,21 +149,18 @@ export function refreshReviewFlags(
     if (typeof id !== "string" || !id.startsWith(prefix)) continue;
     if (!node?.testName) continue;
     tests.add(id);
-    const keys = flags.size
-      ? flags.get(
-          reviewFlagKey(
-            node.unitName ?? "",
-            node.functionName ?? "",
-            node.testName.replace(compoundOnlyString, "")
-          )
-        )
-      : undefined;
+    const keys = flags.get(
+      reviewFlagKey(
+        node.unitName ?? "",
+        node.functionName ?? "",
+        node.testName.replace(compoundOnlyString, "")
+      )
+    );
     if (keys) flaggedTests.set(id, keys);
   }
-  // A changed requirement takes a test's mark back. So does a test that is
-  // gone, which is only told when the tree was just built.
+  // Whether a test is gone is only told when the tree was just built.
   const stale = staleReviewMarks(
-    reviewedTests.keys(),
+    reviewedTests,
     prefix,
     flaggedTests,
     enviroItem ? tests : undefined
@@ -224,17 +169,14 @@ export function refreshReviewFlags(
   if (stale.length) saveReviewMarks();
 
   const item = enviroItem ?? findTestItem(enviroNodeID);
-  if (item) {
-    shownEnviros.add(enviroPath);
-    parentsOfFlagged.set(enviroNodeID, annotateTree(item));
-  } else {
-    shownEnviros.delete(enviroPath);
-    parentsOfFlagged.delete(enviroNodeID);
-  }
-  publishContext();
-  const now = ofEnviro();
-  shownStates.set(enviroNodeID, now);
-  if (now !== before) changeEmitter.fire();
+  if (item) parentsOfFlagged.set(enviroPath, annotateTree(item));
+  else parentsOfFlagged.delete(enviroPath);
+  setContext(
+    "nodesWithTestsNeedingReview",
+    [...parentsOfFlagged.values()].flat()
+  );
+  setContext("reviewedTests", [...reviewedTests]);
+  changeEmitter.fire();
 }
 
 /**
@@ -242,104 +184,71 @@ export function refreshReviewFlags(
  * are shown changed, as the requirements features were turned on or off.
  */
 export function refreshAllReviewFlags(): void {
-  for (const enviroPath of [...shownEnviros]) refreshReviewFlags(enviroPath);
-}
-
-// The flagged tests among those of a tree node: the test itself, or every
-// test under an environment, unit or function.
-export function flaggedTestsUnder(nodeId: string): string[] {
-  if (flaggedTests.has(nodeId)) return [nodeId];
-  const node: testNodeType | undefined = getTestNode(nodeId);
-  if (!node || node.testName) return [];
-  return [...flaggedTests.keys()].filter((id) => {
-    const test: testNodeType | undefined = getTestNode(id);
-    return (
-      test?.enviroNodeID === node.enviroNodeID &&
-      (!node.unitName || test.unitName === node.unitName) &&
-      (!node.functionName || test.functionName === node.functionName)
-    );
-  });
+  for (const enviroPath of [...parentsOfFlagged.keys()]) {
+    refreshReviewFlags(enviroPath);
+  }
 }
 
 const testNameOf = (testId: string): string =>
   (getTestNode(testId)?.testName ?? testId).replace(compoundOnlyString, "");
 
-// Shows the flags and marks of the tests' environments as they are now.
+// "PLACE_ORDER.001", "3 tests"
+const named = (testIds: string[]): string =>
+  testIds.length === 1 ? testNameOf(testIds[0]) : `${testIds.length} tests`;
+
 function refreshEnvirosOf(testIds: string[]): void {
-  const enviroPaths = new Set(
-    testIds.flatMap((id) => {
-      const enviroPath = getTestNode(id)?.enviroPath;
-      return enviroPath ? [enviroPath] : [];
-    })
-  );
-  for (const enviroPath of enviroPaths) refreshReviewFlags(enviroPath);
+  const enviroPaths = testIds.map((id) => getTestNode(id)?.enviroPath);
+  for (const enviroPath of new Set(enviroPaths)) {
+    if (enviroPath) refreshReviewFlags(enviroPath);
+  }
 }
 
-// Clears VectorCAST's flag on the flagged tests, which runs clicast once per
-// test. Whether it worked shows in the flags, which are read again.
+// Clears VectorCAST's flag on the tests: one clicast call each. clicast exits
+// with 0 even when it marked nothing, so whether it worked shows in the
+// flags, which are read again.
 async function clearReviewFlags(flagged: string[]): Promise<void> {
-  const byEnviro = new Map<string, string[]>();
-  for (const id of flagged) {
-    const { enviroPath } = getTestNode(id);
-    byEnviro.set(enviroPath, [...(byEnviro.get(enviroPath) ?? []), id]);
-  }
   await vscode.window.withProgress(
     {
-      location:
-        flagged.length > 1
-          ? vscode.ProgressLocation.Notification
-          : vscode.ProgressLocation.Window,
-      title: "Marking as reviewed",
+      location: vscode.ProgressLocation.Notification,
+      title: `Marking ${named(flagged)} as reviewed`,
     },
-    async (progress) => {
-      for (const [enviroPath, ids] of byEnviro) {
-        // A clicast server still holding the environment would write its own
-        // copy of the flags over the cleared ones when it closes.
-        if (globalEnviroDataServerActive) await closeConnection(enviroPath);
-        // -lc reads only CCAST_.CFG, -lada only ADACAST_.CFG.
-        const language = findRequirementGatewayConfig(
-          enviroPath
-        )?.configPath.endsWith("ADACAST_.CFG")
-          ? "-lada"
-          : "-lc";
-        for (const id of ids) {
-          progress.report({
-            message: testNameOf(id),
-            increment: 100 / flagged.length,
-          });
-          try {
-            // VectorCAST marks one test per call.
-            await runReqs2xTool({
-              exe: clicastCommandToUse,
-              args: [
-                language,
-                // Unquoted, as no shell reads them
-                ...getClicastArgsFromTestNodeAsList(getTestNode(id), true),
-                "RGw",
-                "Testcase",
-                "Mark_as_reviewed",
-              ],
-              cwd: path.dirname(enviroPath),
-              captureOutput: true,
-              allowNonZeroExit: true,
-            });
-          } catch (error) {
-            logCliError(`Could not run clicast: ${error}`);
-          }
+    async () => {
+      try {
+        for (const id of flagged) {
+          const node = getTestNode(id);
+          await runGatewayClicast(node.enviroPath, [
+            // Unquoted, as no shell reads them
+            ...getClicastArgsFromTestNodeAsList(node, true),
+            "RGw",
+            "Testcase",
+            "Mark_as_reviewed",
+          ]);
         }
-        // clicast exits with 0 even when it marked nothing, so what tells is
-        // the flag itself.
-        refreshReviewFlags(enviroPath);
+      } catch (error) {
+        logCliError(`Could not run clicast: ${error}`);
       }
     }
   );
+  refreshEnvirosOf(flagged);
 }
 
 /**
- * Marks the tests as reviewed. On a test VectorCAST flags for review this
- * clears the flag, which cannot be undone, so several of those are marked
- * only after the user confirmed. Says so when a test could not be marked.
+ * Marks as reviewed what the node of the test tree stands for: the test, or
+ * the flagged tests under an environment, unit or function. On a flagged test
+ * this clears VectorCAST's flag, which cannot be undone, so several of those
+ * are marked only after the user confirmed.
  */
+export async function markAsReviewed(nodeId: string): Promise<void> {
+  const underNode = (id: string) =>
+    id.startsWith(`${nodeId}|`) || id.startsWith(`${nodeId}.`);
+  await markTestsAsReviewed(
+    getTestNode(nodeId)?.testName
+      ? [nodeId]
+      : [...flaggedTests.keys()].filter(underNode)
+  );
+}
+
+/** As above, for the tests themselves. Says so when one could not be marked. */
 export async function markTestsAsReviewed(testIds: string[]): Promise<void> {
   const tests = [...new Set(testIds)].filter((id) => getTestNode(id)?.testName);
   if (tests.length === 0) {
@@ -352,14 +261,13 @@ export async function markTestsAsReviewed(testIds: string[]): Promise<void> {
   if (flagged.length > 1) {
     const confirm = "Mark as Reviewed";
     const names = flagged.map(testNameOf);
-    const shown = names.slice(0, 10).join("\n");
     const more = names.length > 10 ? `\n… and ${names.length - 10} more` : "";
     const choice = await vscode.window.showWarningMessage(
       `Mark ${flagged.length} tests as reviewed?`,
       {
         modal: true,
         detail:
-          `${shown}${more}\n\n` +
+          `${names.slice(0, 10).join("\n")}${more}\n\n` +
           "A requirement each of them is linked to changed. Marking them " +
           "says that you checked they still fit it, and cannot be undone.",
       },
@@ -369,30 +277,23 @@ export async function markTestsAsReviewed(testIds: string[]): Promise<void> {
   }
   if (flagged.length) await clearReviewFlags(flagged);
 
-  // A test VectorCAST still flags was not marked.
+  // A test VectorCAST still flags could not be marked.
   const failed = flagged.filter((id) => flaggedTests.has(id));
   const marked = tests.filter((id) => !failed.includes(id));
-  const at = new Date().toISOString();
-  for (const id of marked) reviewedTests.set(id, at);
-  if (marked.length) {
-    saveReviewMarks();
-    refreshEnvirosOf(marked);
-  }
-
+  for (const id of marked) reviewedTests.add(id);
   if (failed.length) {
     vscode.window.showWarningMessage(
       `Could not mark ${failed.map(testNameOf).join(", ")} as reviewed. ` +
         'The "VectorCAST Requirement Test Generation Operations" output says what clicast reported.'
     );
   }
-  if (marked.length) {
-    vscode.window.setStatusBarMessage(
-      marked.length === 1
-        ? `$(pass) Marked ${testNameOf(marked[0])} as reviewed`
-        : `$(pass) Marked ${marked.length} tests as reviewed`,
-      5000
-    );
-  }
+  if (marked.length === 0) return;
+  saveReviewMarks();
+  refreshEnvirosOf(marked);
+  vscode.window.setStatusBarMessage(
+    `$(pass) Marked ${named(marked)} as reviewed`,
+    5000
+  );
 }
 
 /**
@@ -400,15 +301,12 @@ export async function markTestsAsReviewed(testIds: string[]): Promise<void> {
  * cleared stays cleared: VectorCAST cannot set it again.
  */
 export function unmarkTestsAsReviewed(testIds: string[]): void {
-  const marked = [...new Set(testIds)].filter((id) => reviewedTests.has(id));
+  const marked = testIds.filter((id) => reviewedTests.delete(id));
   if (marked.length === 0) return;
-  for (const id of marked) reviewedTests.delete(id);
   saveReviewMarks();
   refreshEnvirosOf(marked);
   vscode.window.setStatusBarMessage(
-    marked.length === 1
-      ? `$(circle-slash) ${testNameOf(marked[0])} is no longer marked as reviewed`
-      : `$(circle-slash) ${marked.length} tests are no longer marked as reviewed`,
+    `$(circle-slash) ${named(marked)}: no longer marked as reviewed`,
     5000
   );
 }

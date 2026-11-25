@@ -3,7 +3,6 @@
 
 import {
   escapeHtml,
-  MARK_FLAGGED_TOOLTIP,
   MARK_TOOLTIP,
   RequirementData,
   ReviewedTest,
@@ -17,15 +16,6 @@ export interface ReportGroup {
   unitName: string;
   functionName: string;
   tests: ReviewedTest[];
-}
-
-// Which of the report's tests VectorCAST flags for review (by node ID, the
-// keys of their changed requirements), and which are marked as reviewed (by
-// node ID, the day they were). The page shows it when it loads and again on
-// each `{ type: "review-status", ...status }` message.
-export interface ReportReviewStatus {
-  needsReview: Record<string, string[]>;
-  reviewed: Record<string, string>;
 }
 
 // "1 passed, 1 failed", passed and failed in the test explorer's colors.
@@ -166,7 +156,10 @@ function unitHtml(unitName: string, groups: ReportGroup[]): string {
  * and posts `{ type: "unmark-reviewed", testIds }`. The headers count the
  * reviewed tests under them. A test VectorCAST flags for review says so, as
  * do the headers above it and a banner at the top, whose button marks all of
- * them.
+ * them. Which tests those are the page asks for when it has loaded
+ * (`{ type: "ready" }`) and is told, then and whenever it changes, by
+ * `{ type: "review-status", needsReview, reviewed }`: by node ID the keys of
+ * a flagged test's changed requirements, and the node IDs of the marked tests.
  */
 export function checkReportHtml(options: {
   scope: string;
@@ -174,20 +167,10 @@ export function checkReportHtml(options: {
   // Tests of the scope that tests2check left out: those not linked to a
   // requirement.
   unchecked?: string[];
-  reviewStatus?: ReportReviewStatus;
   nonce: string;
   cspSource: string;
 }): string {
   const { scope, groups, unchecked = [], nonce, cspSource } = options;
-  const reviewStatus: ReportReviewStatus = options.reviewStatus ?? {
-    needsReview: {},
-    reviewed: {},
-  };
-  // Inside a script, "<" could end it.
-  const initialReviewStatus = JSON.stringify(reviewStatus).replace(
-    /</g,
-    "\\u003c"
-  );
   const verdicts = groups.flatMap((group) =>
     group.tests.map((test) => test.data.verdict)
   );
@@ -236,10 +219,10 @@ export function checkReportHtml(options: {
     button.open { border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
     button.open:hover { background: var(--vscode-button-hoverBackground); }
     button.open.group { font-weight: normal; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
-    .stale-banner { margin: 8px 0 12px; padding: 6px 10px; border: 1px solid var(--vscode-editorWarning-foreground); border-radius: 4px; }
+    .stale-banner, .review-banner { margin: 8px 0 12px; padding: 6px 10px; border: 1px solid var(--vscode-editorWarning-foreground); border-radius: 4px; }
     .stale-banner .mark, details.stale > summary .title::after { color: var(--vscode-editorWarning-foreground); }
     details.stale > summary .title::after { content: " \u26A0 out of date"; font-weight: normal; white-space: nowrap; }
-    button.rerun { margin-left: 12px; border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); font: inherit; }
+    button.rerun, .review-banner button.mark-reviewed { margin-left: 12px; border: none; border-radius: 2px; padding: 2px 10px; cursor: pointer; color: var(--vscode-button-foreground); background: var(--vscode-button-background); font: inherit; }
     button.open { font: inherit; font-size: var(--vscode-font-size); }
     .passed { color: var(--vscode-testing-iconPassed); }
     .failed { color: var(--vscode-testing-iconFailed); }
@@ -254,15 +237,12 @@ export function checkReportHtml(options: {
     button.mark-reviewed:hover { background: var(--vscode-button-secondaryHoverBackground); }
     details.reviewed > summary button.mark-reviewed { color: var(--vscode-testing-iconPassed); background: transparent; border-color: currentColor; }
     details.reviewed > summary button.mark-reviewed:hover { background: var(--vscode-toolbar-hoverBackground); }
-    .review-banner { margin: 8px 0 12px; padding: 6px 10px; border: 1px solid var(--vscode-editorWarning-foreground); border-radius: 4px; }
-    .review-banner button.mark-reviewed { min-width: 0; margin-left: 12px; color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
-    .review-banner button.mark-reviewed:hover { background: var(--vscode-button-hoverBackground); }
   </style>
 </head>
 <body>
   <h1>Requirements check: ${escapeHtml(scope)}</h1>
   <p class="summary-line">${countsHtml(verdicts)}.${uncheckedHtml(unchecked)} <span class="disclaimer">AI-generated requirements check. Review before relying on it.</span></p>
-  <p id="review-banner" class="review-banner" hidden><span class="mark">\u26A0 </span><span class="text"></span><button type="button" class="mark-reviewed"></button></p>
+  <p id="review-banner" class="review-banner" hidden><span class="mark">\u26A0 </span><span class="text"></span><button type="button" class="mark-reviewed">Mark as reviewed</button></p>
   ${[...units].map(([unitName, unitGroups]) => unitHtml(unitName, unitGroups)).join("\n")}
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
@@ -304,42 +284,35 @@ export function checkReportHtml(options: {
     // flagged test says that it needs review; the headers count both, and a
     // banner marks all flagged tests.
     function showReviewStatus(status) {
-      const needsReview = status.needsReview || {};
-      const reviewed = status.reviewed || {};
+      const reviewed = new Set(status.reviewed);
       for (const row of document.querySelectorAll("details.test[data-test-id]")) {
-        const changed = needsReview[row.dataset.testId];
-        const marked = !changed && Object.prototype.hasOwnProperty.call(reviewed, row.dataset.testId);
+        const changed = status.needsReview[row.dataset.testId];
+        const marked = reviewed.has(row.dataset.testId);
         row.classList.toggle("needs-review", !!changed);
         row.classList.toggle("reviewed", marked);
         const flag = row.querySelector(".review-flag");
         flag.textContent = changed ? "needs review" : "";
-        flag.title = changed ? "Changed since this test was last reviewed: " + changed.join(", ") : "";
+        flag.title = changed ? changed.join(", ") + " changed" : "";
         const button = row.querySelector("button.mark-reviewed");
-        const day = marked ? reviewed[row.dataset.testId] : "";
         button.textContent = marked ? "\u2714 Reviewed" : "Mark as reviewed";
-        button.title = marked
-          ? "You marked this test as reviewed" + (day ? " on " + day : "") + ". ${UNMARK_TOOLTIP}."
-          : changed ? "${MARK_FLAGGED_TOOLTIP}" : "${MARK_TOOLTIP}";
+        button.title = marked ? "${UNMARK_TOOLTIP}" : "${MARK_TOOLTIP}";
       }
       const needing = (count) => count === 1 ? "1 test needs review" : count + " tests need review";
+      const count = (root, selector) => root.querySelectorAll("details.test" + selector).length;
       for (const header of document.querySelectorAll("details.unit, details.function")) {
-        const count = header.querySelectorAll("details.test.needs-review").length;
-        header.querySelector(":scope > summary .review-count").textContent = count ? needing(count) : "";
-        const markable = header.querySelectorAll("details.test[data-test-id]").length;
-        const done = header.querySelectorAll("details.test.reviewed").length;
+        const flagged = count(header, ".needs-review");
+        header.querySelector(":scope > summary .review-count").textContent = flagged ? needing(flagged) : "";
+        const markable = count(header, "[data-test-id]");
+        const done = count(header, ".reviewed");
         const progress = header.querySelector(":scope > summary .reviewed-count");
         progress.textContent = markable ? done + " of " + markable + " reviewed" : "";
         progress.classList.toggle("all", markable > 0 && done === markable);
       }
-      const total = document.querySelectorAll("details.test.needs-review").length;
+      const flagged = count(document, ".needs-review");
       const banner = document.getElementById("review-banner");
-      banner.hidden = total === 0;
-      banner.querySelector(".text").textContent = needing(total) + ": a requirement " +
-        (total === 1 ? "it is" : "they are") + " linked to changed. Check that " +
-        (total === 1 ? "it still fits" : "they still fit") + " it.";
-      banner.querySelector("button").textContent = total === 1 ? "Mark as reviewed" : "Mark all " + total + " as reviewed";
+      banner.hidden = flagged === 0;
+      banner.querySelector(".text").textContent = needing(flagged) + ": a requirement changed.";
     }
-    showReviewStatus(${initialReviewStatus});
     // The extension says which checked tests changed since the check: a
     // banner with a re-run button, and a mark on those tests and their headers.
     window.addEventListener("message", (event) => {
@@ -374,6 +347,7 @@ export function checkReportHtml(options: {
       button.textContent = "Re-run check";
       banner.append(mark, text, button);
     });
+    vscode.postMessage({ type: "ready" });
   </script>
 </body>
 </html>`;

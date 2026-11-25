@@ -243,6 +243,25 @@ export function readRGWBundle(enviroPath: string): RGWBundle | null {
 // ---------- Write -----------------------------------------------------------
 
 /**
+ * Runs a clicast command that changes the environment's requirements gateway,
+ * with the config that names the gateway: -lc reads only CCAST_.CFG, -lada
+ * only ADACAST_.CFG. A clicast server still holding the environment would
+ * write its own copy of the gateway over the change when it closes, so it is
+ * closed first.
+ */
+export async function runGatewayClicast(enviroPath: string, args: string[]) {
+  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
+  const configPath = findRequirementGatewayConfig(enviroPath)?.configPath;
+  return runReqs2xTool({
+    exe: clicastCommandToUse,
+    args: [configPath?.endsWith("ADACAST_.CFG") ? "-lada" : "-lc", ...args],
+    cwd: path.dirname(enviroPath),
+    captureOutput: true,
+    allowNonZeroExit: true,
+  });
+}
+
+/**
  * Persist edits back into the RGW.
  *
  * Requirement bodies travel via the source CSV: panreq rewrites it, and
@@ -332,24 +351,9 @@ export async function writeRGWBundle(
     }
   }
 
-  // 2. Import with the config that names the gateway: -lc reads only
-  //    CCAST_.CFG, -lada only ADACAST_.CFG. Writing titles back ourselves would
-  //    make every later import re-flag titles that older VC versions cut to 50.
-  //    A clicast server still holding the environment would write its own copy
-  //    of the gateway over the import's flags when it closes, so close it first.
-  if (globalEnviroDataServerActive) await closeConnection(enviroPath);
-  const configPath = findRequirementGatewayConfig(enviroPath)?.configPath;
-  const result = await runReqs2xTool({
-    exe: clicastCommandToUse,
-    args: [
-      configPath?.endsWith("ADACAST_.CFG") ? "-lada" : "-lc",
-      "RGw",
-      "Import",
-    ],
-    cwd: path.dirname(enviroPath),
-    captureOutput: true,
-    allowNonZeroExit: true,
-  });
+  // 2. Import. Writing titles back ourselves would make every later import
+  //    re-flag titles that older VC versions cut to 50.
+  const result = await runGatewayClicast(enviroPath, ["RGw", "Import"]);
   if (result.exitCode !== 0) {
     throw new Error(
       `RGw Import exited with code ${result.exitCode}: ${result.stdout?.trim()}`
